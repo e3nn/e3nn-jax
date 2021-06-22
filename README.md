@@ -11,7 +11,7 @@ f(x, y)
 
 `jax` version:
 ```python
-ins, nw, f = fully_connected_tensor_product(irreps1, irreps2, irreps3)
+ins, nw, f, r = fully_connected_tensor_product(irreps1, irreps2, irreps3)
 f = jax.vmap(f, (None, 0, 0), 0)
 f = jax.jit(f)
 
@@ -29,7 +29,7 @@ f(x, y, w)
 
 `jax` version:
 ```python
-ins, nw, f = fully_connected_tensor_product(irreps1, irreps2, irreps3)
+ins, nw, f, r = fully_connected_tensor_product(irreps1, irreps2, irreps3)
 f = jax.vmap(f, (0, 0, 0), 0)
 f = jax.jit(f)
 
