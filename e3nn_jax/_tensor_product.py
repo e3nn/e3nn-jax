@@ -1,5 +1,6 @@
 from math import sqrt
 from typing import List, Optional, Any
+from functools import partial
 
 from e3nn import o3
 from e3nn.util import prod
@@ -62,6 +63,15 @@ def tensor_product(
         for i_in1, i_in2, i_out, connection_mode, has_weight, path_weight in instructions
     ]
 
+    if in1_var is None:
+        in1_var = [1.0 for _ in range(len(irreps_in1))]
+
+    if in2_var is None:
+        in2_var = [1.0 for _ in range(len(irreps_in2))]
+
+    if out_var is None:
+        out_var = [1.0 for _ in range(len(irreps_out))]
+
     normalization_coefficients = []
     for ins in instructions:
         mul_ir_in1 = irreps_in1[ins.i_in1]
@@ -82,17 +92,8 @@ def tensor_product(
         }[ins.connection_mode])
         normalization_coefficients += [alpha]
 
-    einsum = oe.contract if optimize_einsums else jnp.einsum
+    einsum = partial(oe.contract, backend='jax') if optimize_einsums else jnp.einsum
     weight_numel = sum(prod(ins.path_shape) for ins in instructions if ins.has_weight)
-
-    if in1_var is None:
-        in1_var = [1.0 for _ in range(len(irreps_in1))]
-
-    if in2_var is None:
-        in2_var = [1.0 for _ in range(len(irreps_in2))]
-
-    if out_var is None:
-        out_var = [1.0 for _ in range(len(irreps_out))]
 
     def tp_left_right(weights, input1, input2):
         # = Short-circut for zero dimensional =
@@ -317,7 +318,7 @@ def tensor_product(
 
             ein_out = alpha * ein_out
 
-            out_list += [ein_out.reshape(mul_ir_out.dim)]
+            out_list += [ein_out.reshape(mul_ir_in1.dim, mul_ir_out.dim)]
 
         # = Return the result =
         out_out = jnp.concatenate([
