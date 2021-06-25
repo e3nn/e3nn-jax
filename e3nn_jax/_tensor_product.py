@@ -1,14 +1,14 @@
-from math import sqrt
-from typing import List, Optional, Any
 from functools import partial
+from math import sqrt
+from typing import Any, List, Optional
 
+# import jax
+import jax.numpy as jnp
+import opt_einsum as oe
 from e3nn import o3
 from e3nn.util import prod
 
 from ._instruction import Instruction
-
-import opt_einsum as oe
-import jax.numpy as jnp
 
 
 def _sum_tensors(xs, shape):
@@ -23,7 +23,7 @@ def _sum_tensors(xs, shape):
 def _as_list(irreps, x):
     if len(irreps) == 1:
         mul, ir = irreps[0]
-        return x.reshape(mul, ir.dim)
+        return [x.reshape(mul, ir.dim)]
     else:
         return [
             x[i].reshape(mul, ir.dim)
@@ -42,6 +42,7 @@ def tensor_product(
     normalization: str = 'component',
     specialized_code: bool = True,
     optimize_einsums: bool = True,
+    # custom_vjp: bool = True,
 ):
     irreps_in1 = o3.Irreps(irreps_in1)
     irreps_in2 = o3.Irreps(irreps_in2)
@@ -235,6 +236,19 @@ def tensor_product(
         ])
 
         return out_out.reshape(irreps_out.dim)
+
+    # if custom_vjp:
+    #     tp_left_right = jax.custom_vjp(tp_left_right)
+
+    #     def f_fwd(x, y):
+    #         # Returns primal output and residuals to be used in backward pass by f_bwd.
+    #         return f(x, y), (jnp.cos(x), jnp.sin(x), y)
+
+    #     def f_bwd(res, g):
+    #         cos_x, sin_x, y = res  # Gets residuals computed in f_fwd
+    #         return (cos_x * g * y, sin_x * g)
+
+    #     tp_left_right.defvjp(f_fwd, f_bwd)
 
     def tp_right(weights, input2):
         # = Short-circut for zero dimensional =
