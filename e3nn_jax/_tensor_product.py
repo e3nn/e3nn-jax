@@ -8,6 +8,8 @@ import opt_einsum as oe
 from e3nn import o3
 from e3nn.util import prod
 
+from e3nn_jax import wigner_3j
+
 from ._instruction import Instruction
 
 
@@ -140,7 +142,7 @@ def tensor_product(
 
             key = (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
             if key not in w3j_dict:
-                wig = o3.wigner_3j(*key).numpy()
+                wig = wigner_3j(*key)
 
                 if normalization == 'component':
                     wig *= mul_ir_out.ir.dim**0.5
@@ -282,7 +284,7 @@ def tensor_product(
 
             key = (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
             if key not in w3j_dict:
-                wig = o3.wigner_3j(*key).numpy()
+                wig = wigner_3j(*key)
 
                 if normalization == 'component':
                     wig *= mul_ir_out.ir.dim**0.5
