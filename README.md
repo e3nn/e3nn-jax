@@ -41,8 +41,7 @@ f(w, x, y)
 ```python
 import jax
 import jax.numpy as jnp
-from e3nn_jax import fully_connected_tensor_product
-from e3nn.o3 import Irreps  # TODO convert in e3nn_jax
+from e3nn_jax import fully_connected_tensor_product, Irreps
 
 # TODO make it a flax module
 irreps_in = Irreps('0e + 1e')
