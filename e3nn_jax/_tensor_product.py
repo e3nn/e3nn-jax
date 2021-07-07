@@ -1,8 +1,9 @@
 from functools import partial
 from math import sqrt, prod
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Callable
 
-# import jax
+import jax
+import flax
 import jax.numpy as jnp
 import opt_einsum as oe
 
@@ -371,3 +372,17 @@ def fully_connected_tensor_product(
         if ir_out in ir_1 * ir_2
     ]
     return tensor_product(irreps_in1, irreps_in2, irreps_out, instr, **kwargs)
+
+
+class FullyConnectedTensorProduct(flax.linen.Module):
+    irreps_in1: Irreps
+    irreps_in2: Irreps
+    irreps_out: Irreps
+    weight_init: Callable = jax.random.normal
+
+    @flax.linen.compact
+    def __call__(self, x1, x2):
+        _, nw, lr, r = fully_connected_tensor_product(self.irreps_in1, self.irreps_in2, self.irreps_out)
+        w = self.param('weight', self.weight_init, (nw,))
+        lr = jax.vmap(lr, (None, 0, 0), 0)
+        return lr(w, x1, x2)

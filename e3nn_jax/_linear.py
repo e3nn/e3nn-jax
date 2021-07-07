@@ -1,8 +1,10 @@
 import math
 from functools import partial
 from math import prod
-from typing import Any, List, NamedTuple, Optional, Union, Tuple
+from typing import Any, Callable, List, NamedTuple, Optional, Tuple, Union
 
+import flax
+import jax
 import jax.numpy as jnp
 import opt_einsum as oe
 
@@ -115,3 +117,19 @@ def linear(
         ])
 
     return instructions, weight_numel, bias_numel, f
+
+
+class Linear(flax.linen.Module):
+    irreps_in: Irreps
+    irreps_out: Irreps
+    instructions: Optional[Tuple[int, int]] = None
+    biases: Union[bool, List[bool]] = False
+    weight_init: Callable = jax.random.normal
+    bias_init: Callable = flax.linen.initializers.zeros
+
+    @flax.linen.compact
+    def __call__(self, x):
+        _, nw, nb, f = linear(self.irreps_in, self.irreps_out, self.instructions, biases=self.biases)
+        w = self.param('weight', self.weight_init, (nw,))
+        b = self.param('bias', self.bias_init, (nb,))
+        return f(w, b, x)
