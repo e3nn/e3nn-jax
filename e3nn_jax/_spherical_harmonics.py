@@ -84,24 +84,20 @@ def spherical_harmonics(
     """
     assert normalization in ['integral', 'component', 'norm']
 
-    if isinstance(irreps_out, str):
-        irreps_out = Irreps(irreps_out)
+    irreps_out = Irreps(irreps_out)
 
     if isinstance(irreps_out, Irreps):
         ls = []
         for mul, (l, p) in irreps_out:
             ls.extend([l]*mul)
-    elif isinstance(irreps_out, int):
-        ls = [irreps_out]
-    else:
-        ls = list(irreps_out)
 
     _lmax = 11
     if max(ls) > _lmax:
         raise NotImplementedError(f'spherical_harmonics maximum l implemented is {_lmax}, send us an email to ask for more')
 
     if normalize:
-        x = x / jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True)
+        r = jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True)
+        x = x / jnp.where(r == 0.0, 1.0, r)
 
     sh = _spherical_harmonics(max(ls), x[..., 0], x[..., 1], x[..., 2])
 

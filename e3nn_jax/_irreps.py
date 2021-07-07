@@ -1,6 +1,5 @@
 import itertools
 import collections
-import warnings
 from typing import List
 
 import jax
@@ -354,13 +353,11 @@ class Irreps(tuple):
                     ir = mul_ir
                 elif isinstance(mul_ir, _MulIr):
                     mul, ir = mul_ir
+                elif isinstance(mul_ir, int):
+                    mul, ir = 1, Irrep(l=mul_ir, p=1)
                 elif len(mul_ir) == 2:
                     mul, ir = mul_ir
                     ir = Irrep(ir)
-                elif len(mul_ir) == 3:
-                    mul, l, p = mul_ir
-                    ir = Irrep(l, p)
-                    warnings.warn("Use the argument format [(mul, (l, p)), ...] to distinguish multiplicity from irrep", DeprecationWarning, stacklevel=2)
                 else:
                     mul = None
                     ir = None
