@@ -1,23 +1,21 @@
 from functools import partial
-from math import sqrt
+from math import sqrt, prod
 from typing import Any, List, Optional
 
 # import jax
 import jax.numpy as jnp
 import opt_einsum as oe
-from e3nn import o3
-from e3nn.util import prod
 
-from e3nn_jax import wigner_3j
+from e3nn_jax import wigner_3j, Irreps
 
 from ._instruction import Instruction
 
 
 def _sum_tensors(xs, shape):
     if len(xs) > 0:
-        out = xs[0]
+        out = xs[0].reshape(shape)
         for x in xs[1:]:
-            out = out + x
+            out = out + x.reshape(shape)
         return out
     return jnp.zeros(shape)
 
@@ -46,9 +44,9 @@ def tensor_product(
     optimize_einsums: bool = True,
     # custom_vjp: bool = True,
 ):
-    irreps_in1 = o3.Irreps(irreps_in1)
-    irreps_in2 = o3.Irreps(irreps_in2)
-    irreps_out = o3.Irreps(irreps_out)
+    irreps_in1 = Irreps(irreps_in1)
+    irreps_in2 = Irreps(irreps_in2)
+    irreps_out = Irreps(irreps_out)
 
     instructions = [x if len(x) == 6 else x + (1.0,) for x in instructions]
     instructions = [
@@ -361,9 +359,9 @@ def fully_connected_tensor_product(
     irreps_out: Any,
     **kwargs
 ):
-    irreps_in1 = o3.Irreps(irreps_in1)
-    irreps_in2 = o3.Irreps(irreps_in2)
-    irreps_out = o3.Irreps(irreps_out)
+    irreps_in1 = Irreps(irreps_in1)
+    irreps_in2 = Irreps(irreps_in2)
+    irreps_out = Irreps(irreps_out)
 
     instr = [
         (i_1, i_2, i_out, 'uvw', True, 1.0)
