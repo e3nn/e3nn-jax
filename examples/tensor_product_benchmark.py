@@ -83,9 +83,9 @@ def main():
 
     key = jax.random.PRNGKey(0)
 
+    w = jax.random.normal(key, (nw,))
     inputs = iter([
         (
-            jax.random.normal(key, (nw,)),
             irreps_in1.randn(key, (args.batch, -1)),
             irreps_in2.randn(key, (args.batch, -1))
         )
@@ -104,13 +104,13 @@ def main():
     print("starting...")
 
     for _ in range(warmup):
-        z = tp(*next(inputs))
+        z = tp(w, *next(inputs))
         jax.tree_map(lambda x: x.block_until_ready(), z)
 
     t = time.perf_counter()
 
     for _ in range(args.n):
-        z = tp(*next(inputs))
+        z = tp(w, *next(inputs))
         jax.tree_map(lambda x: x.block_until_ready(), z)
 
     perloop = (time.perf_counter() - t) / args.n
