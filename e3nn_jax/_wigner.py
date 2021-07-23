@@ -130,4 +130,4 @@ def wigner_3j(l1, l2, l3, flat_src=_W3j_flat):
     except KeyError:
         raise NotImplementedError(f'Wigner 3j symbols maximum l implemented is {max(_W3j_indices.keys())[0]}, send us an email to ask for more')
 
-    return jnp.array(out)
+    return out

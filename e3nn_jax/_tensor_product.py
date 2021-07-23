@@ -39,7 +39,7 @@ def _normalized_w3j(l1, l2, l3, normalization):
     if normalization == 'norm':
         wig *= ((2 * l1 + 1) * (2 * l2 + 1))**0.5
 
-    return jnp.array(wig)
+    return jnp.asarray(wig)
 
 
 def tensor_product(
