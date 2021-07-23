@@ -412,7 +412,7 @@ class Irreps(tuple):
             i += mul_ir.dim
         return s
 
-    def randn(self, key, size, normalization='component', requires_grad=False, dtype=None, device=None):
+    def randn(self, key, size, normalization='component'):
         r"""Random tensor.
 
         Parameters

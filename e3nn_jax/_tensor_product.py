@@ -1,4 +1,4 @@
-from functools import partial
+from functools import lru_cache
 from math import sqrt, prod
 from typing import Any, List, Optional, Callable
 
@@ -30,6 +30,17 @@ def _as_list(irreps, x):
             x[i].reshape(mul, ir.dim)
             for i, (mul, ir) in zip(irreps.slices(), irreps)
         ]
+
+
+def _normalized_w3j(l1, l2, l3, normalization):
+    wig = wigner_3j(l1, l2, l3)
+
+    if normalization == 'component':
+        wig *= (2 * l3 + 1)**0.5
+    if normalization == 'norm':
+        wig *= ((2 * l1 + 1) * (2 * l2 + 1))**0.5
+
+    return jnp.array(wig)
 
 
 def tensor_product(
@@ -94,7 +105,7 @@ def tensor_product(
         }[ins.connection_mode])
         normalization_coefficients += [alpha]
 
-    einsum = partial(oe.contract, backend='jax') if optimize_einsums else jnp.einsum
+    einsum = oe.contract if optimize_einsums else jnp.einsum
     weight_numel = sum(prod(ins.path_shape) for ins in instructions if ins.has_weight)
 
     def tp_left_right(weights, input1, input2):
@@ -107,8 +118,14 @@ def tensor_product(
         x2_list = _as_list(irreps_in2, input2)
 
         # = caches =
-        w3j_dict = dict()
-        xx_dict = dict()
+        get_w3j = lru_cache(maxsize=None)(_normalized_w3j)
+
+        @lru_cache(maxsize=None)
+        def multiply(in1, in2, mode):
+            if mode == 'uv':
+                return einsum('ui,vj->uvij', x1_list[in1], x2_list[in2])
+            if mode == 'uu':
+                return einsum('ui,uj->uij', x1_list[in1], x2_list[in2])
 
         flat_weight_index = 0
 
@@ -131,31 +148,14 @@ def tensor_product(
                 flat_weight_index += prod(ins.path_shape)
 
             # We didn't make this instruction specialized, so do the general case
-            key = (ins.i_in1, ins.i_in2, ins.connection_mode[:2])
-            if key not in xx_dict:
-                if ins.connection_mode[:2] == 'uv':
-                    xx_dict[key] = einsum('ui,vj->uvij', x1, x2)
-                if ins.connection_mode[:2] == 'uu':
-                    xx_dict[key] = einsum('ui,uj->uij', x1, x2)
-            xx = xx_dict[key]
-
-            key = (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
-            if key not in w3j_dict:
-                wig = wigner_3j(*key)
-
-                if normalization == 'component':
-                    wig *= mul_ir_out.ir.dim**0.5
-                if normalization == 'norm':
-                    wig *= (mul_ir_in1.ir.dim * mul_ir_in2.ir.dim)**0.5
-
-                w3j_dict[key] = jnp.array(wig)
-            w3j = w3j_dict[key]
+            xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
+            w3j = get_w3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l, normalization)
 
             exp = {'component': 1, 'norm': -1}[normalization]
 
             if ins.connection_mode == 'uvw':
                 assert ins.has_weight
-                if specialized_code and key == (0, 0, 0):
+                if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
                     ein_out = einsum("uvw,u,v->w", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
                 elif specialized_code and mul_ir_in1.ir.l == 0:
                     ein_out = einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2)
@@ -168,7 +168,7 @@ def tensor_product(
             if ins.connection_mode == 'uvu':
                 assert mul_ir_in1.mul == mul_ir_out.mul
                 if ins.has_weight:
-                    if specialized_code and key == (0, 0, 0):
+                    if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
                         ein_out = einsum("uv,u,v->u", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
                     elif specialized_code and mul_ir_in1.ir.l == 0:
                         ein_out = einsum("uv,u,vj->uj", w, x1.reshape(mul_ir_in1.dim), x2)
@@ -184,7 +184,7 @@ def tensor_product(
             if ins.connection_mode == 'uvv':
                 assert mul_ir_in2.mul == mul_ir_out.mul
                 if ins.has_weight:
-                    if specialized_code and key == (0, 0, 0):
+                    if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
                         ein_out = einsum("uv,u,v->v", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
                     elif specialized_code and mul_ir_in1.ir.l == 0:
                         ein_out = einsum("uv,u,vj->vj", w, x1.reshape(mul_ir_in1.dim), x2)
@@ -260,7 +260,7 @@ def tensor_product(
         x2_list = _as_list(irreps_in2, input2)
 
         # = caches =
-        w3j_dict = dict()
+        get_w3j = lru_cache(maxsize=None)(_normalized_w3j)
 
         flat_weight_index = 0
 
@@ -281,17 +281,7 @@ def tensor_product(
                 w = weights[flat_weight_index:flat_weight_index + prod(ins.path_shape)].reshape(ins.path_shape)
                 flat_weight_index += prod(ins.path_shape)
 
-            key = (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
-            if key not in w3j_dict:
-                wig = wigner_3j(*key)
-
-                if normalization == 'component':
-                    wig *= mul_ir_out.ir.dim**0.5
-                if normalization == 'norm':
-                    wig *= (mul_ir_in1.ir.dim * mul_ir_in2.ir.dim)**0.5
-
-                w3j_dict[key] = jnp.array(wig)
-            w3j = w3j_dict[key]
+            w3j = get_w3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l, normalization)
 
             if ins.connection_mode == 'uvw':
                 assert ins.has_weight
