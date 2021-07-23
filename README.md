@@ -36,6 +36,36 @@ f = jax.jit(f)
 f(w, x, y)
 ```
 
+## Extra channel index
+
+`torch` version not implemented
+
+`jax` version just needs an extra bunch of `vmap` calls:
+```python
+def tp_extra_channels(irreps_in1, irreps_in2, irreps_out):
+    _, nw, f, _ = fully_connected_tensor_product(irreps_in1, irreps_in2, irreps_out)
+
+    f = jax.vmap(f, (0, None, None), 0)  # channel_out
+    f = jax.vmap(f, (0, None, 0), 0)  # channel_in2
+    f = jax.vmap(f, (0, 0, None), 0)  # channel_in1
+
+    def g(w, x1, x2):
+        z = f(w, x1, x2)
+        return jnp.sum(z, (0, 1)) / jnp.sqrt(z.shape[0] * z.shape[1])
+
+    return nw, g
+
+nw, f = tp_extra_channels(irreps_in1, irreps_in2, irreps_out)
+f = jax.vmap(f, (None, 0, 0), 0)  # batch
+f = jax.jit(f)
+
+# w.shape = (ch_in1, ch_in2, ch_out, path)
+# x1.shape = (batch, ch_in1, irreps_in1)
+# x2.shape = (batch, ch_in2, irreps_in2)
+z = f(w, x1, x2)
+# z.shape = (batch, ch_out, irreps_out)
+```
+
 ## Convolution
 
 ```python

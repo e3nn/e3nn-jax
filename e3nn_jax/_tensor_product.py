@@ -1,11 +1,10 @@
-from functools import lru_cache
+from functools import lru_cache, partial
 from math import sqrt, prod
 from typing import Any, List, Optional, Callable
 
 import jax
 import flax
 import jax.numpy as jnp
-import opt_einsum as oe
 
 from e3nn_jax import wigner_3j, Irreps
 
@@ -105,7 +104,7 @@ def tensor_product(
         }[ins.connection_mode])
         normalization_coefficients += [alpha]
 
-    einsum = oe.contract if optimize_einsums else jnp.einsum
+    einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
     weight_numel = sum(prod(ins.path_shape) for ins in instructions if ins.has_weight)
 
     def tp_left_right(weights, input1, input2):
