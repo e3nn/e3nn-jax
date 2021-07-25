@@ -118,6 +118,19 @@ def main():
     print()
     print(f"{1e3 * perloop:.1f} ms")
 
+    def f(w, x1, x2):
+        return tp(w, x1, x2)
+
+    x1 = irreps_in1.randn(key, (args.batch, -1))
+    x2 = irreps_in2.randn(key, (args.batch, -1))
+
+    c = jax.xla_computation(f)(w, x1, x2)
+    b = jax.lib.xla_bridge.get_backend()
+    e = b.compile(c)
+
+    with open('xla.txt', 'wt') as f:
+        f.write(e.hlo_modules()[0].to_string())
+
 
 if __name__ == '__main__':
     main()
