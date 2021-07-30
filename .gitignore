@@ -12,3 +12,4 @@ build
 dist
 .ipynb_checkpoints
 *.so
+*.txt

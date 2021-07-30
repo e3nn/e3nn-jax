@@ -9,6 +9,7 @@ import jax.numpy as jnp
 from e3nn_jax import wigner_3j, Irreps
 
 from ._instruction import Instruction
+from ._einsum import einsum as opt_einsum
 
 
 def _sum_tensors(xs, shape):
@@ -104,7 +105,7 @@ def tensor_product(
         }[ins.connection_mode])
         normalization_coefficients += [alpha]
 
-    einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
+    einsum = opt_einsum if optimize_einsums else partial(jnp.einsum, optimize='optimal')
     weight_numel = sum(prod(ins.path_shape) for ins in instructions if ins.has_weight)
 
     def tp_left_right(weights, input1, input2):
