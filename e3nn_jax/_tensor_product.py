@@ -52,9 +52,9 @@ def tensor_product(
     in2_var: Optional[List[float]] = None,
     out_var: Optional[List[float]] = None,
     normalization: str = 'component',
-    specialized_code: bool = True,
+    specialized_code: bool = False,
     optimize_einsums: bool = True,
-    custom_einsum_vjp: bool = True,
+    custom_einsum_vjp: bool = False,
 ):
     irreps_in1 = Irreps(irreps_in1)
     irreps_in2 = Irreps(irreps_in2)
