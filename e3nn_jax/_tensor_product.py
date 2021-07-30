@@ -54,7 +54,7 @@ def tensor_product(
     normalization: str = 'component',
     specialized_code: bool = True,
     optimize_einsums: bool = True,
-    # custom_vjp: bool = True,
+    custom_einsum_vjp: bool = True,
 ):
     irreps_in1 = Irreps(irreps_in1)
     irreps_in2 = Irreps(irreps_in2)
@@ -105,7 +105,12 @@ def tensor_product(
         }[ins.connection_mode])
         normalization_coefficients += [alpha]
 
-    einsum = opt_einsum if optimize_einsums else partial(jnp.einsum, optimize='optimal')
+    if custom_einsum_vjp:
+        assert optimize_einsums
+        einsum = opt_einsum
+    else:
+        einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
+
     weight_numel = sum(prod(ins.path_shape) for ins in instructions if ins.has_weight)
 
     def tp_left_right(weights, input1, input2):
