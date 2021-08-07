@@ -1,10 +1,11 @@
 import argparse
 import logging
 import time
+from functools import partial
 
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, fully_connected_tensor_product
+from e3nn_jax import FullyConnectedTensorProduct, Irreps
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -64,55 +65,61 @@ def main():
         #     args.backward = False
         pass
     else:
-        instructions, nw, tp, _ = fully_connected_tensor_product(
+        tp = FullyConnectedTensorProduct(
             irreps_in1,
             irreps_in2,
             irreps_out,
+        )
+        f = partial(
+            tp.left_right,
             specialized_code=args.specialized_code,
             optimize_einsums=args.opt_ein,
             custom_einsum_vjp=args.custom_einsum_vjp,
         )
-        tp = jax.vmap(tp, (None, 0, 0), 0)
+        f = jax.vmap(f, (None, 0, 0), 0)
     # tp = tp.to(device=device)
-    assert len(instructions) > 0, "Bad irreps, no instructions"
+    assert len(tp.instructions) > 0, "Bad irreps, no instructions"
     # print(f"Tensor product: {tp}")
     print("Instructions:")
-    for ins in instructions:
+    for ins in tp.instructions:
         print(f"  {ins}")
 
     # from https://pytorch.org/docs/master/_modules/torch/utils/benchmark/utils/timer.html#Timer.timeit
     warmup = max(int(args.n // 100), 1)
 
-    key = jax.random.PRNGKey(0)
+    def k():
+        k.key, x = jax.random.split(k.key)
+        return x
+    k.key = jax.random.PRNGKey(0)
 
-    w = jax.random.normal(key, (nw,))
+    ws = [jax.random.normal(k(), ins.path_shape) for ins in tp.instructions]
     inputs = iter([
         (
-            irreps_in1.randn(key, (args.batch, -1)),
-            irreps_in2.randn(key, (args.batch, -1))
+            irreps_in1.randn(k(), (args.batch, -1)),
+            irreps_in2.randn(k(), (args.batch, -1))
         )
         for _ in range(args.n + warmup)
     ])
 
     if args.backward:
         # tanh() forces it to realize the grad as a full size matrix rather than expanded (stride 0) ones
-        tp_ = tp
-        tp = jax.value_and_grad(lambda w, x1, x2: jnp.tanh(tp_(w, x1, x2)).sum(), 0)
+        f_ = f
+        f = jax.value_and_grad(lambda ws, x1, x2: jnp.tanh(f_(ws, x1, x2)).sum(), 0)
 
     # compile
     if args.jit:
-        tp = jax.jit(tp)
+        f = jax.jit(f)
 
     print("starting...")
 
     for _ in range(warmup):
-        z = tp(w, *next(inputs))
+        z = f(ws, *next(inputs))
         jax.tree_map(lambda x: x.block_until_ready(), z)
 
     t = time.perf_counter()
 
     for _ in range(args.n):
-        z = tp(w, *next(inputs))
+        z = f(ws, *next(inputs))
         jax.tree_map(lambda x: x.block_until_ready(), z)
 
     perloop = (time.perf_counter() - t) / args.n
@@ -120,13 +127,10 @@ def main():
     print()
     print(f"{1e3 * perloop:.1f} ms")
 
-    def f(w, x1, x2):
-        return tp(w, x1, x2)
+    x1 = irreps_in1.randn(k(), (args.batch, -1))
+    x2 = irreps_in2.randn(k(), (args.batch, -1))
 
-    x1 = irreps_in1.randn(key, (args.batch, -1))
-    x2 = irreps_in2.randn(key, (args.batch, -1))
-
-    c = jax.xla_computation(f)(w, x1, x2)
+    c = jax.xla_computation(f)(ws, x1, x2)
     b = jax.lib.xla_bridge.get_backend()
     e = b.compile(c)
 

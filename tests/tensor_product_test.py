@@ -2,34 +2,43 @@ import pytest
 
 import jax
 import jax.numpy as jnp
-from e3nn_jax import fully_connected_tensor_product, Irreps
+from e3nn_jax import TensorProduct, Irreps
 
 
-@pytest.mark.parametrize('specialized_code', [False, True])
-@pytest.mark.parametrize('optimize_einsums', [False, True])
+@pytest.mark.parametrize('connection_mode', ['uvw', 'uvu', 'uvv'])
 @pytest.mark.parametrize('jitted', [False, True])
-def test_modes(specialized_code, optimize_einsums, jitted):
-    args = (
-        Irreps("12x0e + 3x1o + 1x2e"),
-        Irreps("10x0e + 2x1o + 1x2o"),
-        Irreps("5x0e + 3x1e + 2x2o"),
+@pytest.mark.parametrize('optimize_einsums', [False, True])
+@pytest.mark.parametrize('specialized_code', [False, True])
+@pytest.mark.parametrize('normalization', ['component', 'norm'])
+def test_modes(normalization, specialized_code, optimize_einsums, jitted, connection_mode):
+    tp = TensorProduct(
+        Irreps("10x0o + 10x1o + 1x2e"),
+        Irreps("10x0o + 10x1o + 1x2o"),
+        Irreps("10x0e + 10x1e + 2x2o"),
+        [
+            (0, 0, 0, connection_mode, True),
+            (1, 1, 1, connection_mode, True),
+            (1, 0, 1, connection_mode, True),
+            (2, 2, 2, 'uvw', True),
+            (2, 1, 2, 'uvw', True),
+        ],
+        normalization=normalization,
     )
-
-    _, n, f, _ = fully_connected_tensor_product(*args, specialized_code=specialized_code, optimize_einsums=optimize_einsums)
+    f = lambda ws, x1, x2: tp.left_right(ws, x1, x2, specialized_code, optimize_einsums, optimize_einsums)
     if jitted:
         f = jax.jit(f)
 
-    _, n, g, _ = fully_connected_tensor_product(*args)
+    g = tp.left_right
 
-    key = jax.random.PRNGKey(0)
+    def k():
+        k.key, x = jax.random.split(k.key)
+        return x
+    k.key = jax.random.PRNGKey(0)
 
-    key, k = jax.random.split(key)
-    w = jax.random.normal(k, (n,))
+    ws = [jax.random.normal(k(), ins.path_shape) for ins in tp.instructions if ins.has_weight]
+    x1 = tp.irreps_in1.randn(k(), (-1,), normalization)
+    x2 = tp.irreps_in2.randn(k(), (-1,), normalization)
 
-    key, k = jax.random.split(key)
-    x1 = args[0].randn(k, (-1,))
-
-    key, k = jax.random.split(key)
-    x2 = args[1].randn(k, (-1,))
-
-    assert jnp.allclose(f(w, x1, x2), g(w, x1, x2))
+    a = f(ws, x1, x2)
+    b = g(ws, x1, x2)
+    assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), jnp.max(jnp.abs(a - b))
