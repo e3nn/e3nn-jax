@@ -4,6 +4,7 @@ from typing import List
 
 import jax
 import jax.numpy as jnp
+from jax import lax
 
 from e3nn_jax import wigner_D
 from e3nn.math import perm
@@ -597,6 +598,35 @@ class Irreps(tuple):
 
     def __repr__(self):
         return "+".join(f"{mul_ir}" for mul_ir in self)
+
+    def extract(self, indices, x, axis=-1):
+        r"""Extract sub sets of irreps
+
+        Parameters
+        ----------
+        indices : tuple of int
+            ``irreps_out = [self[i] for i in indices]``
+
+        x : array
+        """
+        s = self.slices()
+        s = [s[i] for i in indices]
+
+        i = 0
+        while i + 1 < len(s):
+            if s[i].stop == s[i + 1].start:
+                s[i] = slice(s[i].start, s[i + 1].stop)
+                del s[i + 1]
+            else:
+                i = i + 1
+
+        if len(s) == 1 and s[0] == slice(0, self.dim):
+            return x
+
+        return jnp.concatenate([
+            lax.slice_in_dim(x, i.start, i.stop, axis=axis)
+            for i in s
+        ], axis=axis)
 
     # def D_from_angles(self, alpha, beta, gamma, k=None):
     #     r"""Matrix of the representation
