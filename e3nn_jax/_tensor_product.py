@@ -4,7 +4,7 @@ from typing import Any, List, NamedTuple, Optional
 
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, wigner_3j
+from e3nn_jax import Irrep, Irreps, wigner_3j
 
 from ._einsum import einsum as opt_einsum
 
@@ -117,7 +117,10 @@ class TensorProduct:
             for ins, alpha in zip(instructions, normalization_coefficients)
         ]
 
-    def left_right(self, weights, input1, input2, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False):
+    def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False):
+        if input2 is None:
+            weights, input1, input2 = [], weights, input1
+
         # = Short-circut for zero dimensional =
         if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
             return jnp.zeros((self.irreps_out.dim,))
@@ -238,7 +241,10 @@ class TensorProduct:
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ])
 
-    def right(self, weights, input2, optimize_einsums=False, custom_einsum_vjp=False):
+    def right(self, weights, input2=None, *, optimize_einsums=False, custom_einsum_vjp=False):
+        if input2 is None:
+            weights, input2 = [], weights
+
         # = Short-circut for zero dimensional =
         if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
             return jnp.zeros((self.irreps_in1.dim, self.irreps_out.dim,))
@@ -330,7 +336,6 @@ class TensorProduct:
 
 
 class FullyConnectedTensorProduct(TensorProduct):
-
     def __init__(
         self,
         irreps_in1: Any,
@@ -355,9 +360,60 @@ class FullyConnectedTensorProduct(TensorProduct):
         super().__init__(irreps_in1, irreps_in2, irreps_out, instructions, in1_var, in2_var, out_var, normalization)
 
 
+class ElementwiseTensorProduct(TensorProduct):
+    def __init__(
+        self,
+        irreps_in1: Any,
+        irreps_in2: Any,
+        filter_ir_out=None,
+        normalization: str = 'component',
+    ):
+        irreps_in1 = Irreps(irreps_in1).simplify()
+        irreps_in2 = Irreps(irreps_in2).simplify()
+        if filter_ir_out is not None:
+            filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
+
+        assert irreps_in1.num_irreps == irreps_in2.num_irreps
+
+        irreps_in1 = list(irreps_in1)
+        irreps_in2 = list(irreps_in2)
+
+        i = 0
+        while i < len(irreps_in1):
+            mul_1, ir_1 = irreps_in1[i]
+            mul_2, ir_2 = irreps_in2[i]
+
+            if mul_1 < mul_2:
+                irreps_in2[i] = (mul_1, ir_2)
+                irreps_in2.insert(i + 1, (mul_2 - mul_1, ir_2))
+
+            if mul_2 < mul_1:
+                irreps_in1[i] = (mul_2, ir_1)
+                irreps_in1.insert(i + 1, (mul_1 - mul_2, ir_1))
+            i += 1
+
+        irreps_out = []
+        instructions = []
+        for i, ((mul, ir_1), (mul_2, ir_2)) in enumerate(zip(irreps_in1, irreps_in2)):
+            assert mul == mul_2
+            for ir in ir_1 * ir_2:
+
+                if filter_ir_out is not None and ir not in filter_ir_out:
+                    continue
+
+                i_out = len(irreps_out)
+                irreps_out.append((mul, ir))
+                instructions += [
+                    (i, i, i_out, 'uuu', False)
+                ]
+
+        super().__init__(irreps_in1, irreps_in2, irreps_out, instructions, normalization=normalization)
+
+
+from typing import Callable
+
 import flax
 import jax
-from typing import Callable
 
 
 class FlaxFullyConnectedTensorProduct(flax.linen.Module):

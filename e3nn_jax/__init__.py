@@ -5,7 +5,8 @@ from ._irreps import Irrep, Irreps
 from ._spherical_harmonics import spherical_harmonics
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import linear
-from ._tensor_product import TensorProduct, FullyConnectedTensorProduct
+from ._tensor_product import TensorProduct, FullyConnectedTensorProduct, ElementwiseTensorProduct
+from ._activation import Activation
 
 __all__ = [
     "wigner_3j", "wigner_D",
@@ -13,5 +14,6 @@ __all__ = [
     "spherical_harmonics",
     "sus", "soft_one_hot_linspace",
     "linear",
-    "TensorProduct", "FullyConnectedTensorProduct",
+    "TensorProduct", "FullyConnectedTensorProduct", "ElementwiseTensorProduct",
+    "Activation",
 ]
