@@ -14,8 +14,10 @@ def normalize_act(phi):
 
 
 class Activation:
+    irreps_in: Irreps
+    irreps_out: Irreps
+
     def __init__(self, irreps_in, acts):
-        super().__init__()
         irreps_in = Irreps(irreps_in)
         assert len(irreps_in) == len(acts), (irreps_in, acts)
 
