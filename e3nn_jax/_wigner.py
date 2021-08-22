@@ -20,13 +20,14 @@ def _z_rot_mat(l, angle):
     on the diagonal and anti-diagonal are non-zero, so explicitly constructing
     this matrix is unnecessary.
     """
+    angle = jnp.asarray(angle)
     shape = angle.shape
     M = jnp.zeros((*shape, 2 * l + 1, 2 * l + 1))
     inds = jnp.arange(0, 2 * l + 1, 1)
     reversed_inds = jnp.arange(2 * l, -1, -1)
     frequencies = jnp.arange(l, -l - 1, -1.0)
-    M[..., inds, reversed_inds] = jnp.sin(frequencies * angle[..., None])
-    M[..., inds, inds] = jnp.cos(frequencies * angle[..., None])
+    M = M.at[..., inds, reversed_inds].set(jnp.sin(frequencies * angle[..., None]))
+    M = M.at[..., inds, inds].set(jnp.cos(frequencies * angle[..., None]))
     return M
 
 

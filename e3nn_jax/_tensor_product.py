@@ -18,17 +18,6 @@ def _sum_tensors(xs, shape):
     return jnp.zeros(shape)
 
 
-def _as_list(irreps, x):
-    if len(irreps) == 1:
-        mul, ir = irreps[0]
-        return [x.reshape(mul, ir.dim)]
-    else:
-        return [
-            x[i].reshape(mul, ir.dim)
-            for i, (mul, ir) in zip(irreps.slices(), irreps)
-        ]
-
-
 class Instruction(NamedTuple):
     i_in1: int
     i_in2: int
@@ -126,8 +115,8 @@ class TensorProduct:
             return jnp.zeros((self.irreps_out.dim,))
 
         # = extract individual input irreps =
-        x1_list = _as_list(self.irreps_in1, input1)
-        x2_list = _as_list(self.irreps_in2, input2)
+        x1_list = self.irreps_in1.as_list(input1)
+        x2_list = self.irreps_in2.as_list(input2)
 
         if custom_einsum_vjp:
             assert optimize_einsums
@@ -250,7 +239,7 @@ class TensorProduct:
             return jnp.zeros((self.irreps_in1.dim, self.irreps_out.dim,))
 
         # = extract individual input irreps =
-        x2_list = _as_list(self.irreps_in2, input2)
+        x2_list = self.irreps_in2.as_list(input2)
 
         if custom_einsum_vjp:
             assert optimize_einsums

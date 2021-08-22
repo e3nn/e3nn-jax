@@ -5,8 +5,9 @@ from typing import List
 import jax
 import jax.numpy as jnp
 from jax import lax
+import jax.scipy
 
-from e3nn_jax import wigner_D
+from e3nn_jax import wigner_D, quaternion_to_angles, matrix_to_angles
 from e3nn.math import perm
 
 
@@ -142,54 +143,55 @@ class Irrep(tuple):
             k = jnp.zeros_like(alpha)
 
         alpha, beta, gamma, k = jnp.broadcast_arrays(alpha, beta, gamma, k)
+        k = jnp.asarray(k)
         return wigner_D(self.l, alpha, beta, gamma) * self.p**k[..., None, None]
 
-    # def D_from_quaternion(self, q, k=None):
-    #     r"""Matrix of the representation, see `Irrep.D_from_angles`
+    def D_from_quaternion(self, q, k=None):
+        r"""Matrix of the representation, see `Irrep.D_from_angles`
 
-    #     Parameters
-    #     ----------
-    #     q : `jnp.array`
-    #         tensor of shape :math:`(..., 4)`
+        Parameters
+        ----------
+        q : `jnp.array`
+            tensor of shape :math:`(..., 4)`
 
-    #     k : `jnp.array`, optional
-    #         tensor of shape :math:`(...)`
+        k : `jnp.array`, optional
+            tensor of shape :math:`(...)`
 
-    #     Returns
-    #     -------
-    #     `jnp.array`
-    #         tensor of shape :math:`(..., 2l+1, 2l+1)`
-    #     """
-    #     return self.D_from_angles(*o3.quaternion_to_angles(q), k)
+        Returns
+        -------
+        `jnp.array`
+            tensor of shape :math:`(..., 2l+1, 2l+1)`
+        """
+        return self.D_from_angles(*quaternion_to_angles(q), k)
 
-    # def D_from_matrix(self, R):
-    #     r"""Matrix of the representation, see `Irrep.D_from_angles`
+    def D_from_matrix(self, R):
+        r"""Matrix of the representation, see `Irrep.D_from_angles`
 
-    #     Parameters
-    #     ----------
-    #     R : `jnp.array`
-    #         tensor of shape :math:`(..., 3, 3)`
+        Parameters
+        ----------
+        R : `jnp.array`
+            tensor of shape :math:`(..., 3, 3)`
 
-    #     k : `jnp.array`, optional
-    #         tensor of shape :math:`(...)`
+        k : `jnp.array`, optional
+            tensor of shape :math:`(...)`
 
-    #     Returns
-    #     -------
-    #     `jnp.array`
-    #         tensor of shape :math:`(..., 2l+1, 2l+1)`
+        Returns
+        -------
+        `jnp.array`
+            tensor of shape :math:`(..., 2l+1, 2l+1)`
 
-    #     Examples
-    #     --------
-    #     >>> m = Irrep(1, -1).D_from_matrix(-torch.eye(3))
-    #     >>> m.long()
-    #     tensor([[-1,  0,  0],
-    #             [ 0, -1,  0],
-    #             [ 0,  0, -1]])
-    #     """
-    #     d = jnp.sign(jnp.linalg.det(R))
-    #     R = d[..., None, None] * R
-    #     k = (1 - d) / 2
-    #     return self.D_from_angles(*o3.matrix_to_angles(R), k)
+        Examples
+        --------
+        >>> m = Irrep(1, -1).D_from_matrix(-torch.eye(3))
+        >>> m.long()
+        tensor([[-1,  0,  0],
+                [ 0, -1,  0],
+                [ 0,  0, -1]])
+        """
+        d = jnp.sign(jnp.linalg.det(R))
+        R = d[..., None, None] * R
+        k = (1 - d) / 2
+        return self.D_from_angles(*matrix_to_angles(R), k)
 
     @property
     def dim(self) -> int:
@@ -628,62 +630,89 @@ class Irreps(tuple):
             for i in s
         ], axis=axis)
 
-    # def D_from_angles(self, alpha, beta, gamma, k=None):
-    #     r"""Matrix of the representation
+    def as_list(self, x):
+        shape = x.shape[:-1]
+        if len(self) == 1:
+            mul, ir = self[0]
+            return [jnp.reshape(x, shape + (mul, ir.dim))]
+        else:
+            return [
+                jnp.reshape(x[..., i], shape + (mul, ir.dim))
+                for i, (mul, ir) in zip(self.slices(), self)
+            ]
 
-    #     Parameters
-    #     ----------
-    #     alpha : `jnp.array`
-    #         tensor of shape :math:`(...)`
+    def transform_by_angles(self, x, alpha, beta, gamma, k=None):
+        shape = x.shape[:-1]
+        return jnp.concatenate([
+            jnp.reshape(jnp.einsum("ij,...uj->...ui", ir.D_from_angles(alpha, beta, gamma, k), x), shape + (mul * ir.dim,))
+            for (mul, ir), x in zip(self, self.as_list(x))
+        ], axis=-1)
 
-    #     beta : `jnp.array`
-    #         tensor of shape :math:`(...)`
+    def transform_by_quaternion(self, x, q, k=None):
+        return self.transform_by_angles(x, *quaternion_to_angles(q), k)
 
-    #     gamma : `jnp.array`
-    #         tensor of shape :math:`(...)`
+    def transform_by_matrix(self, x, R):
+        d = jnp.sign(jnp.linalg.det(R))
+        R = d[..., None, None] * R
+        k = (1 - d) / 2
+        return self.transform_by_angles(x, *matrix_to_angles(R), k)
 
-    #     k : `jnp.array`, optional
-    #         tensor of shape :math:`(...)`
+    def D_from_angles(self, alpha, beta, gamma, k=None):
+        r"""Matrix of the representation
 
-    #     Returns
-    #     -------
-    #     `jnp.array`
-    #         tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
-    #     """
-    #     return direct_sum(*[ir.D_from_angles(alpha, beta, gamma, k) for mul, ir in self for _ in range(mul)])
+        Parameters
+        ----------
+        alpha : `jnp.array`
+            tensor of shape :math:`(...)`
 
-    # def D_from_quaternion(self, q, k=None):
-    #     r"""Matrix of the representation
+        beta : `jnp.array`
+            tensor of shape :math:`(...)`
 
-    #     Parameters
-    #     ----------
-    #     q : `jnp.array`
-    #         tensor of shape :math:`(..., 4)`
+        gamma : `jnp.array`
+            tensor of shape :math:`(...)`
 
-    #     k : `jnp.array`, optional
-    #         tensor of shape :math:`(...)`
+        k : `jnp.array`, optional
+            tensor of shape :math:`(...)`
 
-    #     Returns
-    #     -------
-    #     `jnp.array`
-    #         tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
-    #     """
-    #     return self.D_from_angles(*o3.quaternion_to_angles(q), k)
+        Returns
+        -------
+        `jnp.array`
+            tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+        """
+        return jax.scipy.linalg.block_diag(*[ir.D_from_angles(alpha, beta, gamma, k) for mul, ir in self for _ in range(mul)])
 
-    # def D_from_matrix(self, R):
-    #     r"""Matrix of the representation
+    def D_from_quaternion(self, q, k=None):
+        r"""Matrix of the representation
 
-    #     Parameters
-    #     ----------
-    #     R : `jnp.array`
-    #         tensor of shape :math:`(..., 3, 3)`
+        Parameters
+        ----------
+        q : `jnp.array`
+            tensor of shape :math:`(..., 4)`
 
-    #     Returns
-    #     -------
-    #     `jnp.array`
-    #         tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
-    #     """
-    #     d = torch.det(R).sign()
-    #     R = d[..., None, None] * R
-    #     k = (1 - d) / 2
-    #     return self.D_from_angles(*o3.matrix_to_angles(R), k)
+        k : `jnp.array`, optional
+            tensor of shape :math:`(...)`
+
+        Returns
+        -------
+        `jnp.array`
+            tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+        """
+        return self.D_from_angles(*quaternion_to_angles(q), k)
+
+    def D_from_matrix(self, R):
+        r"""Matrix of the representation
+
+        Parameters
+        ----------
+        R : `jnp.array`
+            tensor of shape :math:`(..., 3, 3)`
+
+        Returns
+        -------
+        `jnp.array`
+            tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+        """
+        d = jnp.sign(jnp.linalg.det(R))
+        R = d[..., None, None] * R
+        k = (1 - d) / 2
+        return self.D_from_angles(*matrix_to_angles(R), k)
