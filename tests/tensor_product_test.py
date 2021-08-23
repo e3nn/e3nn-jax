@@ -24,7 +24,15 @@ def test_modes(normalization, specialized_code, optimize_einsums, jitted, connec
         ],
         normalization=normalization,
     )
-    f = lambda ws, x1, x2: tp.left_right(ws, x1, x2, specialized_code=specialized_code, optimize_einsums=optimize_einsums, custom_einsum_vjp=optimize_einsums)
+
+    def f(ws, x1, x2):
+        return tp.left_right(
+            ws, x1, x2,
+            specialized_code=specialized_code,
+            optimize_einsums=optimize_einsums,
+            custom_einsum_vjp=optimize_einsums
+        )
+
     if jitted:
         f = jax.jit(f)
 
