@@ -116,19 +116,19 @@ class Gate:
         Parameters
         ----------
         features : `torch.Tensor`
-            tensor of shape ``(..., irreps_in.dim)``
+            tensor of shape ``(irreps_in.dim)``
 
         Returns
         -------
         `torch.Tensor`
-            tensor of shape ``(..., irreps_out.dim)``
+            tensor of shape ``(irreps_out.dim)``
         """
         scalars, gates, gated = self.sc(features)
 
         scalars = self.act_scalars(scalars)
         if gates.shape[-1]:
             gates = self.act_gates(gates)
-            gated = self.mul(gated, gates)
+            gated = self.mul.left_right(gated, gates)
             features = jnp.concatenate([scalars, gated], axis=-1)
         else:
             features = scalars

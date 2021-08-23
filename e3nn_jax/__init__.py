@@ -37,6 +37,7 @@ from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import Linear
 from ._tensor_product import TensorProduct, FullyConnectedTensorProduct, ElementwiseTensorProduct
 from ._activation import Activation
+from ._gate import Gate
 
 __all__ = [
     "rand_matrix",
@@ -74,4 +75,5 @@ __all__ = [
     "Linear",
     "TensorProduct", "FullyConnectedTensorProduct", "ElementwiseTensorProduct",
     "Activation",
+    "Gate",
 ]
