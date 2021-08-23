@@ -181,11 +181,11 @@ class Irrep(tuple):
 
         Examples
         --------
-        >>> m = Irrep(1, -1).D_from_matrix(-torch.eye(3))
-        >>> m.long()
-        tensor([[-1,  0,  0],
-                [ 0, -1,  0],
-                [ 0,  0, -1]])
+        >>> m = Irrep(1, -1).D_from_matrix(-jnp.eye(3))
+        >>> m
+        DeviceArray([[-1., -0., -0.],
+                     [-0., -1., -0.],
+                     [-0., -0., -1.]], dtype=float32)
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
@@ -414,7 +414,7 @@ class Irreps(tuple):
             i += mul_ir.dim
         return s
 
-    def randn(self, key, size, normalization='component'):
+    def randn(self, key, size, *, normalization='component'):
         r"""Random tensor.
 
         Parameters
@@ -432,12 +432,13 @@ class Irreps(tuple):
         Examples
         --------
 
-        >>> Irreps("5x0e + 10x1o").randn(5, -1, 5, normalization='norm').shape
-        torch.Size([5, 35, 5])
+        >>> key = jax.random.PRNGKey(0)
+        >>> Irreps("5x0e + 10x1o").randn(key, (5, -1, 5), normalization='norm').shape
+        (5, 35, 5)
 
-        >>> random_tensor = Irreps("2o").randn(2, -1, 3, normalization='norm')
-        >>> random_tensor.norm(dim=1).sub(1).abs().max().item() < 1e-5
-        True
+        >>> random_tensor = Irreps("2o").randn(key, (2, -1, 3), normalization='norm')
+        >>> jnp.max(jnp.abs(jnp.linalg.norm(random_tensor, axis=1) - 1)) < 1e-5
+        DeviceArray(True, dtype=bool)
         """
         di = size.index(-1)
         lsize = size[:di]

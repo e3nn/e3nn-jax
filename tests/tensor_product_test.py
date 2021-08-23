@@ -44,8 +44,8 @@ def test_modes(normalization, specialized_code, optimize_einsums, jitted, connec
     k.key = jax.random.PRNGKey(0)
 
     ws = [jax.random.normal(k(), ins.path_shape) for ins in tp.instructions if ins.has_weight]
-    x1 = tp.irreps_in1.randn(k(), (-1,), normalization)
-    x2 = tp.irreps_in2.randn(k(), (-1,), normalization)
+    x1 = tp.irreps_in1.randn(k(), (-1,), normalization=normalization)
+    x2 = tp.irreps_in2.randn(k(), (-1,), normalization=normalization)
 
     a = f(ws, x1, x2)
     b = g(ws, x1, x2)

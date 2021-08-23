@@ -72,7 +72,7 @@ class Gate:
     Examples
     --------
 
-    >>> g = Gate("16x0o", [torch.tanh], "32x0o", [torch.tanh], "16x1e+16x1o")
+    >>> g = Gate("16x0o", [jnp.tanh], "32x0o", [jnp.tanh], "16x1e+16x1o")
     >>> g.irreps_out
     16x0o+16x1o+16x1e
     """

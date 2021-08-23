@@ -72,9 +72,9 @@ def spherical_harmonics(
     Examples
     --------
 
-    >>> spherical_harmonics(0, torch.randn(2, 3), False, normalization='component')
-    tensor([[1.],
-            [1.]])
+    >>> spherical_harmonics('0e', jnp.ones((2, 3)), False, normalization='component')
+    DeviceArray([[1.],
+                 [1.]], dtype=float32)
 
     See Also
     --------
@@ -86,10 +86,9 @@ def spherical_harmonics(
 
     irreps_out = Irreps(irreps_out)
 
-    if isinstance(irreps_out, Irreps):
-        ls = []
-        for mul, (l, p) in irreps_out:
-            ls.extend([l]*mul)
+    ls = []
+    for mul, (l, p) in irreps_out:
+        ls.extend([l] * mul)
 
     _lmax = 11
     if max(ls) > _lmax:
