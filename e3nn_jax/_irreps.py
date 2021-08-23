@@ -1,14 +1,13 @@
-import itertools
 import collections
+import itertools
 from typing import List
 
 import jax
 import jax.numpy as jnp
-from jax import lax
 import jax.scipy
+from jax import lax
 
-from e3nn_jax import wigner_D, quaternion_to_angles, matrix_to_angles
-from e3nn.math import perm
+from e3nn_jax import matrix_to_angles, perm, quaternion_to_angles, wigner_D
 
 
 class Irrep(tuple):
