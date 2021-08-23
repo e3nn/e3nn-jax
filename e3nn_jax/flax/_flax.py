@@ -3,7 +3,7 @@ from typing import Callable, List, Optional, Sequence, Tuple, Union
 import flax
 import jax
 
-from e3nn_jax import FullyConnectedTensorProduct, Irreps, Linear
+from e3nn_jax import FullyConnectedTensorProduct, Irreps, Linear, normalize_act
 
 
 class FlaxLinear(flax.linen.Module):
@@ -46,9 +46,11 @@ class MLP(flax.linen.Module):
 
     @flax.linen.compact
     def __call__(self, x):
+        phi = normalize_act(self.phi)
+
         for feat in self.features[:-1]:
             d = flax.linen.Dense(feat, kernel_init=jax.random.normal, use_bias=False)
-            x = self.phi(d(x) / x.shape[-1]**0.5)
+            x = phi(d(x) / x.shape[-1]**0.5)
 
         h = self.features[-1]
         d = flax.linen.Dense(h, kernel_init=jax.random.normal, use_bias=False)

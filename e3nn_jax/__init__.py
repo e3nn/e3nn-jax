@@ -36,7 +36,7 @@ from ._spherical_harmonics import spherical_harmonics
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import Linear
 from ._tensor_product import TensorProduct, FullyConnectedTensorProduct, ElementwiseTensorProduct
-from ._activation import Activation
+from ._activation import Activation, normalize_act
 from ._gate import Gate
 
 __all__ = [
@@ -74,6 +74,6 @@ __all__ = [
     "sus", "soft_one_hot_linspace",
     "Linear",
     "TensorProduct", "FullyConnectedTensorProduct", "ElementwiseTensorProduct",
-    "Activation",
+    "Activation", "normalize_act",
     "Gate",
 ]

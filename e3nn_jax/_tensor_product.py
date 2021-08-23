@@ -33,6 +33,7 @@ class TensorProduct:
     irreps_in2: Irreps
     irreps_out: Irreps
     instructions: List[Instruction]
+    output_mask: jnp.ndarray
 
     def __init__(
         self,
@@ -105,6 +106,19 @@ class TensorProduct:
             Instruction(ins.i_in1, ins.i_in2, ins.i_out, ins.connection_mode, ins.has_weight, alpha, ins.path_shape)
             for ins, alpha in zip(instructions, normalization_coefficients)
         ]
+
+        if self.irreps_out.dim > 0:
+            self.output_mask = jnp.concatenate([
+                jnp.ones(mul_ir.dim)
+                if any(
+                    (ins.i_out == i_out) and (ins.path_weight != 0) and (0 not in ins.path_shape)
+                    for ins in self.instructions
+                )
+                else jnp.zeros(mul_ir.dim)
+                for i_out, mul_ir in enumerate(self.irreps_out)
+            ])
+        else:
+            self.output_mask = jnp.ones(0)
 
     def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False):
         if input2 is None:
