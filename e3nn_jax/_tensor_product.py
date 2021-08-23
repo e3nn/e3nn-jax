@@ -397,23 +397,3 @@ class ElementwiseTensorProduct(TensorProduct):
                 ]
 
         super().__init__(irreps_in1, irreps_in2, irreps_out, instructions, normalization=normalization)
-
-
-from typing import Callable
-
-import flax
-import jax
-
-
-class FlaxFullyConnectedTensorProduct(flax.linen.Module):
-    irreps_in1: Irreps
-    irreps_in2: Irreps
-    irreps_out: Irreps
-    weight_init: Callable = jax.random.normal
-
-    @flax.linen.compact
-    def __call__(self, x1, x2):
-        tp = FullyConnectedTensorProduct(self.irreps_in1, self.irreps_in2, self.irreps_out)
-        ws = [self.param(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', self.weight_init, ins.path_shape) for ins in tp.instructions]
-        lr = jax.vmap(tp.left_right, (None, 0, 0), 0)
-        return lr(ws, x1, x2)

@@ -109,29 +109,3 @@ class Linear:
             for i_out, mul_ir_out in enumerate(self.irreps_out)
             if mul_ir_out.mul > 0
         ])
-
-
-from typing import Callable
-
-import flax
-import jax
-
-
-class FlaxLinear(flax.linen.Module):
-    irreps_in: Irreps
-    irreps_out: Irreps
-    instructions: Optional[Tuple[int, int]] = None
-    biases: Union[bool, List[bool]] = False
-    weight_init: Callable = jax.random.normal
-    bias_init: Callable = flax.linen.initializers.zeros
-
-    @flax.linen.compact
-    def __call__(self, x):
-        lin = Linear(self.irreps_in, self.irreps_out, self.instructions, biases=self.biases)
-        w = [
-            self.param(f'bias {ins.i_out}', self.bias_init, ins.path_shape)
-            if ins.i_in == -1 else
-            self.param(f'weight {ins.i_in} -> {ins.i_out}', self.weight_init, ins.path_shape)
-            for ins in lin.instructions
-        ]
-        return lin(w, x)

@@ -4,7 +4,7 @@ from typing import Callable, Tuple
 import flax
 import jax
 import jax.numpy as jnp
-from e3nn_jax import (Irreps, fully_connected_tensor_product, linear,
+from e3nn_jax import (FullyConnectedTensorProduct, Irreps, Linear,
                       soft_one_hot_linspace, spherical_harmonics)
 from jax import lax
 
@@ -62,20 +62,32 @@ class Convolution(flax.linen.Module):
         sh = self.variable('consts', 'sh', gen_sh, lattice).value
 
         # self-connection
-        _, nw, _, f = linear(self.irreps_in, self.irreps_out)
-        f = jax.vmap(f, (None, None, 0), 0)
-        w = self.param('linear_weight', self.weight_init, (nw,))
-        sc = f(w, jnp.ones((0,)), x.reshape(-1, x.shape[-1]))
+        lin = Linear(self.irreps_in, self.irreps_out)
+        f = jax.vmap(lin, (None, 0), 0)
+        w = [self.param(f'linear_weight {i.i_in} -> {i.i_out}', self.weight_init, i.path_shape) for i in lin.instructions]
+        sc = f(w, x.reshape(-1, x.shape[-1]))
         sc = sc.reshape(x.shape[:-1] + (-1,))
 
         # convolution
-        _, nw, _, tp_right = fully_connected_tensor_product(self.irreps_in, self.irreps_sh, self.irreps_out)
-        tp_right = jax.vmap(tp_right, (0, 0), 0)
-        w = self.param('weight', self.weight_init, (self.num_radial_basis, nw))
-        w = emb @ w  # [x,y,z, tp_w]
-        w = w / (sh.shape[0] * sh.shape[1] * sh.shape[2])
-        k = tp_right(w.reshape(-1, w.shape[-1]), sh.reshape(-1, sh.shape[-1]))
-        k = k.reshape(sh.shape[:3] + k.shape[1:])  # [x,y,z, irreps_in.dim, irreps_out.dim]
+        tp = FullyConnectedTensorProduct(self.irreps_in, self.irreps_sh, self.irreps_out)
+
+        tp_right = tp.right
+        for _ in range(3):
+            tp_right = jax.vmap(tp_right, (0, 0), 0)
+
+        w = [
+            self.param(
+                f'weight {i.i_in1} x {i.i_in2} -> {i.i_out}',
+                self.weight_init,
+                (self.num_radial_basis,) + i.path_shape
+            )
+            for i in tp.instructions
+        ]
+        w = [
+            jnp.einsum("xyzk,k...->xyz...", emb, x) / (sh.shape[0] * sh.shape[1] * sh.shape[2])  # [x,y,z, tp_w]
+            for x in w
+        ]
+        k = tp_right(w, sh)  # [x,y,z, irreps_in.dim, irreps_out.dim]
         x = lax.conv_general_dilated(
             lhs=x,
             rhs=k,
