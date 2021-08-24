@@ -16,39 +16,34 @@ class Irrep(tuple):
     This class does not contain any data, it is a structure that describe the representation.
     It is typically used as argument of other classes of the library to define the input and output representations of functions.
 
-    Parameters
-    ----------
-    l : int
-        non-negative integer, the degree of the representation, :math:`l = 0, 1, \dots`
+    Args:
+        l: non-negative integer, the degree of the representation, :math:`l = 0, 1, \dots`
+        p: {1, -1}, the parity of the representation
 
-    p : {1, -1}
-        the parity of the representation
+    Examples:
+        Create a scalar representation (:math:`l=0`) of even parity.
 
-    Examples
-    --------
-    Create a scalar representation (:math:`l=0`) of even parity.
+        >>> Irrep(0, 1)
+        0e
 
-    >>> Irrep(0, 1)
-    0e
+        Create a pseudotensor representation (:math:`l=2`) of odd parity.
 
-    Create a pseudotensor representation (:math:`l=2`) of odd parity.
+        >>> Irrep(2, -1)
+        2o
 
-    >>> Irrep(2, -1)
-    2o
+        Create a vector representation (:math:`l=1`) of the parity of the spherical harmonics (:math:`-1^l` gives odd parity).
 
-    Create a vector representation (:math:`l=1`) of the parity of the spherical harmonics (:math:`-1^l` gives odd parity).
+        >>> Irrep("1y")
+        1o
 
-    >>> Irrep("1y")
-    1o
+        >>> Irrep("2o").dim
+        5
 
-    >>> Irrep("2o").dim
-    5
+        >>> Irrep("2e") in Irrep("1o") * Irrep("1o")
+        True
 
-    >>> Irrep("2e") in Irrep("1o") * Irrep("1o")
-    True
-
-    >>> Irrep("1o") + Irrep("2o")
-    1x1o+1x2o
+        >>> Irrep("1o") + Irrep("2o")
+        1x1o+1x2o
     """
     def __new__(cls, l, p=None):
         if p is None:
@@ -92,11 +87,10 @@ class Irrep(tuple):
     def iterator(cls, lmax=None):
         r"""Iterator through all the irreps of :math:`O(3)`
 
-        Examples
-        --------
-        >>> it = Irrep.iterator()
-        >>> next(it), next(it), next(it), next(it)
-        (0e, 0o, 1o, 1e)
+        Examples:
+            >>> it = Irrep.iterator()
+            >>> next(it), next(it), next(it), next(it)
+            (0e, 0o, 1o, 1e)
         """
         for l in itertools.count():
             yield Irrep(l, (-1)**l)
@@ -110,33 +104,22 @@ class Irrep(tuple):
 
         (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`, see `wigner_D`.
 
-        Parameters
-        ----------
-        alpha : `jnp.array`
-            tensor of shape :math:`(...)`
-            Rotation :math:`\alpha` around Y axis, applied third.
+        Args:
+            alpha (`jnp.ndarray`): of shape :math:`(...)`
+                Rotation :math:`\alpha` around Y axis, applied third.
+            beta (`jnp.ndarray`): of shape :math:`(...)`
+                Rotation :math:`\beta` around X axis, applied second.
+            gamma (`jnp.ndarray`): of shape :math:`(...)`
+                Rotation :math:`\gamma` around Y axis, applied first.
+            k (optional `jnp.ndarray`): of shape :math:`(...)`
+                How many times the parity is applied.
 
-        beta : `jnp.array`
-            tensor of shape :math:`(...)`
-            Rotation :math:`\beta` around X axis, applied second.
+        Returns:
+            `jnp.ndarray`: of shape :math:`(..., 2l+1, 2l+1)`
 
-        gamma : `jnp.array`
-            tensor of shape :math:`(...)`
-            Rotation :math:`\gamma` around Y axis, applied first.
-
-        k : `jnp.array`, optional
-            tensor of shape :math:`(...)`
-            How many times the parity is applied.
-
-        Returns
-        -------
-        `jnp.array`
-            tensor of shape :math:`(..., 2l+1, 2l+1)`
-
-        See Also
-        --------
-        o3.wigner_D
-        Irreps.D_from_angles
+        See Also:
+            o3.wigner_D
+            Irreps.D_from_angles
         """
         if k is None:
             k = jnp.zeros_like(alpha)
@@ -148,44 +131,31 @@ class Irrep(tuple):
     def D_from_quaternion(self, q, k=None):
         r"""Matrix of the representation, see `Irrep.D_from_angles`
 
-        Parameters
-        ----------
-        q : `jnp.array`
-            tensor of shape :math:`(..., 4)`
+        Args:
+            q (`jnp.ndarray`): shape :math:`(..., 4)`
+            k (optional `jnp.ndarray`): shape :math:`(...)`
 
-        k : `jnp.array`, optional
-            tensor of shape :math:`(...)`
-
-        Returns
-        -------
-        `jnp.array`
-            tensor of shape :math:`(..., 2l+1, 2l+1)`
+        Returns:
+            `jnp.ndarray`: shape :math:`(..., 2l+1, 2l+1)`
         """
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
     def D_from_matrix(self, R):
         r"""Matrix of the representation, see `Irrep.D_from_angles`
 
-        Parameters
-        ----------
-        R : `jnp.array`
-            tensor of shape :math:`(..., 3, 3)`
+        Args:
+            R (`jnp.ndarray`): tensor of shape :math:`(..., 3, 3)`
+            k (`jnp.ndarray`, optional): tensor of shape :math:`(...)`
 
-        k : `jnp.array`, optional
-            tensor of shape :math:`(...)`
+        Returns:
+            `jnp.ndarray`: tensor of shape :math:`(..., 2l+1, 2l+1)`
 
-        Returns
-        -------
-        `jnp.array`
-            tensor of shape :math:`(..., 2l+1, 2l+1)`
-
-        Examples
-        --------
-        >>> m = Irrep(1, -1).D_from_matrix(-jnp.eye(3))
-        >>> m
-        DeviceArray([[-1., -0., -0.],
-                     [-0., -1., -0.],
-                     [-0., -0., -1.]], dtype=float32)
+        Examples:
+            >>> m = Irrep(1, -1).D_from_matrix(-jnp.eye(3))
+            >>> m
+            DeviceArray([[-1., -0., -0.],
+                        [-0., -1., -0.],
+                        [-0., -0., -1.]], dtype=float32)
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
@@ -204,9 +174,8 @@ class Irrep(tuple):
     def __mul__(self, other):
         r"""Generate the irreps from the product of two irreps.
 
-        Returns
-        -------
-        generator of `Irrep`
+        Returns:
+            generator of `Irrep`
         """
         other = Irrep(other)
         p = self.p * other.p
@@ -276,49 +245,36 @@ class Irreps(tuple):
     This class does not contain any data, it is a structure that describe the representation.
     It is typically used as argument of other classes of the library to define the input and output representations of functions.
 
-    Attributes
-    ----------
-    dim : int
-        the total dimension of the representation
+    Attributes:
+        dim (int): the total dimension of the representation
+        num_irreps (int): number of irreps. the sum of the multiplicities
+        ls (list of int): list of :math:`l` values
+        lmax (int): maximum :math:`l` value
 
-    num_irreps : int
-        number of irreps. the sum of the multiplicities
+    Examples:
+        >>> x = Irreps([(100, (0, 1)), (50, (1, 1))])
+        >>> x
+        100x0e+50x1e
 
-    ls : list of int
-        list of :math:`l` values
+        >>> x.dim
+        250
 
-    lmax : int
-        maximum :math:`l` value
+        >>> Irreps("100x0e + 50x1e")
+        100x0e+50x1e
 
-    Examples
-    --------
-    Create a representation of 100 :math:`l=0` of even parity and 50 pseudo-vectors.
+        >>> Irreps("100x0e + 50x1e + 0x2e")
+        100x0e+50x1e+0x2e
 
-    >>> x = Irreps([(100, (0, 1)), (50, (1, 1))])
-    >>> x
-    100x0e+50x1e
+        >>> Irreps("100x0e + 50x1e + 0x2e").lmax
+        1
 
-    >>> x.dim
-    250
+        >>> Irrep("2e") in Irreps("0e + 2e")
+        True
 
-    Create a representation of 100 :math:`l=0` of even parity and 50 pseudo-vectors.
+        Empty Irreps
 
-    >>> Irreps("100x0e + 50x1e")
-    100x0e+50x1e
-
-    >>> Irreps("100x0e + 50x1e + 0x2e")
-    100x0e+50x1e+0x2e
-
-    >>> Irreps("100x0e + 50x1e + 0x2e").lmax
-    1
-
-    >>> Irrep("2e") in Irreps("0e + 2e")
-    True
-
-    Empty Irreps
-
-    >>> Irreps(), Irreps("")
-    (, )
+        >>> Irreps(), Irreps("")
+        (, )
     """
     def __new__(cls, irreps=None):
         if isinstance(irreps, Irreps):
@@ -374,38 +330,27 @@ class Irreps(tuple):
     def spherical_harmonics(lmax, p=-1):
         r"""representation of the spherical harmonics
 
-        Parameters
-        ----------
-        lmax : int
-            maximum :math:`l`
+        Args:
+            lmax (int): maximum :math:`l`
+            p (optional {1, -1}): the parity of the representation
 
-        p : {1, -1}
-            the parity of the representation
+        Returns:
+            `Irreps`: representation of :math:`(Y^0, Y^1, \dots, Y^{\mathrm{lmax}})`
 
-        Returns
-        -------
-        `Irreps`
-            representation of :math:`(Y^0, Y^1, \dots, Y^{\mathrm{lmax}})`
-
-        Examples
-        --------
-
-        >>> Irreps.spherical_harmonics(3)
-        1x0e+1x1o+1x2e+1x3o
-
-        >>> Irreps.spherical_harmonics(4, p=1)
-        1x0e+1x1e+1x2e+1x3e+1x4e
+        Examples:
+            >>> Irreps.spherical_harmonics(3)
+            1x0e+1x1o+1x2e+1x3o
+            >>> Irreps.spherical_harmonics(4, p=1)
+            1x0e+1x1e+1x2e+1x3e+1x4e
         """
         return Irreps([(1, (l, p**l)) for l in range(lmax + 1)])
 
     def slices(self):
         r"""List of slices corresponding to indices for each irrep.
 
-        Examples
-        --------
-
-        >>> Irreps('2x0e + 1e').slices()
-        [slice(0, 2, None), slice(2, 5, None)]
+        Examples:
+            >>> Irreps('2x0e + 1e').slices()
+            [slice(0, 2, None), slice(2, 5, None)]
         """
         s = []
         i = 0
@@ -417,28 +362,21 @@ class Irreps(tuple):
     def randn(self, key, size, *, normalization='component'):
         r"""Random tensor.
 
-        Parameters
-        ----------
-        *size : list of int
-            size of the output tensor, needs to contains a ``-1``
+        Args:
+            *size (list of int): size of the output tensor, needs to contains a ``-1``
+            normalization : {'component', 'norm'}
 
-        normalization : {'component', 'norm'}
+        Returns:
+            `jnp.ndarray`: tensor of shape ``size`` where ``-1`` is replaced by ``self.dim``
 
-        Returns
-        -------
-        `jnp.array`
-            tensor of shape ``size`` where ``-1`` is replaced by ``self.dim``
+        Examples:
+            >>> key = jax.random.PRNGKey(0)
+            >>> Irreps("5x0e + 10x1o").randn(key, (5, -1, 5), normalization='norm').shape
+            (5, 35, 5)
 
-        Examples
-        --------
-
-        >>> key = jax.random.PRNGKey(0)
-        >>> Irreps("5x0e + 10x1o").randn(key, (5, -1, 5), normalization='norm').shape
-        (5, 35, 5)
-
-        >>> random_tensor = Irreps("2o").randn(key, (2, -1, 3), normalization='norm')
-        >>> jnp.max(jnp.abs(jnp.linalg.norm(random_tensor, axis=1) - 1)) < 1e-5
-        DeviceArray(True, dtype=bool)
+            >>> random_tensor = Irreps("2o").randn(key, (2, -1, 3), normalization='norm')
+            >>> jnp.max(jnp.abs(jnp.linalg.norm(random_tensor, axis=1) - 1)) < 1e-5
+            DeviceArray(True, dtype=bool)
         """
         di = size.index(-1)
         lsize = size[:di]
@@ -471,14 +409,11 @@ class Irreps(tuple):
     def count(self, ir) -> int:
         r"""Multiplicity of ``ir``.
 
-        Parameters
-        ----------
-        ir : `Irrep`
+        Args:
+            ir (`Irrep`):
 
-        Returns
-        -------
-        `int`
-            total multiplicity of ``ir``
+        Returns:
+            `int`: total multiplicity of ``ir``
         """
         ir = Irrep(ir)
         return sum(mul for mul, irrep in self if ir == irrep)
@@ -509,22 +444,16 @@ class Irreps(tuple):
     def simplify(self):
         """Simplify the representations.
 
-        Returns
-        -------
-        `Irreps`
+        Examples:
+            Note that simplify does not sort the representations.
 
-        Examples
-        --------
+            >>> Irreps("1e + 1e + 0e").simplify()
+            2x1e+1x0e
 
-        Note that simplify does not sort the representations.
+            Equivalent representations which are separated from each other are not combined.
 
-        >>> Irreps("1e + 1e + 0e").simplify()
-        2x1e+1x0e
-
-        Equivalent representations which are separated from each other are not combined.
-
-        >>> Irreps("1e + 1e + 0e + 1e").simplify()
-        2x1e+1x0e+1x1e
+            >>> Irreps("1e + 1e + 0e + 1e").simplify()
+            2x1e+1x0e+1x1e
         """
         out = []
         for mul, ir in self:
@@ -537,40 +466,27 @@ class Irreps(tuple):
     def remove_zero_multiplicities(self):
         """Remove any irreps with multiplicities of zero.
 
-        Returns
-        -------
-        `Irreps`
-
-        Examples
-        --------
-
-        >>> Irreps("4x0e + 0x1o + 2x3e").remove_zero_multiplicities()
-        4x0e+2x3e
-
+        Examples:
+            >>> Irreps("4x0e + 0x1o + 2x3e").remove_zero_multiplicities()
+            4x0e+2x3e
         """
-        out = [(mul, ir) for mul, ir in self if mul > 0]
-        return Irreps(out)
+        return Irreps([(mul, ir) for mul, ir in self if mul > 0])
 
     def sort(self):
         r"""Sort the representations.
 
-        Returns
-        -------
-        irreps : `Irreps`
-        p : tuple of int
-        inv : tuple of int
+        Returns:
+            irreps (`Irreps`):
+            p (tuple of int):
+            inv (tuple of int):
 
-        Examples
-        --------
-
-        >>> Irreps("1e + 0e + 1e").sort().irreps
-        1x0e+1x1e+1x1e
-
-        >>> Irreps("2o + 1e + 0e + 1e").sort().p
-        (3, 1, 0, 2)
-
-        >>> Irreps("2o + 1e + 0e + 1e").sort().inv
-        (2, 1, 3, 0)
+        Examples:
+            >>> Irreps("1e + 0e + 1e").sort().irreps
+            1x0e+1x1e+1x1e
+            >>> Irreps("2o + 1e + 0e + 1e").sort().p
+            (3, 1, 0, 2)
+            >>> Irreps("2o + 1e + 0e + 1e").sort().inv
+            (2, 1, 3, 0)
         """
         Ret = collections.namedtuple("sort", ["irreps", "p", "inv"])
         out = [(ir, i, mul) for i, (mul, ir) in enumerate(self)]
@@ -604,12 +520,12 @@ class Irreps(tuple):
     def extract(self, indices, x, axis=-1):
         r"""Extract sub sets of irreps
 
-        Parameters
-        ----------
-        indices : tuple of int
-            ``irreps_out = [self[i] for i in indices]``
+        Args:
+            indices (tuple of int):
+            x (`jnp.ndarray`):
 
-        x : array
+        Returns:
+            `jnp.ndarray`: ``[self[i] for i in indices]``
         """
         s = self.slices()
         s = [s[i] for i in indices]
@@ -660,57 +576,37 @@ class Irreps(tuple):
     def D_from_angles(self, alpha, beta, gamma, k=None):
         r"""Matrix of the representation
 
-        Parameters
-        ----------
-        alpha : `jnp.array`
-            tensor of shape :math:`(...)`
+        Args:
+            alpha (`jnp.array`): tensor of shape :math:`(...)`
+            beta (`jnp.array`): tensor of shape :math:`(...)`
+            gamma (`jnp.array`): tensor of shape :math:`(...)`
+            k (`jnp.array`, optional): tensor of shape :math:`(...)`
 
-        beta : `jnp.array`
-            tensor of shape :math:`(...)`
-
-        gamma : `jnp.array`
-            tensor of shape :math:`(...)`
-
-        k : `jnp.array`, optional
-            tensor of shape :math:`(...)`
-
-        Returns
-        -------
-        `jnp.array`
-            tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+        Returns:
+            `jnp.array`: tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return jax.scipy.linalg.block_diag(*[ir.D_from_angles(alpha, beta, gamma, k) for mul, ir in self for _ in range(mul)])
 
     def D_from_quaternion(self, q, k=None):
         r"""Matrix of the representation
 
-        Parameters
-        ----------
-        q : `jnp.array`
-            tensor of shape :math:`(..., 4)`
+        Args:
+            q (`jnp.ndarray`): tensor of shape :math:`(..., 4)`
+            k (`jnp.ndarray`, optional): tensor of shape :math:`(...)`
 
-        k : `jnp.array`, optional
-            tensor of shape :math:`(...)`
-
-        Returns
-        -------
-        `jnp.array`
-            tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+        Returns:
+            `jnp.ndarray`: tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
     def D_from_matrix(self, R):
         r"""Matrix of the representation
 
-        Parameters
-        ----------
-        R : `jnp.array`
-            tensor of shape :math:`(..., 3, 3)`
+        Args:
+        R (`jnp.ndarray`): tensor of shape :math:`(..., 3, 3)`
 
-        Returns
-        -------
-        `jnp.array`
-            tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+        Returns:
+            `jnp.ndarray`: tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
