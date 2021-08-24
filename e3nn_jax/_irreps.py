@@ -154,8 +154,8 @@ class Irrep(tuple):
             >>> m = Irrep(1, -1).D_from_matrix(-jnp.eye(3))
             >>> m
             DeviceArray([[-1., -0., -0.],
-                        [-0., -1., -0.],
-                        [-0., -0., -1.]], dtype=float32)
+                         [-0., -1., -0.],
+                         [-0., -0., -1.]], dtype=float32)
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
