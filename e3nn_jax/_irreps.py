@@ -1,5 +1,6 @@
 import collections
 import itertools
+from functools import partial
 from typing import List
 
 import jax
@@ -99,7 +100,7 @@ class Irrep(tuple):
             if l == lmax:
                 break
 
-    def D_from_angles(self, alpha, beta, gamma, k=None):
+    def D_from_angles(self, alpha, beta, gamma, k=0):
         r"""Matrix :math:`p^k D^l(\alpha, \beta, \gamma)`
 
         (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`, see `wigner_D`.
@@ -121,14 +122,11 @@ class Irrep(tuple):
             o3.wigner_D
             Irreps.D_from_angles
         """
-        if k is None:
-            k = jnp.zeros_like(alpha)
-
         alpha, beta, gamma, k = jnp.broadcast_arrays(alpha, beta, gamma, k)
         k = jnp.asarray(k)
         return wigner_D(self.l, alpha, beta, gamma) * self.p**k[..., None, None]
 
-    def D_from_quaternion(self, q, k=None):
+    def D_from_quaternion(self, q, k=0):
         r"""Matrix of the representation, see `Irrep.D_from_angles`
 
         Args:
@@ -141,14 +139,14 @@ class Irrep(tuple):
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
     def D_from_matrix(self, R):
-        r"""Matrix of the representation, see `Irrep.D_from_angles`
+        r"""Matrix of the representation
 
         Args:
-            R (`jnp.ndarray`): tensor of shape :math:`(..., 3, 3)`
-            k (`jnp.ndarray`, optional): tensor of shape :math:`(...)`
+            R (`jnp.ndarray`): array of shape :math:`(..., 3, 3)`
+            k (`jnp.ndarray`, optional): array of shape :math:`(...)`
 
         Returns:
-            `jnp.ndarray`: tensor of shape :math:`(..., 2l+1, 2l+1)`
+            `jnp.ndarray`: array of shape :math:`(..., 2l+1, 2l+1)`
 
         Examples:
             >>> m = Irrep(1, -1).D_from_matrix(-jnp.eye(3))
@@ -156,6 +154,9 @@ class Irrep(tuple):
             DeviceArray([[-1., -0., -0.],
                          [-0., -1., -0.],
                          [-0., -0., -1.]], dtype=float32)
+
+        See Also:
+            `Irrep.D_from_angles`
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
@@ -367,7 +368,7 @@ class Irreps(tuple):
             normalization : {'component', 'norm'}
 
         Returns:
-            `jnp.ndarray`: tensor of shape ``size`` where ``-1`` is replaced by ``self.dim``
+            `jnp.ndarray`: array of shape ``size`` where ``-1`` is replaced by ``self.dim``
 
         Examples:
             >>> key = jax.random.PRNGKey(0)
@@ -517,6 +518,7 @@ class Irreps(tuple):
     def __repr__(self):
         return "+".join(f"{mul_ir}" for mul_ir in self)
 
+    @partial(jax.jit, static_argnums=(0, 1, 3), inline=True)
     def extract(self, indices, x, axis=-1):
         r"""Extract sub sets of irreps
 
@@ -526,6 +528,11 @@ class Irreps(tuple):
 
         Returns:
             `jnp.ndarray`: ``[self[i] for i in indices]``
+
+        Examples:
+            >>> irreps = Irreps("0e + 0e + 0e + 1e")
+            >>> irreps.extract((0, 2), jnp.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0]))
+            DeviceArray([1., 3.], dtype=float32)
         """
         s = self.slices()
         s = [s[i] for i in indices]
@@ -546,7 +553,21 @@ class Irreps(tuple):
             for i in s
         ], axis=axis)
 
+    @partial(jax.jit, static_argnums=(0,), inline=True)
     def as_list(self, x):
+        r"""Split irreps into blocks
+
+        Args:
+            x (`jnp.ndarray`): array of shape :math:`(..., d)`
+
+        Returns:
+            list of `jnp.ndarray`
+
+        Examples:
+            >>> irreps = Irreps("0e + 1e")
+            >>> irreps.as_list(jnp.array([1.0, 0.0, 0.0, 0.0]))
+            [DeviceArray([[1.]], dtype=float32), DeviceArray([[0., 0., 0.]], dtype=float32)]
+        """
         shape = x.shape[:-1]
         if len(self) == 1:
             mul, ir = self[0]
@@ -557,56 +578,90 @@ class Irreps(tuple):
                 for i, (mul, ir) in zip(self.slices(), self)
             ]
 
-    def transform_by_angles(self, x, alpha, beta, gamma, k=None):
+    @partial(jax.jit, static_argnums=(0,), inline=True)
+    def transform_by_angles(self, x, alpha, beta, gamma, k=0):
         shape = x.shape[:-1]
         return jnp.concatenate([
             jnp.reshape(jnp.einsum("ij,...uj->...ui", ir.D_from_angles(alpha, beta, gamma, k), x), shape + (mul * ir.dim,))
             for (mul, ir), x in zip(self, self.as_list(x))
         ], axis=-1)
 
-    def transform_by_quaternion(self, x, q, k=None):
+    @partial(jax.jit, static_argnums=(0,), inline=True)
+    def transform_by_quaternion(self, x, q, k=0):
+        r"""Rotate data by a rotation given by a quaternion
+
+        Args:
+            x (`jnp.ndarray`): array of shape :math:`(..., d)`
+            q (`jnp.ndarray`): array of shape :math:`(4)`
+            k (`jnp.ndarray`): array of shape :math:`()`
+
+        Returns:
+            `jnp.ndarray`
+
+        Examples:
+            >>> irreps = Irreps("0e + 1o + 2e")
+            >>> irreps.transform_by_quaternion(
+            ...     jnp.array([1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]),
+            ...     jnp.array([1.0, 0.0, 0.0, 0.0]),
+            ...     1
+            ... ) + 0.0
+            DeviceArray([ 1.,  0., -1.,  0.,  0.,  0.,  1.,  0.,  0.], dtype=float32)
+        """
         return self.transform_by_angles(x, *quaternion_to_angles(q), k)
 
+    @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_matrix(self, x, R):
+        r"""Rotate data by a rotation given by a quaternion
+
+        Args:
+            x (`jnp.ndarray`): array of shape :math:`(..., d)`
+            R (`jnp.ndarray`): array of shape :math:`(3, 3)`
+
+        Returns:
+            `jnp.ndarray`
+        """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
         k = (1 - d) / 2
         return self.transform_by_angles(x, *matrix_to_angles(R), k)
 
-    def D_from_angles(self, alpha, beta, gamma, k=None):
+    @partial(jax.jit, static_argnums=(0,), inline=True)
+    def D_from_angles(self, alpha, beta, gamma, k=0):
         r"""Matrix of the representation
 
         Args:
-            alpha (`jnp.array`): tensor of shape :math:`(...)`
-            beta (`jnp.array`): tensor of shape :math:`(...)`
-            gamma (`jnp.array`): tensor of shape :math:`(...)`
-            k (`jnp.array`, optional): tensor of shape :math:`(...)`
+            alpha (`jnp.array`): array of shape :math:`(...)`
+            beta (`jnp.array`): array of shape :math:`(...)`
+            gamma (`jnp.array`): array of shape :math:`(...)`
+            k (`jnp.array`, optional): array of shape :math:`(...)`
 
         Returns:
-            `jnp.array`: tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            `jnp.array`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return jax.scipy.linalg.block_diag(*[ir.D_from_angles(alpha, beta, gamma, k) for mul, ir in self for _ in range(mul)])
 
-    def D_from_quaternion(self, q, k=None):
+    @partial(jax.jit, static_argnums=(0,), inline=True)
+    def D_from_quaternion(self, q, k=0):
         r"""Matrix of the representation
 
         Args:
-            q (`jnp.ndarray`): tensor of shape :math:`(..., 4)`
-            k (`jnp.ndarray`, optional): tensor of shape :math:`(...)`
+            q (`jnp.ndarray`): array of shape :math:`(..., 4)`
+            k (`jnp.ndarray`, optional): array of shape :math:`(...)`
 
         Returns:
-            `jnp.ndarray`: tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            `jnp.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
+    @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_matrix(self, R):
         r"""Matrix of the representation
 
         Args:
-        R (`jnp.ndarray`): tensor of shape :math:`(..., 3, 3)`
+            R (`jnp.ndarray`): array of shape :math:`(..., 3, 3)`
 
         Returns:
-            `jnp.ndarray`: tensor of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            `jnp.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R

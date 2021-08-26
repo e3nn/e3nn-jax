@@ -1,5 +1,7 @@
 import os
+from functools import partial
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -14,7 +16,7 @@ def _z_rot_mat(l, angle):
     r"""
     Create the matrix representation of a z-axis rotation by the given angle,
     in the irrep l of dimension 2 * l + 1, in the basis of real centered
-    spherical harmonics (RC basis in rep_bases.py).
+    spherical harmonics (RC basis in rep_bases.py in lie_learn).
 
     Note: this function is easy to use, but inefficient: only the entries
     on the diagonal and anti-diagonal are non-zero, so explicitly constructing
@@ -31,6 +33,7 @@ def _z_rot_mat(l, angle):
     return M
 
 
+@partial(jax.jit, static_argnums=(0,), inline=True)
 def wigner_D(l, alpha, beta, gamma):
     r"""Wigner D matrix representation of :math:`SO(3)`.
 
@@ -43,27 +46,14 @@ def wigner_D(l, alpha, beta, gamma):
 
     Code of this function has beed copied from `lie_learn <https://github.com/AMLab-Amsterdam/lie_learn>`_ made by Taco Cohen.
 
-    Parameters
-    ----------
-    l : int
-        :math:`l`
+    Args:
+        l (int): :math:`l`
+        alpha: rotation :math:`\alpha` around Y axis, applied third.
+        beta: rotation :math:`\beta` around X axis, applied second.
+        gamma: rotation :math:`\gamma` around Y axis, applied first.
 
-    alpha : `torch.Tensor`
-        tensor of shape :math:`(...)`
-        Rotation :math:`\alpha` around Y axis, applied third.
-
-    beta : `torch.Tensor`
-        tensor of shape :math:`(...)`
-        Rotation :math:`\beta` around X axis, applied second.
-
-    gamma : `torch.Tensor`
-        tensor of shape :math:`(...)`
-        Rotation :math:`\gamma` around Y axis, applied first.
-
-    Returns
-    -------
-    `torch.Tensor`
-        tensor :math:`D^l(\alpha, \beta, \gamma)` of shape :math:`(2l+1, 2l+1)`
+    Returns:
+        array :math:`D^l(\alpha, \beta, \gamma)` of shape :math:`(..., 2l+1, 2l+1)`
     """
     if not l < len(_Jd):
         raise NotImplementedError(f'wigner D maximum l implemented is {len(_Jd) - 1}, send us an email to ask for more')
