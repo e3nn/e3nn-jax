@@ -1,38 +1,31 @@
-from functools import lru_cache
-
 import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Irreps
 
 
-@lru_cache(maxsize=None)
 def normalize_act(phi):
-    k = jax.random.PRNGKey(0)
-    x = jax.random.normal(k, (1_000_000,))
-    c = jnp.mean(phi(x)**2)**0.5
+    with jax.core.eval_context():
+        k = jax.random.PRNGKey(0)
+        x = jax.random.normal(k, (1_000_000,))
+        c = jnp.mean(phi(x)**2)**0.5
 
-    def rho(x):
-        return phi(x) / c
-    return rho
+        def rho(x):
+            return phi(x) / c
+        return rho
 
 
-@lru_cache(maxsize=None)
 def parity_act(phi):
-    x = jnp.linspace(0.0, 10.0, 256)
+    with jax.core.eval_context():
+        x = jnp.linspace(0.0, 10.0, 256)
 
-    a1, a2 = phi(x), phi(-x)
-    if jnp.max(jnp.abs(a1 - a2)) < 1e-5:
-        return 1
-    elif jnp.max(jnp.abs(a1 + a2)) < 1e-5:
-        return -1
-    else:
-        return 0
-
-
-for phi in [jax.nn.gelu, jnp.abs, jnp.tanh, jax.nn.sigmoid, jax.nn.silu, jax.nn.relu]:
-    normalize_act(phi)
-    parity_act(phi)
+        a1, a2 = phi(x), phi(-x)
+        if jnp.max(jnp.abs(a1 - a2)) < 1e-5:
+            return 1
+        elif jnp.max(jnp.abs(a1 + a2)) < 1e-5:
+            return -1
+        else:
+            return 0
 
 
 class Activation:
