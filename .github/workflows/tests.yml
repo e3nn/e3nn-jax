@@ -45,7 +45,7 @@ jobs:
         pip install coveralls
     - name: Test with pytest
       run: |
-        coverage run --source=e3nn-jax -m pytest --doctest-modules --ignore=docs/,examples/ .
+        coverage run --source=e3nn-jax -m pytest --doctest-modules --ignore=docs/ --ignore=examples/ .
     # - name: Upload to coveralls
     #   if: github.event_name == 'push'
     #   run: |
