@@ -121,7 +121,7 @@ class TensorProduct:
         else:
             self.output_mask = jnp.ones(0)
 
-    @partial(jax.jit, static_argnums=(0, 4, 5, 6))
+    @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp'))
     def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False):
         if input2 is None:
             weights, input1, input2 = [], weights, input1
@@ -246,7 +246,7 @@ class TensorProduct:
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ])
 
-    @partial(jax.jit, static_argnums=(0, 3, 4))
+    @partial(jax.jit, static_argnums=(0,), static_argnames=('optimize_einsums', 'custom_einsum_vjp'))
     def right(self, weights, input2=None, *, optimize_einsums=False, custom_einsum_vjp=False):
         if input2 is None:
             weights, input2 = [], weights
