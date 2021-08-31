@@ -2,6 +2,7 @@ from functools import lru_cache, partial
 from math import sqrt
 from typing import Any, List, NamedTuple, Optional
 
+import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Irrep, Irreps, wigner_3j
@@ -120,6 +121,7 @@ class TensorProduct:
         else:
             self.output_mask = jnp.ones(0)
 
+    @partial(jax.jit, static_argnums=(0, 4, 5, 6))
     def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False):
         if input2 is None:
             weights, input1, input2 = [], weights, input1
@@ -244,6 +246,7 @@ class TensorProduct:
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ])
 
+    @partial(jax.jit, static_argnums=(0, 3, 4))
     def right(self, weights, input2=None, *, optimize_einsums=False, custom_einsum_vjp=False):
         if input2 is None:
             weights, input2 = [], weights
