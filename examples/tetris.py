@@ -46,6 +46,7 @@ class Model(flax.linen.Module):
     @flax.linen.compact
     def __call__(self, x):
         gate = Gate('10x0e + 10x0o', [jax.nn.gelu, jnp.tanh], '10x0e', [jax.nn.sigmoid], '5x1e + 5x1o')
+
         def g(x):
             y = jax.vmap(gate)(x.reshape(-1, x.shape[-1]))
             return y.reshape(x.shape[:-1] + (-1,))
