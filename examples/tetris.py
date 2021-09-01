@@ -20,7 +20,6 @@ def tetris():
         [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 1)],  # T
         [(0, 0, 0), (1, 0, 0), (1, 1, 0), (2, 1, 0)],  # zigzag
     ]
-    pos = np.array(pos)
 
     voxels = np.zeros((8, 8, 8, 8, 1))
     for ps, v in zip(pos, voxels):
@@ -37,7 +36,7 @@ def tetris():
         [0, 0, 0, 0, 1, 0, 0],  # L
         [0, 0, 0, 0, 0, 1, 0],  # T
         [0, 0, 0, 0, 0, 0, 1],  # zigzag
-    ], dtype=np.float)
+    ], dtype=np.float32)
 
     return voxels, labels
 
