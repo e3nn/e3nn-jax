@@ -135,7 +135,7 @@ def main():
     ws = [jax.random.normal(k(), w_shape + ins.path_shape) for ins in tp.instructions]
 
     if args.fuse_all:
-        ws = jnp.concatenate([w.flatten() for w in ws])
+        ws = jnp.concatenate([w.reshape(w_shape + (-1,)) for w in ws], axis=-1)
 
     print(f"{sum(x.size for x in jax.tree_leaves(ws))} parameters")
 
