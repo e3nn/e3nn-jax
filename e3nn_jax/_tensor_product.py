@@ -167,7 +167,8 @@ class TensorProduct:
             x1 = x1_list[ins.i_in1]
             x2 = x2_list[ins.i_in2]
             xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
-            w3j = jnp.asarray(wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l))
+            with jax.core.eval_context():
+                w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
 
             if ins.connection_mode == 'uvw':
                 assert ins.has_weight
@@ -283,7 +284,8 @@ class TensorProduct:
                 assert w.shape == ins.path_shape
                 weight_index += 1
 
-            w3j = jnp.asarray(wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l))
+            with jax.core.eval_context():
+                w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
 
             if ins.connection_mode == 'uvw':
                 assert ins.has_weight
