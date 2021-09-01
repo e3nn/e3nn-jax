@@ -38,6 +38,7 @@ def main():
     parser.add_argument("--specialized-code", type=t_or_f, default=False)
     parser.add_argument("--elementwise", type=t_or_f, default=False)
     parser.add_argument("--extrachannels",  type=t_or_f, default=False)
+    parser.add_argument("--fuse-all",  type=t_or_f, default=False)
     parser.add_argument("-n", type=int, default=1000)
     parser.add_argument("--batch", type=int, default=10)
 
@@ -85,6 +86,7 @@ def main():
             specialized_code=args.specialized_code,
             optimize_einsums=args.opt_ein,
             custom_einsum_vjp=args.custom_einsum_vjp,
+            fuse_all=args.fuse_all,
         )
 
         f = jax.vmap(f, (0, None, None), 0)  # channel_out
@@ -112,6 +114,7 @@ def main():
             specialized_code=args.specialized_code,
             optimize_einsums=args.opt_ein,
             custom_einsum_vjp=args.custom_einsum_vjp,
+            fuse_all=args.fuse_all,
         )
     f = jax.vmap(f, (None, 0, 0), 0)
 
@@ -130,6 +133,9 @@ def main():
     k.key = jax.random.PRNGKey(0)
 
     ws = [jax.random.normal(k(), w_shape + ins.path_shape) for ins in tp.instructions]
+
+    if args.fuse_all:
+        ws = jnp.concatenate([w.flatten() for w in ws])
 
     print(f"{sum(x.size for x in jax.tree_leaves(ws))} parameters")
 

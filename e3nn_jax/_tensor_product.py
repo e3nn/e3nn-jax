@@ -1,6 +1,7 @@
 from functools import lru_cache, partial
 from math import sqrt
 from typing import Any, List, NamedTuple, Optional
+import itertools
 
 import jax
 import jax.numpy as jnp
@@ -121,8 +122,8 @@ class TensorProduct:
         else:
             self.output_mask = jnp.ones(0)
 
-    @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp'))
-    def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False):
+    @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all'))
+    def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False):
         if input2 is None:
             weights, input1, input2 = [], weights, input1
 
@@ -130,15 +131,47 @@ class TensorProduct:
         if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
             return jnp.zeros((self.irreps_out.dim,))
 
-        # = extract individual input irreps =
-        x1_list = self.irreps_in1.as_list(input1)
-        x2_list = self.irreps_in2.as_list(input2)
-
         if custom_einsum_vjp:
             assert optimize_einsums
             einsum = opt_einsum
         else:
             einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
+
+        if fuse_all:
+            with jax.core.eval_context():
+                # TODO make if for non weights, even simpler
+                # num_path = sum(x.size for x in weights)
+                num_path = weights.size
+                big_w3j = jnp.zeros((num_path, self.irreps_in1.dim, self.irreps_in2.dim, self.irreps_out.dim))
+                i = 0
+                for ins in self.instructions:
+                    assert ins.has_weight
+                    assert ins.connection_mode == 'uvw'
+
+                    mul_ir_in1 = self.irreps_in1[ins.i_in1]
+                    mul_ir_in2 = self.irreps_in2[ins.i_in2]
+                    mul_ir_out = self.irreps_out[ins.i_out]
+                    m1, m2, mo = mul_ir_in1.mul, mul_ir_in2.mul, mul_ir_out.mul
+                    d1, d2, do = mul_ir_in1.ir.dim, mul_ir_in2.ir.dim, mul_ir_out.ir.dim
+                    s1 = self.irreps_in1[:ins.i_in1].dim
+                    s2 = self.irreps_in2[:ins.i_in2].dim
+                    so = self.irreps_out[:ins.i_out].dim
+
+                    assert ins.path_shape == (m1, m2, mo)
+
+                    w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+                    for u, v, w in itertools.product(range(m1), range(m2), range(mo)):
+                        big_w3j = big_w3j.at[i, s1+u*d1: s1+(u+1)*d1, s2+v*d2: s2+(v+1)*d2, so+w*do: so+(w+1)*do].set(ins.path_weight * w3j)
+                        i += 1
+
+            # w_flat = jnp.concatenate([w.flatten() for w in weights])
+            w_flat = weights
+
+            return einsum("p,pijk,i,j->k", w_flat, big_w3j, input1, input2)
+
+        # = extract individual input irreps =
+        x1_list = self.irreps_in1.as_list(input1)
+        x2_list = self.irreps_in2.as_list(input2)
 
         @lru_cache(maxsize=None)
         def multiply(in1, in2, mode):

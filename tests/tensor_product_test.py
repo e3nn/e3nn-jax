@@ -2,7 +2,7 @@ import pytest
 
 import jax
 import jax.numpy as jnp
-from e3nn_jax import TensorProduct, Irreps
+from e3nn_jax import TensorProduct, Irreps, FullyConnectedTensorProduct
 
 
 @pytest.mark.parametrize('connection_mode', ['uvw', 'uvu', 'uvv'])
@@ -50,3 +50,20 @@ def test_modes(normalization, specialized_code, optimize_einsums, jitted, connec
     a = f(ws, x1, x2)
     b = g(ws, x1, x2)
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), jnp.max(jnp.abs(a - b))
+
+
+def test_fuse(key):
+    tp = FullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
+    def k():
+        k.key, x = jax.random.split(k.key)
+        return x
+    k.key = key
+
+    ws = [jax.random.normal(k(), ins.path_shape) for ins in tp.instructions if ins.has_weight]
+    wf = jnp.concatenate([w.flatten() for w in ws])
+    x1 = tp.irreps_in1.randn(k(), (-1,))
+    x2 = tp.irreps_in2.randn(k(), (-1,))
+
+    a = tp.left_right(ws, x1, x2, fuse_all=False)
+    b = tp.left_right(wf, x1, x2, fuse_all=True)
+    assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), (a, b)
