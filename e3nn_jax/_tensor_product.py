@@ -223,30 +223,31 @@ class TensorProduct:
             xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
             with jax.core.eval_context():
                 w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+                w3j = ins.path_weight * w3j
 
             if ins.connection_mode == 'uvw':
                 assert ins.has_weight
                 if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
-                    out = einsum("uvw,u,v->w", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
+                    out = ins.path_weight * einsum("uvw,u,v->w", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
                 elif specialized_code and mul_ir_in1.ir.l == 0:
-                    out = einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
+                    out = ins.path_weight * einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
                 elif specialized_code and mul_ir_in2.ir.l == 0:
-                    out = einsum("uvw,ui,v->wi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
+                    out = ins.path_weight * einsum("uvw,ui,v->wi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
                 elif specialized_code and mul_ir_out.ir.l == 0:
-                    out = einsum("uvw,ui,vi->w", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
+                    out = ins.path_weight * einsum("uvw,ui,vi->w", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
                 else:
                     out = einsum("uvw,ijk,uvij->wk", w, w3j, xx)
             if ins.connection_mode == 'uvu':
                 assert mul_ir_in1.mul == mul_ir_out.mul
                 if ins.has_weight:
                     if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
-                        out = einsum("uv,u,v->u", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
+                        out = ins.path_weight * einsum("uv,u,v->u", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
                     elif specialized_code and mul_ir_in1.ir.l == 0:
-                        out = einsum("uv,u,vj->uj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
+                        out = ins.path_weight * einsum("uv,u,vj->uj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
                     elif specialized_code and mul_ir_in2.ir.l == 0:
-                        out = einsum("uv,ui,v->ui", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
+                        out = ins.path_weight * einsum("uv,ui,v->ui", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
                     elif specialized_code and mul_ir_out.ir.l == 0:
-                        out = einsum("uv,ui,vi->u", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
+                        out = ins.path_weight * einsum("uv,ui,vi->u", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
                     else:
                         out = einsum("uv,ijk,uvij->uk", w, w3j, xx)
                 else:
@@ -256,13 +257,13 @@ class TensorProduct:
                 assert mul_ir_in2.mul == mul_ir_out.mul
                 if ins.has_weight:
                     if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
-                        out = einsum("uv,u,v->v", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
+                        out = ins.path_weight * einsum("uv,u,v->v", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
                     elif specialized_code and mul_ir_in1.ir.l == 0:
-                        out = einsum("uv,u,vj->vj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
+                        out = ins.path_weight * einsum("uv,u,vj->vj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
                     elif specialized_code and mul_ir_in2.ir.l == 0:
-                        out = einsum("uv,ui,v->vi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
+                        out = ins.path_weight * einsum("uv,ui,v->vi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
                     elif specialized_code and mul_ir_out.ir.l == 0:
-                        out = einsum("uv,ui,vi->v", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
+                        out = ins.path_weight * einsum("uv,ui,vi->v", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
                     else:
                         out = einsum("uv,ijk,uvij->vk", w, w3j, xx)
                 else:
@@ -289,9 +290,7 @@ class TensorProduct:
                 else:
                     out = einsum("ijk,uvij->uvk", w3j, xx)
 
-            out = ins.path_weight * out
-
-            out_list += [out.reshape(mul_ir_out.dim)]
+            out_list += [out]
 
         out = [
             _sum_tensors(
