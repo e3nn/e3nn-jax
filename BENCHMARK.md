@@ -9,6 +9,7 @@ irreps = 128x0e + 128x1e + 128x2e
 ```
 
 # Record on GTX1080
+On Pytorch it takes 140 ms.
 
 ```
 python examples/tensor_product_benchmark.py --irreps "128x0e + 128x1e + 128x2e" --extrachannels f --specialized-code f --fuse-all f --lists t --custom-einsum-vjp f --batch 64 -n 10
