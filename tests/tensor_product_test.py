@@ -54,6 +54,7 @@ def test_modes(normalization, specialized_code, optimize_einsums, jitted, connec
 
 def test_fuse(key):
     tp = FullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
+
     def k():
         k.key, x = jax.random.split(k.key)
         return x

@@ -37,9 +37,9 @@ def main():
     parser.add_argument("--custom-einsum-vjp", type=t_or_f, default=False)
     parser.add_argument("--specialized-code", type=t_or_f, default=False)
     parser.add_argument("--elementwise", type=t_or_f, default=False)
-    parser.add_argument("--extrachannels",  type=t_or_f, default=False)
-    parser.add_argument("--fuse-all",  type=t_or_f, default=False)
-    parser.add_argument("--lists",  type=t_or_f, default=False)
+    parser.add_argument("--extrachannels", type=t_or_f, default=False)
+    parser.add_argument("--fuse-all", type=t_or_f, default=False)
+    parser.add_argument("--lists", type=t_or_f, default=False)
     parser.add_argument("-n", type=int, default=1000)
     parser.add_argument("--batch", type=int, default=10)
 
@@ -97,7 +97,13 @@ def main():
         f = compose(f, lambda z: jnp.sum(z, (0, 1)) / jnp.sqrt(z.shape[0] * z.shape[1]))
 
         f__ = f
-        f = lambda w, x1, x2: f__(w, x1.reshape(c_in1, irreps_in1_red.dim), x2.reshape(c_in2, irreps_in2_red.dim))
+
+        def f(w, x1, x2):
+            return f__(
+                w,
+                x1.reshape(c_in1, irreps_in1_red.dim),
+                x2.reshape(c_in2, irreps_in2_red.dim)
+            )
         tp.left_right = f
 
         w_shape = (c_in1, c_in2, c_out)
