@@ -20,6 +20,12 @@ def _sum_tensors(xs, shape):
     return jnp.zeros(shape)
 
 
+def _flat_concatenate(xs):
+    if len(xs) > 0:
+        return jnp.concatenate([x.flatten() for x in xs])
+    return jnp.zeros((0,))
+
+
 class Instruction(NamedTuple):
     i_in1: int
     i_in2: int
@@ -141,18 +147,18 @@ class TensorProduct:
 
         if isinstance(input1, list):
             input1_list = input1
-            input1 = jnp.concatenate([x.flatten() for x in input1_list])
+            input1 = _flat_concatenate(input1_list)
         else:
             input1_list = self.irreps_in1.as_list(input1)
 
         if isinstance(input2, list):
             input2_list = input2
-            input2 = jnp.concatenate([x.flatten() for x in input2_list])
+            input2 = _flat_concatenate(input2_list)
         else:
             input2_list = self.irreps_in2.as_list(input2)
 
         if isinstance(weights, list):
-            weights_flat = jnp.concatenate([w.flatten() for w in weights])
+            weights_flat = _flat_concatenate(weights)
         else:
             weights_flat = weights
             weights = []
@@ -301,7 +307,7 @@ class TensorProduct:
         ]
         if output_list:
             return out
-        return jnp.concatenate([x.flatten() for x in out])
+        return _flat_concatenate(out)
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=('optimize_einsums', 'custom_einsum_vjp'))
     def right(self, weights, input2=None, *, optimize_einsums=False, custom_einsum_vjp=False):
