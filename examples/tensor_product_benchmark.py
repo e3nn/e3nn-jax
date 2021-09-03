@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--elementwise", type=t_or_f, default=False)
     parser.add_argument("--extrachannels",  type=t_or_f, default=False)
     parser.add_argument("--fuse-all",  type=t_or_f, default=False)
+    parser.add_argument("--lists",  type=t_or_f, default=False)
     parser.add_argument("-n", type=int, default=1000)
     parser.add_argument("--batch", type=int, default=10)
 
@@ -87,6 +88,7 @@ def main():
             optimize_einsums=args.opt_ein,
             custom_einsum_vjp=args.custom_einsum_vjp,
             fuse_all=args.fuse_all,
+            output_list=args.lists,
         )
 
         f = jax.vmap(f, (0, None, None), 0)  # channel_out
@@ -115,6 +117,7 @@ def main():
             optimize_einsums=args.opt_ein,
             custom_einsum_vjp=args.custom_einsum_vjp,
             fuse_all=args.fuse_all,
+            output_list=args.lists,
         )
     f = jax.vmap(f, (None, 0, 0), 0)
 
@@ -136,6 +139,7 @@ def main():
 
     if args.fuse_all:
         ws = jnp.concatenate([w.reshape(w_shape + (-1,)) for w in ws], axis=-1)
+        print(f"flat weight shape = {ws.shape}")
 
     print(f"{sum(x.size for x in jax.tree_leaves(ws))} parameters")
 
@@ -146,11 +150,19 @@ def main():
         )
         for _ in range(args.n + warmup)
     ])
+    if args.lists:
+        inputs = iter([
+            (
+                irreps_in1.as_list(irreps_in1.randn(k(), (args.batch, -1))),
+                irreps_in2.as_list(irreps_in2.randn(k(), (args.batch, -1)))
+            )
+            for _ in range(args.n + warmup)
+        ])
 
     if args.backward:
         # tanh() forces it to realize the grad as a full size matrix rather than expanded (stride 0) ones
         f_ = f
-        f = jax.value_and_grad(lambda ws, x1, x2: jnp.tanh(f_(ws, x1, x2)).sum(), 0)
+        f = jax.value_and_grad(lambda ws, x1, x2: sum(jnp.sum(jnp.tanh(x)) for x in jax.tree_leaves(f_(ws, x1, x2))), 0)
 
     # compile
     if args.jit:
@@ -175,6 +187,9 @@ def main():
 
     x1 = irreps_in1.randn(k(), (args.batch, -1))
     x2 = irreps_in2.randn(k(), (args.batch, -1))
+    if args.lists:
+        x1 = irreps_in1.as_list(x1)
+        x2 = irreps_in2.as_list(x2)
 
     c = jax.xla_computation(f)(ws, x1, x2)
 

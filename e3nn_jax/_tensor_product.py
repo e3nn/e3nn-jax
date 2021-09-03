@@ -1,5 +1,5 @@
 from functools import lru_cache, partial
-from math import sqrt
+from math import sqrt, prod
 from typing import Any, List, NamedTuple, Optional
 import itertools
 
@@ -122,13 +122,15 @@ class TensorProduct:
         else:
             self.output_mask = jnp.ones(0)
 
-    @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all'))
-    def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False):
+    @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all', 'output_list'))
+    def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False, output_list=False):
         if input2 is None:
             weights, input1, input2 = [], weights, input1
 
         # = Short-circut for zero dimensional =
         if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
+            if output_list:
+                return [jnp.zeros((mul, ir.dim,)) for mul, ir in self.irreps_out]
             return jnp.zeros((self.irreps_out.dim,))
 
         if custom_einsum_vjp:
@@ -137,11 +139,34 @@ class TensorProduct:
         else:
             einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
 
+        if isinstance(input1, list):
+            input1_list = input1
+            input1 = jnp.concatenate([x.flatten() for x in input1_list])
+        else:
+            input1_list = self.irreps_in1.as_list(input1)
+
+        if isinstance(input2, list):
+            input2_list = input2
+            input2 = jnp.concatenate([x.flatten() for x in input2_list])
+        else:
+            input2_list = self.irreps_in2.as_list(input2)
+
+        if isinstance(weights, list):
+            weights_flat = jnp.concatenate([w.flatten() for w in weights])
+        else:
+            weights_flat = weights
+            weights = []
+            i = 0
+            for ins in self.instructions:
+                if ins.has_weight:
+                    n = prod(ins.path_shape)
+                    weights.append(weights_flat[i:i+n].reshape(ins.path_shape))
+                    i += n
+
         if fuse_all:
             with jax.core.eval_context():
-                # TODO make if for non weights, even simpler
-                # num_path = sum(x.size for x in weights)
-                num_path = weights.size
+                # TODO make it for non weights, even simpler
+                num_path = weights_flat.size
                 big_w3j = jnp.zeros((num_path, self.irreps_in1.dim, self.irreps_in2.dim, self.irreps_out.dim))
                 i = 0
                 for ins in self.instructions:
@@ -164,21 +189,17 @@ class TensorProduct:
                         big_w3j = big_w3j.at[i, s1+u*d1: s1+(u+1)*d1, s2+v*d2: s2+(v+1)*d2, so+w*do: so+(w+1)*do].set(ins.path_weight * w3j)
                         i += 1
 
-            # w_flat = jnp.concatenate([w.flatten() for w in weights])
-            w_flat = weights
-
-            return einsum("p,pijk,i,j->k", w_flat, big_w3j, input1, input2)
-
-        # = extract individual input irreps =
-        x1_list = self.irreps_in1.as_list(input1)
-        x2_list = self.irreps_in2.as_list(input2)
+            out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1, input2)
+            if output_list:
+                return self.irreps_out.as_list(out)
+            return out
 
         @lru_cache(maxsize=None)
         def multiply(in1, in2, mode):
             if mode == 'uv':
-                return einsum('ui,vj->uvij', x1_list[in1], x2_list[in2])
+                return einsum('ui,vj->uvij', input1_list[in1], input2_list[in2])
             if mode == 'uu':
-                return einsum('ui,uj->uij', x1_list[in1], x2_list[in2])
+                return einsum('ui,uj->uij', input1_list[in1], input2_list[in2])
 
         weight_index = 0
 
@@ -197,8 +218,8 @@ class TensorProduct:
             if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
                 continue
 
-            x1 = x1_list[ins.i_in1]
-            x2 = x2_list[ins.i_in2]
+            x1 = input1_list[ins.i_in1]
+            x2 = input2_list[ins.i_in2]
             xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
             with jax.core.eval_context():
                 w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
@@ -272,13 +293,16 @@ class TensorProduct:
 
             out_list += [out.reshape(mul_ir_out.dim)]
 
-        return jnp.concatenate([
+        out = [
             _sum_tensors(
                 [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
-                shape=(mul_ir_out.dim),
+                shape=(mul_ir_out.mul, mul_ir_out.ir.dim),
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
-        ])
+        ]
+        if output_list:
+            return out
+        return jnp.concatenate([x.flatten() for x in out])
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=('optimize_einsums', 'custom_einsum_vjp'))
     def right(self, weights, input2=None, *, optimize_einsums=False, custom_einsum_vjp=False):
