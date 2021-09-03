@@ -473,7 +473,7 @@ def angles_to_xyz(alpha, beta):
 
     Examples:
         >>> angles_to_xyz(1.7, 0.0) + 0.0
-        DeviceArray([0., 1., 0.], dtype=float32)
+        DeviceArray([0., 1., 0.], dtype=float32, weak_type=True)
     """
     alpha, beta = jnp.broadcast_arrays(alpha, beta)
     x = jnp.sin(beta) * jnp.sin(alpha)
