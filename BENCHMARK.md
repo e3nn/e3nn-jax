@@ -37,3 +37,12 @@ starting...
 
 12.9 ms
 ```
+
+```
+======= Benchmark with settings: ======
+  specialized_code : True
+             lists : False
+========================================
+
+12 ms
+```
