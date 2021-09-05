@@ -42,12 +42,12 @@ def tetris():
 class Model(flax.linen.Module):
     @flax.linen.compact
     def __call__(self, x, edge_src, edge_dst, edge_attr):
-        gate = Gate('10x0e + 10x0o', [jax.nn.gelu, jnp.tanh], '10x0e', [jax.nn.sigmoid], '5x1e + 5x1o')
+        gate = Gate('32x0e + 32x0o', [jax.nn.gelu, jnp.tanh], '24x0e', [jax.nn.sigmoid], '8x1e + 8x1o + 4x2e + 4x2o')
         g = jax.vmap(gate)
 
         kw = dict(
             irreps_node_attr=Irreps('0e'),
-            irreps_edge_attr=Irreps('0e + 1o'),
+            irreps_edge_attr=Irreps('0e + 1o + 2e'),
             fc_neurons=None,
             num_neighbors=1.5,
         )
@@ -78,7 +78,6 @@ class Model(flax.linen.Module):
         return x
 
 
-@jax.jit
 def apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch):
     """Computes gradients, loss and accuracy for a single batch."""
     def loss_fn(params):
@@ -90,10 +89,9 @@ def apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
     (loss, pred), grads = grad_fn(state.params)
     accuracy = jnp.mean(jnp.all(jnp.round(pred) == labels, axis=1))
-    return grads, loss, accuracy
+    return grads, loss, accuracy, pred
 
 
-@jax.jit
 def update_model(state, grads):
     return state.apply_gradients(grads=grads)
 
@@ -101,19 +99,19 @@ def update_model(state, grads):
 @jax.jit
 def make_steps(n, state, node_input, edge_src, edge_dst, edge_attr, labels, batch):
     def f(i, state):
-        grads, loss, accuracy = apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+        grads, loss, accuracy, pred = apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
         return update_model(state, grads)
 
     state = jax.lax.fori_loop(0, n - 1, f, state)
-    grads, loss, accuracy = apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+    grads, loss, accuracy, pred = apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
     state = update_model(state, grads)
-    return state, loss, accuracy
+    return state, loss, accuracy, pred
 
 
 def main():
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
-    edge_attr = spherical_harmonics("0e + 1o", pos[edge_dst] - pos[edge_src], True, normalization='component')
+    edge_attr = spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True, normalization='component')
     node_input = jnp.ones((pos.shape[0], 1))
 
     learning_rate = 0.1
@@ -134,16 +132,16 @@ def main():
     # compile jit
     wall = time.perf_counter()
     print("compiling...")
-    apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
-    make_steps(50, state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+    _, _, _, pred = make_steps(50, state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+    print(pred.round(2))
 
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
 
     wall = time.perf_counter()
     it = 0
     for _ in range(2000):
-        state, loss, accuracy = make_steps(50, state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
-        it += 50
+        state, loss, accuracy, pred = make_steps(100, state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+        it += 100
         if accuracy == 1:
             break
 
@@ -151,6 +149,8 @@ def main():
     print(f"100% accuracy has been reach in {total:.1f}s after {it} iterations ({1000 * total/it:.1f}ms/it).")
 
     print(f"accuracy = {100 * accuracy:.0f}%")
+
+    print(pred.round(2))
 
 
 if __name__ == '__main__':
