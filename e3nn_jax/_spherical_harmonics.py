@@ -89,6 +89,9 @@ def spherical_harmonics(
 
     irreps_out = Irreps(irreps_out)
 
+    assert all([l % 2 == 1 or p == 1 for _, (l, p) in irreps_out])
+    assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) == 1
+
     ls = []
     for mul, (l, p) in irreps_out:
         ls.extend([l] * mul)
