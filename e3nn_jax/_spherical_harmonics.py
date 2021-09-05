@@ -8,12 +8,11 @@ import jax.numpy as jnp
 from e3nn_jax import Irreps
 
 
-@partial(jax.jit, static_argnums=(0, 2), static_argnames=('normalization',), inline=True)
+@partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
 def spherical_harmonics(
     irreps_out,
     x,
     normalize: bool,
-    *,
     normalization: str = 'integral'
 ):
     r"""Spherical harmonics
