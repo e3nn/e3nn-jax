@@ -3,8 +3,8 @@ from typing import Callable, Sequence
 import flax
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, TensorProduct
-from e3nn_jax.flax import MLP, FlaxFullyConnectedTensorProduct
+from e3nn_jax import Irreps, TensorProduct, index_add
+from e3nn_jax.flax import MLP, FlaxFullyConnectedTensorProduct, FlaxLinear
 
 
 class Convolution(flax.linen.Module):
@@ -37,11 +37,11 @@ class Convolution(flax.linen.Module):
     irreps_node_output: Irreps
     fc_neurons: Sequence[int]
     num_neighbors: float
-    mixing_angle: float = 0.2
+    mixing_angle: float = jnp.pi / 8.0
     weight_init: Callable = jax.random.normal
 
     @flax.linen.compact
-    def __call__(self, node_input, node_attr, edge_src, edge_dst, edge_attr, edge_scalar_attr):
+    def __call__(self, node_input, edge_src, edge_dst, edge_attr, node_attr=None, edge_scalar_attr=None):
         irreps_node_input = Irreps(self.irreps_node_input)
         irreps_node_attr = Irreps(self.irreps_node_attr)
         irreps_edge_attr = Irreps(self.irreps_edge_attr)
@@ -49,11 +49,18 @@ class Convolution(flax.linen.Module):
 
         ######################################################################################
 
-        tmp = FlaxFullyConnectedTensorProduct(
-            irreps_node_input,
-            irreps_node_attr,
-            irreps_node_input + irreps_node_output
-        )(node_input, node_attr)
+        if irreps_node_attr is not None and node_attr is not None:
+            tmp = jax.vmap(FlaxFullyConnectedTensorProduct(
+                irreps_node_input,
+                irreps_node_attr,
+                irreps_node_input + irreps_node_output
+            ))(node_input, node_attr)
+        else:
+            tmp = jax.vmap(FlaxLinear(
+                irreps_node_input,
+                irreps_node_input + irreps_node_output
+            ))(node_input)
+
         node_features, node_self_out = tmp[:, :irreps_node_input.dim], tmp[:, irreps_node_input.dim:]
 
         ######################################################################################
@@ -77,10 +84,6 @@ class Convolution(flax.linen.Module):
             for i_1, i_2, i_out, mode, train in instructions
         ]
 
-        fc = MLP(
-            self.fc_neurons,
-            jax.nn.gelu
-        )
         tp = TensorProduct(
             irreps_node_input,
             irreps_edge_attr,
@@ -89,29 +92,45 @@ class Convolution(flax.linen.Module):
         )
         irreps_mid = irreps_mid.simplify()
 
-        weight = fc(edge_scalar_attr)
-        weight = [
-            jnp.einsum(
-                "x...,ex->e...",
-                self.param(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', self.weight_init, (weight.shape[1],) + ins.path_shape),
-                weight
-            )
-            for ins in tp.instructions
-        ]
-        edge_features = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, node_features[edge_src], edge_attr)
+        if self.fc_neurons:
+            weight = MLP(
+                self.fc_neurons,
+                jax.nn.gelu
+            )(edge_scalar_attr)
+            weight = [
+                jnp.einsum(
+                    "x...,ex->e...",
+                    self.param(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', self.weight_init, (weight.shape[1],) + ins.path_shape),
+                    weight
+                )
+                for ins in tp.instructions
+            ]
+            edge_features = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, node_features[edge_src], edge_attr)
+        else:
+            weight = [
+                self.param(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', self.weight_init, ins.path_shape)
+                for ins in tp.instructions
+            ]
+            edge_features = jax.vmap(tp.left_right, (None, 0, 0), 0)(weight, node_features[edge_src], edge_attr)
 
         ######################################################################################
 
-        node_features = jax.ops.index_add(jnp.zeros((node_input.shape[0], edge_features.shape[1])), edge_dst, edge_features)
+        node_features = index_add(edge_dst, edge_features, out_dim=node_input.shape[0])
         node_features = node_features / self.num_neighbors**0.5
 
         ######################################################################################
 
-        node_conv_out = FlaxFullyConnectedTensorProduct(
-            irreps_mid,
-            irreps_node_attr,
-            irreps_node_output
-        )(node_features, node_attr)
+        if irreps_node_attr is not None and node_attr is not None:
+            node_conv_out = jax.vmap(FlaxFullyConnectedTensorProduct(
+                irreps_mid,
+                irreps_node_attr,
+                irreps_node_output
+            ))(node_features, node_attr)
+        else:
+            node_conv_out = jax.vmap(FlaxLinear(
+                irreps_mid,
+                irreps_node_output
+            ))(node_features)
 
         ######################################################################################
 
