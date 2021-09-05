@@ -1,3 +1,5 @@
+import time
+
 import flax
 import jax
 import jax.numpy as jnp
@@ -5,7 +7,6 @@ import optax
 from e3nn_jax import Gate, Irreps, index_add, radius_graph, spherical_harmonics
 from e3nn_jax.experimental.point_convolution import Convolution
 from flax.training import train_state
-from tqdm.auto import tqdm
 
 
 def tetris():
@@ -58,7 +59,6 @@ class Model(flax.linen.Module):
                 **kw
             )(x, edge_src, edge_dst, edge_attr)
         )
-        print(x.shape)
 
         for _ in range(3):
             x = g(
@@ -68,14 +68,12 @@ class Model(flax.linen.Module):
                     **kw
                 )(x, edge_src, edge_dst, edge_attr)
             )
-            print(x.shape)
 
         x = Convolution(
             irreps_node_input=gate.irreps_out,
             irreps_node_output=Irreps('0o + 6x0e'),
             **kw
         )(x, edge_src, edge_dst, edge_attr)
-        print(x.shape)
 
         return x
 
@@ -104,6 +102,7 @@ def main():
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
     edge_attr = spherical_harmonics("0e + 1o", pos[edge_dst] - pos[edge_src], True, normalization='component')
+    node_input = jnp.ones((pos.shape[0], 1))
 
     learning_rate = 0.1
     momentum = 0.9
@@ -111,7 +110,7 @@ def main():
     rng = jax.random.PRNGKey(3)
 
     model = Model()
-    params = model.init(rng, jnp.ones((pos.shape[0], 1)), edge_src, edge_dst, edge_attr)
+    params = model.init(rng, node_input, edge_src, edge_dst, edge_attr)
 
     tx = optax.sgd(learning_rate, momentum)
     st = train_state.TrainState.create(
@@ -120,10 +119,22 @@ def main():
         tx=tx
     )
 
-    for _ in tqdm(range(1000)):
-        grads, loss, accuracy = apply_model(st, jnp.ones((pos.shape[0], 1)), edge_src, edge_dst, edge_attr, labels, batch)
+    # compile jit
+    wall = time.perf_counter()
+    print("compiling...")
+    apply_model(st, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+
+    print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
+
+    wall = time.perf_counter()
+    for it in range(2000):
+        grads, loss, accuracy = apply_model(st, node_input, edge_src, edge_dst, edge_attr, labels, batch)
         st = update_model(st, grads)
-        # print(f"loss = {loss:.3f}")
+        if accuracy == 1:
+            break
+
+    total = time.perf_counter() - wall
+    print(f"100% accuracy has been reach in {total:.1f}s after {it} iterations ({1000 * total/it:.0f}ms/it).")
 
     print(f"accuracy = {100 * accuracy:.0f}%")
 
