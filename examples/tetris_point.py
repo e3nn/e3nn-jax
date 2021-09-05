@@ -79,10 +79,10 @@ class Model(flax.linen.Module):
 
 
 @jax.jit
-def apply_model(state, x, edge_src, edge_dst, edge_attr, labels, batch):
+def apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch):
     """Computes gradients, loss and accuracy for a single batch."""
     def loss_fn(params):
-        pred = Model().apply({'params': params}, x, edge_src, edge_dst, edge_attr)
+        pred = Model().apply({'params': params}, node_input, edge_src, edge_dst, edge_attr)
         pred = index_add(batch, pred, 8)
         loss = jnp.mean((pred - labels)**2)
         return loss, pred
@@ -96,6 +96,18 @@ def apply_model(state, x, edge_src, edge_dst, edge_attr, labels, batch):
 @jax.jit
 def update_model(state, grads):
     return state.apply_gradients(grads=grads)
+
+
+@jax.jit
+def make_steps(n, state, node_input, edge_src, edge_dst, edge_attr, labels, batch):
+    def f(i, state):
+        grads, loss, accuracy = apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+        return update_model(state, grads)
+
+    state = jax.lax.fori_loop(0, n - 1, f, state)
+    grads, loss, accuracy = apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+    state = update_model(state, grads)
+    return state, loss, accuracy
 
 
 def main():
@@ -113,7 +125,7 @@ def main():
     params = model.init(rng, node_input, edge_src, edge_dst, edge_attr)
 
     tx = optax.sgd(learning_rate, momentum)
-    st = train_state.TrainState.create(
+    state = train_state.TrainState.create(
         apply_fn=model.apply,
         params=params['params'],
         tx=tx
@@ -122,19 +134,21 @@ def main():
     # compile jit
     wall = time.perf_counter()
     print("compiling...")
-    apply_model(st, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+    apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+    make_steps(50, state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
 
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
 
     wall = time.perf_counter()
-    for it in range(2000):
-        grads, loss, accuracy = apply_model(st, node_input, edge_src, edge_dst, edge_attr, labels, batch)
-        st = update_model(st, grads)
+    it = 0
+    for _ in range(2000):
+        state, loss, accuracy = make_steps(50, state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+        it += 50
         if accuracy == 1:
             break
 
     total = time.perf_counter() - wall
-    print(f"100% accuracy has been reach in {total:.1f}s after {it} iterations ({1000 * total/it:.0f}ms/it).")
+    print(f"100% accuracy has been reach in {total:.1f}s after {it} iterations ({1000 * total/it:.1f}ms/it).")
 
     print(f"accuracy = {100 * accuracy:.0f}%")
 
