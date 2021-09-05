@@ -1,8 +1,10 @@
+from typing import Callable, Sequence
+
 import flax
 import jax
 import jax.numpy as jnp
-from e3nn_jax import FullyConnectedTensorProduct, Irreps, TensorProduct
-from e3nn_jax.flax import MLP
+from e3nn_jax import Irreps, TensorProduct
+from e3nn_jax.flax import MLP, FlaxFullyConnectedTensorProduct
 
 
 class Convolution(flax.linen.Module):
@@ -29,41 +31,45 @@ class Convolution(flax.linen.Module):
     num_neighbors : float
         typical number of nodes convolved over
     """
-    def __init__(
-        self,
-        irreps_node_input,
-        irreps_node_attr,
-        irreps_edge_attr,
-        irreps_node_output,
-        fc_neurons,
-        num_neighbors
-    ):
-        self.irreps_node_input = Irreps(irreps_node_input)
-        self.irreps_node_attr = Irreps(irreps_node_attr)
-        self.irreps_edge_attr = Irreps(irreps_edge_attr)
-        self.irreps_node_output = Irreps(irreps_node_output)
-        self.fc_neurons = fc_neurons
-        self.num_neighbors = num_neighbors
+    irreps_node_input: Irreps
+    irreps_node_attr: Irreps
+    irreps_edge_attr: Irreps
+    irreps_node_output: Irreps
+    fc_neurons: Sequence[int]
+    num_neighbors: float
+    mixing_angle: float = 0.2
+    weight_init: Callable = jax.random.normal
 
     @flax.linen.compact
     def __call__(self, node_input, node_attr, edge_src, edge_dst, edge_attr, edge_scalar_attr):
+        irreps_node_input = Irreps(self.irreps_node_input)
+        irreps_node_attr = Irreps(self.irreps_node_attr)
+        irreps_edge_attr = Irreps(self.irreps_edge_attr)
+        irreps_node_output = Irreps(self.irreps_node_output)
 
-        self_con = FullyConnectedTensorProduct(self.irreps_node_input, self.irreps_node_attr, self.irreps_node_output)
+        ######################################################################################
 
-        lin1 = FullyConnectedTensorProduct(self.irreps_node_input, self.irreps_node_attr, self.irreps_node_input)
+        tmp = FlaxFullyConnectedTensorProduct(
+            irreps_node_input,
+            irreps_node_attr,
+            irreps_node_input + irreps_node_output
+        )(node_input, node_attr)
+        node_features, node_self_out = tmp[:, :irreps_node_input.dim], tmp[:, irreps_node_input.dim:]
+
+        ######################################################################################
 
         irreps_mid = []
         instructions = []
-        for i, (mul, ir_in) in enumerate(self.irreps_node_input):
-            for j, (_, ir_edge) in enumerate(self.irreps_edge_attr):
+        for i, (mul, ir_in) in enumerate(irreps_node_input):
+            for j, (_, ir_edge) in enumerate(irreps_edge_attr):
                 for ir_out in ir_in * ir_edge:
-                    if ir_out in self.irreps_node_output or ir_out.is_scalar():
+                    if ir_out in irreps_node_output or ir_out.is_scalar():
                         k = len(irreps_mid)
                         irreps_mid.append((mul, ir_out))
                         instructions.append((i, j, k, 'uvu', True))
         irreps_mid = Irreps(irreps_mid)
 
-        assert irreps_mid.dim > 0, f"irreps_node_input={self.irreps_node_input} time irreps_edge_attr={self.irreps_edge_attr} produces nothing in irreps_node_output={self.irreps_node_output}"
+        assert irreps_mid.dim > 0, f"irreps_node_input={irreps_node_input} time irreps_edge_attr={irreps_edge_attr} produces nothing in irreps_node_output={irreps_node_output}"
 
         irreps_mid, p, _ = irreps_mid.sort()
         instructions = [
@@ -76,32 +82,40 @@ class Convolution(flax.linen.Module):
             jax.nn.gelu
         )
         tp = TensorProduct(
-            self.irreps_node_input,
-            self.irreps_edge_attr,
+            irreps_node_input,
+            irreps_edge_attr,
             irreps_mid,
             instructions,
         )
-
-        lin2 = FullyConnectedTensorProduct(irreps_mid, self.irreps_node_attr, self.irreps_node_output)
-
-        # inspired by https://arxiv.org/pdf/2002.10444.pdf
-        alpha = FullyConnectedTensorProduct(irreps_mid, self.irreps_node_attr, "0e")
-        # alpha.weight.zero_()
-        assert alpha.output_mask[0] == 1.0, f"irreps_mid={irreps_mid} and irreps_node_attr={self.irreps_node_attr} are not able to generate scalars"
+        irreps_mid = irreps_mid.simplify()
 
         weight = fc(edge_scalar_attr)
-        # es -MLP> ef
-        # ef * f... -> e...
+        weight = [
+            jnp.einsum(
+                "x...,ex->e...",
+                self.param(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', self.weight_init, (weight.shape[1],) + ins.path_shape),
+                weight
+            )
+            for ins in tp.instructions
+        ]
+        edge_features = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, node_features[edge_src], edge_attr)
 
-        node_features = lin1(node_input, node_attr)
+        ######################################################################################
 
-        edge_features = tp(node_features[edge_src], edge_attr, weight)
         node_features = jax.ops.index_add(jnp.zeros((node_input.shape[0], edge_features.shape[1])), edge_dst, edge_features)
         node_features = node_features / self.num_neighbors**0.5
 
-        node_conv_out = lin2(node_features, node_attr)
-        alpha = alpha(node_features, node_attr)
+        ######################################################################################
 
-        m = self_con.output_mask
-        alpha = (1 - m) + alpha * m
-        return self_con(node_input, node_attr) + alpha * node_conv_out
+        node_conv_out = FlaxFullyConnectedTensorProduct(
+            irreps_mid,
+            irreps_node_attr,
+            irreps_node_output
+        )(node_features, node_attr)
+
+        ######################################################################################
+
+        with jax.core.eval_context():
+            c = jnp.cos(self.mixing_angle)
+            s = jnp.sin(self.mixing_angle)
+        return c * node_self_out + s * node_conv_out
