@@ -58,18 +58,5 @@ class Activation:
         self.acts = acts
 
     def __call__(self, features):
-        output = []
-        index = 0
-        for (mul, ir), act in zip(self.irreps_in, self.acts):
-            if act is not None:
-                output.append(act(features[..., index: index + mul]))
-            else:
-                output.append(features[..., index: index + mul * ir.dim])
-            index += mul * ir.dim
-
-        if len(output) > 1:
-            return jnp.concatenate(output, axis=-1)
-        elif len(output) == 1:
-            return output[0]
-        else:
-            return jnp.zeros_like(features)
+        assert isinstance(features, list)
+        return [x if act is None else act(x) for act, x in zip(self.acts, features)]

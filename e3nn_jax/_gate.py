@@ -1,5 +1,5 @@
-import jax.numpy as jnp
-
+# import jax.numpy as jnp
+# import jax
 from e3nn_jax import Activation, ElementwiseTensorProduct, Irreps
 
 
@@ -92,9 +92,9 @@ class Gate:
         if irreps_gates.num_irreps != irreps_gated.num_irreps:
             raise ValueError(f"There are {irreps_gated.num_irreps} irreps in irreps_gated, but a different number ({irreps_gates.num_irreps}) of gate scalars in irreps_gates")
 
-        self.sc = _SortCut(irreps_scalars, irreps_gates, irreps_gated)
-        self.irreps_scalars, self.irreps_gates, self.irreps_gated = self.sc.irreps_outs
-        self.irreps_in = self.sc.irreps_in
+        # self.sc = _SortCut(irreps_scalars, irreps_gates, irreps_gated)
+        self.irreps_scalars, self.irreps_gates, self.irreps_gated = irreps_scalars, irreps_gates, irreps_gated  # self.sc.irreps_outs
+        self.irreps_in = irreps_scalars + irreps_gates + irreps_gated
 
         self.act_scalars = Activation(irreps_scalars, act_scalars)
         irreps_scalars = self.act_scalars.irreps_out
@@ -123,13 +123,20 @@ class Gate:
         `torch.Tensor`
             tensor of shape ``(irreps_out.dim)``
         """
-        scalars, gates, gated = self.sc(features)
+        assert isinstance(features, list)
+        assert len(features) == len(self.irreps_in)
+        scalars = features[:len(self.irreps_scalars)]
+        gates = features[len(self.irreps_scalars): -len(self.irreps_gated)]
+        gated = features[-len(self.irreps_gated):]
+
+        # print(jax.tree_map(lambda x: x.shape, gates))
+        # print(jax.tree_map(lambda x: x.shape, gated))
 
         scalars = self.act_scalars(scalars)
-        if gates.shape[-1]:
+        if gates:
             gates = self.act_gates(gates)
-            gated = self.mul.left_right(gated, gates)
-            features = jnp.concatenate([scalars, gated], axis=-1)
+            gated = self.mul.left_right(gated, gates, output_list=True)
+            features = scalars + gated  #jnp.concatenate([scalars, gated], axis=-1)
         else:
             features = scalars
         return features

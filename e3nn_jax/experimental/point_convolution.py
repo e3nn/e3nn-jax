@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 from e3nn_jax import Irreps, TensorProduct, index_add
 from e3nn_jax.flax import MLP, FlaxFullyConnectedTensorProduct, FlaxLinear
+from functools import partial
 
 
 class Convolution(flax.linen.Module):
@@ -54,14 +55,14 @@ class Convolution(flax.linen.Module):
                 irreps_node_input,
                 irreps_node_attr,
                 irreps_node_input + irreps_node_output
-            ))(node_input, node_attr)
+            ), (0, 0, None), 0)(node_input, node_attr, output_list=True)
         else:
-            tmp = jax.vmap(FlaxLinear(
+            tmp = jax.vmap(lambda x: FlaxLinear(
                 irreps_node_input,
                 irreps_node_input + irreps_node_output
-            ))(node_input)
+            )(x, output_list=True))(node_input)
 
-        node_features, node_self_out = tmp[:, :irreps_node_input.dim], tmp[:, irreps_node_input.dim:]
+        node_features, node_self_out = tmp[:len(irreps_node_input)], tmp[len(irreps_node_input):]
 
         ######################################################################################
 
@@ -90,7 +91,6 @@ class Convolution(flax.linen.Module):
             irreps_mid,
             instructions,
         )
-        irreps_mid = irreps_mid.simplify()
 
         if self.fc_neurons:
             weight = MLP(
@@ -105,18 +105,20 @@ class Convolution(flax.linen.Module):
                 )
                 for ins in tp.instructions
             ]
-            edge_features = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, node_features[edge_src], edge_attr)
+            edge_features = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, node_features[edge_src], edge_attr, output_list=True)
         else:
             weight = [
                 self.param(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', self.weight_init, ins.path_shape)
                 for ins in tp.instructions
             ]
-            edge_features = jax.vmap(tp.left_right, (None, 0, 0), 0)(weight, node_features[edge_src], edge_attr)
+            edge_features = jax.tree_map(lambda x: x[edge_src], node_features)
+            edge_features = jax.vmap(partial(tp.left_right, output_list=True), (None, 0, 0), 0)(weight, edge_features, edge_attr)
+
+        # TODO irreps_mid = irreps_mid.simplify()
 
         ######################################################################################
 
-        node_features = index_add(edge_dst, edge_features, out_dim=node_input.shape[0])
-        node_features = node_features / self.num_neighbors**0.5
+        node_features = jax.tree_map(lambda x: index_add(edge_dst, x, out_dim=node_input[0].shape[0]) / self.num_neighbors**0.5, edge_features)
 
         ######################################################################################
 
@@ -125,16 +127,16 @@ class Convolution(flax.linen.Module):
                 irreps_mid,
                 irreps_node_attr,
                 irreps_node_output
-            ))(node_features, node_attr)
+            ))(node_features, node_attr, output_list=True)
         else:
-            node_conv_out = jax.vmap(FlaxLinear(
+            node_conv_out = jax.vmap(partial(FlaxLinear(
                 irreps_mid,
                 irreps_node_output
-            ))(node_features)
+            ), output_list=True))(node_features)
 
         ######################################################################################
 
         with jax.core.eval_context():
             c = jnp.cos(self.mixing_angle)
             s = jnp.sin(self.mixing_angle)
-        return c * node_self_out + s * node_conv_out
+        return jax.tree_multimap(lambda x, y: c * x + s * y, node_self_out, node_conv_out)

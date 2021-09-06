@@ -15,7 +15,7 @@ class FlaxLinear(flax.linen.Module):
     bias_init: Callable = flax.linen.initializers.zeros
 
     @flax.linen.compact
-    def __call__(self, x):
+    def __call__(self, x, output_list=False):
         lin = Linear(self.irreps_in, self.irreps_out, self.instructions, biases=self.biases)
         w = [
             self.param(f'bias {ins.i_out}', self.bias_init, ins.path_shape)
@@ -23,7 +23,7 @@ class FlaxLinear(flax.linen.Module):
             self.param(f'weight {ins.i_in} -> {ins.i_out}', self.weight_init, ins.path_shape)
             for ins in lin.instructions
         ]
-        return lin(w, x)
+        return lin(w, x, output_list=output_list)
 
 
 class FlaxFullyConnectedTensorProduct(flax.linen.Module):

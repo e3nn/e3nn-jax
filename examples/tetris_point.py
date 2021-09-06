@@ -42,7 +42,7 @@ def tetris():
 class Model(flax.linen.Module):
     @flax.linen.compact
     def __call__(self, x, edge_src, edge_dst, edge_attr):
-        gate = Gate('32x0e + 32x0o', [jax.nn.gelu, jnp.tanh], '16x0e', [jax.nn.sigmoid], '8x1e + 8x1o')
+        gate = Gate('32x0e + 32x0o', [jax.nn.gelu, jnp.tanh], '8x0e + 8x0e', 2 * [jax.nn.sigmoid], '8x1e + 8x1o')
         g = jax.vmap(gate)
 
         kw = dict(
@@ -82,6 +82,7 @@ def apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
     """Computes gradients, loss and accuracy for a single batch."""
     def loss_fn(params):
         pred = Model().apply({'params': params}, node_input, edge_src, edge_dst, edge_attr)
+        pred = jnp.concatenate([x.reshape(x.shape[0], -1) for x in pred], axis=-1)
         pred = index_add(batch, pred, 8)
         loss = jnp.mean((pred - labels)**2)
         return loss, pred
@@ -112,7 +113,8 @@ def main():
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
     edge_attr = spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True, normalization='component')
-    node_input = jnp.ones((pos.shape[0], 1))
+    edge_attr = [edge_attr[:, 1].reshape(-1, 1, 1), edge_attr[:, 1:4].reshape(-1, 1, 3), edge_attr[:, 4:9].reshape(-1, 1, 5)]
+    node_input = [jnp.ones((pos.shape[0], 1, 1))]
 
     learning_rate = 0.1
     momentum = 0.9
