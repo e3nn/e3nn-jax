@@ -115,6 +115,7 @@ def main():
     irreps_sh = Irreps("0e + 1o + 2e")
     edge_attr = irreps_sh.as_list(spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'))
     node_input = jnp.ones((pos.shape[0], 1))
+    node_input = [jnp.ones((pos.shape[0], 1, 1))]
 
     learning_rate = 0.1
     momentum = 0.9
