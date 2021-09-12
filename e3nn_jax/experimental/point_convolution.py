@@ -64,6 +64,8 @@ class Convolution(flax.linen.Module):
 
         node_features, node_self_out = tmp[:len(irreps_node_input)], tmp[len(irreps_node_input):]
 
+        edge_features = jax.tree_map(lambda x: x[edge_src], node_features)
+
         ######################################################################################
 
         irreps_mid = []
@@ -105,20 +107,21 @@ class Convolution(flax.linen.Module):
                 )
                 for ins in tp.instructions
             ]
-            edge_features = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, node_features[edge_src], edge_attr, output_list=True)
+            edge_features = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr, output_list=False)
         else:
             weight = [
                 self.param(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', self.weight_init, ins.path_shape)
                 for ins in tp.instructions
             ]
-            edge_features = jax.tree_map(lambda x: x[edge_src], node_features)
-            edge_features = jax.vmap(partial(tp.left_right, output_list=True), (None, 0, 0), 0)(weight, edge_features, edge_attr)
+            edge_features = jax.vmap(partial(tp.left_right, output_list=False), (None, 0, 0), 0)(weight, edge_features, edge_attr)
 
         # TODO irreps_mid = irreps_mid.simplify()
 
         ######################################################################################
 
-        node_features = jax.tree_map(lambda x: index_add(edge_dst, x, out_dim=node_input[0].shape[0]) / self.num_neighbors**0.5, edge_features)
+        node_features = index_add(edge_dst, edge_features, out_dim=node_input[0].shape[0])
+
+        node_features = node_features / self.num_neighbors**0.5
 
         ######################################################################################
 
