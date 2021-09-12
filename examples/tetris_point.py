@@ -82,6 +82,7 @@ def apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
     """Computes gradients, loss and accuracy for a single batch."""
     def loss_fn(params):
         pred = Model().apply({'params': params}, node_input, edge_src, edge_dst, edge_attr)
+        pred = jnp.concatenate([x.reshape(x.shape[0], -1) for x in pred], axis=-1)
         pred = index_add(batch, pred, 8)
         loss = jnp.mean((pred - labels)**2)
         return loss, pred
@@ -111,7 +112,8 @@ def make_steps(n, state, node_input, edge_src, edge_dst, edge_attr, labels, batc
 def main():
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
-    edge_attr = spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True, normalization='component')
+    irreps_sh = Irreps("0e + 1o + 2e")
+    edge_attr = irreps_sh.as_list(spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'))
     node_input = jnp.ones((pos.shape[0], 1))
 
     learning_rate = 0.1

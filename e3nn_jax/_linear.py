@@ -101,12 +101,15 @@ class Linear:
         self.instructions = instructions
         self.output_mask = output_mask
 
-    def __call__(self, ws, x):
+    def __call__(self, ws, x, output_list=False):
         """
         ws: List of arrays
         x: array
         """
-        x_list = self.irreps_in.as_list(x)  # [[mul, ir.dim], ...]
+        if isinstance(x, list):
+            x_list = x
+        else:
+            x_list = self.irreps_in.as_list(x)  # [[mul, ir.dim], ...]
 
         out_list = [
             ins.path_weight * w
@@ -115,11 +118,14 @@ class Linear:
             for ins, w in zip(self.instructions, ws)
         ]
 
-        return jnp.concatenate([
+        out = [
             _sum_tensors(
                 [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
-                shape=(mul_ir_out.dim,),
+                shape=(mul_ir_out.mul, mul_ir_out.ir.dim,),
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
             if mul_ir_out.mul > 0
-        ])
+        ]
+        if output_list:
+            return out
+        return jnp.concatenate([x.flatten() for x in out])

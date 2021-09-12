@@ -553,6 +553,40 @@ class Irreps(tuple):
             for i in s
         ], axis=axis)
 
+    def is_valid(self, x):
+        if isinstance(x, list):
+            x = [a.shape[-2:] for a in x]
+            y = [(mul, ir.dim) for mul, ir in self]
+            i = 0
+            j = 0
+            while True:
+                if i >= len(x) and j >= len(y):
+                    return True
+                if i >= len(x) or j >= len(y):
+                    return False
+                if x[i][0] == 0:
+                    i += 1
+                    continue
+                if y[j][0] == 0:
+                    j += 1
+                    continue
+                if x[i][1] != y[j][1]:
+                    return False
+                if x[i][0] == y[j][0]:
+                    i += 1
+                    j += 1
+                    continue
+                if x[i][0] < y[j][0]:
+                    y[j] = (y[j][0] - x[i][0], y[j][1])
+                    i += 1
+                    continue
+                if y[j][0] < x[i][0]:
+                    x[i] = (x[i][0] - y[j][0], x[i][1])
+                    j += 1
+                    continue
+        else:
+            return x.shape[-1] == self.dim
+
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def as_list(self, x):
         r"""Split irreps into blocks
@@ -568,6 +602,35 @@ class Irreps(tuple):
             >>> irreps.as_list(jnp.array([1.0, 0.0, 0.0, 0.0]))
             [DeviceArray([[1.]], dtype=float32), DeviceArray([[0., 0., 0.]], dtype=float32)]
         """
+        assert self.is_valid(x)
+
+        if isinstance(x, list):
+
+            if len(x) == 0:
+                return []
+            shape = x[0].shape[:-1]
+            out = []
+            r = x.pop(0)
+
+            for mul, ir in self[:-1]:
+                assert r.shape[-1] == ir.dim
+
+                while r.shape[-2] < mul:
+                    r = jnp.concatenate([r, x.pop(0)], axis=-2)
+
+                if r.shape[-2] == mul:
+                    out.append(r)
+                    r = x.pop(0)
+                else:
+                    assert r.shape[-2] > mul
+                    out.append(r[..., :mul, :])
+                    r = r[..., mul:, :]
+
+            mul, ir = self[-1]
+            assert r.shape[-2:] == (mul, ir.dim)
+            out.append(r)
+
+            return out
         shape = x.shape[:-1]
         if len(self) == 1:
             mul, ir = self[0]
