@@ -112,9 +112,9 @@ def make_steps(n, state, node_input, edge_src, edge_dst, edge_attr, labels, batc
 def main():
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
-    edge_attr = spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True, normalization='component')
-    edge_attr = [edge_attr[:, 1].reshape(-1, 1, 1), edge_attr[:, 1:4].reshape(-1, 1, 3), edge_attr[:, 4:9].reshape(-1, 1, 5)]
-    node_input = [jnp.ones((pos.shape[0], 1, 1))]
+    irreps_sh = Irreps("0e + 1o + 2e")
+    edge_attr = irreps_sh.as_list(spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'))
+    node_input = jnp.ones((pos.shape[0], 1))
 
     learning_rate = 0.1
     momentum = 0.9
