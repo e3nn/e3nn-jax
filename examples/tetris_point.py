@@ -42,7 +42,7 @@ def tetris():
 class Model(flax.linen.Module):
     @flax.linen.compact
     def __call__(self, x, edge_src, edge_dst, edge_attr):
-        gate = Gate('32x0e + 32x0o', [jax.nn.gelu, jnp.tanh], '8x0e + 8x0e', 2 * [jax.nn.sigmoid], '8x1e + 8x1o')
+        gate = Gate('32x0e + 32x0o', [jax.nn.gelu, jnp.tanh], '16x0e', [jax.nn.sigmoid], '8x1e + 8x1o')
         g = jax.vmap(gate)
 
         kw = dict(

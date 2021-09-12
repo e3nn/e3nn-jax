@@ -146,13 +146,13 @@ class TensorProduct:
             einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
 
         if isinstance(input1, list):
-            input1_list = input1
+            input1_list = self.irreps_in1.as_list(input1)
             input1 = _flat_concatenate(input1_list)
         else:
             input1_list = self.irreps_in1.as_list(input1)
 
         if isinstance(input2, list):
-            input2_list = input2
+            input2_list = self.irreps_in2.as_list(input2)
             input2 = _flat_concatenate(input2_list)
         else:
             input2_list = self.irreps_in2.as_list(input2)
