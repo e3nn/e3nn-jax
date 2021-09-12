@@ -93,6 +93,7 @@ class Convolution(flax.linen.Module):
             irreps_mid,
             instructions,
         )
+        irreps_mid = irreps_mid.simplify()
 
         if self.fc_neurons:
             weight = MLP(
