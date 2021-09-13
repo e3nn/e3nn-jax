@@ -1,28 +1,4 @@
-# import jax.numpy as jnp
-# import jax
 from e3nn_jax import Activation, ElementwiseTensorProduct, Irreps
-
-
-class _SortCut:
-    def __init__(self, *irreps_outs):
-        self.irreps_outs = tuple(Irreps(irreps).simplify() for irreps in irreps_outs)
-        irreps_in = sum(self.irreps_outs, Irreps([]))
-
-        i = 0
-        instructions = []
-        for irreps_out in self.irreps_outs:
-            instructions += [tuple(range(i, i + len(irreps_out)))]
-            i += len(irreps_out)
-        assert len(irreps_in) == i, (len(irreps_in), i)
-
-        irreps_in, p, _ = irreps_in.sort()
-        self.instructions = [tuple(p[i] for i in x) for x in instructions]
-
-        self.irreps_in_raw = irreps_in
-        self.irreps_in = irreps_in.simplify()
-
-    def __call__(self, x):
-        return [self.irreps_in_raw.extract(ins, x) for ins in self.instructions]
 
 
 class Gate:
@@ -71,7 +47,7 @@ class Gate:
 
     Examples
     --------
-
+    >>> import jax.numpy as jnp
     >>> g = Gate("16x0o", [jnp.tanh], "32x0o", [jnp.tanh], "16x1e+16x1o")
     >>> g.irreps_out
     16x0o+16x1o+16x1e
@@ -123,20 +99,16 @@ class Gate:
         `torch.Tensor`
             tensor of shape ``(irreps_out.dim)``
         """
-        assert isinstance(features, list)
-        assert len(features) == len(self.irreps_in)
+        features = self.irreps_in.as_list(features)
         scalars = features[:len(self.irreps_scalars)]
         gates = features[len(self.irreps_scalars): -len(self.irreps_gated)]
         gated = features[-len(self.irreps_gated):]
-
-        # print(jax.tree_map(lambda x: x.shape, gates))
-        # print(jax.tree_map(lambda x: x.shape, gated))
 
         scalars = self.act_scalars(scalars)
         if gates:
             gates = self.act_gates(gates)
             gated = self.mul.left_right(gated, gates, output_list=True)
-            features = scalars + gated  #jnp.concatenate([scalars, gated], axis=-1)
+            features = scalars + gated
         else:
             features = scalars
         return features

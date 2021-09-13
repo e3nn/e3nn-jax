@@ -548,6 +548,7 @@ class Irreps(tuple):
         if len(s) == 1 and s[0] == slice(0, self.dim):
             return x
 
+        # TODO output a list?
         return jnp.concatenate([
             lax.slice_in_dim(x, i.start, i.stop, axis=axis)
             for i in s
@@ -640,6 +641,19 @@ class Irreps(tuple):
                 jnp.reshape(x[..., i], shape + (mul, ir.dim))
                 for i, (mul, ir) in zip(self.slices(), self)
             ]
+
+    @partial(jax.jit, static_argnums=(0,), inline=True)
+    def as_tensor(self, x):
+        assert self.is_valid(x)
+        if isinstance(x, list):
+            if len(x) == 0:
+                raise ValueError("cannot flatten an empty list")
+            shape = x[0].shape[:-2]
+            return jnp.concatenate([
+                a.reshape(shape + (-1,))
+                for a in x
+            ], axis=-1)
+        return x
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_angles(self, x, alpha, beta, gamma, k=0):

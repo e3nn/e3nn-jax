@@ -89,7 +89,7 @@ def spherical_harmonics(
     irreps_out = Irreps(irreps_out)
 
     assert all([l % 2 == 1 or p == 1 for _, (l, p) in irreps_out])
-    assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) == 1
+    assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) <= 1
 
     ls = []
     for mul, (l, p) in irreps_out:
@@ -125,6 +125,7 @@ def spherical_harmonics(
     return sh
 
 
+# TODO write as an iterator
 def _spherical_harmonics(lmax: int, x, y, z):
     sh_0_0 = jnp.ones_like(x)
     if lmax == 0:
