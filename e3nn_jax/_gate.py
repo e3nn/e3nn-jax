@@ -1,4 +1,4 @@
-from e3nn_jax import Activation, ElementwiseTensorProduct, Irreps
+from e3nn_jax import ScalarActivation, ElementwiseTensorProduct, Irreps
 
 
 class Gate:
@@ -72,10 +72,10 @@ class Gate:
         self.irreps_scalars, self.irreps_gates, self.irreps_gated = irreps_scalars, irreps_gates, irreps_gated  # self.sc.irreps_outs
         self.irreps_in = irreps_scalars + irreps_gates + irreps_gated
 
-        self.act_scalars = Activation(irreps_scalars, act_scalars)
+        self.act_scalars = ScalarActivation(irreps_scalars, act_scalars)
         irreps_scalars = self.act_scalars.irreps_out
 
-        self.act_gates = Activation(irreps_gates, act_gates)
+        self.act_gates = ScalarActivation(irreps_gates, act_gates)
         irreps_gates = self.act_gates.irreps_out
 
         self.mul = ElementwiseTensorProduct(irreps_gated, irreps_gates)
