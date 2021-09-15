@@ -93,22 +93,30 @@ class TensorProduct:
             assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
             assert ins.connection_mode in ['uvw', 'uvu', 'uvv', 'uuw', 'uuu', 'uvuv']
 
-            alpha = ins.path_weight * out_var[ins.i_out] / sum(in1_var[i.i_in1] * in2_var[i.i_in2] for i in instructions if i.i_out == ins.i_out)
-            alpha = sqrt(alpha / {
-                'uvw': (mul_ir_in1.mul * mul_ir_in2.mul),
-                'uvu': mul_ir_in2.mul,
-                'uvv': mul_ir_in1.mul,
-                'uuw': mul_ir_in1.mul,
-                'uuu': 1,
-                'uvuv': 1,
-            }[ins.connection_mode])
+            alpha = 1
 
             if normalization == 'component':
-                alpha *= mul_ir_out.ir.dim**0.5
+                alpha *= mul_ir_out.ir.dim
             if normalization == 'norm':
-                alpha *= (mul_ir_in1.ir.dim * mul_ir_in2.ir.dim)**0.5
+                alpha *= mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
 
-            normalization_coefficients += [alpha]
+            alpha /= sum(
+                in1_var[i.i_in1] * in2_var[i.i_in2] * {
+                    'uvw': (self.irreps_in1[i.i_in1].mul * self.irreps_in2[i.i_in2].mul),
+                    'uvu': self.irreps_in2[i.i_in2].mul,
+                    'uvv': self.irreps_in1[i.i_in1].mul,
+                    'uuw': self.irreps_in1[i.i_in1].mul,
+                    'uuu': 1,
+                    'uvuv': 1,
+                }[i.connection_mode]
+                for i in instructions
+                if i.i_out == ins.i_out
+            )
+
+            alpha *= out_var[ins.i_out]
+            alpha *= ins.path_weight
+
+            normalization_coefficients += [sqrt(alpha)]
 
         self.instructions = [
             Instruction(ins.i_in1, ins.i_in2, ins.i_out, ins.connection_mode, ins.has_weight, alpha, ins.path_shape)
