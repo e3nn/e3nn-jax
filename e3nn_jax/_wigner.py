@@ -4,11 +4,15 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 
+from ._w3j_exact import _W3j_flat_exact
+
 _Jd, _W3j_flat, _W3j_indices = jnp.load(os.path.join(os.path.dirname(__file__), 'constants.npy'), allow_pickle=True)
 # _Jd is a list of tensors of shape (2l+1, 2l+1)
 # _W3j_flat is a flatten version of W3j symbols
 # _W3j_indices is a dict from (l1, l2, l3) -> slice(i, j) to index the flat tensor
 # only l1 <= l2 <= l3 are stored
+
+_W3j_flat = jnp.concatenate([_W3j_flat_exact, _W3j_flat[len(_W3j_flat_exact):]])
 
 
 def _z_rot_mat(l, angle):
