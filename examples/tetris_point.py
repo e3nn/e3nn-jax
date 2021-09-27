@@ -1,6 +1,6 @@
 import time
 
-import flax
+import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
@@ -39,8 +39,7 @@ def tetris():
     return pos, labels, batch
 
 
-class Model(flax.linen.Module):
-    @flax.linen.compact
+class Model(hk.Module):
     def __call__(self, x, edge_src, edge_dst, edge_attr):
         gate = Gate('32x0e + 32x0o', [jax.nn.gelu, jnp.tanh], '16x0e', [jax.nn.sigmoid], '8x1e + 8x1o')
         g = jax.vmap(gate)
@@ -81,7 +80,7 @@ class Model(flax.linen.Module):
 def apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch):
     """Computes gradients, loss and accuracy for a single batch."""
     def loss_fn(params):
-        pred = Model().apply({'params': params}, node_input, edge_src, edge_dst, edge_attr)
+        pred = state.apply_fn(params, None, node_input, edge_src, edge_dst, edge_attr)
         pred = jnp.concatenate([x.reshape(x.shape[0], -1) for x in pred], axis=-1)
         pred = index_add(batch, pred, 8)
         loss = jnp.mean((pred - labels)**2)
@@ -122,13 +121,17 @@ def main():
 
     rng = jax.random.PRNGKey(3)
 
-    model = Model()
-    params = model.init(rng, node_input, edge_src, edge_dst, edge_attr)
+    def f(node_input, edge_src, edge_dst, edge_attr):
+        model = Model()
+        return model(node_input, edge_src, edge_dst, edge_attr)
+
+    f = hk.transform(f)
+    params = f.init(rng, node_input, edge_src, edge_dst, edge_attr)
 
     tx = optax.sgd(learning_rate, momentum)
     state = train_state.TrainState.create(
-        apply_fn=model.apply,
-        params=params['params'],
+        apply_fn=f.apply,
+        params=params,
         tx=tx
     )
 

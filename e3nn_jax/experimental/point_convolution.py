@@ -1,14 +1,12 @@
-from typing import Callable, Sequence
-
-import flax
+import haiku as hk
 import jax
 import jax.numpy as jnp
 from e3nn_jax import Irreps, TensorProduct, index_add
-from e3nn_jax.flax import MLP, FlaxFullyConnectedTensorProduct, FlaxLinear
+from e3nn_jax.nn import HMLP, HFullyConnectedTensorProduct, HLinear
 from functools import partial
 
 
-class Convolution(flax.linen.Module):
+class Convolution(hk.Module):
     r"""equivariant convolution
 
     Parameters
@@ -32,16 +30,17 @@ class Convolution(flax.linen.Module):
     num_neighbors : float
         typical number of nodes convolved over
     """
-    irreps_node_input: Irreps
-    irreps_node_attr: Irreps
-    irreps_edge_attr: Irreps
-    irreps_node_output: Irreps
-    fc_neurons: Sequence[int]
-    num_neighbors: float
-    mixing_angle: float = jnp.pi / 8.0
-    weight_init: Callable = jax.random.normal
+    def __init__(self, irreps_node_input, irreps_node_attr, irreps_edge_attr, irreps_node_output, fc_neurons, num_neighbors, mixing_angle=jnp.pi / 8.0):
+        super().__init__()
 
-    @flax.linen.compact
+        self.irreps_node_input = Irreps(irreps_node_input)
+        self.irreps_node_attr = Irreps(irreps_node_attr)
+        self.irreps_edge_attr = Irreps(irreps_edge_attr)
+        self.irreps_node_output = Irreps(irreps_node_output)
+        self.fc_neurons = fc_neurons
+        self.num_neighbors = num_neighbors
+        self.mixing_angle = mixing_angle
+
     def __call__(self, node_input, edge_src, edge_dst, edge_attr, node_attr=None, edge_scalar_attr=None):
         irreps_node_input = Irreps(self.irreps_node_input)
         irreps_node_attr = Irreps(self.irreps_node_attr)
@@ -51,16 +50,16 @@ class Convolution(flax.linen.Module):
         ######################################################################################
 
         if irreps_node_attr is not None and node_attr is not None:
-            tmp = jax.vmap(FlaxFullyConnectedTensorProduct(
+            tmp = jax.vmap(HFullyConnectedTensorProduct(
                 irreps_node_input,
                 irreps_node_attr,
                 irreps_node_input + irreps_node_output
             ), (0, 0, None), 0)(node_input, node_attr, output_list=True)
         else:
-            tmp = jax.vmap(lambda x: FlaxLinear(
+            tmp = jax.vmap(partial(HLinear(
                 irreps_node_input,
                 irreps_node_input + irreps_node_output
-            )(x, output_list=True))(node_input)
+            ), output_list=True))(node_input)
 
         node_features, node_self_out = tmp[:len(irreps_node_input)], tmp[len(irreps_node_input):]
 
@@ -96,14 +95,14 @@ class Convolution(flax.linen.Module):
         irreps_mid = irreps_mid.simplify()
 
         if self.fc_neurons:
-            weight = MLP(
+            weight = HMLP(
                 self.fc_neurons,
                 jax.nn.gelu
             )(edge_scalar_attr)
             weight = [
                 jnp.einsum(
                     "x...,ex->e...",
-                    self.param(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', self.weight_init, (weight.shape[1],) + ins.path_shape),
+                    hk.get_parameter(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', shape=(weight.shape[1],) + ins.path_shape, init=hk.initializers.RandomNormal()),
                     weight
                 )
                 for ins in tp.instructions
@@ -111,7 +110,7 @@ class Convolution(flax.linen.Module):
             edge_features = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr, output_list=False)
         else:
             weight = [
-                self.param(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', self.weight_init, ins.path_shape)
+                hk.get_parameter(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
                 for ins in tp.instructions
             ]
             edge_features = jax.vmap(partial(tp.left_right, output_list=False), (None, 0, 0), 0)(weight, edge_features, edge_attr)
@@ -127,13 +126,13 @@ class Convolution(flax.linen.Module):
         ######################################################################################
 
         if irreps_node_attr is not None and node_attr is not None:
-            node_conv_out = jax.vmap(FlaxFullyConnectedTensorProduct(
+            node_conv_out = jax.vmap(HFullyConnectedTensorProduct(
                 irreps_mid,
                 irreps_node_attr,
                 irreps_node_output
             ))(node_features, node_attr, output_list=True)
         else:
-            node_conv_out = jax.vmap(partial(FlaxLinear(
+            node_conv_out = jax.vmap(partial(HLinear(
                 irreps_mid,
                 irreps_node_output
             ), output_list=True))(node_features)

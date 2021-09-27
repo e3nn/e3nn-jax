@@ -35,7 +35,7 @@ setup(
     packages=find_packages(exclude=["tests.*", "tests"]),
     install_requires=[
         'jax',
-        'flax',
+        'dm-haiku',
     ],
     include_package_data=True,
     classifiers=[
