@@ -62,7 +62,7 @@ class ScalarActivation:
 
     def __call__(self, features):
         assert isinstance(features, list)
-        return [x if act is None else act(x) for act, x in zip(self.acts, features)]
+        return [x if act is None or x is None else act(x) for act, x in zip(self.acts, features)]
 
 
 class KeyValueActivation:

@@ -11,16 +11,21 @@ from e3nn_jax import Irrep, Irreps, wigner_3j
 from ._einsum import einsum as opt_einsum
 
 
-def _sum_tensors(xs, shape):
+def _sum_tensors(xs, shape, empty_return_none=False):
+    xs = [x for x in xs if x is not None]
     if len(xs) > 0:
         out = xs[0].reshape(shape)
         for x in xs[1:]:
             out = out + x.reshape(shape)
         return out
+    if empty_return_none:
+        return None
     return jnp.zeros(shape)
 
 
 def _flat_concatenate(xs):
+    if any(x is None for x in xs):
+        return None
     if len(xs) > 0:
         return jnp.concatenate([x.flatten() for x in xs])
     return jnp.zeros((0,))
@@ -234,7 +239,12 @@ class TensorProduct:
 
             x1 = input1_list[ins.i_in1]
             x2 = input2_list[ins.i_in2]
+            if x1 is None or x2 is None:
+                out_list += [None]
+                continue
+
             xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
+
             with jax.core.eval_context():
                 w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
                 w3j = ins.path_weight * w3j
@@ -310,6 +320,7 @@ class TensorProduct:
             _sum_tensors(
                 [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
                 shape=(mul_ir_out.mul, mul_ir_out.ir.dim),
+                empty_return_none=output_list,
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]

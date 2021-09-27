@@ -111,7 +111,11 @@ class Linear:
         out_list = [
             ins.path_weight * w
             if ins.i_in == -1 else
-            ins.path_weight * jnp.einsum("uw,ui->wi", w, x_list[ins.i_in])
+            (
+                None
+                if x_list[ins.i_in] is None else
+                ins.path_weight * jnp.einsum("uw,ui->wi", w, x_list[ins.i_in])
+            )
             for ins, w in zip(self.instructions, ws)
         ]
 
@@ -119,6 +123,7 @@ class Linear:
             _sum_tensors(
                 [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
                 shape=(mul_ir_out.mul, mul_ir_out.ir.dim,),
+                empty_return_none=output_list,
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
             if mul_ir_out.mul > 0

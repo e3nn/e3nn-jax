@@ -142,4 +142,14 @@ class Convolution(hk.Module):
         with jax.core.eval_context():
             c = jnp.cos(self.mixing_angle)
             s = jnp.sin(self.mixing_angle)
-        return jax.tree_multimap(lambda x, y: c * x + s * y, node_self_out, node_conv_out)
+
+        def f(x, y):
+            if x is None and y is None:
+                return None
+            if x is None:
+                return y
+            if y is None:
+                return x
+            return c * x + s * y
+
+        return [f(x, y) for x, y in zip(node_self_out, node_conv_out)]

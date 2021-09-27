@@ -556,7 +556,7 @@ class Irreps(tuple):
 
     def is_valid(self, x):
         if isinstance(x, list):
-            x = [a.shape[-2:] for a in x]
+            x = [None if a is None else a.shape[-2:] for a in x]
             y = [(mul, ir.dim) for mul, ir in self]
             i = 0
             j = 0
@@ -565,10 +565,14 @@ class Irreps(tuple):
                     return True
                 if i >= len(x) or j >= len(y):
                     return False
-                if x[i][0] == 0:
+                if x[i] is not None and x[i][0] == 0:
                     i += 1
                     continue
                 if y[j][0] == 0:
+                    j += 1
+                    continue
+                if x[i] is None:
+                    i += 1
                     j += 1
                     continue
                 if x[i][1] != y[j][1]:
@@ -609,29 +613,37 @@ class Irreps(tuple):
 
             if len(x) == 0:
                 return []
-            shape = x[0].shape[:-1]
+
             out = []
             r = x.pop(0)
 
             for mul, ir in self[:-1]:
-                assert r.shape[-1] == ir.dim
-
-                while r.shape[-2] < mul:
-                    r = jnp.concatenate([r, x.pop(0)], axis=-2)
-
-                if r.shape[-2] == mul:
-                    out.append(r)
+                if r is None:
+                    out.append(None)
                     r = x.pop(0)
                 else:
-                    assert r.shape[-2] > mul
-                    out.append(r[..., :mul, :])
-                    r = r[..., mul:, :]
+                    assert r.shape[-1] == ir.dim
+
+                    while r.shape[-2] < mul:
+                        a = x.pop(0)
+                        if a is None:
+                            a = jnp.zeros(r.shape[:-2] + (mul - r.shape[-2], ir.dim))
+                        r = jnp.concatenate([r, a], axis=-2)
+
+                    if r.shape[-2] == mul:
+                        out.append(r)
+                        r = x.pop(0)
+                    else:
+                        assert r.shape[-2] > mul
+                        out.append(r[..., :mul, :])
+                        r = r[..., mul:, :]
 
             mul, ir = self[-1]
-            assert r.shape[-2:] == (mul, ir.dim)
+            assert r is None or r.shape[-2:] == (mul, ir.dim)
             out.append(r)
 
             return out
+
         shape = x.shape[:-1]
         if len(self) == 1:
             mul, ir = self[0]

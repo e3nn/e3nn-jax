@@ -66,7 +66,10 @@ class Gate:
         if len(irreps_scalars) > 0 and irreps_scalars.lmax > 0:
             raise ValueError(f"Scalars must be scalars, instead got irreps_scalars = {irreps_scalars}")
         if irreps_gates.num_irreps != irreps_gated.num_irreps:
-            raise ValueError(f"There are {irreps_gated.num_irreps} irreps in irreps_gated, but a different number ({irreps_gates.num_irreps}) of gate scalars in irreps_gates")
+            raise ValueError((
+                f"There are {irreps_gated.num_irreps} irreps in irreps_gated, "
+                f"but a different number ({irreps_gates.num_irreps}) of gate scalars in irreps_gates"
+            ))
 
         # self.sc = _SortCut(irreps_scalars, irreps_gates, irreps_gated)
         self.irreps_scalars, self.irreps_gates, self.irreps_gated = irreps_scalars, irreps_gates, irreps_gated  # self.sc.irreps_outs
