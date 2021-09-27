@@ -6,13 +6,13 @@ import jax.numpy as jnp
 
 from ._w3j_exact import _W3j_flat_exact
 
-_Jd, _W3j_flat, _W3j_indices = jnp.load(os.path.join(os.path.dirname(__file__), 'constants.npy'), allow_pickle=True)
+_Jd, _W3j_flat_original, _W3j_indices = jnp.load(os.path.join(os.path.dirname(__file__), 'constants.npy'), allow_pickle=True)
 # _Jd is a list of tensors of shape (2l+1, 2l+1)
 # _W3j_flat is a flatten version of W3j symbols
 # _W3j_indices is a dict from (l1, l2, l3) -> slice(i, j) to index the flat tensor
 # only l1 <= l2 <= l3 are stored
 
-_W3j_flat = jnp.concatenate([_W3j_flat_exact, _W3j_flat[len(_W3j_flat_exact):]])
+_W3j_flat = jnp.concatenate([_W3j_flat_exact, _W3j_flat_original[len(_W3j_flat_exact):]])
 
 
 def _z_rot_mat(l, angle):
@@ -122,6 +122,6 @@ def wigner_3j(l1, l2, l3, flat_src=_W3j_flat):
         if l3 <= l1 <= l2:
             out = flat_src[_W3j_indices[(l3, l1, l2)]].reshape(2 * l3 + 1, 2 * l1 + 1, 2 * l2 + 1).transpose(1, 2, 0)
     except KeyError:
-        raise NotImplementedError(f'Wigner 3j symbols maximum l implemented is {max(_W3j_indices.keys())[0]}, send us an email to ask for more')
+        raise NotImplementedError(f'Wigner 3j symbols maximum l implemented is {max(_W3j_indices.keys())[0]}')
 
     return out
