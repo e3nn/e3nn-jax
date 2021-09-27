@@ -6,7 +6,6 @@ import jax.numpy as jnp
 import optax
 from e3nn_jax import Gate, Irreps, index_add, radius_graph, spherical_harmonics
 from e3nn_jax.experimental.point_convolution import Convolution
-from flax.training import train_state
 
 
 def tetris():
@@ -119,26 +118,47 @@ def main():
     learning_rate = 0.1
     momentum = 0.9
 
-    rng = jax.random.PRNGKey(3)
-
-    def f(node_input, edge_src, edge_dst, edge_attr):
+    def f(input):
+        node_input, edge_src, edge_dst, edge_attr = input
         model = Model()
         return model(node_input, edge_src, edge_dst, edge_attr)
-
     f = hk.transform(f)
-    params = f.init(rng, node_input, edge_src, edge_dst, edge_attr)
+    opt = optax.sgd(learning_rate, momentum)
 
-    tx = optax.sgd(learning_rate, momentum)
-    state = train_state.TrainState.create(
-        apply_fn=f.apply,
-        params=params,
-        tx=tx
-    )
+    def loss_pred(params, input, labels, batch):
+        pred = f.apply(params, None, input)
+        pred = jnp.concatenate([x.reshape(x.shape[0], -1) for x in pred], axis=-1)
+        pred = index_add(batch, pred, 8)
+        loss = jnp.mean((pred - labels)**2)
+        return loss, pred
+
+    def update(params, opt_state, input, labels, batch):
+        grad_fn = jax.value_and_grad(loss_pred, has_aux=True)
+        (loss, pred), grads = grad_fn(params, input, labels, batch)
+        accuracy = jnp.mean(jnp.all(jnp.round(pred) == labels, axis=1))
+        updates, opt_state = opt.update(grads, opt_state)
+        params = optax.apply_updates(params, updates)
+        return params, opt_state, loss, accuracy, pred
+
+    @jax.jit
+    def make_steps(n, params, opt_state, input, labels, batch):
+        def f(i, state):
+            params, opt_state = state
+            params, opt_state, loss, accuracy, pred = update(params, opt_state, input, labels, batch)
+            return (params, opt_state)
+
+        params, opt_state = jax.lax.fori_loop(0, n - 1, f, (params, opt_state))
+        params, opt_state, loss, accuracy, pred = update(params, opt_state, input, labels, batch)
+        return params, opt_state, loss, accuracy, pred
+
+    input = (node_input, edge_src, edge_dst, edge_attr)
+    params = f.init(jax.random.PRNGKey(3), input)
+    opt_state = opt.init(params)
 
     # compile jit
     wall = time.perf_counter()
     print("compiling...")
-    _, _, _, pred = make_steps(50, state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+    _, _, _, _, pred = make_steps(2, params, opt_state, input, labels, batch)
     print(pred.round(2))
 
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
@@ -146,7 +166,7 @@ def main():
     wall = time.perf_counter()
     it = 0
     for _ in range(2000):
-        state, loss, accuracy, pred = make_steps(100, state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
+        params, opt_state, loss, accuracy, pred = make_steps(100, params, opt_state, input, labels, batch)
         it += 100
         if accuracy == 1:
             break
