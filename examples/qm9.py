@@ -165,12 +165,22 @@ def main():
         loss = jnp.mean(jnp.sum((pred - a['y'][:, 7:11])**2, axis=1))
         return loss, pred
 
-    @jax.jit
     def update(params, opt_state, a):
         grad_fn = jax.value_and_grad(loss_pred, has_aux=True)
         (loss, pred), grads = grad_fn(params, a)
         updates, opt_state = opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
+        return params, opt_state, loss, pred
+
+    @jax.jit
+    def n_updates(n, params, opt_state, a):
+        def f(i, x):
+            params, opt_state = x
+            params, opt_state, _loss, _pred = update(params, opt_state, a)
+            return (params, opt_state)
+
+        params, opt_state = jax.lax.fori_loop(0, n - 1, f, (params, opt_state))
+        params, opt_state, loss, pred = update(params, opt_state, a)
         return params, opt_state, loss, pred
 
     key = jax.random.PRNGKey(0)
@@ -179,9 +189,9 @@ def main():
 
     for a in batch_gen():
         wall = time.perf_counter()
-        params, opt_state, loss, pred = update(params, opt_state, a)
+        params, opt_state, loss, pred = n_updates(100, params, opt_state, a)
         total = time.perf_counter() - wall
-        print(f"{total:.3f}s")
+        print(f"{10 * total:.3f}ms L={loss:.3f}")
 
 
 if __name__ == "__main__":
