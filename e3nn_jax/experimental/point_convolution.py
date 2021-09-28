@@ -6,6 +6,14 @@ from e3nn_jax.nn import HMLP, HFullyConnectedTensorProduct, HLinear
 from functools import partial
 
 
+def _get_shape(x):
+    if isinstance(x, list):
+        for a in x:
+            if a is not None:
+                return a.shape[:-2]
+    return x.shape[:-1]
+
+
 class Convolution(hk.Module):
     r"""equivariant convolution
 
@@ -42,26 +50,26 @@ class Convolution(hk.Module):
         self.mixing_angle = mixing_angle
 
     def __call__(self, node_input, edge_src, edge_dst, edge_attr, node_attr=None, edge_scalar_attr=None):
-        irreps_node_input = Irreps(self.irreps_node_input)
-        irreps_node_attr = Irreps(self.irreps_node_attr)
-        irreps_edge_attr = Irreps(self.irreps_edge_attr)
-        irreps_node_output = Irreps(self.irreps_node_output)
+        # irreps_node_input = Irreps(self.irreps_node_input)
+        # irreps_node_attr = Irreps(self.irreps_node_attr)
+        # irreps_edge_attr = Irreps(self.irreps_edge_attr)
+        # irreps_node_output = Irreps(self.irreps_node_output)
 
         ######################################################################################
 
-        if irreps_node_attr is not None and node_attr is not None:
-            tmp = jax.vmap(HFullyConnectedTensorProduct(
-                irreps_node_input,
-                irreps_node_attr,
-                irreps_node_input + irreps_node_output
-            ), (0, 0, None), 0)(node_input, node_attr, output_list=True)
+        if self.irreps_node_attr is not None and node_attr is not None:
+            tmp = jax.vmap(partial(HFullyConnectedTensorProduct(
+                self.irreps_node_input,
+                self.irreps_node_attr,
+                self.irreps_node_input + self.irreps_node_output
+            ), output_list=True))(node_input, node_attr)
         else:
             tmp = jax.vmap(partial(HLinear(
-                irreps_node_input,
-                irreps_node_input + irreps_node_output
+                self.irreps_node_input,
+                self.irreps_node_input + self.irreps_node_output
             ), output_list=True))(node_input)
 
-        node_features, node_self_out = tmp[:len(irreps_node_input)], tmp[len(irreps_node_input):]
+        node_features, node_self_out = tmp[:len(self.irreps_node_input)], tmp[len(self.irreps_node_input):]
 
         edge_features = jax.tree_map(lambda x: x[edge_src], node_features)
 
@@ -69,16 +77,20 @@ class Convolution(hk.Module):
 
         irreps_mid = []
         instructions = []
-        for i, (mul, ir_in) in enumerate(irreps_node_input):
-            for j, (_, ir_edge) in enumerate(irreps_edge_attr):
+        for i, (mul, ir_in) in enumerate(self.irreps_node_input):
+            for j, (_, ir_edge) in enumerate(self.irreps_edge_attr):
                 for ir_out in ir_in * ir_edge:
-                    if ir_out in irreps_node_output or ir_out.is_scalar():
+                    if ir_out in self.irreps_node_output or ir_out.is_scalar():
                         k = len(irreps_mid)
                         irreps_mid.append((mul, ir_out))
                         instructions.append((i, j, k, 'uvu', True))
         irreps_mid = Irreps(irreps_mid)
 
-        assert irreps_mid.dim > 0, f"irreps_node_input={irreps_node_input} time irreps_edge_attr={irreps_edge_attr} produces nothing in irreps_node_output={irreps_node_output}"
+        assert irreps_mid.dim > 0, (
+            f"irreps_node_input={self.irreps_node_input} "
+            f"time irreps_edge_attr={self.irreps_edge_attr} "
+            f"produces nothing in irreps_node_output={self.irreps_node_output}"
+        )
 
         irreps_mid, p, _ = irreps_mid.sort()
         instructions = [
@@ -87,8 +99,8 @@ class Convolution(hk.Module):
         ]
 
         tp = TensorProduct(
-            irreps_node_input,
-            irreps_edge_attr,
+            self.irreps_node_input,
+            self.irreps_edge_attr,
             irreps_mid,
             instructions,
         )
@@ -102,15 +114,23 @@ class Convolution(hk.Module):
             weight = [
                 jnp.einsum(
                     "x...,ex->e...",
-                    hk.get_parameter(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', shape=(weight.shape[1],) + ins.path_shape, init=hk.initializers.RandomNormal()),
+                    hk.get_parameter(
+                        f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}',
+                        shape=(weight.shape[1],) + ins.path_shape,
+                        init=hk.initializers.RandomNormal()
+                    ),
                     weight
                 )
                 for ins in tp.instructions
             ]
-            edge_features = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr, output_list=False)
+            edge_features = jax.vmap(partial(tp.left_right, output_list=False), (0, 0, 0), 0)(weight, edge_features, edge_attr)
         else:
             weight = [
-                hk.get_parameter(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
+                hk.get_parameter(
+                    f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}',
+                    shape=ins.path_shape,
+                    init=hk.initializers.RandomNormal()
+                )
                 for ins in tp.instructions
             ]
             edge_features = jax.vmap(partial(tp.left_right, output_list=False), (None, 0, 0), 0)(weight, edge_features, edge_attr)
@@ -119,22 +139,24 @@ class Convolution(hk.Module):
 
         ######################################################################################
 
-        node_features = index_add(edge_dst, edge_features, out_dim=node_input[0].shape[0])
+        shape = _get_shape(node_input)
+
+        node_features = index_add(edge_dst, edge_features, out_dim=shape[0])
 
         node_features = node_features / self.num_neighbors**0.5
 
         ######################################################################################
 
-        if irreps_node_attr is not None and node_attr is not None:
-            node_conv_out = jax.vmap(HFullyConnectedTensorProduct(
+        if self.irreps_node_attr is not None and node_attr is not None:
+            node_conv_out = jax.vmap(partial(HFullyConnectedTensorProduct(
                 irreps_mid,
-                irreps_node_attr,
-                irreps_node_output
-            ))(node_features, node_attr, output_list=True)
+                self.irreps_node_attr,
+                self.irreps_node_output
+            ), output_list=True))(node_features, node_attr)
         else:
             node_conv_out = jax.vmap(partial(HLinear(
                 irreps_mid,
-                irreps_node_output
+                self.irreps_node_output
             ), output_list=True))(node_features)
 
         ######################################################################################

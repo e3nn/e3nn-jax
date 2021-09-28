@@ -607,7 +607,7 @@ class Irreps(tuple):
             >>> irreps.as_list(jnp.array([1.0, 0.0, 0.0, 0.0]))
             [DeviceArray([[1.]], dtype=float32), DeviceArray([[0., 0., 0.]], dtype=float32)]
         """
-        assert self.is_valid(x)
+        assert self.is_valid(x), f"{jax.tree_map(lambda i: i.shape, x)} vs {self}"
 
         if isinstance(x, list):
 
