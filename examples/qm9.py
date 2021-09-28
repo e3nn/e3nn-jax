@@ -11,6 +11,7 @@ from e3nn_jax import (Gate, Irreps, index_add, soft_one_hot_linspace,
                       spherical_harmonics)
 from e3nn_jax.experimental.point_convolution import Convolution
 from torch_geometric.datasets import QM9
+from torch_geometric.datasets.qm9 import atomrefs
 from tqdm.auto import tqdm
 
 
@@ -130,6 +131,10 @@ def f(a):
     )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
 
     out = irreps_out.as_tensor(x)
+
+    M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
+
+    out = node_attr @ M + out
 
     return index_add(a['batch'], out, a['y'].shape[0])
 
