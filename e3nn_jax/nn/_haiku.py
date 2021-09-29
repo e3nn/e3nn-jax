@@ -58,5 +58,5 @@ class HMLP(hk.Module):
 
         h = self.features[-1]
         d = hk.Linear(h, with_bias=False, w_init=hk.initializers.RandomNormal())
-        x = d(x) / x.shape[-1]
+        x = d(x) / x.shape[-1]**0.5
         return x

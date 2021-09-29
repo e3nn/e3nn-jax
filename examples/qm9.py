@@ -13,6 +13,7 @@ from e3nn_jax.experimental.point_convolution import Convolution
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
 from tqdm.auto import tqdm
+from itertools import islice
 
 
 class Sampler():
@@ -37,7 +38,7 @@ class Sampler():
             fail = 0
             batch = []
 
-            while fail < 10 and len(idx) > 0 and len(batch) < self.max_graphs:
+            while fail < 10 and fail < len(idx) and len(batch) < self.max_graphs:
                 v = nodes + self.num_nodes[idx[fail]]
                 e = edges + self.num_edges[idx[fail]]
                 if (v <= self.max_nodes) and (e <= self.max_edges):
@@ -92,27 +93,40 @@ def f(a):
         number=5,
         basis='smooth_finite',
         cutoff=True,
-    ) * 5**0.5
+    ) * 5**0.5 * 1.1
 
-    gate = Gate('256x0e + 256x0o', [jax.nn.gelu, jnp.tanh], '48x0e', [jax.nn.sigmoid], '16x1e + 16x1o + 8x2e + 8x2o')
+    gate = Gate('256x0e + 256x0o', [jax.nn.gelu, jnp.tanh], '32x0e', [jax.nn.sigmoid], '16x1e + 16x1o')
     g = jax.vmap(gate)
 
     kw = dict(
         irreps_node_attr=irreps_node_attr,
         irreps_edge_attr=irreps_sh,
         fc_neurons=[64],
-        num_neighbors=1.9,
+        num_neighbors=2.1,
     )
 
     x = node_attr
 
-    x = g(
-        Convolution(
-            irreps_node_input=irreps_node_attr,
-            irreps_node_output=gate.irreps_in,
-            **kw
-        )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
-    )
+    # def stat(text, z):
+    #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
+
+    # stat('input', x)
+    # stat('edge_attr', edge_attr)
+    # stat('node_attr', node_attr)
+    # stat('edge_scalars', edge_scalars)
+
+    x = Convolution(
+        irreps_node_input=irreps_node_attr,
+        irreps_node_output=gate.irreps_in,
+        **kw
+    )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
+
+    # print()
+    # stat('c(x)', x)
+
+    x = g(x)
+
+    # stat('g(c(x))', x)
 
     for _ in range(3):
         x = g(
@@ -122,6 +136,7 @@ def f(a):
                 **kw
             )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
         )
+        # stat('x', x)
 
     irreps_out = Irreps('4x0e')
     x = Convolution(
@@ -130,11 +145,13 @@ def f(a):
         **kw
     )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
 
+    # stat('x', x)
+
     out = irreps_out.as_tensor(x)
 
     M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
 
-    out = node_attr @ M + out
+    out = a['x'][:, :5] @ M + out
 
     return index_add(a['batch'], out, a['y'].shape[0])
 
@@ -167,25 +184,15 @@ def main():
     def loss_pred(params, a):
         pred = f.apply(params, None, a)
         pred = pred.at[-1].set(0.0)  # the last graph is a dummy graph!
-        loss = jnp.mean(jnp.sum((pred - a['y'][:, 7:11])**2, axis=1))
+        loss = jnp.mean(jnp.abs(pred - a['y'][:, 7:11]))
         return loss, pred
 
+    @jax.jit
     def update(params, opt_state, a):
         grad_fn = jax.value_and_grad(loss_pred, has_aux=True)
         (loss, pred), grads = grad_fn(params, a)
         updates, opt_state = opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
-        return params, opt_state, loss, pred
-
-    @jax.jit
-    def n_updates(n, params, opt_state, a):
-        def f(i, x):
-            params, opt_state = x
-            params, opt_state, _loss, _pred = update(params, opt_state, a)
-            return (params, opt_state)
-
-        params, opt_state = jax.lax.fori_loop(0, n - 1, f, (params, opt_state))
-        params, opt_state, loss, pred = update(params, opt_state, a)
         return params, opt_state, loss, pred
 
     key = jax.random.PRNGKey(0)
@@ -194,9 +201,10 @@ def main():
 
     for a in batch_gen():
         wall = time.perf_counter()
-        params, opt_state, loss, pred = n_updates(100, params, opt_state, a)
+        params, opt_state, loss, pred = update(params, opt_state, a)
         total = time.perf_counter() - wall
-        print(f"{10 * total:.3f}ms L={loss:.3f}")
+
+        print(f"{1000 * total:.3f}ms L={loss:.3f}")
 
 
 if __name__ == "__main__":

@@ -50,12 +50,9 @@ class Convolution(hk.Module):
         self.mixing_angle = mixing_angle
 
     def __call__(self, node_input, edge_src, edge_dst, edge_attr, node_attr=None, edge_scalar_attr=None):
-        # irreps_node_input = Irreps(self.irreps_node_input)
-        # irreps_node_attr = Irreps(self.irreps_node_attr)
-        # irreps_edge_attr = Irreps(self.irreps_edge_attr)
-        # irreps_node_output = Irreps(self.irreps_node_output)
 
-        ######################################################################################
+        # def stat(text, z):
+        #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
 
         if self.irreps_node_attr is not None and node_attr is not None:
             tmp = jax.vmap(partial(HFullyConnectedTensorProduct(
@@ -71,8 +68,12 @@ class Convolution(hk.Module):
 
         node_features, node_self_out = tmp[:len(self.irreps_node_input)], tmp[len(self.irreps_node_input):]
 
+        # stat('node_features', node_features)
+        # stat('node_self_out', node_self_out)
+
         edge_features = jax.tree_map(lambda x: x[edge_src], node_features)
 
+        # stat('edge_features', edge_features)
         ######################################################################################
 
         irreps_mid = []
@@ -111,6 +112,9 @@ class Convolution(hk.Module):
                 self.fc_neurons,
                 jax.nn.gelu
             )(edge_scalar_attr)
+
+            # stat('weight', weight)
+
             weight = [
                 jnp.einsum(
                     "x...,ex->e...",
@@ -118,11 +122,14 @@ class Convolution(hk.Module):
                         f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}',
                         shape=(weight.shape[1],) + ins.path_shape,
                         init=hk.initializers.RandomNormal()
-                    ),
+                    ) / weight.shape[1]**0.5,
                     weight
                 )
                 for ins in tp.instructions
             ]
+
+            # stat('weight', weight)
+
             edge_features = jax.vmap(partial(tp.left_right, output_list=False), (0, 0, 0), 0)(weight, edge_features, edge_attr)
         else:
             weight = [
@@ -135,7 +142,7 @@ class Convolution(hk.Module):
             ]
             edge_features = jax.vmap(partial(tp.left_right, output_list=False), (None, 0, 0), 0)(weight, edge_features, edge_attr)
 
-        # TODO irreps_mid = irreps_mid.simplify()
+        # stat('edge_features 2', edge_features)
 
         ######################################################################################
 
@@ -144,6 +151,8 @@ class Convolution(hk.Module):
         node_features = index_add(edge_dst, edge_features, out_dim=shape[0])
 
         node_features = node_features / self.num_neighbors**0.5
+
+        # stat('node_features', node_features)
 
         ######################################################################################
 
@@ -158,6 +167,8 @@ class Convolution(hk.Module):
                 irreps_mid,
                 self.irreps_node_output
             ), output_list=True))(node_features)
+
+        # stat('node_conv_out', node_conv_out)
 
         ######################################################################################
 
