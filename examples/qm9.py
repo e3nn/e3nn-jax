@@ -16,6 +16,7 @@ from tqdm.auto import tqdm
 from itertools import islice, count
 import argparse
 import wandb
+import numpy as np
 
 
 class Sampler():
@@ -210,26 +211,31 @@ def execute(config):
     # jax.profiler.start_trace("/tmp/tensorboard")
 
     wall = time.perf_counter()
+    total2 = 0
     i = 0
 
     for epoch in count():
         mae = []
         for a in batch_gen():
+            total2 -= time.perf_counter()
             params, opt_state, loss, pred = update(params, opt_state, a)
+            pred.block_until_ready()
+            total2 += time.perf_counter()
 
-            mae += [jnp.abs(pred - a['y'][:, 7:11])[:a['num_graphs']]]
-            e = 1000 * jnp.mean(jnp.concatenate(mae, axis=0), axis=0)
+            mae += [np.abs(np.array(pred - a['y'][:, 7:11]))[:a['num_graphs']]]
+            e = 1000 * np.mean(np.concatenate(mae, axis=0), axis=0)
 
             total = time.perf_counter() - wall
-            print(f"E={epoch} i={i} step={1000 * total / (i + 1):.3f}ms mae={list(jnp.round(e, 2))}meV")
+            print(f"E={epoch} i={i} step={1000 * total2 / (i + 1):.3f}ms/{1000 * total / (i + 1):.3f}ms mae={list(np.round(e, 2))}meV")
 
             i += 1
 
         status = {
             'epoch': epoch,
+            'iteration': i,
             '_runtime': total,
             'train': {
-                'mae_total': jnp.sum(e),
+                'mae_total': np.sum(e),
                 'mae_7': e[7-7],
                 'mae_8': e[8-7],
                 'mae_9': e[9-7],
