@@ -142,6 +142,7 @@ class TensorProduct:
             self.output_mask = jnp.ones(0)
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all', 'output_list'))
+    @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
     def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False, output_list=False):
         if input2 is None:
             weights, input1, input2 = [], weights, input1
@@ -329,6 +330,7 @@ class TensorProduct:
         return _flat_concatenate(out)
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=('optimize_einsums', 'custom_einsum_vjp'))
+    @partial(jax.profiler.annotate_function, name="TensorProduct.right")
     def right(self, weights, input2=None, *, optimize_einsums=False, custom_einsum_vjp=False):
         if input2 is None:
             weights, input2 = [], weights

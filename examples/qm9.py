@@ -13,7 +13,9 @@ from e3nn_jax.experimental.point_convolution import Convolution
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
 from tqdm.auto import tqdm
-from itertools import islice
+from itertools import islice, count
+import argparse
+import wandb
 
 
 class Sampler():
@@ -64,6 +66,7 @@ def dummy_fill(a, num_graphs, num_nodes, num_edges):
             a.edge_attr.new_zeros(num_edges - a.edge_attr.shape[0], a.edge_attr.shape[1])
         ]),
 
+        num_graphs=torch.tensor(a.y.shape[0]),
         y=torch.cat([a.y, a.y.new_zeros(num_graphs - a.y.shape[0], a.y.shape[1])]),
 
         batch=torch.cat([a.batch, (num_graphs - 1) * a.batch.new_ones(num_nodes - a.batch.shape[0])]),
@@ -74,98 +77,99 @@ def dummy_fill(a, num_graphs, num_nodes, num_edges):
     )
 
 
-@hk.transform
-def f(a):
-    irreps_node_attr = Irreps('5x0e')
-    node_attr = a['x'][:, :5] * 5**0.5
-    pos = a['pos']
-    edge_src, edge_dst = a['edge_index']
+def create_model(config):
+    @hk.transform
+    def f(a):
+        irreps_node_attr = Irreps('5x0e')
+        node_attr = a['x'][:, :5] * 5**0.5
+        pos = a['pos']
+        edge_src, edge_dst = a['edge_index']
 
-    irreps_sh = Irreps("0e + 1o + 2e")
-    edge_attr = irreps_sh.as_list(spherical_harmonics(
-        irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'
-    ))
+        irreps_sh = Irreps.spherical_harmonics(config['shlmax'])
+        edge_attr = irreps_sh.as_list(spherical_harmonics(
+            irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'
+        ))
 
-    edge_scalars = soft_one_hot_linspace(
-        jnp.linalg.norm(pos[edge_dst] - pos[edge_src], axis=1),
-        start=0.0,
-        end=1.9,  # max 1.81 in QM9 from pyg,
-        number=5,
-        basis='smooth_finite',
-        cutoff=True,
-    ) * 5**0.5 * 1.1
+        edge_scalars = soft_one_hot_linspace(
+            jnp.linalg.norm(pos[edge_dst] - pos[edge_src], axis=1),
+            start=0.0,
+            end=1.9,  # max 1.81 in QM9 from pyg,
+            number=config['num_basis'],
+            basis='smooth_finite',
+            cutoff=True,
+        ) * 5**0.5 * 1.1
 
-    gate = Gate('256x0e + 256x0o', [jax.nn.gelu, jnp.tanh], '32x0e', [jax.nn.sigmoid], '16x1e + 16x1o')
-    g = jax.vmap(gate)
+        mul0 = config['mul0']
+        mul1 = config['mul1']
+        mul2 = config['mul2']
+        irreps_gated = Irreps(f'{mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o').simplify()
 
-    kw = dict(
-        irreps_node_attr=irreps_node_attr,
-        irreps_edge_attr=irreps_sh,
-        fc_neurons=[64],
-        num_neighbors=2.1,
-    )
+        gate = Gate(f'{mul0}x0e + {mul0}x0o', [jax.nn.gelu, jnp.tanh], f'{irreps_gated.num_irreps}x0e', [jax.nn.sigmoid], irreps_gated)
+        g = jax.vmap(gate)
 
-    x = node_attr
-
-    # def stat(text, z):
-    #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
-
-    # stat('input', x)
-    # stat('edge_attr', edge_attr)
-    # stat('node_attr', node_attr)
-    # stat('edge_scalars', edge_scalars)
-
-    x = Convolution(
-        irreps_node_input=irreps_node_attr,
-        irreps_node_output=gate.irreps_in,
-        **kw
-    )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
-
-    # print()
-    # stat('c(x)', x)
-
-    x = g(x)
-
-    # stat('g(c(x))', x)
-
-    for _ in range(3):
-        x = g(
-            Convolution(
-                irreps_node_input=gate.irreps_out,
-                irreps_node_output=gate.irreps_in,
-                **kw
-            )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
+        kw = dict(
+            irreps_node_attr=irreps_node_attr,
+            irreps_edge_attr=irreps_sh,
+            fc_neurons=[config['radial_num_neurons']] * config['radial_num_layers'],
+            num_neighbors=2.1,
         )
+
+        x = node_attr
+
+        # def stat(text, z):
+        #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
+
+        # stat('input', x)
+        # stat('edge_attr', edge_attr)
+        # stat('node_attr', node_attr)
+        # stat('edge_scalars', edge_scalars)
+
+        x = Convolution(
+            irreps_node_input=irreps_node_attr,
+            irreps_node_output=gate.irreps_in,
+            **kw
+        )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
+
+        # print()
+        # stat('c(x)', x)
+
+        x = g(x)
+
+        # stat('g(c(x))', x)
+
+        for _ in range(config['num_layers']):
+            x = g(
+                Convolution(
+                    irreps_node_input=gate.irreps_out,
+                    irreps_node_output=gate.irreps_in,
+                    **kw
+                )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
+            )
+            # stat('x', x)
+
+        irreps_out = Irreps('4x0e')
+        x = Convolution(
+            irreps_node_input=gate.irreps_out,
+            irreps_node_output=irreps_out,
+            **kw
+        )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
+
         # stat('x', x)
 
-    irreps_out = Irreps('4x0e')
-    x = Convolution(
-        irreps_node_input=gate.irreps_out,
-        irreps_node_output=irreps_out,
-        **kw
-    )(x, edge_src, edge_dst, edge_attr, node_attr=node_attr, edge_scalar_attr=edge_scalars)
+        out = irreps_out.as_tensor(x)
 
-    # stat('x', x)
+        M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
 
-    out = irreps_out.as_tensor(x)
+        out = a['x'][:, :5] @ M + out
 
-    M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
-
-    out = a['x'][:, :5] @ M + out
-
-    return index_add(a['batch'], out, a['y'].shape[0])
+        return index_add(a['batch'], out, a['y'].shape[0])
+    return f
 
 
-def main():
-    dataset = QM9('~/qm9')
+def execute(config):
+    dataset = QM9(config['data_path'])
 
-    num_graphs = 64
-    num_nodes = 512
-    num_edges = 1024
-    learning_rate = 1e-2
-    momentum = 0.9
-
-    sampler = Sampler(dataset, num_graphs - 1, num_nodes - 1, num_edges)
+    sampler = Sampler(dataset, config['num_graphs'] - 1, config['num_nodes'] - 1, config['num_edges'])
 
     print(f"nodes: min={sampler.num_nodes.min()} med={sampler.num_nodes.median()} max={sampler.num_nodes.max()} tot={sampler.num_nodes.sum()}")
     print(f"edges: min={sampler.num_edges.min()} med={sampler.num_edges.median()} max={sampler.num_edges.max()} tot={sampler.num_edges.sum()}")
@@ -173,18 +177,18 @@ def main():
     loader = pyg.loader.DataLoader(dataset, batch_sampler=sampler)
     def batch_gen():
         for a in loader:
-            a = dummy_fill(a, num_graphs, num_nodes, num_edges)
+            a = dummy_fill(a, config['num_graphs'], config['num_nodes'], config['num_edges'])
             a = jax.tree_map(lambda x: jnp.array(x), a)
             yield a
 
     ##############
-
-    opt = optax.sgd(learning_rate, momentum)
+    f = create_model(config)
+    opt = optax.sgd(config['lr'], config['momentum'])
 
     def loss_pred(params, a):
         pred = f.apply(params, None, a)
         pred = pred.at[-1].set(0.0)  # the last graph is a dummy graph!
-        loss = jnp.mean(jnp.abs(pred - a['y'][:, 7:11]))
+        loss = jnp.sum(jnp.abs(pred - a['y'][:, 7:11])) / a['num_graphs']
         return loss, pred
 
     @jax.jit
@@ -195,16 +199,88 @@ def main():
         params = optax.apply_updates(params, updates)
         return params, opt_state, loss, pred
 
-    key = jax.random.PRNGKey(0)
+    print("init model...")
+    key = jax.random.PRNGKey(config['seed'])
     params = f.init(key, next(batch_gen()))
     opt_state = opt.init(params)
 
-    for a in batch_gen():
-        wall = time.perf_counter()
-        params, opt_state, loss, pred = update(params, opt_state, a)
-        total = time.perf_counter() - wall
+    print("compiling...")
+    update(params, opt_state, next(batch_gen()))
 
-        print(f"{1000 * total:.3f}ms L={loss:.3f}")
+    # jax.profiler.start_trace("/tmp/tensorboard")
+
+    wall = time.perf_counter()
+    i = 0
+
+    for epoch in count():
+        mae = []
+        for a in batch_gen():
+            params, opt_state, loss, pred = update(params, opt_state, a)
+
+            mae += [jnp.abs(pred - a['y'][:, 7:11])[:a['num_graphs']]]
+            e = 1000 * jnp.mean(jnp.concatenate(mae, axis=0), axis=0)
+
+            total = time.perf_counter() - wall
+            print(f"E={epoch} i={i} step={1000 * total / (i + 1):.3f}ms mae={list(jnp.round(e, 2))}meV")
+
+            i += 1
+
+        status = {
+            'epoch': epoch,
+            '_runtime': total,
+            'train': {
+                'mae_total': jnp.sum(e),
+                'mae_7': e[7-7],
+                'mae_8': e[8-7],
+                'mae_9': e[9-7],
+                'mae_10': e[10-7],
+            },
+            # 'val': {
+            #     'mae': {
+            #         'mean': val_err.abs().mean().item(),
+            #         'std': val_err.abs().std().item(),
+            #     },
+            #     'mse': {
+            #         'mean': val_err.pow(2).mean().item(),
+            #         'std': val_err.pow(2).std().item(),
+            #     }
+            # },
+            # 'lrs': lrs,
+        }
+        wandb.log(status)
+    # jax.profiler.stop_trace()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mul0", type=int, default=128)
+    parser.add_argument("--mul1", type=int, default=128)
+    parser.add_argument("--mul2", type=int, default=128)
+    parser.add_argument("--shlmax", type=int, default=2)
+    parser.add_argument("--num_layers", type=int, default=4)
+    parser.add_argument("--num_basis", type=int, default=10)
+
+    parser.add_argument("--radial_num_neurons", type=int, default=64)
+    parser.add_argument("--radial_num_layers", type=int, default=2)
+
+    parser.add_argument("--lr", type=float, default=1e-2)
+    parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--num_graphs", type=int, default=64)
+    parser.add_argument("--num_nodes", type=int, default=512)
+    parser.add_argument("--num_edges", type=int, default=1024)
+
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--max_runtime", type=int, default=(3 * 24 - 1) * 3600)
+    parser.add_argument("--data_path", type=str, default='~/qm9')
+
+    args = parser.parse_args()
+
+    wandb.login()
+    wandb.init(project=f"QM9 jax", config=args.__dict__)
+    config = dict(wandb.config)
+    # config = args.__dict__
+    print(config)
+    execute(config)
 
 
 if __name__ == "__main__":

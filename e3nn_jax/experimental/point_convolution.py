@@ -49,6 +49,7 @@ class Convolution(hk.Module):
         self.num_neighbors = num_neighbors
         self.mixing_angle = mixing_angle
 
+    @partial(jax.profiler.annotate_function, name="convolution")
     def __call__(self, node_input, edge_src, edge_dst, edge_attr, node_attr=None, edge_scalar_attr=None):
 
         # def stat(text, z):

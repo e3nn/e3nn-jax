@@ -1,8 +1,10 @@
 from typing import Callable, Sequence
+import jax
 
 import haiku as hk
 
 from e3nn_jax import FullyConnectedTensorProduct, Irreps, Linear, normalize_function
+from functools import partial
 
 
 class HLinear(hk.Module):
@@ -52,11 +54,11 @@ class HMLP(hk.Module):
     def __call__(self, x):
         phi = normalize_function(self.phi)
 
-        for h in self.features[:-1]:
+        for h in self.features:
             d = hk.Linear(h, with_bias=False, w_init=hk.initializers.RandomNormal())
             x = phi(d(x) / x.shape[-1]**0.5)
 
-        h = self.features[-1]
-        d = hk.Linear(h, with_bias=False, w_init=hk.initializers.RandomNormal())
-        x = d(x) / x.shape[-1]**0.5
+        # h = self.features[-1]
+        # d = hk.Linear(h, with_bias=False, w_init=hk.initializers.RandomNormal())
+        # x = d(x) / x.shape[-1]**0.5
         return x
