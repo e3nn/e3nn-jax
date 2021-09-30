@@ -1,22 +1,22 @@
+import argparse
 import random
 import time
+from itertools import count
 
 import haiku as hk
 import jax
 import jax.numpy as jnp
+import numpy as np
 import optax
 import torch
 import torch_geometric as pyg
+import wandb
 from e3nn_jax import (Gate, Irreps, index_add, soft_one_hot_linspace,
                       spherical_harmonics)
 from e3nn_jax.experimental.point_convolution import Convolution
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
 from tqdm.auto import tqdm
-from itertools import islice, count
-import argparse
-import wandb
-import numpy as np
 
 
 class Sampler():
@@ -282,7 +282,7 @@ def main():
     args = parser.parse_args()
 
     wandb.login()
-    wandb.init(project=f"QM9 jax", config=args.__dict__)
+    wandb.init(project="QM9 jax", config=args.__dict__)
     config = dict(wandb.config)
     # config = args.__dict__
     print(config)
