@@ -179,7 +179,7 @@ def execute(config):
     def batch_gen():
         for a in loader:
             a = dummy_fill(a, config['num_graphs'], config['num_nodes'], config['num_edges'])
-            a = jax.tree_map(lambda x: jnp.array(x), a)
+            a = jax.tree_map(lambda x: np.array(x), a)
             yield a
 
     ##############
@@ -200,12 +200,12 @@ def execute(config):
         params = optax.apply_updates(params, updates)
         return params, opt_state, loss, pred
 
-    print("init model...")
+    print("init model...", flush=True)
     key = jax.random.PRNGKey(config['seed'])
     params = f.init(key, next(batch_gen()))
     opt_state = opt.init(params)
 
-    print("compiling...")
+    print("compiling...", flush=True)
     update(params, opt_state, next(batch_gen()))
 
     # jax.profiler.start_trace("/tmp/tensorboard")
@@ -213,47 +213,43 @@ def execute(config):
     wall = time.perf_counter()
     total2 = 0
     i = 0
+    mae = []
 
     for epoch in count():
-        mae = []
         for a in batch_gen():
             total2 -= time.perf_counter()
             params, opt_state, loss, pred = update(params, opt_state, a)
-            pred.block_until_ready()
+            loss, pred = jax.tree_map(np.array, (loss, pred))
             total2 += time.perf_counter()
 
-            mae += [np.abs(np.array(pred - a['y'][:, 7:11]))[:a['num_graphs']]]
-            e = 1000 * np.mean(np.concatenate(mae, axis=0), axis=0)
+            mae += [np.abs(pred - a['y'][:, 7:11])[:a['num_graphs']]]
 
-            total = time.perf_counter() - wall
-            print(f"E={epoch} i={i} step={1000 * total2 / (i + 1):.3f}ms/{1000 * total / (i + 1):.3f}ms mae={list(np.round(e, 2))}meV")
+            if i % 100 == 0:
+                mae = mae[-5000:]
+                e = 1000 * np.mean(np.concatenate(mae, axis=0), axis=0)
+
+                total = time.perf_counter() - wall
+                print((
+                    f"E={epoch} i={i} "
+                    f"step={1000 * total2 / (i + 1):.3f}ms/{1000 * total / (i + 1):.3f}ms "
+                    f"mae={list(np.round(e, 2))}meV"
+                ), flush=True)
+
+                status = {
+                    'epoch': epoch,
+                    'iteration': i,
+                    '_runtime': total,
+                    'train': {
+                        'mae_total': np.sum(e),
+                        'mae_7': e[7-7],
+                        'mae_8': e[8-7],
+                        'mae_9': e[9-7],
+                        'mae_10': e[10-7],
+                    },
+                }
+                wandb.log(status)
 
             i += 1
-
-        status = {
-            'epoch': epoch,
-            'iteration': i,
-            '_runtime': total,
-            'train': {
-                'mae_total': np.sum(e),
-                'mae_7': e[7-7],
-                'mae_8': e[8-7],
-                'mae_9': e[9-7],
-                'mae_10': e[10-7],
-            },
-            # 'val': {
-            #     'mae': {
-            #         'mean': val_err.abs().mean().item(),
-            #         'std': val_err.abs().std().item(),
-            #     },
-            #     'mse': {
-            #         'mean': val_err.pow(2).mean().item(),
-            #         'std': val_err.pow(2).std().item(),
-            #     }
-            # },
-            # 'lrs': lrs,
-        }
-        wandb.log(status)
     # jax.profiler.stop_trace()
 
 
