@@ -59,9 +59,9 @@ jax      91ms
          x5
 
 lmax=2, mul=128
-pytorch  270ms
+pytorch  230ms
 jax      42ms
-         x6
+         x5
 
 lmax=1, mul=128
 pytorch  100ms
@@ -69,6 +69,6 @@ jax      20ms
          x5
 
 lmax=1, mul=256
-pytorch  160ms
+pytorch  130ms
 jax      34ms
-         x5
+         x4
