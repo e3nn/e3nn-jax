@@ -1,4 +1,4 @@
-# Task
+# TP Task
 
 ```
 d/dw sum tanh TP(w, x1, x2)
@@ -8,7 +8,7 @@ TP = FullyConnected(irreps, irreps, irreps)
 irreps = 128x0e + 128x1e + 128x2e
 ```
 
-# Record on GTX1080
+## Record on GTX1080
 On Pytorch it takes 140 ms.
 
 ```
@@ -46,3 +46,29 @@ starting...
 
 12 ms
 ```
+
+# QM9
+
+## Record on V100
+6 Conv + Gate
+FC [64, 64]
+
+lmax=2, mul=512
+pytorch  430ms
+jax      91ms
+         x5
+
+lmax=2, mul=128
+pytorch  270ms
+jax      42ms
+         x6
+
+lmax=1, mul=128
+pytorch  100ms
+jax      20ms
+         x5
+
+lmax=1, mul=256
+pytorch  160ms
+jax      34ms
+         x5
