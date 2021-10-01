@@ -19,6 +19,37 @@ from torch_geometric.datasets.qm9 import atomrefs
 from tqdm.auto import tqdm
 
 
+class Timer:
+    def __init__(self):
+        self.t = 0.0
+        self.n = 0
+        self.running = False
+
+    def start(self):
+        assert not self.running
+        self.t -= time.perf_counter()
+        self.running = True
+
+    def stop(self, n=1):
+        assert self.running
+        self.t += time.perf_counter()
+        self.n += n
+        self.running = False
+
+    def reset(self):
+        self.t = 0.0
+        self.n = 0
+        self.running = False
+
+    def __call__(self):
+        return self.t / self.n
+
+    def __repr__(self):
+        t = self.t / self.n
+        if t < 1:
+            return f"{1000 * t:.1f}ms"
+        return f"{t:.2f}s"
+
 class Sampler():
     def __init__(self, dataset, max_graphs, max_nodes, max_edges, drop_last=True):
         self.num_nodes, self.num_edges = torch.tensor([(a.x.shape[0], a.edge_index.shape[1]) for a in tqdm(dataset)]).T
@@ -175,7 +206,7 @@ def execute(config):
     print(f"nodes: min={sampler.num_nodes.min()} med={sampler.num_nodes.median()} max={sampler.num_nodes.max()} tot={sampler.num_nodes.sum()}")
     print(f"edges: min={sampler.num_edges.min()} med={sampler.num_edges.median()} max={sampler.num_edges.max()} tot={sampler.num_edges.sum()}")
 
-    loader = pyg.loader.DataLoader(dataset, batch_sampler=sampler)
+    loader = pyg.loader.DataLoader(dataset, batch_sampler=sampler, num_workers=2)
     def batch_gen():
         for a in loader:
             a = dummy_fill(a, config['num_graphs'], config['num_nodes'], config['num_edges'])
@@ -211,16 +242,18 @@ def execute(config):
     # jax.profiler.start_trace("/tmp/tensorboard")
 
     wall = time.perf_counter()
-    total2 = 0
+    t_update = Timer()
+    t_all = Timer()
     i = 0
     mae = []
 
+    t_all.start()
     for epoch in count():
         for a in batch_gen():
-            total2 -= time.perf_counter()
+            t_update.start()
             params, opt_state, loss, pred = update(params, opt_state, a)
             loss, pred = jax.tree_map(np.array, (loss, pred))
-            total2 += time.perf_counter()
+            t_update.stop()
 
             mae += [np.abs(pred - a['y'][:, 7:11])[:a['num_graphs']]]
 
@@ -228,17 +261,19 @@ def execute(config):
                 mae = mae[-5000:]
                 e = 1000 * np.mean(np.concatenate(mae, axis=0), axis=0)
 
-                total = time.perf_counter() - wall
+                t_all.stop(100)
                 print((
                     f"E={epoch} i={i} "
-                    f"step={1000 * total2 / (i + 1):.3f}ms/{1000 * total / (i + 1):.3f}ms "
+                    f"step={t_update}/{t_all} "
                     f"mae={list(np.round(e, 2))}meV"
                 ), flush=True)
 
                 status = {
                     'epoch': epoch,
                     'iteration': i,
-                    '_runtime': total,
+                    '_runtime': time.perf_counter() - wall,
+                    'dt1': t_update(),
+                    'dt2': t_all(),
                     'train': {
                         'mae_total': np.sum(e),
                         'mae_7': e[7-7],
@@ -248,6 +283,11 @@ def execute(config):
                     },
                 }
                 wandb.log(status)
+
+                t_update.reset()
+                t_all.reset()
+                t_all.start()
+
 
             i += 1
     # jax.profiler.stop_trace()
@@ -277,7 +317,7 @@ def main():
 
     args = parser.parse_args()
 
-    wandb.login()
+    # wandb.login()
     wandb.init(project="QM9 jax", config=args.__dict__)
     config = dict(wandb.config)
     # config = args.__dict__
