@@ -38,92 +38,50 @@ def tetris():
     return pos, labels, batch
 
 
-class Model(hk.Module):
-    def __call__(self, x, edge_src, edge_dst, edge_attr):
-        gate = Gate('32x0e + 32x0o', [jax.nn.gelu, jnp.tanh], '16x0e', [jax.nn.sigmoid], '8x1e + 8x1o')
-        g = jax.vmap(gate)
+def model(x, edge_src, edge_dst, edge_attr):
+    gate = Gate('32x0e + 32x0o', [jax.nn.gelu, jnp.tanh], '16x0e', [jax.nn.sigmoid], '8x1e + 8x1o')
+    g = jax.vmap(gate)
 
-        kw = dict(
-            irreps_node_attr=Irreps('0e'),
-            irreps_edge_attr=Irreps('0e + 1o + 2e'),
-            fc_neurons=None,
-            num_neighbors=1.5,
-        )
+    kw = dict(
+        irreps_node_attr=Irreps('0e'),
+        irreps_edge_attr=Irreps('0e + 1o + 2e'),
+        fc_neurons=None,
+        num_neighbors=1.5,
+    )
 
+    x = g(
+        Convolution(
+            irreps_node_input=Irreps('0e'),
+            irreps_node_output=gate.irreps_in,
+            **kw
+        )(x, edge_src, edge_dst, edge_attr)
+    )
+
+    for _ in range(3):
         x = g(
             Convolution(
-                irreps_node_input=Irreps('0e'),
+                irreps_node_input=gate.irreps_out,
                 irreps_node_output=gate.irreps_in,
                 **kw
             )(x, edge_src, edge_dst, edge_attr)
         )
 
-        for _ in range(3):
-            x = g(
-                Convolution(
-                    irreps_node_input=gate.irreps_out,
-                    irreps_node_output=gate.irreps_in,
-                    **kw
-                )(x, edge_src, edge_dst, edge_attr)
-            )
+    x = Convolution(
+        irreps_node_input=gate.irreps_out,
+        irreps_node_output=Irreps('0o + 6x0e'),
+        **kw
+    )(x, edge_src, edge_dst, edge_attr)
 
-        x = Convolution(
-            irreps_node_input=gate.irreps_out,
-            irreps_node_output=Irreps('0o + 6x0e'),
-            **kw
-        )(x, edge_src, edge_dst, edge_attr)
-
-        return x
-
-
-def apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch):
-    """Computes gradients, loss and accuracy for a single batch."""
-    def loss_fn(params):
-        pred = state.apply_fn(params, None, node_input, edge_src, edge_dst, edge_attr)
-        pred = jnp.concatenate([x.reshape(x.shape[0], -1) for x in pred], axis=-1)
-        pred = index_add(batch, pred, 8)
-        loss = jnp.mean((pred - labels)**2)
-        return loss, pred
-
-    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (loss, pred), grads = grad_fn(state.params)
-    accuracy = jnp.mean(jnp.all(jnp.round(pred) == labels, axis=1))
-    return grads, loss, accuracy, pred
-
-
-def update_model(state, grads):
-    return state.apply_gradients(grads=grads)
-
-
-@jax.jit
-def make_steps(n, state, node_input, edge_src, edge_dst, edge_attr, labels, batch):
-    def f(i, state):
-        grads, loss, accuracy, pred = apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
-        return update_model(state, grads)
-
-    state = jax.lax.fori_loop(0, n - 1, f, state)
-    grads, loss, accuracy, pred = apply_model(state, node_input, edge_src, edge_dst, edge_attr, labels, batch)
-    state = update_model(state, grads)
-    return state, loss, accuracy, pred
+    return x
 
 
 def main():
-    pos, labels, batch = tetris()
-    edge_src, edge_dst = radius_graph(pos, 1.1, batch)
-    irreps_sh = Irreps("0e + 1o + 2e")
-    edge_attr = irreps_sh.as_list(spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'))
-    node_input = jnp.ones((pos.shape[0], 1))
-    node_input = [jnp.ones((pos.shape[0], 1, 1))]
-
-    learning_rate = 0.1
-    momentum = 0.9
-
+    @hk.transform
     def f(input):
         node_input, edge_src, edge_dst, edge_attr = input
-        model = Model()
         return model(node_input, edge_src, edge_dst, edge_attr)
-    f = hk.transform(f)
-    opt = optax.sgd(learning_rate, momentum)
+
+    opt = optax.sgd(learning_rate=0.1, momentum=0.9)
 
     def loss_pred(params, input, labels, batch):
         pred = f.apply(params, None, input)
@@ -141,24 +99,27 @@ def main():
         return params, opt_state, loss, accuracy, pred
 
     @jax.jit
-    def make_steps(n, params, opt_state, input, labels, batch):
-        def f(i, state):
-            params, opt_state = state
-            params, opt_state, loss, accuracy, pred = update(params, opt_state, input, labels, batch)
-            return (params, opt_state)
+    def update_n(n, params, opt_state, input, labels, batch):
+        def body(_i, state):
+            return update(*state, input, labels, batch)[:2]
 
-        params, opt_state = jax.lax.fori_loop(0, n - 1, f, (params, opt_state))
-        params, opt_state, loss, accuracy, pred = update(params, opt_state, input, labels, batch)
-        return params, opt_state, loss, accuracy, pred
+        params, opt_state = jax.lax.fori_loop(0, n - 1, body, (params, opt_state))
+        return update(params, opt_state, input, labels, batch)
 
+    pos, labels, batch = tetris()
+    edge_src, edge_dst = radius_graph(pos, 1.1, batch)
+    irreps_sh = Irreps("0e + 1o + 2e")
+    edge_attr = irreps_sh.as_list(spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'))
+    node_input = [jnp.ones((pos.shape[0], 1, 1))]
     input = (node_input, edge_src, edge_dst, edge_attr)
+
     params = f.init(jax.random.PRNGKey(3), input)
     opt_state = opt.init(params)
 
     # compile jit
     wall = time.perf_counter()
     print("compiling...")
-    _, _, _, _, pred = make_steps(2, params, opt_state, input, labels, batch)
+    _, _, _, _, pred = update_n(2, params, opt_state, input, labels, batch)
     print(pred.round(2))
 
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
@@ -166,7 +127,7 @@ def main():
     wall = time.perf_counter()
     it = 0
     for _ in range(2000):
-        params, opt_state, loss, accuracy, pred = make_steps(100, params, opt_state, input, labels, batch)
+        params, opt_state, loss, accuracy, pred = update_n(100, params, opt_state, input, labels, batch)
         it += 100
         if accuracy == 1:
             break
