@@ -50,6 +50,7 @@ class Timer:
             return f"{1000 * t:.1f}ms"
         return f"{t:.2f}s"
 
+
 class Sampler():
     def __init__(self, dataset, max_graphs, max_nodes, max_edges, drop_last=True):
         self.num_nodes, self.num_edges = torch.tensor([(a.x.shape[0], a.edge_index.shape[1]) for a in tqdm(dataset)]).T
@@ -118,7 +119,7 @@ def create_model(config):
         edge_src, edge_dst = a['edge_index']
 
         irreps_sh = Irreps.spherical_harmonics(config['shlmax'])
-        edge_attr = irreps_sh.as_list(spherical_harmonics(
+        edge_attr = irreps_sh.to_list(spherical_harmonics(
             irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'
         ))
 
@@ -188,7 +189,7 @@ def create_model(config):
 
         # stat('x', x)
 
-        out = irreps_out.as_tensor(x)
+        out = irreps_out.to_contiguous(x)
 
         M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
 
@@ -287,7 +288,6 @@ def execute(config):
                 t_update.reset()
                 t_all.reset()
                 t_all.start()
-
 
             i += 1
     # jax.profiler.stop_trace()

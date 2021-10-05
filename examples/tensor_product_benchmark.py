@@ -159,8 +159,8 @@ def main():
     if args.lists:
         inputs = iter([
             (
-                irreps_in1.as_list(irreps_in1.randn(k(), (args.batch, -1))),
-                irreps_in2.as_list(irreps_in2.randn(k(), (args.batch, -1)))
+                irreps_in1.to_list(irreps_in1.randn(k(), (args.batch, -1))),
+                irreps_in2.to_list(irreps_in2.randn(k(), (args.batch, -1)))
             )
             for _ in range(args.n + warmup)
         ])
@@ -194,8 +194,8 @@ def main():
     x1 = irreps_in1.randn(k(), (args.batch, -1))
     x2 = irreps_in2.randn(k(), (args.batch, -1))
     if args.lists:
-        x1 = irreps_in1.as_list(x1)
-        x2 = irreps_in2.as_list(x2)
+        x1 = irreps_in1.to_list(x1)
+        x2 = irreps_in2.to_list(x2)
 
     c = jax.xla_computation(f)(ws, x1, x2)
 

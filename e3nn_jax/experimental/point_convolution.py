@@ -6,14 +6,6 @@ from e3nn_jax.nn import HMLP, HFullyConnectedTensorProduct, HLinear
 from functools import partial
 
 
-def _get_shape(x):
-    if isinstance(x, list):
-        for a in x:
-            if a is not None:
-                return a.shape[:-2]
-    return x.shape[:-1]
-
-
 class Convolution(hk.Module):
     r"""equivariant convolution
 
@@ -147,7 +139,7 @@ class Convolution(hk.Module):
 
         ######################################################################################
 
-        shape = _get_shape(node_input)
+        shape = self.irreps_node_input.shape_of(node_input)
 
         node_features = index_add(edge_dst, edge_features, out_dim=shape[0])
 

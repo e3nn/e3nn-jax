@@ -160,16 +160,16 @@ class TensorProduct:
             einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
 
         if isinstance(input1, list):
-            input1_list = self.irreps_in1.as_list(input1)
+            input1_list = self.irreps_in1.to_list(input1)
             input1 = _flat_concatenate(input1_list)
         else:
-            input1_list = self.irreps_in1.as_list(input1)
+            input1_list = self.irreps_in1.to_list(input1)
 
         if isinstance(input2, list):
-            input2_list = self.irreps_in2.as_list(input2)
+            input2_list = self.irreps_in2.to_list(input2)
             input2 = _flat_concatenate(input2_list)
         else:
-            input2_list = self.irreps_in2.as_list(input2)
+            input2_list = self.irreps_in2.to_list(input2)
 
         if isinstance(weights, list):
             weights_flat = _flat_concatenate(weights)
@@ -211,7 +211,7 @@ class TensorProduct:
 
             out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1, input2)
             if output_list:
-                return self.irreps_out.as_list(out)
+                return self.irreps_out.to_list(out)
             return out
 
         @lru_cache(maxsize=None)
@@ -340,7 +340,7 @@ class TensorProduct:
             return jnp.zeros((self.irreps_in1.dim, self.irreps_out.dim,))
 
         # = extract individual input irreps =
-        x2_list = self.irreps_in2.as_list(input2)
+        x2_list = self.irreps_in2.to_list(input2)
 
         if custom_einsum_vjp:
             assert optimize_einsums

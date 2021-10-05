@@ -102,7 +102,7 @@ class Gate:
         `torch.Tensor`
             tensor of shape ``(irreps_out.dim)``
         """
-        features = self.irreps_in.as_list(features)
+        features = self.irreps_in.to_list(features)
         scalars = features[:len(self.irreps_scalars)]
         gates = features[len(self.irreps_scalars): -len(self.irreps_gated)]
         gated = features[-len(self.irreps_gated):]

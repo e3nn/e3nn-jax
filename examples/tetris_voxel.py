@@ -51,7 +51,7 @@ def main():
 
         def g(x):
             y = jax.vmap(gate)(x.reshape(-1, x.shape[-1]))
-            y = gate.irreps_out.as_tensor(y)
+            y = gate.irreps_out.to_contiguous(y)
             return y.reshape(x.shape[:-1] + (-1,))
 
         kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=3.0, num_radial_basis=2, steps=(1.0, 1.0, 1.0))

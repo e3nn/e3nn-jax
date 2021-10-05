@@ -109,7 +109,7 @@ def main():
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
     irreps_sh = Irreps("0e + 1o + 2e")
-    edge_attr = irreps_sh.as_list(spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'))
+    edge_attr = irreps_sh.to_list(spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'))
     node_input = [jnp.ones((pos.shape[0], 1, 1))]
     input = (node_input, edge_src, edge_dst, edge_attr)
 

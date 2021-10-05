@@ -106,7 +106,7 @@ class Linear:
         ws: List of arrays
         x: array
         """
-        x_list = self.irreps_in.as_list(x)  # [[mul, ir.dim], ...]
+        x_list = self.irreps_in.to_list(x)  # [[mul, ir.dim], ...]
 
         out_list = [
             ins.path_weight * w

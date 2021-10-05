@@ -593,7 +593,7 @@ class Irreps(tuple):
             return x.shape[-1] == self.dim
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def as_list(self, x):
+    def to_list(self, x):
         r"""Split irreps into blocks
 
         Args:
@@ -639,7 +639,20 @@ class Irreps(tuple):
                         r = r[..., mul:, :]
 
             mul, ir = self[-1]
-            assert r is None or r.shape[-2:] == (mul, ir.dim)
+            if r is None:
+                out.append(r)
+
+            assert r.shape[-1] == ir.dim
+
+            while r.shape[-2] < mul:
+                a = x.pop(0)
+                if a is None:
+                    a = jnp.zeros(r.shape[:-2] + (mul - r.shape[-2], ir.dim))
+                r = jnp.concatenate([r, a], axis=-2)
+
+            assert r.shape[-2] == mul
+            assert len(x) == 0
+
             out.append(r)
 
             return out
@@ -654,16 +667,22 @@ class Irreps(tuple):
                 for i, (mul, ir) in zip(self.slices(), self)
             ]
 
+    def shape_of(self, x):
+        if isinstance(x, list):
+            for a in x:
+                if a is not None:
+                    return a.shape[:-2]
+            raise ValueError("cannot get the shape of an empty list")
+        return x.shape[:-1]
+
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def as_tensor(self, x):
+    def to_contiguous(self, x):
         assert self.is_valid(x)
         if isinstance(x, list):
-            if len(x) == 0:
-                raise ValueError("cannot flatten an empty list")
-            shape = x[0].shape[:-2]
+            shape = self.shape_of(x)
             return jnp.concatenate([
-                a.reshape(shape + (-1,))
-                for a in x
+                jnp.zeros(shape + (mul_ir.dim,)) if a is None else a.reshape(shape + (mul_ir.dim,))
+                for mul_ir, a in zip(self, x)
             ], axis=-1)
         return x
 
@@ -672,7 +691,7 @@ class Irreps(tuple):
         shape = x.shape[:-1]
         return jnp.concatenate([
             jnp.reshape(jnp.einsum("ij,...uj->...ui", ir.D_from_angles(alpha, beta, gamma, k), x), shape + (mul * ir.dim,))
-            for (mul, ir), x in zip(self, self.as_list(x))
+            for (mul, ir), x in zip(self, self.to_list(x))
         ], axis=-1)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
