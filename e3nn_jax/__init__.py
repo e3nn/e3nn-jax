@@ -1,5 +1,6 @@
 __version__ = "0.3.1"
 
+from ._zero import Zero, zeinsum
 from ._graph_util import index_add, radius_graph
 from ._rotation import (
     rand_matrix,
@@ -41,6 +42,7 @@ from ._activation import ScalarActivation, normalize_function
 from ._gate import Gate
 
 __all__ = [
+    "Zero", "zeinsum",
     "index_add", "radius_graph",
     "rand_matrix",
     "identity_angles",
