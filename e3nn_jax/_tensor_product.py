@@ -172,6 +172,7 @@ class TensorProduct:
             input2_list = self.irreps_in2.to_list(input2)
 
         if isinstance(weights, list):
+            assert len(weights) == len([ins for ins in self.instructions if ins.has_weight])
             weights_flat = _flat_concatenate(weights)
         else:
             weights_flat = weights
@@ -182,17 +183,20 @@ class TensorProduct:
                     n = prod(ins.path_shape)
                     weights.append(weights_flat[i:i+n].reshape(ins.path_shape))
                     i += n
+            assert i == weights_flat.size
 
         if fuse_all:
             with jax.core.eval_context():
-                # TODO make it for non weights, even simpler
                 num_path = weights_flat.size
-                big_w3j = jnp.zeros((num_path, self.irreps_in1.dim, self.irreps_in2.dim, self.irreps_out.dim))
+                has_path_with_no_weights = any(not ins.has_weight for ins in self.instructions)
                 i = 0
-                for ins in self.instructions:
-                    assert ins.has_weight
-                    assert ins.connection_mode == 'uvw'
 
+                if has_path_with_no_weights:
+                    num_path += 1
+                    i += 1
+
+                big_w3j = jnp.zeros((num_path, self.irreps_in1.dim, self.irreps_in2.dim, self.irreps_out.dim))
+                for ins in self.instructions:
                     mul_ir_in1 = self.irreps_in1[ins.i_in1]
                     mul_ir_in2 = self.irreps_in2[ins.i_in2]
                     mul_ir_out = self.irreps_out[ins.i_out]
@@ -202,14 +206,44 @@ class TensorProduct:
                     s2 = self.irreps_in2[:ins.i_in2].dim
                     so = self.irreps_out[:ins.i_out].dim
 
-                    assert ins.path_shape == (m1, m2, mo)
-
                     w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
-                    for u, v, w in itertools.product(range(m1), range(m2), range(mo)):
-                        big_w3j = big_w3j.at[i, s1+u*d1: s1+(u+1)*d1, s2+v*d2: s2+(v+1)*d2, so+w*do: so+(w+1)*do].set(ins.path_weight * w3j)
-                        i += 1
 
-            out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1, input2)
+                    def set_w3j(i, u, v, w):
+                        return big_w3j.at[i, s1+u*d1: s1+(u+1)*d1, s2+v*d2: s2+(v+1)*d2, so+w*do: so+(w+1)*do].add(ins.path_weight * w3j)
+
+                    if ins.connection_mode == 'uvw':
+                        assert ins.has_weight
+                        for u, v, w in itertools.product(range(m1), range(m2), range(mo)):
+                            big_w3j = set_w3j(i, u, v, w)
+                            i += 1
+                    elif ins.connection_mode == 'uvu':
+                        assert ins.has_weight
+                        for u, v in itertools.product(range(m1), range(m2)):
+                            big_w3j = set_w3j(i, u, v, u)
+                            i += 1
+                    elif ins.connection_mode == 'uvv':
+                        assert ins.has_weight
+                        for u, v in itertools.product(range(m1), range(m2)):
+                            big_w3j = set_w3j(i, u, v, v)
+                            i += 1
+                    elif ins.connection_mode == 'uuu':
+                        for u in range(m1):
+                            if ins.has_weight:
+                                big_w3j = set_w3j(i, u, u, u)
+                                i += 1
+                            else:
+                                big_w3j = set_w3j(0, u, u, u)
+                    else:
+                        assert False
+
+            if has_path_with_no_weights and big_w3j.shape[0] == 1:
+                big_w3j = big_w3j.reshape(big_w3j.shape[1:])
+                out = einsum("ijk,i,j->k", big_w3j, input1, input2)
+            else:
+                if has_path_with_no_weights:
+                    weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
+
+                out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1, input2)
             if output_list:
                 return self.irreps_out.to_list(out)
             return out

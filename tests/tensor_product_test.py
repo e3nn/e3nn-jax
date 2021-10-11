@@ -52,6 +52,66 @@ def test_modes(normalization, specialized_code, optimize_einsums, jitted, connec
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), jnp.max(jnp.abs(a - b))
 
 
+def test_fuse_all(key1, key2, key3):
+    tp = TensorProduct(
+        "10x0e + 5x1e",
+        "0e + 1e",
+        "10x0e + 5x1e",
+        [
+            (0, 0, 0, "uvu", True),
+            (1, 1, 1, "uvu", True),
+            (1, 0, 1, "uvu", True),
+        ],
+    )
+    w = [jax.random.normal(key1, ins.path_shape) for ins in tp.instructions]
+    x = jax.random.normal(key2, (25,))
+    y = jax.random.normal(key3, (4,))
+
+    assert jnp.allclose(
+        tp.left_right(w, x, y, fuse_all=True),
+        tp.left_right(w, x, y, fuse_all=False)
+    )
+
+
+def test_fuse_all_no_weight(key1, key2, key3):
+    tp = TensorProduct(
+        "10x0e",
+        "10x0e",
+        "10x0e",
+        [
+            (0, 0, 0, "uuu", False),
+        ],
+    )
+    w = jnp.ones(0)
+    x = jax.random.normal(key2, (10,))
+    y = jax.random.normal(key3, (10,))
+
+    assert jnp.allclose(
+        tp.left_right(w, x, y, fuse_all=True),
+        tp.left_right(w, x, y, fuse_all=False)
+    )
+
+
+def test_fuse_all_mix_weight(key1, key2, key3):
+    tp = TensorProduct(
+        "10x0e",
+        "10x0e",
+        "10x0e",
+        [
+            (0, 0, 0, "uuu", False),
+            (0, 0, 0, "uvw", True),
+        ],
+    )
+    w = jax.random.normal(key1, (10**3,))
+    x = jax.random.normal(key2, (10,))
+    y = jax.random.normal(key3, (10,))
+
+    assert jnp.allclose(
+        tp.left_right(w, x, y, fuse_all=True),
+        tp.left_right(w, x, y, fuse_all=False)
+    )
+
+
 def test_fuse(key):
     tp = FullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
 
