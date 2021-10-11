@@ -69,7 +69,8 @@ def test_fuse_all(key1, key2, key3):
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fuse_all=True),
-        tp.left_right(w, x, y, fuse_all=False)
+        tp.left_right(w, x, y, fuse_all=False),
+        rtol=1e-4, atol=1e-6
     )
 
 
@@ -88,27 +89,29 @@ def test_fuse_all_no_weight(key1, key2, key3):
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fuse_all=True),
-        tp.left_right(w, x, y, fuse_all=False)
+        tp.left_right(w, x, y, fuse_all=False),
+        rtol=1e-4, atol=1e-6
     )
 
 
 def test_fuse_all_mix_weight(key1, key2, key3):
     tp = TensorProduct(
-        "10x0e",
-        "10x0e",
-        "10x0e",
+        "5x0e",
+        "5x0e",
+        "5x0e",
         [
             (0, 0, 0, "uuu", False),
             (0, 0, 0, "uvw", True),
         ],
     )
-    w = jax.random.normal(key1, (10**3,))
-    x = jax.random.normal(key2, (10,))
-    y = jax.random.normal(key3, (10,))
+    w = jax.random.normal(key1, (5**3,))
+    x = jax.random.normal(key2, (5,))
+    y = jax.random.normal(key3, (5,))
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fuse_all=True),
-        tp.left_right(w, x, y, fuse_all=False)
+        tp.left_right(w, x, y, fuse_all=False),
+        rtol=1e-4, atol=1e-6
     )
 
 

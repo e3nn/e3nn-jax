@@ -161,29 +161,35 @@ class TensorProduct:
 
         if isinstance(input1, list):
             input1_list = self.irreps_in1.to_list(input1)
-            input1 = _flat_concatenate(input1_list)
+            input1_flat = _flat_concatenate(input1_list)
         else:
             input1_list = self.irreps_in1.to_list(input1)
+            input1_flat = input1
+        del input1
 
         if isinstance(input2, list):
             input2_list = self.irreps_in2.to_list(input2)
-            input2 = _flat_concatenate(input2_list)
+            input2_flat = _flat_concatenate(input2_list)
         else:
             input2_list = self.irreps_in2.to_list(input2)
+            input2_flat = input2
+        del input2
 
         if isinstance(weights, list):
             assert len(weights) == len([ins for ins in self.instructions if ins.has_weight])
             weights_flat = _flat_concatenate(weights)
+            weights_list = weights
         else:
             weights_flat = weights
-            weights = []
+            weights_list = []
             i = 0
             for ins in self.instructions:
                 if ins.has_weight:
                     n = prod(ins.path_shape)
-                    weights.append(weights_flat[i:i+n].reshape(ins.path_shape))
+                    weights_list.append(weights[i:i+n].reshape(ins.path_shape))
                     i += n
-            assert i == weights_flat.size
+            assert i == weights.size
+        del weights
 
         if fuse_all:
             with jax.core.eval_context():
@@ -238,12 +244,12 @@ class TensorProduct:
 
             if has_path_with_no_weights and big_w3j.shape[0] == 1:
                 big_w3j = big_w3j.reshape(big_w3j.shape[1:])
-                out = einsum("ijk,i,j->k", big_w3j, input1, input2)
+                out = einsum("ijk,i,j->k", big_w3j, input1_flat, input2_flat)
             else:
                 if has_path_with_no_weights:
                     weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
 
-                out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1, input2)
+                out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1_flat, input2_flat)
             if output_list:
                 return self.irreps_out.to_list(out)
             return out
@@ -265,7 +271,7 @@ class TensorProduct:
             mul_ir_out = self.irreps_out[ins.i_out]
 
             if ins.has_weight:
-                w = weights[weight_index]
+                w = weights_list[weight_index]
                 assert w.shape == ins.path_shape
                 weight_index += 1
 
