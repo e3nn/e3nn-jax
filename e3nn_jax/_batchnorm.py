@@ -121,7 +121,7 @@ class BatchNorm(hk.Module):
                     field_norm = field_norm.mean(0)  # [mul]
                     new_vars.append(self._roll_avg(running_var[i: k], field_norm))
             else:
-                field_norm = running_var[i: i + mul]
+                field_norm = running_var[i: k]
 
             field_norm = jax.lax.rsqrt(field_norm + self.eps)  # [(batch,) mul]
 
