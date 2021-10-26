@@ -39,6 +39,8 @@ from ._linear import Linear
 from ._tensor_product import TensorProduct, FullyConnectedTensorProduct, ElementwiseTensorProduct
 from ._activation import ScalarActivation, normalize_function
 from ._gate import Gate
+from ._batchnorm import BatchNorm
+from ._dropout import Dropout
 
 __all__ = [
     "index_add", "radius_graph",
@@ -77,5 +79,5 @@ __all__ = [
     "Linear",
     "TensorProduct", "FullyConnectedTensorProduct", "ElementwiseTensorProduct",
     "ScalarActivation", "normalize_function",
-    "Gate",
+    "Gate", "BatchNorm", "Dropout"
 ]
