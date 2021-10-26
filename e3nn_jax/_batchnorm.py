@@ -83,9 +83,9 @@ class BatchNorm(hk.Module):
         iw = 0
         ib = 0
 
-        for mul, ir in self.irreps:
+        for (mul, ir), irrep_slice in zip(self.irreps, self.irreps.slices()):
             d = ir.dim
-            field = input[:, :, ix: ix + mul * d]  # [batch, sample, mul * repr]
+            field = input[..., irrep_slice]  # [batch, sample, mul * repr]
             ix += mul * d
 
             # [batch, sample, mul, repr]
