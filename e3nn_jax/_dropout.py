@@ -54,7 +54,7 @@ class Dropout(hk.Module):
             elif self.p <= 0:
                 noise = jnp.ones((batch, mul, 1), dtype=x.dtype)
             else:
-                noise = jax.random.bernoulli(rng, p = 1 - self.p, shape=(batch, mul, 1)) / (1 - self.p)
+                noise = jax.random.bernoulli(rng, p=1 - self.p, shape=(batch, mul, 1)) / (1 - self.p)
 
             noise = jnp.tile(noise,(1,1,dim)).reshape(batch, mul * dim)
             noises.append(noise)
