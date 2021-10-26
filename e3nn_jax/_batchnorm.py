@@ -77,16 +77,12 @@ class BatchNorm(hk.Module):
             new_vars = []
 
         fields = []
-        ix = 0
-        irm = 0
-        irv = 0
-        iw = 0
-        ib = 0
+        i = 0
 
         for (mul, ir), irrep_slice in zip(self.irreps, self.irreps.slices()):
             d = ir.dim
+            k = i + mul
             field = input[..., irrep_slice]  # [batch, sample, mul * repr]
-            ix += mul * d
 
             # [batch, sample, mul, repr]
             field = field.reshape(batch, -1, mul, d)
@@ -98,11 +94,10 @@ class BatchNorm(hk.Module):
                     else:
                         field_mean = field.mean([0, 1]).reshape(mul)  # [mul]
                         new_means.append(
-                            self._roll_avg(running_mean[irm:irm + mul], field_mean)
+                            self._roll_avg(running_mean[i: k], field_mean)
                         )
                 else:
-                    field_mean = running_mean[irm: irm + mul]
-                irm += mul
+                    field_mean = running_mean[i: k]
 
                 # [batch, sample, mul, repr]
                 field = field - field_mean.reshape(-1, 1, mul, 1)
@@ -124,39 +119,24 @@ class BatchNorm(hk.Module):
 
                 if not self.instance:
                     field_norm = field_norm.mean(0)  # [mul]
-                    new_vars.append(self._roll_avg(running_var[irv: irv + mul], field_norm))
+                    new_vars.append(self._roll_avg(running_var[i: k], field_norm))
             else:
-                field_norm = running_var[irv: irv + mul]
-            irv += mul
+                field_norm = running_var[i: i + mul]
 
             field_norm = jax.lax.rsqrt(field_norm + self.eps)  # [(batch,) mul]
 
             if self.affine:
-                sub_weight = weight[iw: iw + mul]  # [mul]
-                iw += mul
-
+                sub_weight = weight[i: k]  # [mul]
                 field_norm = field_norm * sub_weight  # [(batch,) mul]
 
             field = field * field_norm.reshape(-1, 1, mul, 1)  # [batch, sample, mul, repr]
 
             if self.affine and ir.is_scalar():  # scalars
-                sub_bias = bias[ib: ib + mul]  # [mul]
-                ib += mul
+                sub_bias = bias[i: k]  # [mul]
                 field += sub_bias.reshape(mul, 1)  # [batch, sample, mul, repr]
 
             fields.append(field.reshape(batch, -1, mul * d))  # [batch, sample, mul * repr]
-
-        if ix != dim:
-            fmt = "`ix` should have reached input.size(-1) ({}), but it ended at {}"
-            msg = fmt.format(dim, ix)
-            raise AssertionError(msg)
-
-        if is_training and not self.instance:
-            assert irm == running_mean.size
-            assert irv == running_var.shape[0]
-        if self.affine:
-            assert iw == weight.shape[0]
-            assert ib == bias.size
+            i = k
 
         if is_training and not self.instance:
             if len(new_means):
