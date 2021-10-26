@@ -46,8 +46,8 @@ class Dropout(hk.Module):
         batch = x.shape[0]
 
         noises = []
-        for mul, (l, _p) in self.irreps:
-            dim = 2 * l + 1
+        for mul, ir in self.irreps:
+            dim = ir.dim
 
             if self.p >= 1:
                 noise = jnp.zeros((batch, mul, 1), dtype=x.dtype)
