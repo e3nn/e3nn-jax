@@ -46,17 +46,17 @@ class Dropout(hk.Module):
         batch = x.shape[0]
 
         noises = []
-        for mul, (l, _p) in self.irreps:
-            dim = 2 * l + 1
+        for mul, ir in self.irreps:
+            dim = ir.dim
 
             if self.p >= 1:
                 noise = jnp.zeros((batch, mul, 1), dtype=x.dtype)
             elif self.p <= 0:
                 noise = jnp.ones((batch, mul, 1), dtype=x.dtype)
             else:
-                noise = jax.random.bernoulli(rng, p = 1 - self.p, shape=(batch, mul, 1)) / (1 - self.p)
+                noise = jax.random.bernoulli(rng, p=1 - self.p, shape=(batch, mul, 1)) / (1 - self.p)
 
-            noise = jnp.tile(noise,(1,1,dim)).reshape(batch, mul * dim)
+            noise = jnp.tile(noise, (1, 1, dim)).reshape(batch, mul * dim)
             noises.append(noise)
 
         noise = jnp.concatenate(noises, axis=-1)
