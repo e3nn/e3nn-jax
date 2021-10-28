@@ -6,7 +6,7 @@ from e3nn_jax import Irreps
 from e3nn_jax.experimental.voxel_convolution import Convolution
 
 
-def test_convolution(key):
+def test_convolution(keys):
     irreps_in = Irreps("2x0e + 3x1e + 2x2e")
     irreps_out = Irreps("0e + 2x1e + 2e")
     irreps_sh = Irreps("0e + 1e + 2e")
@@ -23,10 +23,10 @@ def test_convolution(key):
             steps=(1.0, 1.0, 1.0),
         )(x)
 
-    x0 = irreps_in.randn(key, (3, 8, 8, 8, -1))
+    x0 = irreps_in.randn(next(keys), (3, 8, 8, 8, -1))
     x0 = jnp.pad(x0, ((0, 0), (4, 4), (4, 4), (4, 4), (0, 0)))
 
-    w = c.init(key, x0)
+    w = c.init(next(keys), x0)
     y0 = jax.jit(c.apply)(w, x0)
 
     x1 = jnp.rot90(x0, axes=(2, 3))

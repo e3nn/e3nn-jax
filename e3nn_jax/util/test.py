@@ -7,17 +7,6 @@ from e3nn_jax.util._argtools import _transform, _get_io_irreps, _get_args_in
 from e3nn_jax._rotation import rand_matrix
 
 
-
-# The default float tolerance
-FLOAT_TOLERANCE = {
-    t: jnp.array(v, dtype=t)
-    for t, v in {
-        jnp.dtype("float32"): 1e-3,
-        jnp.dtype("float64"): 1e-10
-    }.items()
-}
-
-
 def equivariance_error(
     func,
     rng_key,
@@ -166,7 +155,7 @@ def assert_equivariant(
         irreps_out : object
             see ``equivariance_error``
         tolerance : float or None
-            the threshold below which the equivariance error must fall. If ``None``, (the default), ``FLOAT_TOLERANCE[torch.get_default_dtype()]`` is used.
+            the threshold below which the equivariance error must fall.
         **kwargs : kwargs
             passed through to ``equivariance_error``.
     Returns
@@ -186,8 +175,6 @@ def assert_equivariant(
         irreps_out=irreps_out
     )
 
-    default_dtype = args_in[0].dtype
-
     # Get error
     errors = equivariance_error(
         func,
@@ -206,7 +193,7 @@ def assert_equivariant(
 
     # Check it
     if tolerance is None:
-        tolerance = FLOAT_TOLERANCE[default_dtype]
+        tolerance = 1e-3
 
     problems = {case: err for case, err in errors.items() if err > tolerance}
 

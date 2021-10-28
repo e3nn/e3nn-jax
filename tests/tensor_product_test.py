@@ -10,7 +10,7 @@ from e3nn_jax import TensorProduct, Irreps, FullyConnectedTensorProduct
 @pytest.mark.parametrize('optimize_einsums', [False, True])
 @pytest.mark.parametrize('specialized_code', [False, True])
 @pytest.mark.parametrize('normalization', ['component', 'norm'])
-def test_modes(normalization, specialized_code, optimize_einsums, jitted, connection_mode):
+def test_modes(keys, normalization, specialized_code, optimize_einsums, jitted, connection_mode):
     tp = TensorProduct(
         Irreps("10x0o + 10x1o + 1x2e"),
         Irreps("10x0o + 10x1o + 1x2o"),
@@ -38,21 +38,16 @@ def test_modes(normalization, specialized_code, optimize_einsums, jitted, connec
 
     g = tp.left_right
 
-    def k():
-        k.key, x = jax.random.split(k.key)
-        return x
-    k.key = jax.random.PRNGKey(0)
-
-    ws = [jax.random.normal(k(), ins.path_shape) for ins in tp.instructions if ins.has_weight]
-    x1 = tp.irreps_in1.randn(k(), (-1,), normalization=normalization)
-    x2 = tp.irreps_in2.randn(k(), (-1,), normalization=normalization)
+    ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
+    x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=normalization)
+    x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=normalization)
 
     a = f(ws, x1, x2)
     b = g(ws, x1, x2)
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), jnp.max(jnp.abs(a - b))
 
 
-def test_fuse_all(key1, key2, key3):
+def test_fuse_all(keys):
     tp = TensorProduct(
         "10x0e + 5x1e",
         "0e + 1e",
@@ -63,9 +58,9 @@ def test_fuse_all(key1, key2, key3):
             (1, 0, 1, "uvu", True),
         ],
     )
-    w = [jax.random.normal(key1, ins.path_shape) for ins in tp.instructions]
-    x = jax.random.normal(key2, (25,))
-    y = jax.random.normal(key3, (4,))
+    w = [jax.random.normal(keys[1], ins.path_shape) for ins in tp.instructions]
+    x = jax.random.normal(keys[2], (25,))
+    y = jax.random.normal(keys[3], (4,))
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fuse_all=True),
@@ -74,7 +69,7 @@ def test_fuse_all(key1, key2, key3):
     )
 
 
-def test_fuse_all_no_weight(key1, key2, key3):
+def test_fuse_all_no_weight(keys):
     tp = TensorProduct(
         "10x0e",
         "10x0e",
@@ -84,8 +79,8 @@ def test_fuse_all_no_weight(key1, key2, key3):
         ],
     )
     w = jnp.ones(0)
-    x = jax.random.normal(key2, (10,))
-    y = jax.random.normal(key3, (10,))
+    x = jax.random.normal(keys[2], (10,))
+    y = jax.random.normal(keys[3], (10,))
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fuse_all=True),
@@ -94,7 +89,7 @@ def test_fuse_all_no_weight(key1, key2, key3):
     )
 
 
-def test_fuse_all_mix_weight(key1, key2, key3):
+def test_fuse_all_mix_weight(keys):
     tp = TensorProduct(
         "5x0e",
         "5x0e",
@@ -104,9 +99,9 @@ def test_fuse_all_mix_weight(key1, key2, key3):
             (0, 0, 0, "uvw", True),
         ],
     )
-    w = jax.random.normal(key1, (5**3,))
-    x = jax.random.normal(key2, (5,))
-    y = jax.random.normal(key3, (5,))
+    w = jax.random.normal(keys[1], (5**3,))
+    x = jax.random.normal(keys[2], (5,))
+    y = jax.random.normal(keys[3], (5,))
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fuse_all=True),
@@ -115,18 +110,13 @@ def test_fuse_all_mix_weight(key1, key2, key3):
     )
 
 
-def test_fuse(key):
+def test_fuse(keys):
     tp = FullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
 
-    def k():
-        k.key, x = jax.random.split(k.key)
-        return x
-    k.key = key
-
-    ws = [jax.random.normal(k(), ins.path_shape) for ins in tp.instructions if ins.has_weight]
+    ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
     wf = jnp.concatenate([w.flatten() for w in ws])
-    x1 = tp.irreps_in1.randn(k(), (-1,))
-    x2 = tp.irreps_in2.randn(k(), (-1,))
+    x1 = tp.irreps_in1.randn(next(keys), (-1,))
+    x2 = tp.irreps_in2.randn(next(keys), (-1,))
 
     a = tp.left_right(ws, x1, x2, fuse_all=False)
     b = tp.left_right(wf, x1, x2, fuse_all=True)

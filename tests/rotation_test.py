@@ -3,11 +3,11 @@ import jax.numpy as jnp
 
 from e3nn_jax import *
 
-float_tolerance = 1e-5
+float_tolerance = 2e-5
 
 
-def test_xyz(key):
-    R = rand_matrix(key, (10,))
+def test_xyz(keys):
+    R = rand_matrix(next(keys), (10,))
     assert jnp.max(jnp.abs(R @ jnp.swapaxes(R, -1, -2) - jnp.eye(3))) < float_tolerance
 
     a, b, c = matrix_to_angles(R)
@@ -20,7 +20,7 @@ def test_xyz(key):
     assert jnp.max(jnp.abs(b - b2)) < float_tolerance
 
 
-def test_conversions(key):
+def test_conversions(keys):
     # @jax.jit
     def f(g):
         def wrap(f):
@@ -45,15 +45,15 @@ def test_conversions(key):
             g = conv[i][j](g)
         return g
 
-    R1 = rand_matrix(key, (100,))
+    R1 = rand_matrix(next(keys), (100,))
     R2 = f(R1)
 
     assert jnp.max(jnp.abs(R1 - R2)) < float_tolerance
 
 
-def test_compose(key1, key2):
-    q1 = rand_quaternion(key1, (10,))
-    q2 = rand_quaternion(key2, (10,))
+def test_compose(keys):
+    q1 = rand_quaternion(keys[1], (10,))
+    q2 = rand_quaternion(keys[2], (10,))
 
     q = compose_quaternion(q1, q2)
 
@@ -82,8 +82,8 @@ def test_compose(key1, key2):
     assert jnp.max(jnp.abs(R1 - R4)) < float_tolerance
 
 
-def test_inverse_angles(key):
-    a = rand_angles(key, ())
+def test_inverse_angles(keys):
+    a = rand_angles(next(keys), ())
     b = inverse_angles(*a)
     c = compose_angles(*a, *b)
     e = identity_angles(())
@@ -92,21 +92,22 @@ def test_inverse_angles(key):
     assert jnp.max(jnp.abs(rc - re)) < float_tolerance
 
 
-def test_rand_axis_angle(key):
+def test_rand_axis_angle(keys):
     @jax.jit
     def f(key):
         axis, angle = rand_axis_angle(key, (10_000,))
         return axis_angle_to_matrix(axis, angle) @ jnp.array([0.2, 0.5, 0.3])
 
-    x = f(key)
-    assert jnp.max(jnp.abs(jnp.mean(x[:, 0]))) < 0.002
-    assert jnp.max(jnp.abs(jnp.mean(x[:, 1]))) < 0.002
-    assert jnp.max(jnp.abs(jnp.mean(x[:, 2]))) < 0.002
+    x = f(next(keys))
+    tol = 0.005
+    assert jnp.max(jnp.abs(jnp.mean(x[:, 0]))) < tol
+    assert jnp.max(jnp.abs(jnp.mean(x[:, 1]))) < tol
+    assert jnp.max(jnp.abs(jnp.mean(x[:, 2]))) < tol
 
 
-def test_matrix_xyz(key1, key2):
-    x = jax.random.normal(key1, (100, 3))
-    phi = jax.random.normal(key2, (100,))
+def test_matrix_xyz(keys):
+    x = jax.random.normal(keys[1], (100, 3))
+    phi = jax.random.normal(keys[2], (100,))
 
     y = jnp.einsum('zij,zj->zi', matrix_x(phi), x)
     assert jnp.max(jnp.abs(x[:, 0] - y[:, 0])) < float_tolerance

@@ -13,9 +13,9 @@ def test_wigner_3j_symmetry():
 
 
 @pytest.mark.parametrize('l1,l2,l3', _W3j_indices.keys())
-def test_wigner_3j(key, l1, l2, l3):
+def test_wigner_3j(keys, l1, l2, l3):
     if abs(l1 - l2) <= l3 <= l1 + l2:
-        abc = rand_angles(key, (10,))
+        abc = rand_angles(keys[0], (10,))
 
         C = wigner_3j(l1, l2, l3)
         D1 = Irrep(l1, 1).D_from_angles(*abc)
@@ -26,8 +26,8 @@ def test_wigner_3j(key, l1, l2, l3):
         assert jnp.max(jnp.abs(C - C2)) < 1e-6
 
 
-def test_cartesian(key):
-    abc = rand_angles(key, (10,))
+def test_cartesian(keys):
+    abc = rand_angles(keys[0], (10,))
     R = angles_to_matrix(*abc)
     D = wigner_D(1, *abc)
     assert jnp.max(jnp.abs(R - D)) < 1e-6

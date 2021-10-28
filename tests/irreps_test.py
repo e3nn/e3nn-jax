@@ -97,14 +97,14 @@ def test_fail1():
     Irreps([(32, 1)])
 
 
-def test_list_contiguous(key):
+def test_list_contiguous(keys):
     irreps = Irreps("3x0e + 2x1e")
-    x = irreps.randn(key, (4, 4, -1))
+    x = irreps.randn(next(keys), (4, 4, -1))
 
     assert irreps.to_contiguous(x) is x
     assert jax.tree_map(lambda a: a.shape, irreps.to_list(x)) == [(4, 4, 3, 1), (4, 4, 2, 3)]
 
-    x = [None, jax.random.normal(key, (4, 4, 2, 3))]
+    x = [None, jax.random.normal(next(keys), (4, 4, 2, 3))]
 
     assert jnp.allclose(
         irreps.to_contiguous(x),
