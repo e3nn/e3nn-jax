@@ -77,7 +77,11 @@ class BatchNorm(hk.Module):
             new_vars = []
 
         fields = []
+
+        # You need all of these constants because of the ordering of the irreps
         i = 0
+        irm = 0
+        ib = 0
 
         for (mul, ir), irrep_slice in zip(self.irreps, self.irreps.slices()):
             d = ir.dim
@@ -94,10 +98,11 @@ class BatchNorm(hk.Module):
                     else:
                         field_mean = field.mean([0, 1]).reshape(mul)  # [mul]
                         new_means.append(
-                            self._roll_avg(running_mean[i: k], field_mean)
+                            self._roll_avg(running_mean[irm: irm + mul], field_mean)
                         )
                 else:
-                    field_mean = running_mean[i: k]
+                    field_mean = running_mean[irm: irm + mul]
+                irm += mul
 
                 # [batch, sample, mul, repr]
                 field = field - field_mean.reshape(-1, 1, mul, 1)
@@ -132,8 +137,9 @@ class BatchNorm(hk.Module):
             field = field * field_norm.reshape(-1, 1, mul, 1)  # [batch, sample, mul, repr]
 
             if self.affine and ir.is_scalar():  # scalars
-                sub_bias = bias[i: k]  # [mul]
+                sub_bias = bias[ib: ib + mul]  # [mul]
                 field += sub_bias.reshape(mul, 1)  # [batch, sample, mul, repr]
+                ib += mul
 
             fields.append(field.reshape(batch, -1, mul * d))  # [batch, sample, mul * repr]
             i = k
