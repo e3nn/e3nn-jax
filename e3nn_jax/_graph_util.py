@@ -25,8 +25,7 @@ def index_add(i, x, out_dim):
        DeviceArray([-9.,  0.,  5.,  0.], dtype=float32)
     """
     # out_dim = jnp.max(i) + 1
-    out = jnp.zeros((out_dim,) + x.shape[1:])
-    return jax.ops.index_add(out, i, x)
+    return jnp.zeros((out_dim,) + x.shape[1:]).at[i].add(x)
 
 
 def radius_graph(pos, r_max, batch):
