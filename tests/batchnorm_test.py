@@ -29,6 +29,27 @@ def test_equivariant():
     assert_equivariant(m_eval, sub_keys[4], irreps_in=[irreps], irreps_out=[irreps])
 
 
+def test_middle_constant():
+    rng_key = jax.random.PRNGKey(random.randint(0,maxsize))
+    rng_key, *sub_keys = jax.random.split(rng_key, num=6)
+    irreps = Irreps("3x0o + 3x0e + 4x1e")
+
+    @hk.without_apply_rng
+    @hk.transform_with_state
+    def b(x, is_training=True):
+        m = BatchNorm(irreps)
+        return m(x, is_training)
+
+    params, state = b.init(rng_key, irreps.randn(sub_keys[0], (16, -1)))
+    out, state = b.apply(params, state, irreps.randn(sub_keys[1], (16, -1)))
+    out, state = b.apply(params, state, irreps.randn(sub_keys[2], (16, -1)))
+
+    m_train = lambda x: b.apply(params, state, x)[0]
+    assert_equivariant(m_train, sub_keys[3], irreps_in=[irreps], irreps_out=[irreps])
+    m_eval = lambda x: b.apply(params, state, x, is_training=False)[0]
+    assert_equivariant(m_eval, sub_keys[4], irreps_in=[irreps], irreps_out=[irreps])
+
+
 @pytest.mark.parametrize('affine', [True, False])
 @pytest.mark.parametrize('reduce', ['mean', 'max'])
 @pytest.mark.parametrize('normalization', ['norm', 'component'])
