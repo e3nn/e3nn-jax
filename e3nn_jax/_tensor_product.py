@@ -1,7 +1,9 @@
 from functools import lru_cache, partial
-from math import sqrt, prod
+from math import sqrt
 from typing import Any, List, NamedTuple, Optional
 import itertools
+import functools
+import operator
 
 import jax
 import jax.numpy as jnp
@@ -9,6 +11,10 @@ import jax.numpy as jnp
 from e3nn_jax import Irrep, Irreps, wigner_3j
 
 from ._einsum import einsum as opt_einsum
+
+
+def _prod(xs):
+    return functools.reduce(operator.mul, xs, 1)
 
 
 def _sum_tensors(xs, shape, empty_return_none=False):
@@ -185,7 +191,7 @@ class TensorProduct:
             i = 0
             for ins in self.instructions:
                 if ins.has_weight:
-                    n = prod(ins.path_shape)
+                    n = _prod(ins.path_shape)
                     weights_list.append(weights[i:i+n].reshape(ins.path_shape))
                     i += n
             assert i == weights.size
