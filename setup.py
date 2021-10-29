@@ -36,6 +36,7 @@ setup(
     install_requires=[
         'jax',
         'dm-haiku',
+        'optax',
     ],
     include_package_data=True,
     classifiers=[
