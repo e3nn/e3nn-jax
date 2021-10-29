@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8]
+        python-version: [3.6, 3.9]
 
     steps:
     - uses: actions/checkout@v2
@@ -23,13 +23,12 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-#     - name: Install flake8
-#       run: |
-#         pip install flake8
-#     - name: Lint with flake8
-#       run: |
-#         # Stop the build if there are style issues, Python syntax errors, or undefined names
-#         flake8 . --count --show-source --statistics
+    - name: Install flake8
+      run: |
+        pip install flake8
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --show-source --statistics
     - name: Install dependencies
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -40,12 +39,7 @@ jobs:
         pip install .
     - name: Install pytest
       run: |
-        pip install pytest pytest-cov
-        pip install coveralls
+        pip install pytest
     - name: Test with pytest
       run: |
-        coverage run --source=e3nn-jax -m pytest --doctest-modules --ignore=docs/ --ignore=examples/ .
-#     - name: Upload to coveralls
-#       if: github.event_name == 'push'
-#       run: |
-#         COVERALLS_REPO_TOKEN=${{ secrets.COVERALLS_TOKEN }} coveralls
+        pytest --doctest-modules --ignore=docs/ --ignore=examples/ .

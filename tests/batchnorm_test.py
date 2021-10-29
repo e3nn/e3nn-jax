@@ -6,7 +6,6 @@ from e3nn_jax.util.test import assert_equivariant
 import pytest
 
 
-
 @pytest.mark.parametrize('irreps', [Irreps("3x0e + 3x0o + 4x1e"), Irreps("3x0o + 3x0e + 4x1e")])
 def test_equivariant(keys, irreps):
     @hk.without_apply_rng

@@ -1,10 +1,8 @@
 from typing import Callable, Sequence
-import jax
 
 import haiku as hk
 
 from e3nn_jax import FullyConnectedTensorProduct, Irreps, Linear, normalize_function
-from functools import partial
 
 
 class HLinear(hk.Module):

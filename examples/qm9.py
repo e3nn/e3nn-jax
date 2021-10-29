@@ -208,6 +208,7 @@ def execute(config):
     print(f"edges: min={sampler.num_edges.min()} med={sampler.num_edges.median()} max={sampler.num_edges.max()} tot={sampler.num_edges.sum()}")
 
     loader = pyg.loader.DataLoader(dataset, batch_sampler=sampler, num_workers=2)
+
     def batch_gen():
         for a in loader:
             a = dummy_fill(a, config['num_graphs'], config['num_nodes'], config['num_edges'])

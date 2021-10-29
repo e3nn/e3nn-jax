@@ -70,7 +70,7 @@ def equivariance_error(
             # add parity
             rot_mat *= (-1)**parity_k
             # build translation
-            translation = 10 * jax.random.normal(sub_keys[1], shape=(1,3), dtype=rot_mat.dtype) if this_do_translate else 0.
+            translation = 10 * jax.random.normal(sub_keys[1], shape=(1, 3), dtype=rot_mat.dtype) if this_do_translate else 0.
 
             # Evaluate the function on rotated arguments:
             rot_args = _transform(args_in, irreps_in, rot_mat, translation)
