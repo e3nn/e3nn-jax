@@ -9,8 +9,8 @@ from e3nn_jax import TensorProduct, Irreps, FullyConnectedTensorProduct
 @pytest.mark.parametrize('jitted', [False, True])
 @pytest.mark.parametrize('optimize_einsums', [False, True])
 @pytest.mark.parametrize('specialized_code', [False, True])
-@pytest.mark.parametrize('normalization', ['component', 'norm'])
-def test_modes(keys, normalization, specialized_code, optimize_einsums, jitted, connection_mode):
+@pytest.mark.parametrize('irrep_normalization', ['component', 'norm'])
+def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, jitted, connection_mode):
     tp = TensorProduct(
         Irreps("10x0o + 10x1o + 1x2e"),
         Irreps("10x0o + 10x1o + 1x2o"),
@@ -22,7 +22,7 @@ def test_modes(keys, normalization, specialized_code, optimize_einsums, jitted, 
             (2, 2, 2, 'uvw', True),
             (2, 1, 2, 'uvw', True),
         ],
-        normalization=normalization,
+        irrep_normalization=irrep_normalization,
     )
 
     def f(ws, x1, x2):
@@ -39,8 +39,8 @@ def test_modes(keys, normalization, specialized_code, optimize_einsums, jitted, 
     g = tp.left_right
 
     ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
-    x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=normalization)
-    x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=normalization)
+    x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=irrep_normalization)
+    x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=irrep_normalization)
 
     a = f(ws, x1, x2)
     b = g(ws, x1, x2)
@@ -121,3 +121,27 @@ def test_fuse(keys):
     a = tp.left_right(ws, x1, x2, fuse_all=False)
     b = tp.left_right(wf, x1, x2, fuse_all=True)
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), (a, b)
+
+
+@pytest.mark.parametrize('path_normalization', ['element', 'path'])
+@pytest.mark.parametrize('irrep_normalization', ['component', 'norm'])
+def test_normalization(keys, irrep_normalization, path_normalization):
+    tp = FullyConnectedTensorProduct(
+        "5x0e+1x0e+10x1e",
+        "2x0e+2x1e+10x1e",
+        "1000x1e+1000x0e",
+        irrep_normalization=irrep_normalization,
+        path_normalization=path_normalization,
+    )
+
+    ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
+    x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=irrep_normalization)
+    x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=irrep_normalization)
+
+    v, s = tp.left_right(ws, x1, x2, output_list=True)
+
+    assert jnp.exp(jnp.abs(jnp.log(jnp.mean(s**2)))) < 2.0
+    if irrep_normalization == 'component':
+        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(v**2)))) < 2.0
+    if irrep_normalization == 'norm':
+        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(jnp.sum(v**2, axis=1))))) < 2.0

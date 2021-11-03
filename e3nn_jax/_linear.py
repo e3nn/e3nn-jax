@@ -1,5 +1,6 @@
 from typing import Any, List, NamedTuple, Optional, Tuple, Union
 
+import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Irreps
@@ -83,18 +84,19 @@ class Linear:
             for i_out, (bias, mul_ir) in enumerate(zip(biases, irreps_out)) if bias
         ]
 
-        if irreps_out.dim > 0:
-            output_mask = jnp.concatenate([
-                jnp.ones(mul_ir.dim)
-                if any(
-                    (ins.i_out == i_out) and (0 not in ins.path_shape)
-                    for ins in instructions
-                )
-                else jnp.zeros(mul_ir.dim)
-                for i_out, mul_ir in enumerate(irreps_out)
-            ])
-        else:
-            output_mask = jnp.ones(0)
+        with jax.core.eval_context():
+            if irreps_out.dim > 0:
+                output_mask = jnp.concatenate([
+                    jnp.ones(mul_ir.dim)
+                    if any(
+                        (ins.i_out == i_out) and (0 not in ins.path_shape)
+                        for ins in instructions
+                    )
+                    else jnp.zeros(mul_ir.dim)
+                    for i_out, mul_ir in enumerate(irreps_out)
+                ])
+            else:
+                output_mask = jnp.ones(0)
 
         self.irreps_in = irreps_in
         self.irreps_out = irreps_out

@@ -1,9 +1,9 @@
+import functools
+import itertools
+import operator
 from functools import lru_cache, partial
 from math import sqrt
 from typing import Any, List, NamedTuple, Optional
-import itertools
-import functools
-import operator
 
 import jax
 import jax.numpy as jnp
@@ -63,8 +63,12 @@ class TensorProduct:
         in1_var: Optional[List[float]] = None,
         in2_var: Optional[List[float]] = None,
         out_var: Optional[List[float]] = None,
-        normalization: str = 'component',
+        irrep_normalization: str = 'component',
+        path_normalization: str = 'element',
     ):
+        assert irrep_normalization in ['component', 'norm']
+        assert path_normalization in ['element', 'path']
+
         self.irreps_in1 = Irreps(irreps_in1)
         self.irreps_in2 = Irreps(irreps_in2)
         self.irreps_out = Irreps(irreps_out)
@@ -95,6 +99,16 @@ class TensorProduct:
         if out_var is None:
             out_var = [1.0 for _ in range(len(self.irreps_out))]
 
+        def num_elements(ins):
+            return {
+                'uvw': (self.irreps_in1[ins.i_in1].mul * self.irreps_in2[ins.i_in2].mul),
+                'uvu': self.irreps_in2[ins.i_in2].mul,
+                'uvv': self.irreps_in1[ins.i_in1].mul,
+                'uuw': self.irreps_in1[ins.i_in1].mul,
+                'uuu': 1,
+                'uvuv': 1,
+            }[ins.connection_mode]
+
         normalization_coefficients = []
         for ins in instructions:
             mul_ir_in1 = self.irreps_in1[ins.i_in1]
@@ -106,23 +120,20 @@ class TensorProduct:
 
             alpha = 1
 
-            if normalization == 'component':
+            if irrep_normalization == 'component':
                 alpha *= mul_ir_out.ir.dim
-            if normalization == 'norm':
+            if irrep_normalization == 'norm':
                 alpha *= mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
 
-            alpha /= sum(
-                in1_var[i.i_in1] * in2_var[i.i_in2] * {
-                    'uvw': (self.irreps_in1[i.i_in1].mul * self.irreps_in2[i.i_in2].mul),
-                    'uvu': self.irreps_in2[i.i_in2].mul,
-                    'uvv': self.irreps_in1[i.i_in1].mul,
-                    'uuw': self.irreps_in1[i.i_in1].mul,
-                    'uuu': 1,
-                    'uvuv': 1,
-                }[i.connection_mode]
-                for i in instructions
-                if i.i_out == ins.i_out
-            )
+            if path_normalization == 'element':
+                alpha /= sum(
+                    in1_var[i.i_in1] * in2_var[i.i_in2] * num_elements(i)
+                    for i in instructions
+                    if i.i_out == ins.i_out
+                )
+            if path_normalization == 'path':
+                alpha /= in1_var[ins.i_in1] * in2_var[ins.i_in2] * num_elements(ins)
+                alpha /= len([i for i in instructions if i.i_out == ins.i_out])
 
             alpha *= out_var[ins.i_out]
             alpha *= ins.path_weight
@@ -134,18 +145,19 @@ class TensorProduct:
             for ins, alpha in zip(instructions, normalization_coefficients)
         ]
 
-        if self.irreps_out.dim > 0:
-            self.output_mask = jnp.concatenate([
-                jnp.ones(mul_ir.dim)
-                if any(
-                    (ins.i_out == i_out) and (ins.path_weight != 0) and (0 not in ins.path_shape)
-                    for ins in self.instructions
-                )
-                else jnp.zeros(mul_ir.dim)
-                for i_out, mul_ir in enumerate(self.irreps_out)
-            ])
-        else:
-            self.output_mask = jnp.ones(0)
+        with jax.core.eval_context():
+            if self.irreps_out.dim > 0:
+                self.output_mask = jnp.concatenate([
+                    jnp.ones(mul_ir.dim)
+                    if any(
+                        (ins.i_out == i_out) and (ins.path_weight != 0) and (0 not in ins.path_shape)
+                        for ins in self.instructions
+                    )
+                    else jnp.zeros(mul_ir.dim)
+                    for i_out, mul_ir in enumerate(self.irreps_out)
+                ])
+            else:
+                self.output_mask = jnp.ones(0)
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all', 'output_list'))
     @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
@@ -481,7 +493,8 @@ class FullyConnectedTensorProduct(TensorProduct):
         in1_var: Optional[List[float]] = None,
         in2_var: Optional[List[float]] = None,
         out_var: Optional[List[float]] = None,
-        normalization: str = 'component',
+        irrep_normalization: str = 'component',
+        path_normalization: str = 'element',
     ):
         irreps_in1 = Irreps(irreps_in1)
         irreps_in2 = Irreps(irreps_in2)
@@ -494,7 +507,7 @@ class FullyConnectedTensorProduct(TensorProduct):
             for i_out, (_, ir_out) in enumerate(irreps_out)
             if ir_out in ir_1 * ir_2
         ]
-        super().__init__(irreps_in1, irreps_in2, irreps_out, instructions, in1_var, in2_var, out_var, normalization)
+        super().__init__(irreps_in1, irreps_in2, irreps_out, instructions, in1_var, in2_var, out_var, irrep_normalization, path_normalization)
 
 
 class ElementwiseTensorProduct(TensorProduct):
@@ -503,7 +516,8 @@ class ElementwiseTensorProduct(TensorProduct):
         irreps_in1: Any,
         irreps_in2: Any,
         filter_ir_out=None,
-        normalization: str = 'component',
+        irrep_normalization: str = 'component',
+        path_normalization: str = 'element',
     ):
         irreps_in1 = Irreps(irreps_in1).simplify()
         irreps_in2 = Irreps(irreps_in2).simplify()
@@ -544,4 +558,4 @@ class ElementwiseTensorProduct(TensorProduct):
                     (i, i, i_out, 'uuu', False)
                 ]
 
-        super().__init__(irreps_in1, irreps_in2, irreps_out, instructions, normalization=normalization)
+        super().__init__(irreps_in1, irreps_in2, irreps_out, instructions, irrep_normalization=irrep_normalization, path_normalization=path_normalization)
