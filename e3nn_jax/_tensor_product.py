@@ -126,15 +126,17 @@ class TensorProduct:
                 alpha *= mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
 
             if path_normalization == 'element':
-                alpha /= sum(
+                x = sum(
                     in1_var[i.i_in1] * in2_var[i.i_in2] * num_elements(i)
                     for i in instructions
                     if i.i_out == ins.i_out
                 )
             if path_normalization == 'path':
-                alpha /= in1_var[ins.i_in1] * in2_var[ins.i_in2] * num_elements(ins)
-                alpha /= len([i for i in instructions if i.i_out == ins.i_out])
+                x = in1_var[ins.i_in1] * in2_var[ins.i_in2] * num_elements(ins)
+                x *= len([i for i in instructions if i.i_out == ins.i_out])
 
+            if x > 0.0:
+                alpha /= x
             alpha *= out_var[ins.i_out]
             alpha *= ins.path_weight
 
@@ -194,7 +196,7 @@ class TensorProduct:
         del input2
 
         if isinstance(weights, list):
-            assert len(weights) == len([ins for ins in self.instructions if ins.has_weight])
+            assert len(weights) == len([ins for ins in self.instructions if ins.has_weight]), (len(weights), len([ins for ins in self.instructions if ins.has_weight]))
             weights_flat = _flat_concatenate(weights)
             weights_list = weights
         else:

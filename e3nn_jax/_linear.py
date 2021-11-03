@@ -27,7 +27,10 @@ class Linear:
         irreps_out: Any,
         instructions: Optional[List[Tuple[int, int]]] = None,
         biases: Optional[Union[List[bool], bool]] = None,
+        path_normalization: str = 'element',
     ):
+        assert path_normalization in ['element', 'path']
+
         irreps_in = Irreps(irreps_in)
         irreps_out = Irreps(irreps_out)
 
@@ -49,19 +52,21 @@ class Linear:
             )
             for i_in, i_out in instructions
         ]
-        instructions = [ins for ins in instructions if 0 not in ins.path_shape]
+
+        def alpha(ins):
+            x = sum(
+                irreps_in[i.i_in if path_normalization == 'element' else ins.i_in].mul
+                for i in instructions
+                if i.i_out == ins.i_out
+            )
+            return 1.0 if x == 0 else x
 
         instructions = [
             Instruction(
                 i_in=ins.i_in,
                 i_out=ins.i_out,
                 path_shape=ins.path_shape,
-                path_weight=(
-                    irreps_in[ins.i_in].mul * sum(
-                        1 if other_ins.i_out == ins.i_out else 0
-                        for other_ins in instructions
-                    )
-                )**(-0.5)
+                path_weight=alpha(ins)**(-0.5)
             )
             for ins in instructions
         ]
@@ -132,4 +137,6 @@ class Linear:
         ]
         if output_list:
             return out
+        if self.irreps_out.dim == 0:
+            return jnp.zeros((0,))
         return jnp.concatenate([x.flatten() for x in out])
