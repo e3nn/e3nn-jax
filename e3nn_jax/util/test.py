@@ -107,29 +107,22 @@ def equivariance_error(
     do_parity=True,
     do_translation=True
 ):
-    r"""Get the maximum equivariance error for ``func`` over ``ntrials``
-    Each trial randomizes the equivariant transformation tested.
-    Parameters
-    ----------
-    func : callable
-        the function to test
-    args_in : list
-        the original inputs to pass to ``func``.
-    rng_key: jax.random.PRNGKey
-        a random key for generation of random values
-    irreps_in : list of `e3nn.o3.Irreps` or `e3nn.o3.Irreps`
-        the input irreps for each of the arguments in ``args_in``. If left as the default of ``None``, ``get_io_irreps`` will be used to try to infer them. If a sequence is provided, valid elements are also the string ``'cartesian'``, which denotes that the corresponding input should be dealt with as cartesian points in 3D, and ``None``, which indicates that the argument should not be transformed.
-    irreps_out : list of `e3nn.o3.Irreps` or `e3nn.o3.Irreps`
-        the out irreps for each of the return values of ``func``. Accepts similar values to ``irreps_in``.
-    ntrials : int
-        run this many trials with random transforms
-    do_parity : bool
-        whether to test parity
-    do_translation : bool
-        whether to test translation for ``'cartesian'`` inputs
-    Returns
-    -------
-    dictionary mapping tuples ``(parity_k, did_translate)`` to errors
+    r"""Test equivariance of ``func``.
+
+    This function tests the equivariance of ``func`` by randomly rotating and translating the input arguments.
+
+    Args:
+        func: The function to test.
+        rng_key: The random key to use for the test.
+        args_in: The input arguments to ``func``.
+        irreps_in: The irreps of the input arguments.
+        irreps_out: The irreps of the output arguments.
+        ntrials: The number of random rotations and translations to test.
+        do_parity: Whether to test the parity of the output arguments.
+        do_translation: Whether to test the translation of the output arguments.
+
+    Returns:
+        A dictionary mapping tuples of ``(parity_k, did_translate)`` to the error.
     """
     irreps_in, irreps_out = _get_io_irreps(func, irreps_in=irreps_in, irreps_out=irreps_out)
 

@@ -14,12 +14,13 @@ class Dropout(hk.Module):
     .. math::
         B_{zai} = \frac{x_{zi}}{1-p} A_{zai}
     where :math:`p` is the dropout probability and :math:`x` is a Bernoulli random variable with parameter :math:`1-p`.
-    Parameters
-    ----------
-    irreps : `Irreps`
-        representation
-    p : float
-        probability to drop
+
+    Args:
+        irreps (`Irreps`): the irrep string
+        p (float): dropout probability
+
+    Returns:
+        `Dropout`: the dropout module
     """
     def __init__(self, irreps, p):
         super().__init__()
@@ -30,15 +31,15 @@ class Dropout(hk.Module):
         return f"{self.__class__.__name__} ({self.irreps}, p={self.p})"
 
     def __call__(self, rng, x, is_training=True):
-        """evaluate
-        Parameters
-        ----------
-        input : `DeviceArray`
-            tensor of shape ``(batch, ..., irreps.dim)``
-        Returns
-        -------
-        `DeviceArray`
-            tensor of shape ``(batch, ..., irreps.dim)``
+        """equivariant dropout
+
+        Args:
+            rng (`jax.random.PRNGKey`): the random number generator
+            x (`jnp.ndarray`): the input
+            is_training (bool): whether to perform dropout
+
+        Returns:
+            `jnp.ndarray`: the output
         """
         if not is_training:
             return x

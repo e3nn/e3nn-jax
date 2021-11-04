@@ -477,9 +477,9 @@ class Irreps(tuple):
         r"""Sort the representations.
 
         Returns:
-            irreps (`Irreps`):
-            p (tuple of int):
-            inv (tuple of int):
+            irreps (`Irreps`): sorted irreps
+            p (tuple of int): permutation of the indices
+            inv (tuple of int): inverse permutation of the indices
 
         Examples:
             >>> Irreps("1e + 0e + 1e").sort().irreps

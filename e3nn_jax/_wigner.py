@@ -84,27 +84,14 @@ def wigner_3j(l1, l2, l3, flat_src=_W3j_flat):
 
             C_{ijk} C_{ijk} = 1
 
-    Parameters
-    ----------
-    l1 : int
-        :math:`l_1`
+    Args:
+        l1 (int): :math:`l_1`
+        l2 (int): :math:`l_2`
+        l3 (int): :math:`l_3`
+        flat_src (array): flattened version of W3j symbols
 
-    l2 : int
-        :math:`l_2`
-
-    l3 : int
-        :math:`l_3`
-
-    dtype : torch.dtype or None
-        ``dtype`` of the returned tensor. If ``None`` then set to ``torch.get_default_dtype()``.
-
-    device : torch.device or None
-        ``device`` of the returned tensor. If ``None`` then set to the default device of the current context.
-
-    Returns
-    -------
-    `torch.Tensor`
-        tensor :math:`C` of shape :math:`(2l_1+1, 2l_2+1, 2l_3+1)`
+    Returns:
+        array :math:`C_{lmn}` of shape :math:`(2l_1+1, 2l_2+1, 2l_3+1)`
     """
     assert abs(l2 - l3) <= l1 <= l2 + l3
 

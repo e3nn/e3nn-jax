@@ -46,43 +46,14 @@ def spherical_harmonics(
 
     .. _Wikipedia: https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics
 
-    Parameters
-    ----------
-    l : int or list of int
-        degree of the spherical harmonics.
+    Args:
+        irreps_out (`Irreps`): output irreps
+        x (`jnp.ndarray`): cartesian coordinates
+        normalize (bool): if True, the polynomials are restricted to the sphere
+        normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
 
-    x : `torch.Tensor`
-        tensor :math:`x` of shape ``(..., 3)``.
-
-    normalize : bool
-        whether to normalize the ``x`` to unit vectors that lie on the sphere before projecting onto the spherical harmonics
-
-    normalization : {'integral', 'component', 'norm'}
-        normalization of the output tensors --- note that this option is independent of ``normalize``, which controls the processing of the *input*, rather than the output.
-        Valid options:
-        * *component*: :math:`\|Y^l(x)\|^2 = 2l+1, x \in S^2`
-        * *norm*: :math:`\|Y^l(x)\| = 1, x \in S^2`, ``component / sqrt(2l+1)``
-        * *integral*: :math:`\int_{S^2} Y^l_m(x)^2 dx = 1`, ``component / sqrt(4pi)``
-
-    Returns
-    -------
-    `torch.Tensor`
-        a tensor of shape ``(..., 2l+1)``
-
-        .. math:: Y^l(x)
-
-    Examples
-    --------
-
-    >>> spherical_harmonics('0e', jnp.ones((2, 3)), False, normalization='component')
-    DeviceArray([[1.],
-                 [1.]], dtype=float32)
-
-    See Also
-    --------
-    wigner_D
-    wigner_3j
-
+    Returns:
+        `jnp.ndarray`: polynomials of the spherical harmonics
     """
     assert normalization in ['integral', 'component', 'norm']
 

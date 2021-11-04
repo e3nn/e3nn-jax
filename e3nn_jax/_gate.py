@@ -23,34 +23,21 @@ class Gate:
     2. ``len(irreps_gates) == len(act_gates)``.
     3. ``irreps_gates.num_irreps == irreps_gated.num_irreps``.
 
-    Parameters
-    ----------
-    irreps_scalars : `e3nn.o3.Irreps`
-        Representation of the scalars that will be passed through the
-        activation functions ``act_scalars``.
+    Args:
+        irreps_scalars (`Irreps`): The irreps of the scalars.
+        act_scalars (list of functions): The activation functions of the scalars. The length of this list must be the same as the length of ``irreps_scalars``.
+        irreps_gates (`Irreps`): The irreps of the gates.
+        act_gates (list of functions): The activation functions of the gates. The length of this list must be the same as the length of ``irreps_gates``.
+        irreps_gated (`Irreps`): The irreps multiplied by the gates.
 
-    act_scalars : list of function or None
-        Activation functions acting on the scalars.
+    Returns:
+        `Gate`: The gate activation function.
 
-    irreps_gates : `e3nn.o3.Irreps`
-        Representation of the scalars that will be passed through the
-        activation functions ``act_gates`` and multiplied by the
-        ``irreps_gated``.
-
-    act_gates : list of function or None
-        Activation functions acting on the gates. The number of functions in
-        the list should match the number of irrep groups in ``irreps_gates``.
-
-    irreps_gated : `e3nn.o3.Irreps`
-        Representation of the gated tensors.
-        ``irreps_gates.num_irreps == irreps_gated.num_irreps``
-
-    Examples
-    --------
-    >>> import jax.numpy as jnp
-    >>> g = Gate("16x0o", [jnp.tanh], "32x0o", [jnp.tanh], "16x1e+16x1o")
-    >>> g.irreps_out
-    16x0o+16x1o+16x1e
+    Examples:
+        >>> import jax.numpy as jnp
+        >>> g = Gate("16x0o", [jnp.tanh], "32x0o", [jnp.tanh], "16x1e+16x1o")
+        >>> g.irreps_out
+        16x0o+16x1o+16x1e
     """
     irreps_in: Irreps
     irreps_out: Irreps
@@ -90,17 +77,13 @@ class Gate:
         return f"{self.__class__.__name__} ({self.irreps_in} -> {self.irreps_out})"
 
     def __call__(self, features):
-        """Evaluate the gated activation function.
+        r"""evaluate the gate activation function.
 
-        Parameters
-        ----------
-        features : `torch.Tensor`
-            tensor of shape ``(irreps_in.dim)``
+        Args:
+            features (`jnp.ndarray`): The features to be passed through the gate activation.
 
-        Returns
-        -------
-        `torch.Tensor`
-            tensor of shape ``(irreps_out.dim)``
+        Returns:
+            `jnp.ndarray`: The output of the gate activation function.
         """
         features = self.irreps_in.to_list(features)
         scalars = features[:len(self.irreps_scalars)]

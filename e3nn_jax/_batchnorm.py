@@ -11,20 +11,15 @@ class BatchNorm(hk.Module):
     It normalizes by the norm of the representations.
     Note that the norm is invariant only for orthonormal representations.
     Irreducible representations `wigner_D` are orthonormal.
-    Parameters
-    ----------
-    irreps : `Irreps`
-        representation
-    eps : float
-        avoid division by zero when we normalize by the variance
-    momentum : float
-        momentum of the running average
-    affine : bool
-        do we have weight and bias parameters
-    reduce : {'mean', 'max'}
-        method used to reduce
-    instance : bool
-        apply instance norm instead of batch norm
+
+    Args:
+        irreps: Irreducible representations
+        eps (float): small number to avoid division by zero
+        momentum: momentum for moving average
+        affine: whether to include learnable biases
+        reduce: reduce mode, either 'mean' or 'max'
+        instance: whether to use instance normalization
+        normalization: normalization mode, either 'norm' or 'component'
     """
     def __init__(self, irreps, eps=1e-5, momentum=0.1, affine=True, reduce='mean', instance=False, normalization='component'):
         super().__init__()
@@ -52,15 +47,14 @@ class BatchNorm(hk.Module):
         return (1 - self.momentum) * curr + self.momentum * jax.lax.stop_gradient(update)
 
     def __call__(self, input, is_training=True):
-        """evaluate
-        Parameters
-        ----------
-        input : `DeviceArray`
-            tensor of shape ``(batch, ..., irreps.dim)``
-        Returns
-        -------
-        `DeviceArray`
-            tensor of shape ``(batch, ..., irreps.dim)``
+        r"""evaluate the batch normalization
+
+        Args:
+            input: input tensor of shape ``(..., irreps.dim)``
+            is_training: whether to train or evaluate
+
+        Returns:
+            output: normalized tensor of shape ``(..., irreps.dim)``
         """
         if not self.instance:
             running_mean = hk.get_state("running_mean", shape=(self.num_scalar,), init=jnp.zeros)
