@@ -26,7 +26,7 @@ def find_version(*file_paths):
 
 setup(
     name='e3nn_jax',
-    version=find_version("e3nn_jax", "__init__.py"),
+    version=find_version('e3nn_jax', '__init__.py'),
     description='Equivariant convolutional neural networks '
                 'for the group E(3) of 3 dimensional rotations, translations, and mirrors.',
     long_description=long_description,
