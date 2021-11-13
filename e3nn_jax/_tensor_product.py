@@ -48,6 +48,19 @@ class Instruction(NamedTuple):
 
 
 class TensorProduct:
+    r"""Tensor product of two tensors.
+
+    Args:
+        irreps_in1: :class:`~e3nn_jax.Irreps` of the first tensor.
+        irreps_in2: :class:`~e3nn_jax.Irreps` of the second tensor.
+        irreps_out: :class:`~e3nn_jax.Irreps` of the output tensor.
+        instructions: List of instructions.
+        in1_var: Variance of the first tensor.
+        in2_var: Variance of the second tensor.
+        out_var: Variance of the output tensor.
+        irrep_normalization: Normalization of the tensors. `component` or `norm`.
+        path_normalization: Normalization of the paths. `element` or `path`.
+    """
     irreps_in1: Irreps
     irreps_in2: Irreps
     irreps_out: Irreps
@@ -164,6 +177,23 @@ class TensorProduct:
     @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all', 'output_list'))
     @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
     def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False, output_list=False):
+        r"""Compute the tensor product of two input tensors.
+
+        Args:
+            weights (array or list of arrays): The weights of the tensor product.
+            input1 (array or list of arrays): The first input tensor.
+            input2 (array or list of arrays): The second input tensor.
+            specialized_code (bool): If True, use the specialized code for the
+                tensor product.
+            optimize_einsums (bool): If True, optimize the einsum code.
+            custom_einsum_vjp (bool): If True, use the custom vjp for the einsum
+                code.
+            fuse_all (bool): If True, fuse all the einsums.
+            output_list (bool): If True, return a list of the output tensors.
+
+        Returns:
+            array or list of arrays: The output tensor.
+        """
         if input2 is None:
             weights, input1, input2 = [], weights, input1
 
