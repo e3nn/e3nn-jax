@@ -1,5 +1,30 @@
 # e3nn-jax
 
+:construction: :construction: :construction:
+Disclamier: This is a work in progress. No part of the library can be considered stable.
+
+## Example
+
+Example with the `Irreps` class.
+This class specifies a direct sum of irreducible representations.
+It does not contain any actual data. It is use to specify the "type" of the data under rotation.
+
+```python
+from e3nn_jax import Irreps
+
+irreps = Irreps("2x0e + 3x1e")  # 2 even scalars and 3 even vectors
+irreps = irreps + irreps  # 2x0e+3x1e+2x0e+3x1e
+irreps.D_from_angles(alpha=1.57, beta=1.57, gamma=0.0)  # 22x22 matrix
+```
+
+It also includes the parity.
+```python
+irreps = Irreps("0e + 0o")  # an even scalar and an odd scalar
+irreps.D_from_angles(alpha=0.0, beta=0.0, gamma=0.0, k=1)  # the matrix that applies parity
+# DeviceArray([[ 1.,  0.],
+#              [ 0., -1.]], dtype=float32)
+```
+
 ## Shared weights
 
 `torch` version:
