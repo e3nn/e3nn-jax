@@ -9,6 +9,7 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 import torch
+import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
 from e3nn_jax import (Gate, Irreps, index_add, soft_one_hot_linspace,
@@ -317,6 +318,8 @@ def main():
     parser.add_argument("--data_path", type=str, default='~/qm9')
 
     args = parser.parse_args()
+
+    torch.multiprocessing.set_sharing_strategy('file_system')
 
     # wandb.login()
     wandb.init(project="QM9 jax", config=args.__dict__)
