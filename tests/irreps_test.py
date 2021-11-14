@@ -92,9 +92,9 @@ def test_contains():
     assert Irrep("2o") not in Irreps("3x0e + 2x2e + 1x3o")
 
 
-@pytest.mark.xfail()
 def test_fail1():
-    Irreps([(32, 1)])
+    with pytest.raises(AssertionError):
+        Irreps([(32, 1)])
 
 
 def test_list_contiguous(keys):
@@ -116,5 +116,8 @@ def test_list_contiguous(keys):
     y = irreps.to_list([jnp.ones((5, 3, 1)), jnp.ones((5, 1, 3)), jnp.ones((5, 1, 3))])
     assert len(y) == len(irreps)
 
-    y = irreps.to_list([jnp.ones((5, 3, 1)), jnp.ones((5, 1, 3)), None])
+    y = irreps.to_list([None, jnp.ones((5, 2, 3))])
     assert len(y) == len(irreps)
+
+    with pytest.raises(AssertionError):
+        irreps.to_list([jnp.ones((5, 3, 1)), None, None])
