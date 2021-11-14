@@ -208,7 +208,7 @@ def execute(config):
     print(f"nodes: min={sampler.num_nodes.min()} med={sampler.num_nodes.median()} max={sampler.num_nodes.max()} tot={sampler.num_nodes.sum()}")
     print(f"edges: min={sampler.num_edges.min()} med={sampler.num_edges.median()} max={sampler.num_edges.max()} tot={sampler.num_edges.sum()}")
 
-    loader = pyg.loader.DataLoader(dataset, batch_sampler=sampler, num_workers=2)
+    loader = pyg.loader.DataLoader(dataset, batch_sampler=sampler, num_workers=1)
 
     def batch_gen():
         for a in loader:
@@ -306,17 +306,17 @@ def execute(config):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mul0", type=int, default=16)
-    parser.add_argument("--mul1", type=int, default=16)
-    parser.add_argument("--mul2", type=int, default=16)
+    parser.add_argument("--mul0", type=int, default=32)
+    parser.add_argument("--mul1", type=int, default=32)
+    parser.add_argument("--mul2", type=int, default=32)
     parser.add_argument("--shlmax", type=int, default=2)
-    parser.add_argument("--num_layers", type=int, default=0)
-    parser.add_argument("--num_basis", type=int, default=10)
+    parser.add_argument("--num_layers", type=int, default=2)
 
-    parser.add_argument("--radial_num_neurons", type=int, default=32)
+    parser.add_argument("--num_basis", type=int, default=10)
+    parser.add_argument("--radial_num_neurons", type=int, default=64)
     parser.add_argument("--radial_num_layers", type=int, default=2)
 
-    parser.add_argument("--lr", type=float, default=1e-2)
+    parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--momentum", type=float, default=0.9)
 
     parser.add_argument("--num_graphs", type=int, default=32)
