@@ -144,6 +144,7 @@ def create_model(config):
         mul1 = config['mul1']
         mul2 = config['mul2']
         irreps = Irreps(f'{mul0}x0e + {mul0}x0o + {mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o').simplify()
+        irreps_out = Irreps('4x0e')
 
         kw = dict(
             irreps_edge_attr=irreps_sh,
@@ -181,7 +182,6 @@ def create_model(config):
 
             # stat('x', x)
 
-        irreps_out = Irreps('4x0e')
         x = Transformer(
             irreps_node_input=irreps,
             irreps_node_output=irreps_out,
@@ -310,7 +310,7 @@ def main():
     parser.add_argument("--mul1", type=int, default=16)
     parser.add_argument("--mul2", type=int, default=16)
     parser.add_argument("--shlmax", type=int, default=2)
-    parser.add_argument("--num_layers", type=int, default=1)
+    parser.add_argument("--num_layers", type=int, default=0)
     parser.add_argument("--num_basis", type=int, default=10)
 
     parser.add_argument("--radial_num_neurons", type=int, default=32)
