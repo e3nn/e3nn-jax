@@ -131,7 +131,7 @@ def create_model(config):
             number=config['num_basis'],
             basis='smooth_finite',
             cutoff=True,
-        ) * 5**0.5 * 1.1
+        ) * config['num_basis']**0.5 * 0.95
 
         mul0 = config['mul0']
         mul1 = config['mul1']
