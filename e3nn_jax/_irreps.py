@@ -4,6 +4,7 @@ from functools import partial
 from typing import List
 
 import jax
+import copy
 import jax.numpy as jnp
 import jax.scipy
 from jax import lax
@@ -534,6 +535,7 @@ class Irreps(tuple):
             >>> irreps.extract((0, 2), jnp.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0]))
             DeviceArray([1., 3.], dtype=float32)
         """
+        # TODO: input a list?
         s = self.slices()
         s = [s[i] for i in indices]
 
@@ -554,43 +556,57 @@ class Irreps(tuple):
             for i in s
         ], axis=axis)
 
-    def is_valid(self, x):
+    def assert_compatible(self, x):
+        r"""
+
+        Examples:
+            >>> irreps = Irreps("0e + 0e + 0e + 1e")
+            >>> irreps.assert_compatible(jnp.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0]))
+            >>> irreps.assert_compatible([jnp.array([[1.0]]), None, None, jnp.array([[0.0, 0.0, 0.0]])])
+        """
         if isinstance(x, list):
-            x = [None if a is None else a.shape[-2:] for a in x]
-            y = [(mul, ir.dim) for mul, ir in self]
-            i = 0
-            j = 0
-            while True:
-                if i >= len(x) and j >= len(y):
-                    return True
-                if i >= len(x) or j >= len(y):
-                    return False
-                if x[i] is not None and x[i][0] == 0:
-                    i += 1
-                    continue
-                if y[j][0] == 0:
-                    j += 1
-                    continue
-                if x[i] is None:
-                    i += 1
-                    j += 1
-                    continue
-                if x[i][1] != y[j][1]:
-                    return False
-                if x[i][0] == y[j][0]:
-                    i += 1
-                    j += 1
-                    continue
-                if x[i][0] < y[j][0]:
-                    y[j] = (y[j][0] - x[i][0], y[j][1])
-                    i += 1
-                    continue
-                if y[j][0] < x[i][0]:
-                    x[i] = (x[i][0] - y[j][0], x[i][1])
-                    j += 1
-                    continue
+            if any(a is None for a in x):
+                # list containing some None
+                assert len(x) == len(self), "list with None is only compatible if the length match"
+                shape = None
+                for (mul, ir), a in zip(self, x):
+                    if a is None:
+                        continue
+                    assert a.shape[-1] == ir.dim, f"shape mismatch: {a.shape[-1]} and {ir.dim}"
+                    assert a.shape[-2] == mul, f"shape mismatch: {a.shape[-2]} and {mul}"
+                    if shape is None:
+                        shape = a.shape[:-2]
+                    else:
+                        assert shape == a.shape[:-2], f"shape mismatch: {shape} and {a.shape[:-2]}"
+            else:
+                # list without any None
+                Info = collections.namedtuple("info", ["mul", "dim"])
+                assert len({a.shape[:-2] for a in x}) <= 1, "all arrays must have the same shape"
+                x_ = [Info(a.shape[-2], a.shape[-1]) for a in x]
+                x = copy.deepcopy(x_)
+                y = [Info(mul, ir.dim) for mul, ir in self]
+                xi = 0
+                yi = 0
+                while True:
+                    if xi >= len(x) and yi >= len(y):
+                        break
+                    if xi < len(x) and x[xi].mul == 0:
+                        xi += 1
+                        continue
+                    if yi < len(y) and y[yi].mul == 0:
+                        yi += 1
+                        continue
+                    if xi >= len(x):
+                        raise ValueError(f"the data contains less irreps than expected: {x_} < {self}")
+                    if yi >= len(y):
+                        raise ValueError(f"the data contains more irreps than expected: {x_} > {self}")
+                    assert x[xi].dim == y[yi].dim, f"dimension mismatch: {x[xi].dim} and {y[yi].dim}"
+                    mul = min(x[xi].mul, y[yi].mul)
+                    x[xi] = Info(x[xi].mul - mul, x[xi].dim)
+                    y[yi] = Info(y[yi].mul - mul, y[yi].dim)
         else:
-            return x.shape[-1] == self.dim
+            # array
+            assert x.shape[-1] == self.dim, f"shape mismatch: {x.shape[-1]} and {self.dim}"
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def to_list(self, x):
@@ -606,61 +622,55 @@ class Irreps(tuple):
             >>> irreps = Irreps("0e + 1e")
             >>> irreps.to_list(jnp.array([1.0, 0.0, 0.0, 0.0]))
             [DeviceArray([[1.]], dtype=float32), DeviceArray([[0., 0., 0.]], dtype=float32)]
+            >>> irreps.to_list([jnp.array([[1.0]]), None])
+            [DeviceArray([[1.]], dtype=float32), None]
             >>> irreps = Irreps("2x0e")
             >>> irreps.to_list([jnp.array([[1.0]]), jnp.array([[1.0]])])
             [DeviceArray([[1.],
                          [1.]], dtype=float32)]
         """
-        assert self.is_valid(x), f"{jax.tree_map(lambda i: i.shape, x)} vs {self}"
+        self.assert_compatible(x)
 
         if isinstance(x, list):
-
             if len(x) == 0:
                 return []
 
-            out = []
-            r = x.pop(0)
+            if any(a is None for a in x):
+                # list containing some None
+                assert len(x) == len(self), "list with None is only compatible if the length match"
+                return x
+            else:
+                # list without any None
+                out = []
+                r = x.pop(0)
 
-            for mul, ir in self[:-1]:
-                if r is None:
-                    out.append(None)
-                    r = x.pop(0)
-                else:
+                for mul, ir in self[:-1]:
                     assert r.shape[-1] == ir.dim
 
                     while r.shape[-2] < mul:
-                        a = x.pop(0)
-                        if a is None:
-                            a = jnp.zeros(r.shape[:-2] + (mul - r.shape[-2], ir.dim))
-                        r = jnp.concatenate([r, a], axis=-2)
+                        r = jnp.concatenate([r, x.pop(0)], axis=-2)
 
                     if r.shape[-2] == mul:
                         out.append(r)
                         r = x.pop(0)
                     else:
-                        assert r.shape[-2] > mul
                         out.append(r[..., :mul, :])
                         r = r[..., mul:, :]
 
-            mul, ir = self[-1]
-            if r is None:
+                mul, ir = self[-1]
+                assert r.shape[-1] == ir.dim
+
+                while r.shape[-2] < mul:
+                    r = jnp.concatenate([r, x.pop(0)], axis=-2)
+
+                assert r.shape[-2] == mul
+                assert len(x) == 0
+
                 out.append(r)
 
-            assert r.shape[-1] == ir.dim
+                return out
 
-            while r.shape[-2] < mul:
-                a = x.pop(0)
-                if a is None:
-                    a = jnp.zeros(r.shape[:-2] + (mul - r.shape[-2], ir.dim))
-                r = jnp.concatenate([r, a], axis=-2)
-
-            assert r.shape[-2] == mul
-            assert len(x) == 0
-
-            out.append(r)
-
-            return out
-
+        # array
         shape = x.shape[:-1]
         if len(self) == 1:
             mul, ir = self[0]
@@ -672,21 +682,56 @@ class Irreps(tuple):
             ]
 
     def shape_of(self, x):
+        r"""Infers the shape of the data
+
+        Args:
+            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
+
+        Returns:
+            tuple of int: shape of the data
+        """
         if isinstance(x, list):
             for a in x:
                 if a is not None:
                     return a.shape[:-2]
-            raise ValueError("cannot get the shape of an empty list")
+            raise ValueError(f"cannot get the shape of {x}")
         return x.shape[:-1]
+
+    def replace_none_with_zeros(self, x):
+        r"""Replace None with zeros
+
+        Only works for list of same length as the irreps
+        """
+        assert isinstance(x, list)
+        assert len(x) == len(self)
+        shape = self.shape_of(x)
+        out = []
+        for (mul, ir), a in zip(self, x):
+            if a is None:
+                a = jnp.zeros(shape + (mul, ir.dim))
+            out.append(a)
+        return out
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def to_contiguous(self, x):
-        assert self.is_valid(x)
+        r"""Convert data into a contiguous array
+
+        If the data is a list containing some `None`, it has to have the same length as the irreps.
+
+        Args:
+            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
+
+        Returns:
+            `jnp.ndarray`
+        """
+        self.assert_compatible(x)
         if isinstance(x, list):
             shape = self.shape_of(x)
+            if any(a is None for a in x):
+                x = self.replace_none_with_zeros(x)
             return jnp.concatenate([
-                jnp.zeros(shape + (mul_ir.dim,)) if a is None else a.reshape(shape + (mul_ir.dim,))
-                for mul_ir, a in zip(self, x)
+                a.reshape(shape + (a.shape[-2] * a.shape[-1],))
+                for a in x
             ], axis=-1)
         return x
 
