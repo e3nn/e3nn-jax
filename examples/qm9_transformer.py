@@ -258,13 +258,22 @@ def execute(config):
             loss, pred = jax.tree_map(np.array, (loss, pred))
             t_update.stop()
 
+            if not np.isfinite(loss):
+                raise ValueError("nan loss")
+
+            if not np.isfinite(pred).all():
+                raise ValueError("nan prediction")
+
+            if not all(jnp.isfinite(w).all() for w in jax.tree_leaves(params)):
+                raise ValueError("nan params")
+
             mae += [np.abs(pred - a['y'][:, 7:11])[:a['num_graphs']]]
 
-            if i % 100 == 0:
+            if i % config['log_interval'] == 0:
                 mae = mae[-5000:]
                 e = 1000 * np.mean(np.concatenate(mae, axis=0), axis=0)
 
-                t_all.stop(100)
+                t_all.stop(config['log_interval'])
                 print((
                     f"E={epoch} i={i} "
                     f"step={t_update}/{t_all} "
@@ -297,26 +306,27 @@ def execute(config):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mul0", type=int, default=128)
-    parser.add_argument("--mul1", type=int, default=128)
-    parser.add_argument("--mul2", type=int, default=128)
+    parser.add_argument("--mul0", type=int, default=16)
+    parser.add_argument("--mul1", type=int, default=16)
+    parser.add_argument("--mul2", type=int, default=16)
     parser.add_argument("--shlmax", type=int, default=2)
-    parser.add_argument("--num_layers", type=int, default=4)
+    parser.add_argument("--num_layers", type=int, default=1)
     parser.add_argument("--num_basis", type=int, default=10)
 
-    parser.add_argument("--radial_num_neurons", type=int, default=64)
+    parser.add_argument("--radial_num_neurons", type=int, default=32)
     parser.add_argument("--radial_num_layers", type=int, default=2)
 
     parser.add_argument("--lr", type=float, default=1e-2)
     parser.add_argument("--momentum", type=float, default=0.9)
 
-    parser.add_argument("--num_graphs", type=int, default=64)
-    parser.add_argument("--num_nodes", type=int, default=512)
-    parser.add_argument("--num_edges", type=int, default=1024)
+    parser.add_argument("--num_graphs", type=int, default=32)
+    parser.add_argument("--num_nodes", type=int, default=256)
+    parser.add_argument("--num_edges", type=int, default=512)
 
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--max_runtime", type=int, default=(3 * 24 - 1) * 3600)
     parser.add_argument("--data_path", type=str, default='~/qm9')
+    parser.add_argument("--log_interval", type=int, default=100)
 
     args = parser.parse_args()
 

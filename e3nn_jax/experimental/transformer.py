@@ -35,7 +35,7 @@ def _instructions_uvu(irreps_in1, irreps_in2, ir_out_list):
     return irreps_out, instructions
 
 
-def _tensor_product_uvu(irreps_in1, irreps_in2, ir_out_list, features, phi):
+def _tensor_product_mlp_uvu(irreps_in1, irreps_in2, ir_out_list, features, phi):
     irreps_out, instructions = _instructions_uvu(irreps_in1, irreps_in2, ir_out_list)
     tp = TensorProduct(irreps_in1, irreps_in2, irreps_out, instructions)
     return HTensorProductMLP(tp, features, phi)
@@ -65,7 +65,7 @@ class Transformer(hk.Module):
         Returns:
             array of float: output features of the nodes
         """
-        tp_k = _tensor_product_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_input, self.features, self.phi)
+        tp_k = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_input, self.features, self.phi)
         edge_k = jax.vmap(partial(tp_k, output_list=True))(edge_scalar_attr, node_f[edge_src], edge_attr)
 
         dot = HFullyConnectedTensorProduct(self.irreps_node_input, tp_k.irreps_out, "0e")
@@ -74,7 +74,7 @@ class Transformer(hk.Module):
         z = jnp.where(z == 0.0, 1.0, z)
         alpha = exp / z[edge_dst]
 
-        tp_v = _tensor_product_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_output, self.features, self.phi)
+        tp_v = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_output, self.features, self.phi)
         edge_v = jax.vmap(tp_v)(edge_scalar_attr, node_f[edge_src], edge_attr)
 
         node_out = index_add(edge_dst, jnp.sqrt(jax.nn.relu(alpha)) * edge_v, len(node_f))
