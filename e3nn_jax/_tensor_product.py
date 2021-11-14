@@ -55,6 +55,12 @@ class TensorProduct:
         irreps_in2: :class:`~e3nn_jax.Irreps` of the second tensor.
         irreps_out: :class:`~e3nn_jax.Irreps` of the output tensor.
         instructions: List of instructions.
+            ``[(i_in1, i_in2, i_out, connection_mode, has_weight, (path_weight)), ...]``
+            - i_in1, i_in2, i_out are indices of the irreps_in1, irreps_in2, irreps_out.
+            - connection_mode is one of ``uvw``, ``uvu``, ``uvv``, ``uuw``, ``uuu``, ``uvuv``
+            - has_weight is a boolean indicating whether the instruction has a weight.
+            - path_weight (optional) is the weight of the path.
+
         in1_var: Variance of the first tensor.
         in2_var: Variance of the second tensor.
         out_var: Variance of the output tensor.
@@ -516,78 +522,74 @@ class TensorProduct:
         ], axis=0)
 
 
-class FullyConnectedTensorProduct(TensorProduct):
-    def __init__(
-        self,
-        irreps_in1: Any,
-        irreps_in2: Any,
-        irreps_out: Any,
-        in1_var: Optional[List[float]] = None,
-        in2_var: Optional[List[float]] = None,
-        out_var: Optional[List[float]] = None,
-        irrep_normalization: str = 'component',
-        path_normalization: str = 'element',
-    ):
-        irreps_in1 = Irreps(irreps_in1)
-        irreps_in2 = Irreps(irreps_in2)
-        irreps_out = Irreps(irreps_out)
+def FullyConnectedTensorProduct(
+    irreps_in1: Any,
+    irreps_in2: Any,
+    irreps_out: Any,
+    in1_var: Optional[List[float]] = None,
+    in2_var: Optional[List[float]] = None,
+    out_var: Optional[List[float]] = None,
+    irrep_normalization: str = 'component',
+    path_normalization: str = 'element',
+):
+    irreps_in1 = Irreps(irreps_in1)
+    irreps_in2 = Irreps(irreps_in2)
+    irreps_out = Irreps(irreps_out)
 
-        instructions = [
-            (i_1, i_2, i_out, 'uvw', True, 1.0)
-            for i_1, (_, ir_1) in enumerate(irreps_in1)
-            for i_2, (_, ir_2) in enumerate(irreps_in2)
-            for i_out, (_, ir_out) in enumerate(irreps_out)
-            if ir_out in ir_1 * ir_2
-        ]
-        super().__init__(irreps_in1, irreps_in2, irreps_out, instructions, in1_var, in2_var, out_var, irrep_normalization, path_normalization)
+    instructions = [
+        (i_1, i_2, i_out, 'uvw', True, 1.0)
+        for i_1, (_, ir_1) in enumerate(irreps_in1)
+        for i_2, (_, ir_2) in enumerate(irreps_in2)
+        for i_out, (_, ir_out) in enumerate(irreps_out)
+        if ir_out in ir_1 * ir_2
+    ]
+    return TensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, in1_var, in2_var, out_var, irrep_normalization, path_normalization)
 
 
-class ElementwiseTensorProduct(TensorProduct):
-    def __init__(
-        self,
-        irreps_in1: Any,
-        irreps_in2: Any,
-        filter_ir_out=None,
-        irrep_normalization: str = 'component',
-        path_normalization: str = 'element',
-    ):
-        irreps_in1 = Irreps(irreps_in1).simplify()
-        irreps_in2 = Irreps(irreps_in2).simplify()
-        if filter_ir_out is not None:
-            filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
+def ElementwiseTensorProduct(
+    irreps_in1: Any,
+    irreps_in2: Any,
+    filter_ir_out=None,
+    irrep_normalization: str = 'component',
+    path_normalization: str = 'element',
+):
+    irreps_in1 = Irreps(irreps_in1).simplify()
+    irreps_in2 = Irreps(irreps_in2).simplify()
+    if filter_ir_out is not None:
+        filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
-        assert irreps_in1.num_irreps == irreps_in2.num_irreps
+    assert irreps_in1.num_irreps == irreps_in2.num_irreps
 
-        irreps_in1 = list(irreps_in1)
-        irreps_in2 = list(irreps_in2)
+    irreps_in1 = list(irreps_in1)
+    irreps_in2 = list(irreps_in2)
 
-        i = 0
-        while i < len(irreps_in1):
-            mul_1, ir_1 = irreps_in1[i]
-            mul_2, ir_2 = irreps_in2[i]
+    i = 0
+    while i < len(irreps_in1):
+        mul_1, ir_1 = irreps_in1[i]
+        mul_2, ir_2 = irreps_in2[i]
 
-            if mul_1 < mul_2:
-                irreps_in2[i] = (mul_1, ir_2)
-                irreps_in2.insert(i + 1, (mul_2 - mul_1, ir_2))
+        if mul_1 < mul_2:
+            irreps_in2[i] = (mul_1, ir_2)
+            irreps_in2.insert(i + 1, (mul_2 - mul_1, ir_2))
 
-            if mul_2 < mul_1:
-                irreps_in1[i] = (mul_2, ir_1)
-                irreps_in1.insert(i + 1, (mul_1 - mul_2, ir_1))
-            i += 1
+        if mul_2 < mul_1:
+            irreps_in1[i] = (mul_2, ir_1)
+            irreps_in1.insert(i + 1, (mul_1 - mul_2, ir_1))
+        i += 1
 
-        irreps_out = []
-        instructions = []
-        for i, ((mul, ir_1), (mul_2, ir_2)) in enumerate(zip(irreps_in1, irreps_in2)):
-            assert mul == mul_2
-            for ir in ir_1 * ir_2:
+    irreps_out = []
+    instructions = []
+    for i, ((mul, ir_1), (mul_2, ir_2)) in enumerate(zip(irreps_in1, irreps_in2)):
+        assert mul == mul_2
+        for ir in ir_1 * ir_2:
 
-                if filter_ir_out is not None and ir not in filter_ir_out:
-                    continue
+            if filter_ir_out is not None and ir not in filter_ir_out:
+                continue
 
-                i_out = len(irreps_out)
-                irreps_out.append((mul, ir))
-                instructions += [
-                    (i, i, i_out, 'uuu', False)
-                ]
+            i_out = len(irreps_out)
+            irreps_out.append((mul, ir))
+            instructions += [
+                (i, i, i_out, 'uuu', False)
+            ]
 
-        super().__init__(irreps_in1, irreps_in2, irreps_out, instructions, irrep_normalization=irrep_normalization, path_normalization=path_normalization)
+    return TensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, irrep_normalization=irrep_normalization, path_normalization=path_normalization)

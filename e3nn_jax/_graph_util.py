@@ -49,4 +49,7 @@ def radius_graph(pos, r_max, batch):
     """
     r = jax.vmap(jax.vmap(lambda x, y: jnp.linalg.norm(x - y), (None, 0), 0), (0, None), 0)(pos, pos)
     src, dst = jnp.where((r < r_max) & (r > 0))
+
+    if batch is None:
+        return src, dst
     return src[batch[src] == batch[dst]], dst[batch[src] == batch[dst]]

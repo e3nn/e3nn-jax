@@ -597,15 +597,19 @@ class Irreps(tuple):
         r"""Split irreps into blocks
 
         Args:
-            x (`jnp.ndarray`): array of shape :math:`(..., d)`
+            x (`jnp.ndarray` or list of `jnp.ndarray`): array of shape :math:`(..., d)`
 
         Returns:
-            list of `jnp.ndarray`
+            list of `jnp.ndarray` of shape :math:`(..., mul, 2 l + 1)`
 
         Examples:
             >>> irreps = Irreps("0e + 1e")
             >>> irreps.to_list(jnp.array([1.0, 0.0, 0.0, 0.0]))
             [DeviceArray([[1.]], dtype=float32), DeviceArray([[0., 0., 0.]], dtype=float32)]
+            >>> irreps = Irreps("2x0e")
+            >>> irreps.to_list([jnp.array([[1.0]]), jnp.array([[1.0]])])
+            [DeviceArray([[1.],
+                         [1.]], dtype=float32)]
         """
         assert self.is_valid(x), f"{jax.tree_map(lambda i: i.shape, x)} vs {self}"
 

@@ -3,6 +3,7 @@ from typing import Callable, Sequence
 import haiku as hk
 
 from e3nn_jax import FullyConnectedTensorProduct, Irreps, Linear, normalize_function
+import jax.numpy as jnp
 
 
 class HLinear(hk.Module):
@@ -56,7 +57,39 @@ class HMLP(hk.Module):
             d = hk.Linear(h, with_bias=False, w_init=hk.initializers.RandomNormal())
             x = phi(d(x) / x.shape[-1]**0.5)
 
-        # h = self.features[-1]
-        # d = hk.Linear(h, with_bias=False, w_init=hk.initializers.RandomNormal())
-        # x = d(x) / x.shape[-1]**0.5
         return x
+
+
+class HTensorProductMLP(hk.Module):
+    irreps_in1: Irreps
+    irreps_in2: Irreps
+    irreps_out: Irreps
+
+    def __init__(self, tp, features: Sequence[int], phi: Callable):
+        super().__init__()
+
+        self.tp = tp
+        self.mlp = HMLP(features, phi)
+
+        self.irreps_in1 = tp.irreps_in1.simplify()
+        self.irreps_in2 = tp.irreps_in2.simplify()
+        self.irreps_out = tp.irreps_out.simplify()
+
+        assert all(i.has_weight for i in self.tp.instructions)
+
+    def __call__(self, emb, x1, x2, output_list=False):
+        w = self.mlp(emb)
+
+        w = [
+            jnp.einsum(
+                "x...,x->...",
+                hk.get_parameter(
+                    f'{i.i_in1} x {i.i_in2} -> {i.i_out}',
+                    shape=(w.shape[0],) + i.path_shape,
+                    init=hk.initializers.RandomNormal()
+                ) / w.shape[0]**0.5,
+                w
+            )
+            for i in self.tp.instructions
+        ]
+        return self.tp.left_right(w, x1, x2, output_list=output_list)
