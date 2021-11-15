@@ -12,9 +12,10 @@ import torch
 import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
-from e3nn_jax import (Irreps, index_add, soft_one_hot_linspace,
+from e3nn_jax import (Gate, Irreps, index_add, soft_one_hot_linspace,
                       spherical_harmonics, sus)
 from e3nn_jax.experimental.transformer import Transformer
+from e3nn_jax.nn import HLinear
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
 from tqdm.auto import tqdm
@@ -143,56 +144,71 @@ def create_model(config):
         mul0 = config['mul0']
         mul1 = config['mul1']
         mul2 = config['mul2']
-        irreps = Irreps(f'{mul0}x0e + {mul0}x0o + {mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o').simplify()
+        irreps_gated = Irreps(f'{mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o').simplify()
+
+        gate = Gate(f'{mul0}x0e + {mul0}x0o', [jax.nn.gelu, jnp.tanh], f'{irreps_gated.num_irreps}x0e', [jax.nn.sigmoid], irreps_gated)
+        g = jax.vmap(lambda x: gate.irreps_out.to_contiguous(gate(x)))
+
         irreps_out = Irreps('4x0e')
 
         kw = dict(
             irreps_edge_attr=irreps_sh,
             features=[config['radial_num_neurons']] * config['radial_num_layers'],
             phi=jax.nn.gelu,
+            num_heads=config['num_heads'],
         )
-
-        x = node_attr
 
         # def stat(text, z):
         #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.sqrt(jnp.mean(x**2))), z)}")
 
-        # stat('input', x)
+        # stat('node_attr', node_attr)
         # stat('edge_scalars', edge_scalars)
         # stat('edge_attr', edge_attr)
         # stat('edge_weight_cutoff', edge_weight_cutoff)
 
-        x = Transformer(
-            irreps_node_input=irreps_node_attr,
-            irreps_node_output=irreps,
-            **kw,
-        )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
+        irreps = Irreps(f"{mul0}x0e")
+        x = jax.vmap(HLinear(irreps_node_attr, irreps))(node_attr)
 
-        # print()
-        # stat('T(x)', x)
-
-        for _ in range(config['num_layers']):
-            x = Transformer(
-                irreps_node_input=irreps,
-                irreps_node_output=irreps,
-                **kw,
-            )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
-
-            # stat('T...(x)', x)
+        # stat('x', x)
 
         x = Transformer(
             irreps_node_input=irreps,
+            irreps_node_output=gate.irreps_in,
+            **kw,
+        )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
+
+        # stat('T(x)', x)
+
+        x = g(x)
+
+        # stat('gT(x)', x)
+
+        for _ in range(config['num_layers']):
+            x = Transformer(
+                irreps_node_input=gate.irreps_out,
+                irreps_node_output=gate.irreps_in,
+                **kw,
+            )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
+
+            # stat('T ...(x)', x)
+
+            x = g(x)
+            # stat('gT ...(x)', x)
+
+        x = Transformer(
+            irreps_node_input=gate.irreps_out,
             irreps_node_output=irreps_out,
             **kw,
         )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
 
-        # stat('T(T...(x))', x)
+        # stat('T ...(x)', x)
 
         out = irreps_out.to_contiguous(x)
 
         M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
 
-        out = a['x'][:, :5] @ M + out
+        # ~800 + ~1 => ~800 + ~10
+        out = a['x'][:, :5] @ M + 10.0 * out
         # stat('pred', out)
 
         return index_add(a['batch'], out, a['y'].shape[0])
@@ -241,8 +257,6 @@ def execute(config):
     print("compiling...", flush=True)
     update(params, opt_state, next(batch_gen()))
 
-    # jax.profiler.start_trace("/tmp/tensorboard")
-
     wall = time.perf_counter()
     t_update = Timer()
     t_all = Timer()
@@ -252,10 +266,16 @@ def execute(config):
     t_all.start()
     for epoch in count():
         for a in batch_gen():
+            # if i == 50:
+            #     jax.profiler.start_trace("/tmp/tensorboard")
+
             t_update.start()
             params, opt_state, loss, pred = update(params, opt_state, a)
             loss, pred = jax.tree_map(np.array, (loss, pred))
             t_update.stop()
+
+            # if i == 50:
+            #     jax.profiler.stop_trace()
 
             if not np.isfinite(loss):
                 raise ValueError("nan loss")
@@ -264,7 +284,7 @@ def execute(config):
                 raise ValueError("nan prediction")
 
             if not all(jnp.isfinite(w).all() for w in jax.tree_leaves(params)):
-                raise ValueError("nan params")
+                raise ValueError(f"{jax.tree_map(lambda w: bool(jnp.isfinite(w).all()), params)}")
 
             mae += [np.abs(pred - a['y'][:, 7:11])[:a['num_graphs']]]
 
@@ -300,16 +320,16 @@ def execute(config):
                 t_all.start()
 
             i += 1
-    # jax.profiler.stop_trace()
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mul0", type=int, default=32)
-    parser.add_argument("--mul1", type=int, default=32)
-    parser.add_argument("--mul2", type=int, default=32)
+    parser.add_argument("--mul0", type=int, default=128)
+    parser.add_argument("--mul1", type=int, default=128)
+    parser.add_argument("--mul2", type=int, default=0)
     parser.add_argument("--shlmax", type=int, default=2)
-    parser.add_argument("--num_layers", type=int, default=2)
+    parser.add_argument("--num_layers", type=int, default=3)
+    parser.add_argument("--num_heads", type=int, default=8)
 
     parser.add_argument("--num_basis", type=int, default=10)
     parser.add_argument("--radial_num_neurons", type=int, default=64)
