@@ -42,7 +42,7 @@ def _tensor_product_mlp_uvu(irreps_in1, irreps_in2, ir_out_list, features, phi):
 
 
 class Transformer(hk.Module):
-    def __init__(self, irreps_node_input, irreps_node_output, irreps_edge_attr, features, phi):
+    def __init__(self, irreps_node_input, irreps_node_output, irreps_edge_attr, features, phi, num_heads=1):
         super().__init__()
 
         self.irreps_node_input = Irreps(irreps_node_input)
@@ -51,6 +51,9 @@ class Transformer(hk.Module):
 
         self.features = features
         self.phi = phi
+        self.num_heads = num_heads
+
+        assert all(mul % num_heads == 0 for mul, _ in self.irreps_node_input), "num_heads must divide all irreps_node_input multiplicities"
 
     def __call__(self, edge_src, edge_dst, edge_scalar_attr, edge_attr, edge_weight_cutoff, node_f):
         r"""
@@ -68,14 +71,16 @@ class Transformer(hk.Module):
         tp_k = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_input, self.features, self.phi)
         edge_k = jax.vmap(partial(tp_k, output_list=True))(edge_scalar_attr, node_f[edge_src], edge_attr)
 
-        dot = HFullyConnectedTensorProduct(self.irreps_node_input, tp_k.irreps_out, "0e")
-        exp = edge_weight_cutoff[:, None] * jnp.exp(jax.vmap(dot)(node_f[edge_dst], edge_k))
-        z = index_add(edge_dst, exp, len(node_f))
+        dot = HFullyConnectedTensorProduct(self.irreps_node_input, tp_k.irreps_out, f"{self.num_heads}x 0e")
+        exp = edge_weight_cutoff[:, None] * jnp.exp(jax.vmap(dot)(node_f[edge_dst], edge_k))  # array[edge, head]
+        z = index_add(edge_dst, exp, len(node_f))  # array[node, head]
         z = jnp.where(z == 0.0, 1.0, z)
-        alpha = exp / z[edge_dst]
+        alpha = exp / z[edge_dst]  # array[edge, head]
 
         tp_v = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_output, self.features, self.phi)
-        edge_v = jax.vmap(tp_v)(edge_scalar_attr, node_f[edge_src], edge_attr)
+        edge_v = jax.vmap(partial(tp_v, output_list=True))(edge_scalar_attr, node_f[edge_src], edge_attr)  # list of array[edge, mul, ir]
+        edge_v = [jnp.sqrt(jax.nn.relu(alpha))[:, :, None, None] * v.reshape(v.shape[0], self.num_heads, v.shape[1] // self.num_heads, v.shape[2]) for v in edge_v]
+        edge_v = jnp.concatenate([v.reshape(v.shape[0], -1) for v in edge_v], axis=-1)  # array[edge, irreps]
 
-        node_out = index_add(edge_dst, jnp.sqrt(jax.nn.relu(alpha)) * edge_v, len(node_f))
+        node_out = index_add(edge_dst, edge_v, len(node_f))
         return jax.vmap(HLinear(tp_v.irreps_out, self.irreps_node_output))(node_out)

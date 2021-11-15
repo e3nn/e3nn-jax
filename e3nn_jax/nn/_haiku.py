@@ -2,7 +2,7 @@ from typing import Callable, Sequence
 
 import haiku as hk
 
-from e3nn_jax import FullyConnectedTensorProduct, Irreps, Linear, normalize_function
+from e3nn_jax import FullyConnectedTensorProduct, Irreps, Linear, normalize_function, TensorProduct
 import jax.numpy as jnp
 
 
@@ -65,7 +65,7 @@ class HTensorProductMLP(hk.Module):
     irreps_in2: Irreps
     irreps_out: Irreps
 
-    def __init__(self, tp, features: Sequence[int], phi: Callable):
+    def __init__(self, tp: TensorProduct, features: Sequence[int], phi: Callable):
         super().__init__()
 
         self.tp = tp
@@ -92,4 +92,8 @@ class HTensorProductMLP(hk.Module):
             )
             for i in self.tp.instructions
         ]
-        return self.tp.left_right(w, x1, x2, output_list=output_list)
+        result = self.tp.left_right(w, x1, x2, output_list=output_list)
+        if output_list:
+            result = self.tp.irreps_out.replace_none_with_zeros(result)
+            result = self.irreps_out.to_list(result)
+        return result
