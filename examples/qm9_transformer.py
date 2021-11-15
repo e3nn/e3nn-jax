@@ -12,8 +12,8 @@ import torch
 import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
-from e3nn_jax import (Irreps, index_add, soft_one_hot_linspace, sus,
-                      spherical_harmonics)
+from e3nn_jax import (Irreps, index_add, soft_one_hot_linspace,
+                      spherical_harmonics, sus)
 from e3nn_jax.experimental.transformer import Transformer
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
@@ -137,7 +137,7 @@ def create_model(config):
 
         edge_scalars = jnp.concatenate([edge_scalars, node_attr[edge_src], node_attr[edge_dst]], axis=1)
 
-        edge_weight_cutoff = sus(10 * (1 - edge_length / maximum_radius))
+        edge_weight_cutoff = 1.4 * sus(10 * (1 - edge_length / maximum_radius))
         edge_scalars *= edge_weight_cutoff[:, None]
 
         mul0 = config['mul0']
@@ -155,12 +155,12 @@ def create_model(config):
         x = node_attr
 
         # def stat(text, z):
-        #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
+        #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.sqrt(jnp.mean(x**2))), z)}")
 
         # stat('input', x)
-        # stat('edge_attr', edge_attr)
-        # stat('node_attr', node_attr)
         # stat('edge_scalars', edge_scalars)
+        # stat('edge_attr', edge_attr)
+        # stat('edge_weight_cutoff', edge_weight_cutoff)
 
         x = Transformer(
             irreps_node_input=irreps_node_attr,
@@ -169,9 +169,7 @@ def create_model(config):
         )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
 
         # print()
-        # stat('c(x)', x)
-
-        # stat('g(c(x))', x)
+        # stat('T(x)', x)
 
         for _ in range(config['num_layers']):
             x = Transformer(
@@ -180,7 +178,7 @@ def create_model(config):
                 **kw,
             )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
 
-            # stat('x', x)
+            # stat('T...(x)', x)
 
         x = Transformer(
             irreps_node_input=irreps,
@@ -188,13 +186,14 @@ def create_model(config):
             **kw,
         )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
 
-        # stat('x', x)
+        # stat('T(T...(x))', x)
 
         out = irreps_out.to_contiguous(x)
 
         M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
 
         out = a['x'][:, :5] @ M + out
+        # stat('pred', out)
 
         return index_add(a['batch'], out, a['y'].shape[0])
     return f
