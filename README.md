@@ -3,6 +3,12 @@
 :construction: :construction: :construction:
 Disclamier: This is a work in progress. No part of the library can be considered stable.
 
+## What is different from the pytorch version?
+
+- no more `shared_weights` and `internal_weights` in `TensorProduct`. Extensive use of `jax.vmap` instead (see example below)
+- support of python list of `jnp.array` for the data. This allows to avoid unnecessary `jnp.concatenante` followed by indexing to reverse the concatenation
+- support of `None` in the list of `jnp.array` to avoid unnecessary computation with zeros
+
 ## Example
 
 Example with the `Irreps` class.
