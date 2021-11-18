@@ -33,14 +33,14 @@ irreps.D_from_angles(alpha=0.0, beta=0.0, gamma=0.0, k=1)  # the matrix that app
 
 ## Shared weights
 
-`torch` version:
+`torch` version ([e3nn](github.com/e3nn/e3nn) repo):
 ```python
 f = o3.FullyConnectedTensorProduct(irreps1, irreps2, irreps3, shared_weights=True)
 
 f(x, y)
 ```
 
-`jax` version:
+`jax` version (this repo):
 ```python
 tp = FullyConnectedTensorProduct(irreps1, irreps2, irreps3)
 w = [jax.random.normal(key, i.path_shape) for i in tp.instructions if i.has_weight]
