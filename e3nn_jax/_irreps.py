@@ -737,23 +737,41 @@ class Irreps(tuple):
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_angles(self, x, alpha, beta, gamma, k=0):
-        shape = x.shape[:-1]
-        return jnp.concatenate([
-            jnp.reshape(jnp.einsum("ij,...uj->...ui", ir.D_from_angles(alpha, beta, gamma, k), x), shape + (mul * ir.dim,))
+        r"""Rotate the data by angles according to the irreps
+
+        Args:
+            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
+            alpha (float): third rotation angle around the second axis (in radians)
+            beta (float): second rotation angle around the first axis (in radians)
+            gamma (float): first rotation angle around the second axis (in radians)
+            k (int): parity operation
+
+        Returns:
+            `jnp.ndarray` or list of optional `jnp.ndarray`
+        """
+        shape = self.shape_of(x)
+        D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _mul, ir in self}}
+        result = [
+            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), shape + (mul, ir.dim))
+            if x is not None else None
             for (mul, ir), x in zip(self, self.to_list(x))
-        ], axis=-1)
+        ]
+        if isinstance(x, list):
+            return result
+        else:
+            return self.to_contiguous(result)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_quaternion(self, x, q, k=0):
         r"""Rotate data by a rotation given by a quaternion
 
         Args:
-            x (`jnp.ndarray`): array of shape :math:`(..., d)`
-            q (`jnp.ndarray`): array of shape :math:`(4)`
-            k (`jnp.ndarray`): array of shape :math:`()`
+            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
+            q (`jnp.ndarray`): quaternion
+            k (int): parity operation
 
         Returns:
-            `jnp.ndarray`
+            `jnp.ndarray` or list of optional `jnp.ndarray`
 
         Examples:
             >>> irreps = Irreps("0e + 1o + 2e")
@@ -763,19 +781,25 @@ class Irreps(tuple):
             ...     1
             ... ) + 0.0
             DeviceArray([ 1.,  0., -1.,  0.,  0.,  0.,  1.,  0.,  0.], dtype=float32)
+            >>> irreps.transform_by_quaternion(
+            ...     [None, jnp.array([[1.0, 1.0, 1.0]]), None],
+            ...     jnp.array([1.0, 0.0, 0.0, 0.0]),
+            ...     1
+            ... )
+            [None, DeviceArray([[-1., -1., -1.]], dtype=float32), None]
         """
         return self.transform_by_angles(x, *quaternion_to_angles(q), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_matrix(self, x, R):
-        r"""Rotate data by a rotation given by a quaternion
+        r"""Rotate data by a rotation given by a matrix
 
         Args:
-            x (`jnp.ndarray`): array of shape :math:`(..., d)`
-            R (`jnp.ndarray`): array of shape :math:`(3, 3)`
+            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
+            R (`jnp.ndarray`): rotation matrix
 
         Returns:
-            `jnp.ndarray`
+            `jnp.ndarray` or list of optional `jnp.ndarray`
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
@@ -784,16 +808,16 @@ class Irreps(tuple):
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_angles(self, alpha, beta, gamma, k=0):
-        r"""Matrix of the representation
+        r"""Compute the D matrix from the angles
 
         Args:
-            alpha (`jnp.array`): array of shape :math:`(...)`
-            beta (`jnp.array`): array of shape :math:`(...)`
-            gamma (`jnp.array`): array of shape :math:`(...)`
-            k (`jnp.array`, optional): array of shape :math:`(...)`
+            alpha (float): third rotation angle around the second axis (in radians)
+            beta (float): second rotation angle around the first axis (in radians)
+            gamma (float): first rotation angle around the second axis (in radians)
+            k (int): parity operation
 
         Returns:
-            `jnp.array`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            `jnp.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return jax.scipy.linalg.block_diag(*[ir.D_from_angles(alpha, beta, gamma, k) for mul, ir in self for _ in range(mul)])
 
