@@ -9,12 +9,15 @@ def float_to_frac(target, n_primes=8, l1_radius=10, atol=1e-5, rtol=1e-3):
         target (float): The target value.
         n_primes (int): The number of primes to use. ``primes[:n_primes]`` will be used.
         l1_radius (int): The L1 radius. For instance the fraction 2*3/5 is of L1 norm 3.
+
+    Returns:
+        (str): The fraction if successful, otherwise ``str(target)``.
     """
     exp, ok = _closest_fraction(target, n_primes, l1_radius, atol, rtol)
     return _print_fraction(exp) if ok else str(target)
 
 
-@lru_cache
+@lru_cache(None)
 def _l1_sphere(dim, radius):
     """Generate points in the dim-dimensional l1-sphere of radius radius"""
     if dim == 0:
@@ -43,22 +46,20 @@ _primes = np.array([
 ])
 
 
-@lru_cache
-def _all_fractions(n_primes, l1_radius, sort=False):
+@lru_cache(None)
+def _all_fractions(n_primes, l1_radius):
     m = np.concatenate([_l1_sphere(n_primes, radius) for radius in range(round(l1_radius) + 1)], axis=0)
 
     q = np.prod((1.0 * _primes[:n_primes])**m, axis=1)
-
-    if sort:
-        i = np.argsort(q)
-        q = q[i]
-        m = m[i]
+    i = np.argsort(q)
+    q = q[i]
+    m = m[i]
 
     return q, m
 
 
 def _closest_fraction(target, n_primes, l1_radius, atol, rtol):
-    q, m = _all_fractions(n_primes, l1_radius, sort=True)
+    q, m = _all_fractions(n_primes, l1_radius)
     i = np.searchsorted(q, target)
 
     dist = q[i] - q[i - 1]
