@@ -5,15 +5,21 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ._w3j_exact import _W3j_flat_exact
+from ._constants._J import Jd
+from ._constants._w3j import _W3j_flat_exact
+from ._constants._G_beta import G_beta
 
-_Jd, _W3j_flat_original, _W3j_indices = np.load(os.path.join(os.path.dirname(__file__), 'constants.npy'), allow_pickle=True)
+_, _W3j_flat_original, _W3j_indices = np.load(os.path.join(os.path.dirname(__file__), 'constants/constants.npy'), allow_pickle=True)
 # _Jd is a list of tensors of shape (2l+1, 2l+1)
 # _W3j_flat is a flatten version of W3j symbols
 # _W3j_indices is a dict from (l1, l2, l3) -> slice(i, j) to index the flat tensor
 # only l1 <= l2 <= l3 are stored
 
 _W3j_flat = jnp.concatenate([_W3j_flat_exact, _W3j_flat_original[len(_W3j_flat_exact):]])
+
+
+def wigner_J(l):
+    return Jd[l]
 
 
 def _z_rot_mat(l, angle):
@@ -34,6 +40,51 @@ def _z_rot_mat(l, angle):
     frequencies = jnp.arange(l, -l - 1, -1.0)
     M = M.at[..., inds, reversed_inds].set(jnp.sin(frequencies * angle[..., None]))
     M = M.at[..., inds, inds].set(jnp.cos(frequencies * angle[..., None]))
+    return M
+
+
+def wigner_generator_alpha(l):
+    r"""
+    Generator for the angle alpha of the Wigner D matrices.
+
+    .. math::
+        1 + \alpha G
+
+    is the infinitesimal rotation matrix around Y axis.
+
+    Args:
+        l (int): :math:`l`
+
+    Returns:
+        jnp.array: matrix of shape :math:`(2l+1, 2l+1)`
+    """
+    M = jnp.zeros((2 * l + 1, 2 * l + 1))
+    inds = jnp.arange(0, 2 * l + 1, 1)
+    reversed_inds = jnp.arange(2 * l, -1, -1)
+    frequencies = jnp.arange(l, -l - 1, -1.0)
+    M = M.at[..., inds, reversed_inds].set(frequencies)
+    return M
+
+
+def wigner_generator_beta(l):
+    return G_beta[l]
+
+
+def wigner_generator_delta(l):
+    K = _rot_90_alpha(l)
+    return K @ G_beta[l] @ K.T
+
+
+def _rot_90_alpha(l):
+    r"""
+    90 degree rotation around Y axis.
+    """
+    M = jnp.zeros((2 * l + 1, 2 * l + 1))
+    inds = jnp.arange(0, 2 * l + 1, 1)
+    reversed_inds = jnp.arange(2 * l, -1, -1)
+    frequencies = jnp.arange(l, -l - 1, -1)
+    M = M.at[..., inds, reversed_inds].set(jnp.array([0, 1, 0, -1])[frequencies % 4])
+    M = M.at[..., inds, inds].set(jnp.array([1, 0, -1, 0])[frequencies % 4])
     return M
 
 
@@ -59,14 +110,14 @@ def wigner_D(l, alpha, beta, gamma):
     Returns:
         array :math:`D^l(\alpha, \beta, \gamma)` of shape :math:`(..., 2l+1, 2l+1)`
     """
-    if not l < len(_Jd):
-        raise NotImplementedError(f'wigner D maximum l implemented is {len(_Jd) - 1}, send us an email to ask for more')
+    if not l < len(Jd):
+        raise NotImplementedError(f'wigner D maximum l implemented is {len(Jd) - 1}')
 
     alpha, beta, gamma = jnp.broadcast_arrays(alpha, beta, gamma)
     Xa = _z_rot_mat(l, alpha)
     Xb = _z_rot_mat(l, beta)
     Xc = _z_rot_mat(l, gamma)
-    J = _Jd[l]
+    J = Jd[l]
     return Xa @ J @ Xb @ J @ Xc
 
 

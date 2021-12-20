@@ -1,7 +1,10 @@
+import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import Irrep, angles_to_matrix, rand_angles, wigner_3j, wigner_D
+from e3nn_jax import (Irrep, angles_to_matrix, rand_angles, wigner_3j,
+                      wigner_D, wigner_generator_alpha, wigner_generator_beta, wigner_generator_delta)
 from e3nn_jax._wigner import _W3j_indices
+import math
 
 
 def test_wigner_3j_symmetry():
@@ -31,3 +34,24 @@ def test_cartesian(keys):
     R = angles_to_matrix(*abc)
     D = wigner_D(1, *abc)
     assert jnp.max(jnp.abs(R - D)) < 1e-6
+
+
+@pytest.mark.parametrize('l', range(1, 11 + 1))
+def test_generator_alpha(l):
+    G1 = wigner_generator_alpha(l)
+    G2 = jax.jacobian(wigner_D, 1)(l, 0.0, 0.0, 0.0)
+    assert jnp.abs(G2 - G1).max() < 1e-6
+
+
+@pytest.mark.parametrize('l', range(1, 11 + 1))
+def test_generator_beta(l):
+    G1 = wigner_generator_beta(l)
+    G2 = jax.jacobian(wigner_D, 2)(l, 0.0, 0.0, 0.0)
+    assert jnp.abs(G2 - G1).max() < 1e-6
+
+
+@pytest.mark.parametrize('l', range(1, 11 + 1))
+def test_generator_delta(l):
+    G1 = wigner_generator_delta(l)
+    G2 = jax.jacobian(wigner_D, 2)(l, math.pi / 2, 0.0, -math.pi / 2)
+    assert jnp.abs(G2 - G1).max() < 1e-5
