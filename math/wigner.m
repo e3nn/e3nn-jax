@@ -212,7 +212,12 @@ w3j[l1_, l2_, l3_] := Module[
     multipliers = NullSpace[S2 . Transpose[n1]];
     nulls = multipliers . n1;
     r = nulls[[1]];
-    r/Norm[r]
+    r = r / Norm[r];
+    r = If[Total[Sign[r]] == 0,
+        If[r[[Position[r, _?(# != 0 &), 1, 1][[1, 1]]]] < 0, -r, r],
+        If[Total[Sign[r]] < 0, -r, r]
+    ];
+    r
 ]
 
 ltriplets = {
