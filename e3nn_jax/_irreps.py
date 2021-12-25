@@ -151,10 +151,10 @@ class Irrep(tuple):
 
         Examples:
             >>> m = Irrep(1, -1).D_from_matrix(-jnp.eye(3))
-            >>> m
-            DeviceArray([[-1., -0., -0.],
-                         [-0., -1., -0.],
-                         [-0., -0., -1.]], dtype=float32)
+            >>> m + 0.0
+            DeviceArray([[-1.,  0.,  0.],
+                         [ 0., -1.,  0.],
+                         [ 0.,  0., -1.]], dtype=float32)
 
         See Also:
             `Irrep.D_from_angles`
