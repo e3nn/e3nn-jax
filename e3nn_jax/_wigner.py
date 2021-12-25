@@ -22,9 +22,9 @@ def wigner_J(l):
     return Jd[l]
 
 
-def _z_rot_mat(l, angle):
+def _y_rot_mat(l, angle):
     r"""
-    Create the matrix representation of a z-axis rotation by the given angle,
+    Create the matrix representation of a y-axis rotation by the given angle,
     in the irrep l of dimension 2 * l + 1, in the basis of real centered
     spherical harmonics (RC basis in rep_bases.py in lie_learn).
 
@@ -114,9 +114,9 @@ def wigner_D(l, alpha, beta, gamma):
         raise NotImplementedError(f'wigner D maximum l implemented is {len(Jd) - 1}')
 
     alpha, beta, gamma = jnp.broadcast_arrays(alpha, beta, gamma)
-    Xa = _z_rot_mat(l, alpha)
-    Xb = _z_rot_mat(l, beta)
-    Xc = _z_rot_mat(l, gamma)
+    Xa = _y_rot_mat(l, alpha)
+    Xb = _y_rot_mat(l, beta)
+    Xc = _y_rot_mat(l, gamma)
     J = Jd[l]
     return Xa @ J @ Xb @ J @ Xc
 
