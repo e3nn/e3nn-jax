@@ -1,21 +1,11 @@
-import os
 from functools import partial
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 
 from ._constants._J import Jd
-from ._constants._w3j import _W3j_flat_exact
+from ._constants._w3j import w3j
 from ._constants._G_beta import G_beta
-
-_, _W3j_flat_original, _W3j_indices = np.load(os.path.join(os.path.dirname(__file__), '_constants/constants.npy'), allow_pickle=True)
-# _Jd is a list of tensors of shape (2l+1, 2l+1)
-# _W3j_flat is a flatten version of W3j symbols
-# _W3j_indices is a dict from (l1, l2, l3) -> slice(i, j) to index the flat tensor
-# only l1 <= l2 <= l3 are stored
-
-_W3j_flat = jnp.concatenate([_W3j_flat_exact, _W3j_flat_original[len(_W3j_flat_exact):]])
 
 
 def wigner_J(l):
@@ -121,7 +111,7 @@ def wigner_D(l, alpha, beta, gamma):
     return Xa @ J @ Xb @ J @ Xc
 
 
-def wigner_3j(l1, l2, l3, flat_src=_W3j_flat):
+def wigner_3j(l1, l2, l3):
     r"""Wigner 3j symbols :math:`C_{lmn}`.
 
     It satisfies the following two properties:
@@ -140,7 +130,6 @@ def wigner_3j(l1, l2, l3, flat_src=_W3j_flat):
         l1 (int): :math:`l_1`
         l2 (int): :math:`l_2`
         l3 (int): :math:`l_3`
-        flat_src (array): flattened version of W3j symbols
 
     Returns:
         array :math:`C_{lmn}` of shape :math:`(2l_1+1, 2l_2+1, 2l_3+1)`
@@ -149,18 +138,18 @@ def wigner_3j(l1, l2, l3, flat_src=_W3j_flat):
 
     try:
         if l1 <= l2 <= l3:
-            out = flat_src[_W3j_indices[(l1, l2, l3)]].reshape(2 * l1 + 1, 2 * l2 + 1, 2 * l3 + 1)
+            out = w3j[(l1, l2, l3)].reshape(2 * l1 + 1, 2 * l2 + 1, 2 * l3 + 1)
         if l1 <= l3 <= l2:
-            out = flat_src[_W3j_indices[(l1, l3, l2)]].reshape(2 * l1 + 1, 2 * l3 + 1, 2 * l2 + 1).transpose(0, 2, 1) * ((-1) ** (l1 + l2 + l3))
+            out = w3j[(l1, l3, l2)].reshape(2 * l1 + 1, 2 * l3 + 1, 2 * l2 + 1).transpose(0, 2, 1) * ((-1) ** (l1 + l2 + l3))
         if l2 <= l1 <= l3:
-            out = flat_src[_W3j_indices[(l2, l1, l3)]].reshape(2 * l2 + 1, 2 * l1 + 1, 2 * l3 + 1).transpose(1, 0, 2) * ((-1) ** (l1 + l2 + l3))
+            out = w3j[(l2, l1, l3)].reshape(2 * l2 + 1, 2 * l1 + 1, 2 * l3 + 1).transpose(1, 0, 2) * ((-1) ** (l1 + l2 + l3))
         if l3 <= l2 <= l1:
-            out = flat_src[_W3j_indices[(l3, l2, l1)]].reshape(2 * l3 + 1, 2 * l2 + 1, 2 * l1 + 1).transpose(2, 1, 0) * ((-1) ** (l1 + l2 + l3))
+            out = w3j[(l3, l2, l1)].reshape(2 * l3 + 1, 2 * l2 + 1, 2 * l1 + 1).transpose(2, 1, 0) * ((-1) ** (l1 + l2 + l3))
         if l2 <= l3 <= l1:
-            out = flat_src[_W3j_indices[(l2, l3, l1)]].reshape(2 * l2 + 1, 2 * l3 + 1, 2 * l1 + 1).transpose(2, 0, 1)
+            out = w3j[(l2, l3, l1)].reshape(2 * l2 + 1, 2 * l3 + 1, 2 * l1 + 1).transpose(2, 0, 1)
         if l3 <= l1 <= l2:
-            out = flat_src[_W3j_indices[(l3, l1, l2)]].reshape(2 * l3 + 1, 2 * l1 + 1, 2 * l2 + 1).transpose(1, 2, 0)
+            out = w3j[(l3, l1, l2)].reshape(2 * l3 + 1, 2 * l1 + 1, 2 * l2 + 1).transpose(1, 2, 0)
     except KeyError:
-        raise NotImplementedError(f'Wigner 3j symbols maximum l implemented is {max(_W3j_indices.keys())[0]}')
+        raise NotImplementedError(f'Wigner 3j symbols maximum l implemented is {max(w3j.keys())[0]}')
 
     return out
