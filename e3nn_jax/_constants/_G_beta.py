@@ -1,6 +1,7 @@
+from typing import List
+
 import numpy as np
 from numpy import sqrt
-
 
 G_beta_0 = np.array([
     [0],
@@ -182,4 +183,4 @@ G_beta_11 = np.array([
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, sqrt(22)/2, 0],
 ])
 
-G_beta = [G_beta_0, G_beta_1, G_beta_2, G_beta_3, G_beta_4, G_beta_5, G_beta_6, G_beta_7, G_beta_8, G_beta_9, G_beta_10, G_beta_11]
+G_beta: List[np.array] = [G_beta_0, G_beta_1, G_beta_2, G_beta_3, G_beta_4, G_beta_5, G_beta_6, G_beta_7, G_beta_8, G_beta_9, G_beta_10, G_beta_11]

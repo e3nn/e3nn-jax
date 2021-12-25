@@ -1,6 +1,7 @@
+from typing import List
+
 import numpy as np
 from numpy import sqrt
-
 
 J0 = np.array([
     [1],
@@ -182,4 +183,4 @@ J11 = np.array([
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -sqrt(646646)/1024, 0, 3*sqrt(35530)/1024, 0, -sqrt(74613)/1024, 0, sqrt(7315)/1024, 0, -sqrt(231)/1024, 0, 1/1024],
 ])
 
-Jd = [J0, J1, J2, J3, J4, J5, J6, J7, J8, J9, J10, J11]
+Jd: List[np.array] = [J0, J1, J2, J3, J4, J5, J6, J7, J8, J9, J10, J11]

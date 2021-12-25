@@ -3,9 +3,9 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 
+from ._constants._G_beta import G_beta
 from ._constants._J import Jd
 from ._constants._w3j import w3j
-from ._constants._G_beta import G_beta
 
 
 def wigner_J(l):

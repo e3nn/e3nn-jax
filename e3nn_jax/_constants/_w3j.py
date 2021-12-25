@@ -1,8 +1,9 @@
 from math import sqrt
+from typing import Dict, Tuple
 
 import numpy as np
 
-w3j = {
+w3j: Dict[Tuple[int, int, int], np.array] = {
     (0, 0, 0): np.array([1]),
 
     (0, 1, 1): np.array([-(1 / sqrt(3)), 0, 0, 0, -(1 / sqrt(3)), 0, 0, 0, -(1 / sqrt(3))]),
