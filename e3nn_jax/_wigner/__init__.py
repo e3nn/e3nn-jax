@@ -3,7 +3,6 @@ from functools import lru_cache, partial
 
 import jax
 import jax.numpy as jnp
-import sympy
 
 from ._G_beta import G_beta
 from ._J import Jd
@@ -158,6 +157,7 @@ def wigner_3j(l1, l2, l3):
 
 
 def wigner_3j_sympy(l1, l2, l3):
+    import sympy
     assert abs(l2 - l3) <= l1 <= l2 + l3
 
     w = _wigner_3j_sympy()
@@ -179,13 +179,12 @@ def wigner_3j_sympy(l1, l2, l3):
 
 @lru_cache()
 def _wigner_3j_sympy():
-    @lru_cache()
-    def foo(x):
-        return sympy.simplify(x)
+    import sympy
 
     with open(os.path.join(os.path.dirname(__file__), '_w3j.py'), 'rt') as f:
         xs = f.read().split("# split")[1:-1]
 
+    foo = lru_cache()(sympy.simplify)
     result = dict()
     for x in xs:
         a, bs = x.split(": np.array([")
