@@ -13,3 +13,4 @@ dist
 .ipynb_checkpoints
 *.so
 *.txt
+*.nb

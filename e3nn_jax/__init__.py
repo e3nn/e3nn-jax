@@ -31,7 +31,7 @@ from ._rotation import (
     angles_to_xyz,
     xyz_to_angles,
 )
-from ._wigner import wigner_3j, wigner_D, wigner_generator_alpha, wigner_generator_beta, wigner_generator_delta, wigner_J
+from ._wigner import wigner_3j, wigner_D, wigner_generator_alpha, wigner_generator_beta, wigner_generator_delta, wigner_J, wigner_3j_sympy
 from ._irreps import Irrep, Irreps
 from ._spherical_harmonics import spherical_harmonics
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
@@ -72,7 +72,7 @@ __all__ = [
     "axis_angle_to_angles",
     "angles_to_xyz",
     "xyz_to_angles",
-    "wigner_3j", "wigner_D", "wigner_generator_alpha", "wigner_generator_beta", "wigner_generator_delta", "wigner_J",
+    "wigner_3j", "wigner_3j_sympy", "wigner_D", "wigner_generator_alpha", "wigner_generator_beta", "wigner_generator_delta", "wigner_J",
     "Irrep", "Irreps",
     "spherical_harmonics",
     "sus", "soft_one_hot_linspace",

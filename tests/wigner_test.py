@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import pytest
 from e3nn_jax import (Irrep, angles_to_matrix, rand_angles, wigner_3j,
                       wigner_D, wigner_generator_alpha, wigner_generator_beta, wigner_generator_delta)
-from e3nn_jax._wigner import _W3j_indices
+from e3nn_jax._wigner import w3j
 import math
 
 
@@ -15,7 +15,7 @@ def test_wigner_3j_symmetry():
     assert jnp.allclose(wigner_3j(1, 2, 3), jnp.swapaxes(jnp.swapaxes(wigner_3j(2, 3, 1), 0, 2), 1, 2))
 
 
-@pytest.mark.parametrize('l1,l2,l3', _W3j_indices.keys())
+@pytest.mark.parametrize('l1,l2,l3', w3j.keys())
 def test_wigner_3j(keys, l1, l2, l3):
     if abs(l1 - l2) <= l3 <= l1 + l2:
         abc = rand_angles(keys[0], (10,))
