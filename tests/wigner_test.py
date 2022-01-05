@@ -4,8 +4,8 @@ import jax
 import jax.numpy as jnp
 import pytest
 from e3nn_jax import (Irrep, angles_to_matrix, rand_angles, wigner_3j,
-                      wigner_D, wigner_generator_alpha, wigner_generator_beta,
-                      wigner_generator_delta, wigner_J)
+                      wigner_D, wigner_generator_x, wigner_generator_y,
+                      wigner_generator_z, wigner_J)
 from e3nn_jax._wigner import w3j
 
 
@@ -39,23 +39,23 @@ def test_cartesian(keys):
 
 
 @pytest.mark.parametrize('l', range(1, 11 + 1))
-def test_generator_alpha(l):
-    G1 = wigner_generator_alpha(l)
+def test_generator_y(l):
+    G1 = wigner_generator_y(l)
     G2 = jax.jacobian(wigner_D, 1)(l, 0.0, 0.0, 0.0)
     assert jnp.abs(G2 - G1).max() < 1e-6
 
 
 @pytest.mark.parametrize('l', range(1, 11 + 1))
-def test_generator_beta(l):
-    G1 = wigner_generator_beta(l)
+def test_generator_x(l):
+    G1 = wigner_generator_x(l)
     G2 = jax.jacobian(wigner_D, 2)(l, 0.0, 0.0, 0.0)
     assert jnp.abs(G2 - G1).max() < 1e-6
 
 
 @pytest.mark.parametrize('l', range(1, 11 + 1))
-def test_generator_delta(l):
-    G1 = wigner_generator_delta(l)
-    G2 = jax.jacobian(wigner_D, 2)(l, math.pi / 2, 0.0, -math.pi / 2)
+def test_generator_z(l):
+    G1 = wigner_generator_z(l)
+    G2 = jax.jacobian(wigner_D, 2)(l, -math.pi / 2, 0.0, math.pi / 2)
     assert jnp.abs(G2 - G1).max() < 1e-5
 
 
@@ -65,3 +65,27 @@ def test_wigner_J(l):
     b = wigner_J(l)
 
     assert jnp.abs(a - b).max() < 2e-6
+
+
+def commutator(a, b):
+    return a @ b - b @ a
+
+
+@pytest.mark.parametrize('l', range(1, 11 + 1))
+def test_commutation_generators(l):
+    a = wigner_generator_x(l)
+    b = wigner_generator_y(l)
+    c = wigner_generator_z(l)
+
+    assert jnp.abs(commutator(a, b) - c).max() < 1e-5
+    assert jnp.abs(commutator(b, c) - a).max() < 1e-5
+    assert jnp.abs(commutator(c, a) - b).max() < 1e-5
+
+
+@pytest.mark.parametrize('l', range(1, 11 + 1))
+def test_J_Gx(l):
+    J = wigner_J(l)
+    a = J @ wigner_generator_y(l) @ J
+    b = wigner_generator_x(l)
+
+    assert jnp.abs(a - b).max() < 1e-5

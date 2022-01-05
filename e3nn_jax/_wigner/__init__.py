@@ -4,7 +4,7 @@ from functools import lru_cache, partial
 import jax
 import jax.numpy as jnp
 
-from ._G_beta import G_beta
+from ._Gx import Gx
 from ._J import Jd
 from ._w3j import w3j
 
@@ -34,20 +34,18 @@ def _y_rot_mat(l, angle):
     return M
 
 
-def wigner_generator_alpha(l):
+def wigner_generator_x(l):
     r"""
-    Generator for the angle alpha of the Wigner D matrices.
+    Generator of rotation around X axis.
 
-    .. math::
-        1 + \alpha G
+    Equivalent to ``wigner_J(l) @ wigner_generator_y(l) @ wigner_J(l)``.
+    """
+    return Gx[l]
 
-    is the infinitesimal rotation matrix around Y axis.
 
-    Args:
-        l (int): :math:`l`
-
-    Returns:
-        jnp.array: matrix of shape :math:`(2l+1, 2l+1)`
+def wigner_generator_y(l):
+    r"""
+    Generator of rotation around Y axis.
     """
     M = jnp.zeros((2 * l + 1, 2 * l + 1))
     inds = jnp.arange(0, 2 * l + 1, 1)
@@ -57,16 +55,15 @@ def wigner_generator_alpha(l):
     return M
 
 
-def wigner_generator_beta(l):
-    return G_beta[l]
+def wigner_generator_z(l):
+    r"""
+    Generator of rotation around Z axis.
+    """
+    K = wigner_rot90_y(l)
+    return K.T @ Gx[l] @ K
 
 
-def wigner_generator_delta(l):
-    K = _rot_90_alpha(l)
-    return K @ G_beta[l] @ K.T
-
-
-def _rot_90_alpha(l):
+def wigner_rot90_y(l):
     r"""
     90 degree rotation around Y axis.
     """
