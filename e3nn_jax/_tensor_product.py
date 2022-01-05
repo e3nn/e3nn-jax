@@ -524,6 +524,15 @@ class TensorProduct:
             if mul_ir_in1.mul > 0
         ], axis=0)
 
+    def __repr__(self):
+        npath = sum(_prod(i.path_shape) for i in self.instructions)
+        nweight = sum(_prod(i.path_shape) for i in self.instructions if i.has_weight)
+        return (
+            f"{self.__class__.__name__}"
+            f"({self.irreps_in1.simplify()} x {self.irreps_in2.simplify()} "
+            f"-> {self.irreps_out.simplify()} | {npath} paths | {nweight} weights)"
+        )
+
 
 def FullyConnectedTensorProduct(
     irreps_in1: Any,
@@ -540,13 +549,50 @@ def FullyConnectedTensorProduct(
     irreps_out = Irreps(irreps_out)
 
     instructions = [
-        (i_1, i_2, i_out, 'uvw', True, 1.0)
+        (i_1, i_2, i_out, 'uvw', True)
         for i_1, (_, ir_1) in enumerate(irreps_in1)
         for i_2, (_, ir_2) in enumerate(irreps_in2)
         for i_out, (_, ir_out) in enumerate(irreps_out)
         if ir_out in ir_1 * ir_2
     ]
     return TensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, in1_var, in2_var, out_var, irrep_normalization, path_normalization)
+
+
+def FullTensorProduct(
+    irreps_in1: Any,
+    irreps_in2: Any,
+    filter_ir_out=None,
+    irrep_normalization: str = 'component',
+):
+    irreps_in1 = Irreps(irreps_in1)
+    irreps_in2 = Irreps(irreps_in2)
+    if filter_ir_out is not None:
+        filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
+
+    irreps_out = []
+    instructions = []
+    for i_1, (mul_1, ir_1) in enumerate(irreps_in1):
+        for i_2, (mul_2, ir_2) in enumerate(irreps_in2):
+            for ir_out in ir_1 * ir_2:
+
+                if filter_ir_out is not None and ir_out not in filter_ir_out:
+                    continue
+
+                i_out = len(irreps_out)
+                irreps_out.append((mul_1 * mul_2, ir_out))
+                instructions += [
+                    (i_1, i_2, i_out, 'uvuv', False)
+                ]
+
+    irreps_out = Irreps(irreps_out)
+    irreps_out, p, _ = irreps_out.sort()
+
+    instructions = [
+        (i_1, i_2, p[i_out], mode, train)
+        for i_1, i_2, i_out, mode, train in instructions
+    ]
+
+    return TensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, irrep_normalization=irrep_normalization)
 
 
 def ElementwiseTensorProduct(
