@@ -1,10 +1,12 @@
+import math
+
 import jax
 import jax.numpy as jnp
 import pytest
 from e3nn_jax import (Irrep, angles_to_matrix, rand_angles, wigner_3j,
-                      wigner_D, wigner_generator_alpha, wigner_generator_beta, wigner_generator_delta)
+                      wigner_D, wigner_generator_alpha, wigner_generator_beta,
+                      wigner_generator_delta, wigner_J)
 from e3nn_jax._wigner import w3j
-import math
 
 
 def test_wigner_3j_symmetry():
@@ -55,3 +57,11 @@ def test_generator_delta(l):
     G1 = wigner_generator_delta(l)
     G2 = jax.jacobian(wigner_D, 2)(l, math.pi / 2, 0.0, -math.pi / 2)
     assert jnp.abs(G2 - G1).max() < 1e-5
+
+
+@pytest.mark.parametrize('l', range(1, 11 + 1))
+def test_wigner_J(l):
+    a = Irrep(l, (-1)**l).D_from_angles(jnp.pi/2, jnp.pi/2, jnp.pi/2, k=-1)
+    b = wigner_J(l)
+
+    assert jnp.abs(a - b).max() < 2e-6
