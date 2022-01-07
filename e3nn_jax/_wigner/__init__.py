@@ -10,10 +10,13 @@ from ._w3j import w3j
 
 
 def wigner_J(l):
+    if not l < len(Jd):
+        raise NotImplementedError(f'wigner J maximum l implemented is {len(Jd) - 1}')
+
     return Jd[l]
 
 
-def _y_rot_mat(l, angle):
+def wigner_rot_y(l, angle):
     r"""
     Create the matrix representation of a y-axis rotation by the given angle,
     in the irrep l of dimension 2 * l + 1, in the basis of real centered
@@ -98,14 +101,11 @@ def wigner_D(l, alpha, beta, gamma):
     Returns:
         array :math:`D^l(\alpha, \beta, \gamma)` of shape :math:`(..., 2l+1, 2l+1)`
     """
-    if not l < len(Jd):
-        raise NotImplementedError(f'wigner D maximum l implemented is {len(Jd) - 1}')
-
     alpha, beta, gamma = jnp.broadcast_arrays(alpha, beta, gamma)
-    Xa = _y_rot_mat(l, alpha)
-    Xb = _y_rot_mat(l, beta)
-    Xc = _y_rot_mat(l, gamma)
-    J = Jd[l]
+    Xa = wigner_rot_y(l, alpha)
+    Xb = wigner_rot_y(l, beta)
+    Xc = wigner_rot_y(l, gamma)
+    J = wigner_J(l)
     return Xa @ J @ Xb @ J @ Xc
 
 
