@@ -147,12 +147,28 @@ def orthonormalize(original):
     return final, sympy.Matrix(matrix)
 
 
+def solve(constraints, variables):
+    """
+    Hack to solve a system of equations with sympy.
+    I needed to do that because sympy.solve was sometimes stuck.
+    """
+    if len(constraints) == 0:
+        return []
+
+    for n in range(1, len(constraints) + 1):
+        sol = sympy.solve(constraints[:n], variables)
+        if all(sympy.simplify(x.subs(sol)) == 0 for x in constraints[n:]):
+            return sol
+    return sol
+
+
 def solve_symmetric(candidates):
     variables = [sympy.symbols(f"x{i}") for i in range(len(candidates))]
     tensors = sum_axis0([x * c for x, c in zip(variables, candidates)])
     tensor = tensors[0]  # XXX solve for first component only
-    constraints = tuple(set(symmetric_terms(tensor)))
-    solution = sympy.solve(constraints, variables)
+    constraints = tuple({sympy.simplify(x) for x in symmetric_terms(tensor)})
+
+    solution = solve(constraints, variables)
     tensors = tensors.subs(solution)
 
     tensors = [tensors.subs(x, 1).subs(zip(variables, [0] * len(variables))) for x in variables]
