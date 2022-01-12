@@ -157,35 +157,37 @@ def wigner_3j_sympy(l1, l2, l3):
     import sympy
     assert abs(l2 - l3) <= l1 <= l2 + l3
 
-    w = _wigner_3j_sympy()
-
     if l1 <= l2 <= l3:
-        out = w[(l1, l2, l3)].reshape(2 * l1 + 1, 2 * l2 + 1, 2 * l3 + 1)
+        out = _wigner_3j_sympy(l1, l2, l3).reshape(2 * l1 + 1, 2 * l2 + 1, 2 * l3 + 1)
     if l1 <= l3 <= l2:
-        out = sympy.permutedims(w[(l1, l3, l2)].reshape(2 * l1 + 1, 2 * l3 + 1, 2 * l2 + 1), (0, 2, 1)) * ((-1) ** (l1 + l2 + l3))
+        out = sympy.permutedims(_wigner_3j_sympy(l1, l3, l2).reshape(2 * l1 + 1, 2 * l3 + 1, 2 * l2 + 1), (0, 2, 1)) * ((-1) ** (l1 + l2 + l3))
     if l2 <= l1 <= l3:
-        out = sympy.permutedims(w[(l2, l1, l3)].reshape(2 * l2 + 1, 2 * l1 + 1, 2 * l3 + 1), (1, 0, 2)) * ((-1) ** (l1 + l2 + l3))
+        out = sympy.permutedims(_wigner_3j_sympy(l2, l1, l3).reshape(2 * l2 + 1, 2 * l1 + 1, 2 * l3 + 1), (1, 0, 2)) * ((-1) ** (l1 + l2 + l3))
     if l3 <= l2 <= l1:
-        out = sympy.permutedims(w[(l3, l2, l1)].reshape(2 * l3 + 1, 2 * l2 + 1, 2 * l1 + 1), (2, 1, 0)) * ((-1) ** (l1 + l2 + l3))
+        out = sympy.permutedims(_wigner_3j_sympy(l3, l2, l1).reshape(2 * l3 + 1, 2 * l2 + 1, 2 * l1 + 1), (2, 1, 0)) * ((-1) ** (l1 + l2 + l3))
     if l2 <= l3 <= l1:
-        out = sympy.permutedims(w[(l2, l3, l1)].reshape(2 * l2 + 1, 2 * l3 + 1, 2 * l1 + 1), (2, 0, 1))
+        out = sympy.permutedims(_wigner_3j_sympy(l2, l3, l1).reshape(2 * l2 + 1, 2 * l3 + 1, 2 * l1 + 1), (2, 0, 1))
     if l3 <= l1 <= l2:
-        out = sympy.permutedims(w[(l3, l1, l2)].reshape(2 * l3 + 1, 2 * l1 + 1, 2 * l2 + 1), (1, 2, 0))
+        out = sympy.permutedims(_wigner_3j_sympy(l3, l1, l2).reshape(2 * l3 + 1, 2 * l1 + 1, 2 * l2 + 1), (1, 2, 0))
     return out
 
 
 @lru_cache()
-def _wigner_3j_sympy():
+def _cached_simplify(expr):
+    import sympy
+    return sympy.simplify(expr)
+
+
+@lru_cache(maxsize=None)
+def _wigner_3j_sympy(l1, l2, l3):
     import sympy
 
     with open(os.path.join(os.path.dirname(__file__), '_w3j.py'), 'rt') as f:
         xs = f.read().split("# split")[1:-1]
 
-    foo = lru_cache()(sympy.simplify)
-    result = dict()
     for x in xs:
         a, bs = x.split(": np.array([")
         a = eval(a.strip())
-        b = [foo(b.strip()) for b in bs.split(',')[:-2]]
-        result[a] = sympy.Array(b)
-    return result
+        if a == (l1, l2, l3):
+            b = [_cached_simplify(b.strip()) for b in bs.split(',')[:-2]]
+            return sympy.Array(b)
