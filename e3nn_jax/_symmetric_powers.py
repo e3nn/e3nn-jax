@@ -1,22 +1,67 @@
 import itertools
+import operator
 from collections import defaultdict
-from functools import lru_cache
+from functools import lru_cache, reduce
 
 import sympy
 
 from e3nn_jax._wigner import wigner_3j_sympy
 
 
+@lru_cache(maxsize=None)
+def classes_of_combinations_with_replacement(n, k):
+    """
+    Return all [n]**k regrouped by the permutations
+    """
+    result = []
+    for x in itertools.combinations_with_replacement(range(n), k):
+        result.append(list(set(itertools.permutations(x))))
+    return result
+
+
 def symmetric_terms(xx):
-    n = len(xx.shape)
-    for per in itertools.permutations(range(n)):
-        yy = sympy.permutedims(xx, per)
-        for x in sympy.flatten(xx - yy):
-            yield x
+    d = xx.shape[0]
+    k = len(xx.shape)
+    for c in classes_of_combinations_with_replacement(d, k):
+        x = {xx[i] for i in c}
+        x = list(x)
+        for y in x[1:]:
+            yield x[0] - y
 
 
 def is_symmetric(xx):
     return all(x == 0 for x in symmetric_terms(xx))
+
+
+def _prod(xs):
+    return reduce(operator.mul, xs, 1)
+
+
+def new_array(*shape):
+    return sympy.Array(sympy.zeros(_prod(shape), 1)).reshape(*shape)
+
+
+def tensordot(a, b, i, j):
+    perm = list(range(len(a.shape)))
+    del perm[i]
+    perm.append(i)
+    a = sympy.permutedims(a, perm)
+
+    perm = list(range(len(b.shape)))
+    del perm[j]
+    perm.insert(0, j)
+    b = sympy.permutedims(b, perm)
+
+    a_shape = a.shape
+    b_shape = b.shape
+
+    a = a.reshape(_prod(a_shape[:-1]), a_shape[-1])
+    b = b.reshape(b_shape[0], _prod(b_shape[1:]))
+
+    out = sympy.SparseMatrix(a) @ sympy.SparseMatrix(b)
+    out = sympy.Array(out)
+    out = out.reshape(*(a_shape[:-1] + b_shape[1:]))
+    return out
 
 
 def product_lll(output, input_1, input_2):
@@ -33,13 +78,10 @@ def product_lll(output, input_1, input_2):
     out = wigner_3j_sympy(output, l1, l2)  # ijk
 
     if not isinstance(input_1, int):
-        out = sympy.tensorproduct(out, input_1)  # ijk,j...
-        out = sympy.tensorcontraction(out, (1, 3))  # ik...
+        out = tensordot(out, input_1, 1, 0)
 
     if not isinstance(input_2, int):
-        n = len(out.shape)
-        out = sympy.tensorproduct(out, input_2)  # ik...,k...
-        out = sympy.tensorcontraction(out, (1, n))  # i......
+        out = tensordot(out, input_2, 1, 0)
 
     return out
 
@@ -160,6 +202,8 @@ def symmetric_powers(l, n):
                 for a in sub[l1]:
                     res[lout].append(product_lll(lout, a, l))
 
-    res = {l: orthonormalize(solve_symmetric(z))[0] for l, z in res.items()}
+    res = {l: solve_symmetric(z) for l, z in res.items()}
+    res = {l: orthonormalize(z)[0] for l, z in res.items()}
     res = {l: z for l, z in res.items() if len(z) > 0}
+    res = {l: [sympy.simplify(x) for x in z] for l, z in res.items()}
     return res
