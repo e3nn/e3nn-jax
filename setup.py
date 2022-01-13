@@ -37,6 +37,7 @@ setup(
         'jax',
         'dm-haiku',
         'optax',
+        'sympy',
     ],
     include_package_data=True,
     classifiers=[
