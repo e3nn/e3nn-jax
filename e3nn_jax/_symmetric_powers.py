@@ -155,25 +155,37 @@ def solve(constraints, variables):
     if len(constraints) == 0:
         return []
 
-    for n in range(1, len(constraints) + 1):
-        sol = sympy.solve(constraints[:n], variables)
-        if all(sympy.simplify(x.subs(sol)) == 0 for x in constraints[n:]):
-            return sol
-    return sol
+    sols = sympy.nonlinsolve(constraints, variables)
+    sols = {tuple(sympy.expand(x) for x in sol) for sol in sols}
+    sols = [dict(zip(variables, sol)) for sol in sols]
+    return sols
 
 
 def solve_symmetric(candidates):
+    assert len(candidates) >= 1
+
+    if len(candidates) == 1:
+        candidate = candidates[0]
+        if all(is_symmetric(x) for x in candidate):
+            return [candidate]
+        else:
+            return []
+
     variables = [sympy.symbols(f"x{i}") for i in range(len(candidates))]
     tensors = sum_axis0([x * c for x, c in zip(variables, candidates)])
-    tensor = tensors[0]  # XXX solve for first component only
-    constraints = tuple({sympy.simplify(x) for x in symmetric_terms(tensor)})
+    constraints = tuple({sympy.expand(x) for tensor in tensors[:1] for x in symmetric_terms(tensor)})
 
-    solution = solve(constraints, variables)
+    solutions = solve(constraints, variables)
+    assert len(solutions) == 1
+    solution = solutions[0]
     tensors = tensors.subs(solution)
 
     tensors = [tensors.subs(x, 1).subs(zip(variables, [0] * len(variables))) for x in variables]
     norms = [sympy.sqrt(sum(sympy.flatten(s.applyfunc(lambda x: x**2)))) for s in tensors]
-    return [s / n for s, n in zip(tensors, norms) if not n.is_zero]
+    solutions = [s / n for s, n in zip(tensors, norms) if not n.is_zero]
+
+    # assert all(is_symmetric(x) for sol in solutions for x in sol)
+    return solutions
 
 
 def contract_with_variables(solution):
@@ -190,8 +202,9 @@ def contract_with_variables(solution):
 
 
 @lru_cache(maxsize=None)
-def symmetric_powers(l, n):
+def symmetric_powers(l, n, lmax):
     assert n > 0
+    assert l <= lmax
 
     if n == 1:
         return {
@@ -201,20 +214,20 @@ def symmetric_powers(l, n):
     res = defaultdict(lambda: [])
 
     if n % 2 == 0:
-        sub = symmetric_powers(l, n // 2)
+        sub = symmetric_powers(l, n // 2, lmax)
 
         for l1 in sub.keys():
             for l2 in sub.keys():
-                for lout in range(abs(l1 - l2), l1 + l2 + 1):
+                for lout in range(abs(l1 - l2), min(lmax, l1 + l2) + 1):
                     for a in sub[l1]:
                         for b in sub[l2]:
                             res[lout].append(product_lll(lout, a, b))
 
     else:
-        sub = symmetric_powers(l, n - 1)
+        sub = symmetric_powers(l, n - 1, lmax)
 
         for l1 in sub.keys():
-            for lout in range(abs(l1 - l), l1 + l + 1):
+            for lout in range(abs(l1 - l), min(lmax, l1 + l) + 1):
                 for a in sub[l1]:
                     res[lout].append(product_lll(lout, a, l))
 
