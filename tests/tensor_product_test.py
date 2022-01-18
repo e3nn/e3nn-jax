@@ -1,8 +1,15 @@
-import pytest
+import functools
+import operator
 
 import jax
 import jax.numpy as jnp
-from e3nn_jax import TensorProduct, Irreps, FullyConnectedTensorProduct
+import pytest
+from e3nn_jax import (FullyConnectedTensorProduct, Irreps, TensorProduct,
+                      TensorSquare)
+
+
+def _prod(xs):
+    return functools.reduce(operator.mul, xs, 1)
 
 
 @pytest.mark.parametrize('connection_mode', ['uvw', 'uvu', 'uvv'])
@@ -145,3 +152,19 @@ def test_normalization(keys, irrep_normalization, path_normalization):
         assert jnp.exp(jnp.abs(jnp.log(jnp.mean(v**2)))) < 2.0
     if irrep_normalization == 'norm':
         assert jnp.exp(jnp.abs(jnp.log(jnp.mean(jnp.sum(v**2, axis=1))))) < 2.0
+
+
+def test_square_normalization(keys):
+    irreps = Irreps("2x0e + 3x1e + 2x2e + 3e")
+    tp = TensorSquare(irreps, irreps, irrep_normalization='component')
+    n = sum(_prod(ins.path_shape) for ins in tp.instructions if ins.has_weight)
+
+    @jax.vmap
+    def f(w, x):
+        return tp.left_right(w, x, x)
+
+    k = 1_000_000
+    w = jax.random.normal(keys[0], (k, n))
+    x = irreps.randn(keys[1], (k, -1), normalization='component')
+    y = f(w, x)
+    assert jnp.all(jnp.exp(jnp.abs(jnp.log(jnp.mean(y**2, 0)))) < 1.1)

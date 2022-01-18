@@ -36,7 +36,8 @@ from ._irreps import Irrep, Irreps
 from ._spherical_harmonics import spherical_harmonics
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import Linear
-from ._tensor_product import TensorProduct, FullyConnectedTensorProduct, FullTensorProduct, ElementwiseTensorProduct
+from ._tensor_product import TensorProduct
+from ._tp_makers import FullyConnectedTensorProduct, FullTensorProduct, ElementwiseTensorProduct, TensorSquare
 from ._activation import ScalarActivation, normalize_function
 from ._gate import Gate
 from ._batchnorm import BatchNorm
@@ -77,7 +78,8 @@ __all__ = [
     "spherical_harmonics",
     "sus", "soft_one_hot_linspace",
     "Linear",
-    "TensorProduct", "FullyConnectedTensorProduct", "FullTensorProduct", "ElementwiseTensorProduct",
+    "TensorProduct",
+    "FullyConnectedTensorProduct", "FullTensorProduct", "ElementwiseTensorProduct", "TensorSquare",
     "ScalarActivation", "normalize_function",
     "Gate", "BatchNorm", "Dropout"
 ]
