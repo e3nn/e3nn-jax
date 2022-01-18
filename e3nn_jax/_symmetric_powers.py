@@ -147,20 +147,6 @@ def orthonormalize(original):
     return final, sympy.Matrix(matrix)
 
 
-def solve(constraints, variables):
-    """
-    Hack to solve a system of equations with sympy.
-    I needed to do that because sympy.solve was sometimes stuck.
-    """
-    if len(constraints) == 0:
-        return []
-
-    sols = sympy.nonlinsolve(constraints, variables)
-    sols = {tuple(sympy.expand(x) for x in sol) for sol in sols}
-    sols = [dict(zip(variables, sol)) for sol in sols]
-    return sols
-
-
 def solve_symmetric(candidates):
     assert len(candidates) >= 1
 
@@ -175,7 +161,7 @@ def solve_symmetric(candidates):
     tensors = sum_axis0([x * c for x, c in zip(variables, candidates)])
     constraints = tuple({sympy.expand(x) for tensor in tensors[:1] for x in symmetric_terms(tensor)})
 
-    solutions = solve(constraints, variables)
+    solutions = sympy.solve(constraints, variables, manual=True, dict=True)
     assert len(solutions) == 1
     solution = solutions[0]
     tensors = tensors.subs(solution)
@@ -224,12 +210,15 @@ def symmetric_powers(l, n, lmax):
                             res[lout].append(product_lll(lout, a, b))
 
     else:
-        sub = symmetric_powers(l, n - 1, lmax)
+        sub1 = symmetric_powers(l, n // 2, lmax)
+        sub2 = symmetric_powers(l, n // 2 + 1, lmax)
 
-        for l1 in sub.keys():
-            for lout in range(abs(l1 - l), min(lmax, l1 + l) + 1):
-                for a in sub[l1]:
-                    res[lout].append(product_lll(lout, a, l))
+        for l1 in sub1.keys():
+            for l2 in sub2.keys():
+                for lout in range(abs(l1 - l2), min(lmax, l1 + l2) + 1):
+                    for a in sub1[l1]:
+                        for b in sub2[l2]:
+                            res[lout].append(product_lll(lout, a, b))
 
     res = {l: solve_symmetric(z) for l, z in res.items()}
     res = {l: orthonormalize(z)[0] for l, z in res.items()}
