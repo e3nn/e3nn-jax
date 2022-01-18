@@ -255,8 +255,8 @@ class TensorProduct:
             assert i == weights.size
         del weights
 
-        assert all(x.ndim == 2 for x in input1_list), "the input of TensorProduct must be a list of 2D arrays"
-        assert all(x.ndim == 2 for x in input2_list), "the input of TensorProduct must be a list of 2D arrays"
+        assert all(x is None or x.ndim == 2 for x in input1_list), "the input of TensorProduct must be a list of 2D arrays"
+        assert all(x is None or x.ndim == 2 for x in input2_list), "the input of TensorProduct must be a list of 2D arrays"
 
         if fuse_all:
             with jax.core.eval_context():
