@@ -1,9 +1,9 @@
 from typing import Callable, Sequence
 
 import haiku as hk
-
-from e3nn_jax import FullyConnectedTensorProduct, Irreps, Linear, normalize_function, TensorProduct
 import jax.numpy as jnp
+from e3nn_jax import (FullyConnectedTensorProduct, Irreps, Linear,
+                      TensorProduct, TensorSquare, normalize_function)
 
 
 class HLinear(hk.Module):
@@ -41,6 +41,22 @@ class HFullyConnectedTensorProduct(hk.Module):
             for ins in tp.instructions
         ]
         return tp.left_right(ws, x1, x2, output_list=output_list)
+
+
+class HTensorSquare(hk.Module):
+    def __init__(self, irreps_in, irreps_out):
+        super().__init__()
+
+        self.irreps_in = Irreps(irreps_in)
+        self.irreps_out = Irreps(irreps_out)
+
+    def __call__(self, x, output_list=False):
+        tp = TensorSquare(self.irreps_in, self.irreps_out)
+        ws = [
+            hk.get_parameter(f'weight {i}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
+            for i, ins in enumerate(tp.instructions)
+        ]
+        return tp.left_right(ws, x, x, output_list=output_list)
 
 
 class HMLP(hk.Module):
