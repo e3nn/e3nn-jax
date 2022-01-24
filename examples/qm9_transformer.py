@@ -1,6 +1,7 @@
 import argparse
 import random
 import time
+from functools import partial
 from itertools import count
 
 import haiku as hk
@@ -12,10 +13,10 @@ import torch
 import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
-from e3nn_jax import (Gate, Irreps, index_add, soft_one_hot_linspace,
-                      spherical_harmonics, sus)
+from e3nn_jax import (Irreps, ScalarActivation, index_add,
+                      soft_one_hot_linspace, spherical_harmonics, sus)
 from e3nn_jax.experimental.transformer import Transformer
-from e3nn_jax.nn import HLinear
+from e3nn_jax.nn import HLinear, HTensorSquare
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
 from tqdm.auto import tqdm
@@ -144,10 +145,25 @@ def create_model(config):
         mul0 = config['mul0']
         mul1 = config['mul1']
         mul2 = config['mul2']
-        irreps_gated = Irreps(f'{mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o').simplify()
 
-        gate = Gate(f'{mul0}x0e + {mul0}x0o', [jax.nn.gelu, jnp.tanh], f'{irreps_gated.num_irreps}x0e', [jax.nn.sigmoid], irreps_gated)
-        g = jax.vmap(lambda x: gate.irreps_out.to_contiguous(gate(x)))
+        irreps_features = Irreps(f'{mul0}x0e + {mul0}x0o + {mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o').simplify()
+        activation = ScalarActivation(irreps_features, [jax.nn.gelu, jnp.tanh] + [None] * (len(irreps_features) - 2))
+
+        def add(x, y):
+            if x is None and y is None:
+                return None
+            if x is None:
+                return y
+            if y is None:
+                return x
+            return x + y
+
+        def act(x):
+            x = activation(x)
+            tp = HTensorSquare(irreps_features, irreps_features, init=hk.initializers.Constant(0.0))
+            y = jax.vmap(partial(tp, output_list=True))(x)
+            x = jax.tree_map(add, x, y)
+            return x
 
         irreps_out = Irreps('4x0e')
 
@@ -173,30 +189,30 @@ def create_model(config):
 
         x = Transformer(
             irreps_node_input=irreps,
-            irreps_node_output=gate.irreps_in,
+            irreps_node_output=irreps_features,
             **kw,
         )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
 
         # stat('T(x)', x)
 
-        x = g(x)
+        x = act(x)
 
         # stat('gT(x)', x)
 
         for _ in range(config['num_layers']):
             x = Transformer(
-                irreps_node_input=gate.irreps_out,
-                irreps_node_output=gate.irreps_in,
+                irreps_node_input=irreps_features,
+                irreps_node_output=irreps_features,
                 **kw,
             )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
 
             # stat('T ...(x)', x)
 
-            x = g(x)
+            x = act(x)
             # stat('gT ...(x)', x)
 
         x = Transformer(
-            irreps_node_input=gate.irreps_out,
+            irreps_node_input=irreps_features,
             irreps_node_output=irreps_out,
             **kw,
         )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)

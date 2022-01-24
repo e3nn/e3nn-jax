@@ -44,16 +44,20 @@ class HFullyConnectedTensorProduct(hk.Module):
 
 
 class HTensorSquare(hk.Module):
-    def __init__(self, irreps_in, irreps_out):
+    def __init__(self, irreps_in, irreps_out, init=None):
         super().__init__()
 
         self.irreps_in = Irreps(irreps_in)
         self.irreps_out = Irreps(irreps_out)
 
+        if init is None:
+            init = hk.initializers.RandomNormal()
+        self.init = init
+
     def __call__(self, x, output_list=False):
         tp = TensorSquare(self.irreps_in, self.irreps_out)
         ws = [
-            hk.get_parameter(f'weight {i}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
+            hk.get_parameter(f'weight {i}', shape=ins.path_shape, init=self.init)
             for i, ins in enumerate(tp.instructions)
         ]
         return tp.left_right(ws, x, x, output_list=output_list)

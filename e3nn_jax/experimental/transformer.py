@@ -68,6 +68,8 @@ class Transformer(hk.Module):
         Returns:
             array of float: output features of the nodes
         """
+        node_f = self.irreps_node_input.to_contiguous(node_f)
+
         tp_k = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_input, self.features, self.phi)
         edge_k = jax.vmap(partial(tp_k, output_list=True))(edge_scalar_attr, node_f[edge_src], edge_attr)
 
@@ -83,4 +85,5 @@ class Transformer(hk.Module):
         edge_v = jnp.concatenate([v.reshape(v.shape[0], -1) for v in edge_v], axis=-1)  # array[edge, irreps]
 
         node_out = index_add(edge_dst, edge_v, len(node_f))
-        return jax.vmap(HLinear(tp_v.irreps_out, self.irreps_node_output))(node_out)
+        lin = HLinear(tp_v.irreps_out, self.irreps_node_output)
+        return jax.vmap(partial(lin, output_list=True))(node_out)
