@@ -57,7 +57,7 @@ def main():
             y = gate.irreps_out.to_contiguous(y)
             return y.reshape(x.shape[:-1] + (-1,))
 
-        kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=3.0, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
+        kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
 
         x = x[..., None]
         x = g(Convolution(Irreps('0e'), gate.irreps_in, **kw)(x))
