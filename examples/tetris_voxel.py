@@ -57,11 +57,15 @@ def main():
             y = gate.irreps_out.to_contiguous(y)
             return y.reshape(x.shape[:-1] + (-1,))
 
+        # Shallower and wider convolutions also works
+
+        # kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=5.5, num_radial_basis=3, steps=(1.0, 1.0, 1.0))
         kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
 
         x = x[..., None]
         x = g(Convolution(Irreps('0e'), gate.irreps_in, **kw)(x))
 
+        # for _ in range(1):
         for _ in range(4):
             x = g(Convolution(gate.irreps_out, gate.irreps_in, **kw)(x))
 
@@ -102,7 +106,7 @@ def main():
     opt_state = opt.init(params)
 
     # Train
-    for _ in tqdm(range(500)):
+    for _ in tqdm(range(2000)):
         params, opt_state, loss, accuracy, pred = update(params, opt_state, x, y)
         if accuracy == 1.0:
             break
