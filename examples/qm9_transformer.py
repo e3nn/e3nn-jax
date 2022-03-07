@@ -1,7 +1,6 @@
 import argparse
 import random
 import time
-from functools import partial
 from itertools import count
 
 import haiku as hk
