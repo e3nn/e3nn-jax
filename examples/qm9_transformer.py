@@ -13,7 +13,7 @@ import torch
 import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
-from e3nn_jax import (Irreps, ScalarActivation, index_add,
+from e3nn_jax import (Irreps, IrrepsData, ScalarActivation, index_add,
                       soft_one_hot_linspace, spherical_harmonics, sus)
 from e3nn_jax.experimental.transformer import Transformer
 from e3nn_jax.nn import HLinear, HTensorSquare
@@ -122,7 +122,7 @@ def create_model(config):
         edge_src, edge_dst = a['edge_index']
 
         irreps_sh = Irreps.spherical_harmonics(config['shlmax'])
-        edge_attr = irreps_sh.to_list(spherical_harmonics(
+        edge_attr = IrrepsData.from_contiguous(irreps_sh, spherical_harmonics(
             irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'
         ))
 
@@ -161,7 +161,7 @@ def create_model(config):
         def act(x):
             x = activation(x)
             tp = HTensorSquare(irreps_features, irreps_features, init=hk.initializers.Constant(0.0))
-            y = jax.vmap(partial(tp, output_list=True))(x)
+            y = jax.vmap(tp)(x)
             x = jax.tree_map(add, x, y)
             return x
 
@@ -219,7 +219,7 @@ def create_model(config):
 
         # stat('T ...(x)', x)
 
-        out = irreps_out.to_contiguous(x)
+        out = x.contiguous
 
         M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
 
