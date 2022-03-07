@@ -182,4 +182,6 @@ class Convolution(hk.Module):
                 return x
             return c * x + s * y
 
-        return [f(x, y) for x, y in zip(node_self_out, node_conv_out.list)]
+        output = [f(x, y) for x, y in zip(node_self_out, node_conv_out.list)]
+
+        return IrrepsData.from_list(self.irreps_node_output, output)

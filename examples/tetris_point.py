@@ -73,7 +73,7 @@ def model(x, edge_src, edge_dst, edge_attr):
         **kw
     )(x, edge_src, edge_dst, edge_attr)
 
-    return x
+    return x.contiguous
 
 
 def main():
@@ -86,7 +86,6 @@ def main():
 
     def loss_pred(params, input, labels, batch):
         pred = f.apply(params, None, input)
-        pred = jnp.concatenate([x.reshape(x.shape[0], -1) for x in pred], axis=-1)
         pred = index_add(batch, pred, 8)
         loss = jnp.mean((pred - labels)**2)
         return loss, pred
