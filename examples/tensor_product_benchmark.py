@@ -6,7 +6,7 @@ from functools import partial, reduce
 
 import jax
 import jax.numpy as jnp
-from e3nn_jax import FullyConnectedTensorProduct, Irreps
+from e3nn_jax import FullyConnectedTensorProduct, Irreps, IrrepsData
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -88,7 +88,6 @@ def main():
             optimize_einsums=args.opt_ein,
             custom_einsum_vjp=args.custom_einsum_vjp,
             fuse_all=args.fuse_all,
-            output_list=args.lists,
         )
 
         f = jax.vmap(f, (0, None, None), 0)  # channel_out
@@ -123,7 +122,6 @@ def main():
             optimize_einsums=args.opt_ein,
             custom_einsum_vjp=args.custom_einsum_vjp,
             fuse_all=args.fuse_all,
-            output_list=args.lists,
         )
     f = jax.vmap(f, (None, 0, 0), 0)
 
@@ -149,26 +147,31 @@ def main():
 
     print(f"{sum(x.size for x in jax.tree_leaves(ws))} parameters")
 
-    inputs = iter([
-        (
-            irreps_in1.randn(k(), (args.batch, -1)),
-            irreps_in2.randn(k(), (args.batch, -1))
-        )
-        for _ in range(args.n + warmup)
-    ])
     if args.lists:
         inputs = iter([
             (
-                irreps_in1.to_list(irreps_in1.randn(k(), (args.batch, -1))),
-                irreps_in2.to_list(irreps_in2.randn(k(), (args.batch, -1)))
+                IrrepsData.from_contiguous(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
+                IrrepsData.from_contiguous(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list
             )
             for _ in range(args.n + warmup)
         ])
+        f_1 = f
+        f = lambda w, x1, x2: f_1(w, x1, x2).list
+    else:
+        inputs = iter([
+            (
+                irreps_in1.randn(k(), (args.batch, -1)),
+                irreps_in2.randn(k(), (args.batch, -1))
+            )
+            for _ in range(args.n + warmup)
+        ])
+        f_1 = f
+        f = lambda w, x1, x2: f_1(w, x1, x2).contiguous
 
     if args.backward:
         # tanh() forces it to realize the grad as a full size matrix rather than expanded (stride 0) ones
-        f_ = f
-        f = jax.value_and_grad(lambda ws, x1, x2: sum(jnp.sum(jnp.tanh(x)) for x in jax.tree_leaves(f_(ws, x1, x2))), 0)
+        f_2 = f
+        f = jax.value_and_grad(lambda ws, x1, x2: sum(jnp.sum(jnp.tanh(x)) for x in jax.tree_leaves(f_2(ws, x1, x2))), 0)
 
     # compile
     if args.jit:
@@ -193,9 +196,6 @@ def main():
 
     x1 = irreps_in1.randn(k(), (args.batch, -1))
     x2 = irreps_in2.randn(k(), (args.batch, -1))
-    if args.lists:
-        x1 = irreps_in1.to_list(x1)
-        x2 = irreps_in2.to_list(x2)
 
     c = jax.xla_computation(f)(ws, x1, x2)
 

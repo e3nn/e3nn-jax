@@ -808,13 +808,6 @@ class IrrepsData:
         >>> id = IrrepsData.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
         >>> jax.tree_map(lambda x: x.shape, id.convert("20x0e")).list
         [(1, 20, 1)]
-        >>> jax.tree_map(lambda x: x.shape, id.convert("0x0e + 20x0e + 0x0e")).list
-        [None, (1, 20, 1), None]
-        >>> jax.tree_map(lambda x: x.shape, id.convert("7x0e + 4x0e + 9x0e")).list
-        [None, (1, 4, 1), (1, 9, 1)]
-        >>> id = IrrepsData.from_list("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))])
-        >>> jax.tree_map(lambda x: x.shape, id.convert("5x0e + 5x0e + 5x1e + 5x1e")).list
-        [None, None, (1, 5, 3), (1, 5, 3)]
         """
         # Optimization: we use only the list of arrays, not the contiguous data
         irreps = Irreps(irreps)

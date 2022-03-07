@@ -49,8 +49,8 @@ def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, ji
     x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=irrep_normalization)
     x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=irrep_normalization)
 
-    a = f(ws, x1, x2)
-    b = g(ws, x1, x2)
+    a = f(ws, x1, x2).contiguous
+    b = g(ws, x1, x2).contiguous
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), jnp.max(jnp.abs(a - b))
 
 
@@ -70,8 +70,8 @@ def test_fuse_all(keys):
     y = jax.random.normal(keys[3], (4,))
 
     assert jnp.allclose(
-        tp.left_right(w, x, y, fuse_all=True),
-        tp.left_right(w, x, y, fuse_all=False),
+        tp.left_right(w, x, y, fuse_all=True).contiguous,
+        tp.left_right(w, x, y, fuse_all=False).contiguous,
         rtol=1e-4, atol=1e-6
     )
 
@@ -90,8 +90,8 @@ def test_fuse_all_no_weight(keys):
     y = jax.random.normal(keys[3], (10,))
 
     assert jnp.allclose(
-        tp.left_right(w, x, y, fuse_all=True),
-        tp.left_right(w, x, y, fuse_all=False),
+        tp.left_right(w, x, y, fuse_all=True).contiguous,
+        tp.left_right(w, x, y, fuse_all=False).contiguous,
         rtol=1e-4, atol=1e-6
     )
 
@@ -111,8 +111,8 @@ def test_fuse_all_mix_weight(keys):
     y = jax.random.normal(keys[3], (5,))
 
     assert jnp.allclose(
-        tp.left_right(w, x, y, fuse_all=True),
-        tp.left_right(w, x, y, fuse_all=False),
+        tp.left_right(w, x, y, fuse_all=True).contiguous,
+        tp.left_right(w, x, y, fuse_all=False).contiguous,
         rtol=1e-4, atol=1e-6
     )
 
@@ -125,8 +125,8 @@ def test_fuse(keys):
     x1 = tp.irreps_in1.randn(next(keys), (-1,))
     x2 = tp.irreps_in2.randn(next(keys), (-1,))
 
-    a = tp.left_right(ws, x1, x2, fuse_all=False)
-    b = tp.left_right(wf, x1, x2, fuse_all=True)
+    a = tp.left_right(ws, x1, x2, fuse_all=False).contiguous
+    b = tp.left_right(wf, x1, x2, fuse_all=True).contiguous
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), (a, b)
 
 
@@ -145,7 +145,7 @@ def test_normalization(keys, irrep_normalization, path_normalization):
     x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=irrep_normalization)
     x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=irrep_normalization)
 
-    v, s = tp.left_right(ws, x1, x2, output_list=True)
+    v, s = tp.left_right(ws, x1, x2).list
 
     assert jnp.exp(jnp.abs(jnp.log(jnp.mean(s**2)))) < 2.0
     if irrep_normalization == 'component':
@@ -161,7 +161,7 @@ def test_square_normalization(keys):
 
     @jax.vmap
     def f(w, x):
-        return tp.left_right(w, x, x)
+        return tp.left_right(w, x, x).contiguous
 
     k = 1_000_000
     w = jax.random.normal(keys[0], (k, n))
