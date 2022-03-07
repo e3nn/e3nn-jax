@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps
+from e3nn_jax import Irreps, IrrepsData
 
 
 def normalize_function(phi):
@@ -61,8 +61,8 @@ class ScalarActivation:
         self.acts = acts
 
     def __call__(self, features):
-        assert isinstance(features, list)
-        return [x if act is None or x is None else act(x) for act, x in zip(self.acts, features)]
+        features = IrrepsData.new(self.irreps_in, features).list
+        return IrrepsData.from_list(self.irreps_out, [x if act is None or x is None else act(x) for act, x in zip(self.acts, features)])
 
 
 class KeyValueActivation:

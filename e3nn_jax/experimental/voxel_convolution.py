@@ -67,7 +67,7 @@ class Convolution(hk.Module):
             )
             for i in lin.instructions
         ]
-        sc = f(w, x.reshape(-1, x.shape[-1]))
+        sc = f(w, x.reshape(-1, x.shape[-1])).contiguous
         sc = sc.reshape(x.shape[:-1] + (-1,))
 
         # convolution
