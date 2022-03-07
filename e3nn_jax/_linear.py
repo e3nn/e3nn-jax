@@ -134,6 +134,5 @@ class Linear:
                 empty_return_none=True,
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
-            if mul_ir_out.mul > 0
         ]
         return IrrepsData.from_list(self.irreps_out, out)

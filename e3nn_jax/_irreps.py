@@ -683,14 +683,12 @@ class IrrepsData:
             IrrepsData
         """
         irreps = Irreps(irreps)
-        assert len(list) == len(irreps), (len(list), len(irreps))
+        assert len(irreps) == len(list), f"irreps has {len(irreps)} elements and list has {len(list)}"
         assert all(x is None or isinstance(x, jnp.ndarray) for x in list)
         assert all(
             x is None or x.shape[-2:] == (mul, ir.dim)
             for x, (mul, ir) in zip(list, irreps)
         )
-        if all(x is None for x in list):
-            raise ValueError("Not allowed to create an IrrepsData from a list full of None")
 
         for x in list:
             if x is not None:
@@ -739,7 +737,7 @@ class IrrepsData:
         for x in self.list:
             if x is not None:
                 return x.shape[:-2]
-        raise ValueError("No data in the list, this should not happen")
+        return self.contiguous.shape[:-1]
 
     @partial(jax.jit, inline=True)
     def transform_by_angles(self, alpha, beta, gamma, k=0):

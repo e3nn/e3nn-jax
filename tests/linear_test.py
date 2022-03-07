@@ -36,7 +36,7 @@ class SlowLinear:
         self.irreps_in = irreps_in
         self.irreps_out = irreps_out
 
-    def __call__(self, ws, x, output_list=False):
+    def __call__(self, ws, x):
         ones = jnp.ones((1,))
         return self.tp.left_right(ws, x, ones)
 
@@ -55,4 +55,4 @@ def test_linear_like_tp(keys, irreps_in, irreps_out):
     ws = [jax.random.normal(next(keys), i.path_shape) for i in m.instructions]
     ws_tp = [w[:, None, :] for w in ws]
     x = m.irreps_in.randn(next(keys), (-1,))
-    assert jnp.allclose(m(ws, x), m_tp(ws_tp, x))
+    assert jnp.allclose(m(ws, x).contiguous, m_tp(ws_tp, x).contiguous)
