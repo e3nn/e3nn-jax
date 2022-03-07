@@ -655,7 +655,7 @@ class IrrepsData:
         return IrrepsData(irreps, jnp.zeros(shape + (irreps.dim,)), [None] * len(irreps))
 
     @staticmethod
-    def new(irreps, any):
+    def new(irreps, any) -> "IrrepsData":
         r"""Create a new IrrepsData
 
         Args:

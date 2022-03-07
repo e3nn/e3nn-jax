@@ -2,7 +2,7 @@ from typing import Callable, Sequence
 
 import haiku as hk
 import jax.numpy as jnp
-from e3nn_jax import (FullyConnectedTensorProduct, Irreps, Linear,
+from e3nn_jax import (FullyConnectedTensorProduct, Irreps, IrrepsData, Linear,
                       TensorProduct, TensorSquare, normalize_function)
 
 
@@ -15,7 +15,7 @@ class HLinear(hk.Module):
         self.instructions = None
         self.biases = False
 
-    def __call__(self, x, output_list=False):
+    def __call__(self, x):
         lin = Linear(self.irreps_in, self.irreps_out, self.instructions, biases=self.biases)
         w = [
             hk.get_parameter(f'bias {ins.i_out}', shape=ins.path_shape, init=hk.initializers.Constant(0.0))
@@ -23,7 +23,7 @@ class HLinear(hk.Module):
             hk.get_parameter(f'weight {ins.i_in} -> {ins.i_out}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
             for ins in lin.instructions
         ]
-        return lin(w, x, output_list=output_list)
+        return lin(w, x)
 
 
 class HFullyConnectedTensorProduct(hk.Module):
@@ -34,13 +34,13 @@ class HFullyConnectedTensorProduct(hk.Module):
         self.irreps_in2 = Irreps(irreps_in2)
         self.irreps_out = Irreps(irreps_out)
 
-    def __call__(self, x1, x2, output_list=False):
+    def __call__(self, x1, x2) -> IrrepsData:
         tp = FullyConnectedTensorProduct(self.irreps_in1, self.irreps_in2, self.irreps_out)
         ws = [
             hk.get_parameter(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
             for ins in tp.instructions
         ]
-        return tp.left_right(ws, x1, x2, output_list=output_list)
+        return tp.left_right(ws, x1, x2)
 
 
 class HTensorSquare(hk.Module):
@@ -54,13 +54,13 @@ class HTensorSquare(hk.Module):
             init = hk.initializers.RandomNormal()
         self.init = init
 
-    def __call__(self, x, output_list=False):
+    def __call__(self, x):
         tp = TensorSquare(self.irreps_in, self.irreps_out)
         ws = [
             hk.get_parameter(f'weight {i}', shape=ins.path_shape, init=self.init)
             for i, ins in enumerate(tp.instructions)
         ]
-        return tp.left_right(ws, x, x, output_list=output_list)
+        return tp.left_right(ws, x, x)
 
 
 class HMLP(hk.Module):
@@ -97,7 +97,7 @@ class HTensorProductMLP(hk.Module):
 
         assert all(i.has_weight for i in self.tp.instructions)
 
-    def __call__(self, emb, x1, x2, output_list=False):
+    def __call__(self, emb, x1, x2):
         w = self.mlp(emb)
 
         w = [
@@ -112,8 +112,4 @@ class HTensorProductMLP(hk.Module):
             )
             for i in self.tp.instructions
         ]
-        result = self.tp.left_right(w, x1, x2, output_list=output_list)
-        if output_list:
-            result = self.tp.irreps_out.replace_none_with_zeros(result)
-            result = self.irreps_out.to_list(result)
-        return result
+        return self.tp.left_right(w, x1, x2)

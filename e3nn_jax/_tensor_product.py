@@ -190,7 +190,7 @@ class TensorProduct:
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all'))
     @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
-    def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False):
+    def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False) -> IrrepsData:
         r"""Compute the tensor product of two input tensors.
 
         Args:

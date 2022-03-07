@@ -4,7 +4,8 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
-from e3nn_jax import Gate, Irreps, index_add, radius_graph, spherical_harmonics
+from e3nn_jax import (Gate, Irreps, IrrepsData, index_add, radius_graph,
+                      spherical_harmonics)
 from e3nn_jax.experimental.point_convolution import Convolution
 
 
@@ -109,18 +110,20 @@ def main():
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
     irreps_sh = Irreps("0e + 1o + 2e")
-    edge_attr = irreps_sh.to_list(spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'))
+    edge_attr = IrrepsData.from_contiguous(irreps_sh, spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component')).list
     node_input = [jnp.ones((pos.shape[0], 1, 1))]
     input = (node_input, edge_src, edge_dst, edge_attr)
 
     params = f.init(jax.random.PRNGKey(3), input)
     opt_state = opt.init(params)
 
+    jnp.set_printoptions(precision=2, suppress=True)
+
     # compile jit
     wall = time.perf_counter()
     print("compiling...")
     _, _, _, _, pred = update_n(2, params, opt_state, input, labels, batch)
-    print(pred.round(2))
+    print(pred)
 
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
 
@@ -137,7 +140,7 @@ def main():
 
     print(f"accuracy = {100 * accuracy:.0f}%")
 
-    print(pred.round(2))
+    print(pred)
 
 
 if __name__ == '__main__':
