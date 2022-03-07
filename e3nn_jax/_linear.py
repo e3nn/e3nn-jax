@@ -114,7 +114,7 @@ class Linear:
         x: array
         """
         x_list = self.irreps_in.to_list(x)  # [[mul, ir.dim], ...]
-        assert all(x.ndim == 2 for x in x_list), "the input of Linear must be a list of 2D arrays"
+        assert all(x is None or x.ndim == 2 for x in x_list), "the input of Linear must be a list of 2D arrays"
 
         out_list = [
             ins.path_weight * w

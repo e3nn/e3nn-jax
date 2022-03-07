@@ -106,6 +106,8 @@ def main():
         params, opt_state = jax.lax.fori_loop(0, n - 1, body, (params, opt_state))
         return update(params, opt_state, input, labels, batch)
 
+    jnp.set_printoptions(precision=2, suppress=True)
+
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
     irreps_sh = Irreps("0e + 1o + 2e")
@@ -120,7 +122,7 @@ def main():
     wall = time.perf_counter()
     print("compiling...")
     _, _, _, _, pred = update_n(2, params, opt_state, input, labels, batch)
-    print(pred.round(2))
+    print(pred)
 
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
 
@@ -137,7 +139,7 @@ def main():
 
     print(f"accuracy = {100 * accuracy:.0f}%")
 
-    print(pred.round(2))
+    print(pred)
 
 
 if __name__ == '__main__':
