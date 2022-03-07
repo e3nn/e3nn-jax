@@ -107,6 +107,8 @@ def main():
         params, opt_state = jax.lax.fori_loop(0, n - 1, body, (params, opt_state))
         return update(params, opt_state, input, labels, batch)
 
+    jnp.set_printoptions(precision=2, suppress=True)
+
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
     irreps_sh = Irreps("0e + 1o + 2e")
