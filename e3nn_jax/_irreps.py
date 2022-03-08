@@ -1,15 +1,15 @@
 import collections
 import itertools
 from functools import partial
-from typing import List
+from typing import List, Optional
 
 import jax
-import copy
 import jax.numpy as jnp
 import jax.scipy
-from jax import lax
 
 from e3nn_jax import matrix_to_angles, perm, quaternion_to_angles, wigner_D
+
+from .dataclasses import dataclass, static_field
 
 
 class Irrep(tuple):
@@ -224,7 +224,7 @@ class _MulIr(tuple):
         return self[0]
 
     @property
-    def ir(self) -> int:
+    def ir(self) -> Irrep:
         return self[1]
 
     @property
@@ -443,6 +443,39 @@ class Irreps(tuple):
         """
         return Irreps(super().__rmul__(other))
 
+    def unify(self):
+        r"""Regroup same irrep together.
+
+        Returns:
+            `Irreps`: new `Irreps` object
+
+        Examples:
+            >>> Irreps('0e + 1e').unify()
+            1x0e+1x1e
+
+            >>> Irreps('0e + 1e + 1e').unify()
+            1x0e+2x1e
+
+            >>> Irreps('0e + 0x1e + 0e').unify()
+            1x0e+0x1e+1x0e
+        """
+        out = []
+        for mul, ir in self:
+            if out and out[-1][1] == ir:
+                out[-1] = (out[-1][0] + mul, ir)
+            else:
+                out.append((mul, ir))
+        return Irreps(out)
+
+    def remove_zero_multiplicities(self):
+        """Remove any irreps with multiplicities of zero.
+
+        Examples:
+            >>> Irreps("4x0e + 0x1o + 2x3e").remove_zero_multiplicities()
+            4x0e+2x3e
+        """
+        return Irreps([(mul, ir) for mul, ir in self if mul > 0])
+
     def simplify(self):
         """Simplify the representations.
 
@@ -456,23 +489,13 @@ class Irreps(tuple):
 
             >>> Irreps("1e + 1e + 0e + 1e").simplify()
             2x1e+1x0e+1x1e
-        """
-        out = []
-        for mul, ir in self:
-            if out and out[-1][1] == ir:
-                out[-1] = (out[-1][0] + mul, ir)
-            elif mul > 0:
-                out.append((mul, ir))
-        return Irreps(out)
 
-    def remove_zero_multiplicities(self):
-        """Remove any irreps with multiplicities of zero.
+            Except if they are separated by an irrep with multiplicity of zero.
 
-        Examples:
-            >>> Irreps("4x0e + 0x1o + 2x3e").remove_zero_multiplicities()
-            4x0e+2x3e
+            >>> Irreps("1e + 0x0e + 1e").simplify().simplify()
+            2x1e
         """
-        return Irreps([(mul, ir) for mul, ir in self if mul > 0])
+        return self.remove_zero_multiplicities().unify()
 
     def sort(self):
         r"""Sort the representations.
@@ -519,259 +542,34 @@ class Irreps(tuple):
     def __repr__(self):
         return "+".join(f"{mul_ir}" for mul_ir in self)
 
-    @partial(jax.jit, static_argnums=(0, 1, 3), inline=True)
-    def extract(self, indices, x, axis=-1):
-        r"""Extract sub sets of irreps
-
-        Args:
-            indices (tuple of int):
-            x (`jnp.ndarray`):
-
-        Returns:
-            `jnp.ndarray`: ``[self[i] for i in indices]``
-
-        Examples:
-            >>> irreps = Irreps("0e + 0e + 0e + 1e")
-            >>> irreps.extract((0, 2), jnp.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0]))
-            DeviceArray([1., 3.], dtype=float32)
-        """
-        # TODO: input a list?
-        s = self.slices()
-        s = [s[i] for i in indices]
-
-        i = 0
-        while i + 1 < len(s):
-            if s[i].stop == s[i + 1].start:
-                s[i] = slice(s[i].start, s[i + 1].stop)
-                del s[i + 1]
-            else:
-                i = i + 1
-
-        if len(s) == 1 and s[0] == slice(0, self.dim):
-            return x
-
-        # TODO output a list?
-        return jnp.concatenate([
-            lax.slice_in_dim(x, i.start, i.stop, axis=axis)
-            for i in s
-        ], axis=axis)
-
-    def assert_compatible(self, x):
-        r"""
-
-        Examples:
-            >>> irreps = Irreps("0e + 0e + 0e + 1e")
-            >>> irreps.assert_compatible(jnp.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0]))
-            >>> irreps.assert_compatible([jnp.array([[1.0]]), None, None, jnp.array([[0.0, 0.0, 0.0]])])
-        """
-        if isinstance(x, list):
-            if any(a is None for a in x):
-                # list containing some None
-                assert len(x) == len(self), "list with None is only compatible if the length match"
-                shape = None
-                for (mul, ir), a in zip(self, x):
-                    if a is None:
-                        continue
-                    assert a.shape[-1] == ir.dim, f"shape mismatch: {a.shape[-1]} and {ir.dim}"
-                    assert a.shape[-2] == mul, f"shape mismatch: {a.shape[-2]} and {mul}"
-                    if shape is None:
-                        shape = a.shape[:-2]
-                    else:
-                        assert shape == a.shape[:-2], f"shape mismatch: {shape} and {a.shape[:-2]}"
-            else:
-                # list without any None
-                Info = collections.namedtuple("info", ["mul", "dim"])
-                assert len({a.shape[:-2] for a in x}) <= 1, "all arrays must have the same shape"
-                x_ = [Info(a.shape[-2], a.shape[-1]) for a in x]
-                x = copy.deepcopy(x_)
-                y = [Info(mul, ir.dim) for mul, ir in self]
-                xi = 0
-                yi = 0
-                while True:
-                    if xi >= len(x) and yi >= len(y):
-                        break
-                    if xi < len(x) and x[xi].mul == 0:
-                        xi += 1
-                        continue
-                    if yi < len(y) and y[yi].mul == 0:
-                        yi += 1
-                        continue
-                    if xi >= len(x):
-                        raise ValueError(f"the data contains less irreps than expected: {x_} < {self}")
-                    if yi >= len(y):
-                        raise ValueError(f"the data contains more irreps than expected: {x_} > {self}")
-                    assert x[xi].dim == y[yi].dim, f"dimension mismatch: {x[xi].dim} and {y[yi].dim}"
-                    mul = min(x[xi].mul, y[yi].mul)
-                    x[xi] = Info(x[xi].mul - mul, x[xi].dim)
-                    y[yi] = Info(y[yi].mul - mul, y[yi].dim)
-        else:
-            # array
-            assert x.shape[-1] == self.dim, f"shape mismatch: {x.shape[-1]} and {self.dim}"
-
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def to_list(self, x):
-        r"""Split irreps into blocks
-
-        Args:
-            x (`jnp.ndarray` or list of `jnp.ndarray`): array of shape :math:`(..., d)`
-
-        Returns:
-            list of `jnp.ndarray` of shape :math:`(..., mul, 2 l + 1)`
-
-        Examples:
-            >>> irreps = Irreps("0e + 1e")
-            >>> irreps.to_list(jnp.array([1.0, 0.0, 0.0, 0.0]))
-            [DeviceArray([[1.]], dtype=float32), DeviceArray([[0., 0., 0.]], dtype=float32)]
-            >>> irreps.to_list([jnp.array([[1.0]]), None])
-            [DeviceArray([[1.]], dtype=float32), None]
-            >>> irreps = Irreps("2x0e")
-            >>> irreps.to_list([jnp.array([[1.0]]), jnp.array([[1.0]])])
-            [DeviceArray([[1.],
-                         [1.]], dtype=float32)]
-        """
-        self.assert_compatible(x)
-
-        if isinstance(x, list):
-            if len(x) == 0:
-                return []
-
-            if any(a is None for a in x):
-                # list containing some None
-                assert len(x) == len(self), "list with None is only compatible if the length match"
-                return x
-            else:
-                # list without any None
-                out = []
-                r = x.pop(0)
-
-                for mul, ir in self[:-1]:
-                    assert r.shape[-1] == ir.dim
-
-                    while r.shape[-2] < mul:
-                        r = jnp.concatenate([r, x.pop(0)], axis=-2)
-
-                    if r.shape[-2] == mul:
-                        out.append(r)
-                        r = x.pop(0)
-                    else:
-                        out.append(r[..., :mul, :])
-                        r = r[..., mul:, :]
-
-                mul, ir = self[-1]
-                assert r.shape[-1] == ir.dim
-
-                while r.shape[-2] < mul:
-                    r = jnp.concatenate([r, x.pop(0)], axis=-2)
-
-                assert r.shape[-2] == mul
-                assert len(x) == 0
-
-                out.append(r)
-
-                return out
-
-        # array
-        shape = x.shape[:-1]
-        if len(self) == 1:
-            mul, ir = self[0]
-            return [jnp.reshape(x, shape + (mul, ir.dim))]
-        else:
-            return [
-                jnp.reshape(x[..., i], shape + (mul, ir.dim))
-                for i, (mul, ir) in zip(self.slices(), self)
-            ]
-
-    def shape_of(self, x):
-        r"""Infers the shape of the data
-
-        Args:
-            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
-
-        Returns:
-            tuple of int: shape of the data
-        """
-        if isinstance(x, list):
-            for a in x:
-                if a is not None:
-                    return a.shape[:-2]
-            raise ValueError(f"cannot get the shape of {x}")
-        return x.shape[:-1]
-
-    def replace_none_with_zeros(self, x):
-        r"""Replace None with zeros
-
-        Only works for list of same length as the irreps
-        """
-        assert isinstance(x, list)
-        assert len(x) == len(self)
-        shape = self.shape_of(x)
-        out = []
-        for (mul, ir), a in zip(self, x):
-            if a is None:
-                a = jnp.zeros(shape + (mul, ir.dim))
-            out.append(a)
-        return out
-
-    @partial(jax.jit, static_argnums=(0,), inline=True)
-    def to_contiguous(self, x):
-        r"""Convert data into a contiguous array
-
-        If the data is a list containing some `None`, it has to have the same length as the irreps.
-
-        Args:
-            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
-
-        Returns:
-            `jnp.ndarray`
-        """
-        self.assert_compatible(x)
-        if isinstance(x, list):
-            shape = self.shape_of(x)
-            if any(a is None for a in x):
-                x = self.replace_none_with_zeros(x)
-            return jnp.concatenate([
-                a.reshape(shape + (a.shape[-2] * a.shape[-1],))
-                for a in x
-            ], axis=-1)
-        return x
-
-    @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_angles(self, x, alpha, beta, gamma, k=0):
+    def transform_by_angles(self, contiguous, alpha, beta, gamma, k=0):
         r"""Rotate the data by angles according to the irreps
 
         Args:
-            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
+            contiguous (`jnp.ndarray`): data compatible with the irreps.
             alpha (float): third rotation angle around the second axis (in radians)
             beta (float): second rotation angle around the first axis (in radians)
             gamma (float): first rotation angle around the second axis (in radians)
             k (int): parity operation
 
         Returns:
-            `jnp.ndarray` or list of optional `jnp.ndarray`
+            `jnp.ndarray`
         """
-        shape = self.shape_of(x)
-        D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _mul, ir in self}}
-        result = [
-            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), shape + (mul, ir.dim))
-            if x is not None else None
-            for (mul, ir), x in zip(self, self.to_list(x))
-        ]
-        if isinstance(x, list):
-            return result
-        else:
-            return self.to_contiguous(result)
+        assert contiguous.shape[-1] == self.dim
+        return IrrepsData.from_contiguous(self, contiguous).transform_by_angles(alpha, beta, gamma, k).contiguous
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_quaternion(self, x, q, k=0):
+    def transform_by_quaternion(self, contiguous, q, k=0):
         r"""Rotate data by a rotation given by a quaternion
 
         Args:
-            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
+            contiguous (`jnp.ndarray`): data compatible with the irreps.
             q (`jnp.ndarray`): quaternion
             k (int): parity operation
 
         Returns:
-            `jnp.ndarray` or list of optional `jnp.ndarray`
+            `jnp.ndarray`
 
         Examples:
             >>> irreps = Irreps("0e + 1o + 2e")
@@ -781,30 +579,24 @@ class Irreps(tuple):
             ...     1
             ... ) + 0.0
             DeviceArray([ 1.,  0., -1.,  0.,  0.,  0.,  1.,  0.,  0.], dtype=float32)
-            >>> irreps.transform_by_quaternion(
-            ...     [None, jnp.array([[1.0, 1.0, 1.0]]), None],
-            ...     jnp.array([1.0, 0.0, 0.0, 0.0]),
-            ...     1
-            ... )
-            [None, DeviceArray([[-1., -1., -1.]], dtype=float32), None]
         """
-        return self.transform_by_angles(x, *quaternion_to_angles(q), k)
+        return self.transform_by_angles(contiguous, *quaternion_to_angles(q), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_matrix(self, x, R):
+    def transform_by_matrix(self, contiguous, R):
         r"""Rotate data by a rotation given by a matrix
 
         Args:
-            x (`jnp.ndarray` or list of optional `jnp.ndarray`): data compatible with the irreps.
+            contiguous (`jnp.ndarray`): data compatible with the irreps.
             R (`jnp.ndarray`): rotation matrix
 
         Returns:
-            `jnp.ndarray` or list of optional `jnp.ndarray`
+            `jnp.ndarray`
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
         k = (1 - d) / 2
-        return self.transform_by_angles(x, *matrix_to_angles(R), k)
+        return self.transform_by_angles(contiguous, *matrix_to_angles(R), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_angles(self, alpha, beta, gamma, k=0):
@@ -848,3 +640,243 @@ class Irreps(tuple):
         R = d[..., None, None] * R
         k = (1 - d) / 2
         return self.D_from_angles(*matrix_to_angles(R), k)
+
+
+@dataclass
+class IrrepsData:
+    r"""Class storing data and its irreps"""
+
+    irreps: Irreps = static_field()
+    contiguous: jnp.array
+    list: List[Optional[jnp.array]]
+
+    @staticmethod
+    def zeros(irreps: Irreps, shape) -> "IrrepsData":
+        return IrrepsData(irreps, jnp.zeros(shape + (irreps.dim,)), [None] * len(irreps))
+
+    @staticmethod
+    def new(irreps, any) -> "IrrepsData":
+        r"""Create a new IrrepsData
+
+        Args:
+            irreps (`Irreps`): the irreps of the data
+            any: the data
+
+        Returns:
+            `IrrepsData`
+        """
+        if isinstance(any, IrrepsData):
+            return any.convert(irreps)
+        if isinstance(any, list):
+            return IrrepsData.from_list(irreps, any)
+        return IrrepsData.from_contiguous(irreps, any)
+
+    @staticmethod
+    def from_list(irreps, list, shape=()):
+        r"""Create an IrrepsData from a list of arrays
+
+        Args:
+            irreps (Irreps): irreps
+            list (list of optional `jnp.ndarray`): list of arrays
+
+        Returns:
+            IrrepsData
+        """
+        irreps = Irreps(irreps)
+        assert len(irreps) == len(list), f"irreps has {len(irreps)} elements and list has {len(list)}"
+        assert all(x is None or isinstance(x, jnp.ndarray) for x in list)
+        assert all(
+            x is None or x.shape[-2:] == (mul, ir.dim)
+            for x, (mul, ir) in zip(list, irreps)
+        )
+
+        for x in list:
+            if x is not None:
+                shape = x.shape[:-2]
+
+        if irreps.dim > 0:
+            contiguous = jnp.concatenate([
+                jnp.zeros(shape + (mul_ir.dim,))
+                if x is None else
+                x.reshape(shape + (x.shape[-2] * x.shape[-1],))
+                for mul_ir, x in zip(irreps, list)
+            ], axis=-1)
+        else:
+            contiguous = jnp.zeros(shape + (0,))
+        return IrrepsData(irreps, contiguous, list)
+
+    @staticmethod
+    def from_contiguous(irreps, contiguous):
+        r"""Create an IrrepsData from a contiguous array
+
+        Args:
+            irreps (Irreps): irreps
+            contiguous (`jnp.ndarray`): contiguous array
+
+        Returns:
+            IrrepsData
+        """
+        irreps = Irreps(irreps)
+        assert contiguous.shape[-1] == irreps.dim
+
+        shape = contiguous.shape[:-1]
+        if len(irreps) == 1:
+            mul, ir = irreps[0]
+            list = [jnp.reshape(contiguous, shape + (mul, ir.dim))]
+        else:
+            list = [
+                jnp.reshape(contiguous[..., i], shape + (mul, ir.dim))
+                for i, (mul, ir) in zip(irreps.slices(), irreps)
+            ]
+        return IrrepsData(irreps, contiguous, list)
+
+    def __repr__(self):
+        return f"IrrepsData({self.irreps})"
+
+    def _shape_from_list(self):
+        for x in self.list:
+            if x is not None:
+                return x.shape[:-2]
+        return self.contiguous.shape[:-1]
+
+    @partial(jax.jit, inline=True)
+    def transform_by_angles(self, alpha, beta, gamma, k=0):
+        r"""Rotate the data by angles according to the irreps
+
+        Args:
+            alpha (float): third rotation angle around the second axis (in radians)
+            beta (float): second rotation angle around the first axis (in radians)
+            gamma (float): first rotation angle around the second axis (in radians)
+            k (int): parity operation
+
+        Returns:
+            IrrepsData
+        """
+        # Optimization: we use only the list of arrays, not the contiguous data
+        shape = self._shape_from_list()
+        D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _mul, ir in self.irreps}}
+        new_list = [
+            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), shape + (mul, ir.dim))
+            if x is not None else None
+            for (mul, ir), x in zip(self.irreps, self.list)
+        ]
+        return IrrepsData.from_list(self.irreps, new_list)
+
+    @partial(jax.jit, inline=True)
+    def transform_by_quaternion(self, q, k=0):
+        r"""Rotate data by a rotation given by a quaternion
+
+        Args:
+            q (`jnp.ndarray`): quaternion
+            k (int): parity operation
+
+        Returns:
+            IrrepsData
+        """
+        return self.transform_by_angles(*quaternion_to_angles(q), k)
+
+    @partial(jax.jit, inline=True)
+    def transform_by_matrix(self, R):
+        r"""Rotate data by a rotation given by a matrix
+
+        Args:
+            R (`jnp.ndarray`): rotation matrix
+
+        Returns:
+            IrrepsData
+        """
+        d = jnp.sign(jnp.linalg.det(R))
+        R = d[..., None, None] * R
+        k = (1 - d) / 2
+        return self.transform_by_angles(*matrix_to_angles(R), k)
+
+    def convert(self, irreps):
+        r"""Convert the list property into an equivalent irreps
+
+        Args:
+            irreps (Irreps): new irreps
+
+        Returns:
+            `IrrepsData`: data with the new irreps
+
+        Raises:
+            ValueError: if the irreps are not compatible
+
+        Example:
+        >>> id = IrrepsData.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
+        >>> jax.tree_map(lambda x: x.shape, id.convert("20x0e")).list
+        [(1, 20, 1)]
+        """
+        # Optimization: we use only the list of arrays, not the contiguous data
+        irreps = Irreps(irreps)
+        assert irreps.unify() == self.irreps.unify()
+
+        shape = self._shape_from_list()
+
+        new_list = []
+        current_array = 0
+
+        while len(new_list) < len(irreps) and irreps[len(new_list)].mul == 0:
+            new_list.append(None)
+
+        for mul_ir, y in zip(self.irreps, self.list):
+            mul, _ = mul_ir
+
+            while mul > 0:
+                if isinstance(current_array, int):
+                    current_mul = current_array
+                else:
+                    current_mul = current_array.shape[-2]
+
+                needed_mul = irreps[len(new_list)].mul - current_mul
+
+                if mul <= needed_mul:
+                    x = y
+                    m = mul
+                    mul = 0
+                elif mul > needed_mul:
+                    if y is None:
+                        x = None
+                    else:
+                        x, y = jnp.split(y, [needed_mul], axis=-2)
+                    m = needed_mul
+                    mul -= needed_mul
+
+                if x is None:
+                    if isinstance(current_array, int):
+                        current_array += m
+                    else:
+                        current_array = jnp.concatenate([current_array, jnp.zeros(shape + (m, mul_ir.ir.dim))], axis=-2)
+                else:
+                    if isinstance(current_array, int):
+                        if current_array == 0:
+                            current_array = x
+                        else:
+                            current_array = jnp.concatenate([jnp.zeros(shape + (current_array, mul_ir.ir.dim)), x], axis=-2)
+                    else:
+                        current_array = jnp.concatenate([current_array, x], axis=-2)
+
+                if isinstance(current_array, int):
+                    if current_array == irreps[len(new_list)].mul:
+                        new_list.append(None)
+                        current_array = 0
+                else:
+                    if current_array.shape[-2] == irreps[len(new_list)].mul:
+                        new_list.append(current_array)
+                        current_array = 0
+
+                while len(new_list) < len(irreps) and irreps[len(new_list)].mul == 0:
+                    new_list.append(None)
+
+        assert current_array == 0
+
+        assert len(new_list) == len(irreps)
+        assert all(x is None or isinstance(x, jnp.ndarray) for x in new_list)
+        assert all(
+            x is None or x.shape[-2:] == (mul, ir.dim)
+            for x, (mul, ir) in zip(new_list, irreps)
+        )
+        if all(x is None for x in new_list):
+            raise ValueError("Not allowed to create an IrrepsData from a list full of None")
+
+        return IrrepsData(irreps, self.contiguous, new_list)

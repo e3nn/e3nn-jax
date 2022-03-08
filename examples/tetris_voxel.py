@@ -54,7 +54,7 @@ def main():
 
         def g(x):
             y = jax.vmap(gate)(x.reshape(-1, x.shape[-1]))
-            y = gate.irreps_out.to_contiguous(y)
+            y = y.contiguous
             return y.reshape(x.shape[:-1] + (-1,))
 
         # Shallower and wider convolutions also works

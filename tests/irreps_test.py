@@ -1,7 +1,7 @@
+import jax
 import jax.numpy as jnp
 import pytest
-import jax
-from e3nn_jax import Irrep, Irreps
+from e3nn_jax import Irrep, Irreps, IrrepsData
 
 
 def test_creation():
@@ -97,27 +97,10 @@ def test_fail1():
         Irreps([(32, 1)])
 
 
-def test_list_contiguous(keys):
-    irreps = Irreps("3x0e + 2x1e")
-    x = irreps.randn(next(keys), (4, 4, -1))
+def test_irreps_data_convert():
+    id = IrrepsData.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
+    assert jax.tree_map(lambda x: x.shape, id.convert("0x0e + 20x0e + 0x0e")).list == [None, (1, 20, 1), None]
+    assert jax.tree_map(lambda x: x.shape, id.convert("7x0e + 4x0e + 9x0e")).list == [None, (1, 4, 1), (1, 9, 1)]
 
-    assert irreps.to_contiguous(x) is x
-    assert jax.tree_map(lambda a: a.shape, irreps.to_list(x)) == [(4, 4, 3, 1), (4, 4, 2, 3)]
-
-    x = [None, jax.random.normal(next(keys), (4, 4, 2, 3))]
-
-    assert jnp.allclose(
-        irreps.to_contiguous(x),
-        jnp.concatenate([jnp.zeros((4, 4, 3)), x[1].reshape(4, 4, 6)], axis=-1)
-    )
-
-    assert irreps.to_list(x) == x
-
-    y = irreps.to_list([jnp.ones((5, 3, 1)), jnp.ones((5, 1, 3)), jnp.ones((5, 1, 3))])
-    assert len(y) == len(irreps)
-
-    y = irreps.to_list([None, jnp.ones((5, 2, 3))])
-    assert len(y) == len(irreps)
-
-    with pytest.raises(AssertionError):
-        irreps.to_list([jnp.ones((5, 3, 1)), None, None])
+    id = IrrepsData.from_list("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))])
+    assert jax.tree_map(lambda x: x.shape, id.convert("5x0e + 5x0e + 5x1e + 5x1e")).list == [None, None, (1, 5, 3), (1, 5, 3)]

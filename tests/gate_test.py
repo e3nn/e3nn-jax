@@ -9,7 +9,7 @@ def test_gate(keys):
     irreps_gates, act_gates, irreps_gated = Irreps("32x0o"), [jnp.tanh], Irreps("16x1e+16x1o")
 
     g = Gate(irreps_scalars, act_scalars, irreps_gates, act_gates, irreps_gated)
-    f = jax.jit(lambda x: g.irreps_out.to_contiguous(jax.vmap(g)(x)))
+    f = jax.jit(lambda x: jax.vmap(g)(x).contiguous)
 
     x = g.irreps_in.randn(next(keys), (10, -1,))
     y = f(x)

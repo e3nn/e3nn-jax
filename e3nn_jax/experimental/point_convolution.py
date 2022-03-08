@@ -1,9 +1,10 @@
+from functools import partial
+
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, TensorProduct, index_add
+from e3nn_jax import Irreps, IrrepsData, TensorProduct, index_add
 from e3nn_jax.nn import HMLP, HFullyConnectedTensorProduct, HLinear
-from functools import partial
 
 
 class Convolution(hk.Module):
@@ -43,23 +44,26 @@ class Convolution(hk.Module):
 
     @partial(jax.profiler.annotate_function, name="convolution")
     def __call__(self, node_input, edge_src, edge_dst, edge_attr, node_attr=None, edge_scalar_attr=None):
+        node_input = IrrepsData.new(self.irreps_node_input, node_input)
+        edge_attr = IrrepsData.new(self.irreps_edge_attr, edge_attr)
 
         # def stat(text, z):
         #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
 
         if self.irreps_node_attr is not None and node_attr is not None:
-            tmp = jax.vmap(partial(HFullyConnectedTensorProduct(
+            node_attr = IrrepsData.new(self.irreps_node_attr, node_attr)
+            tmp = jax.vmap(HFullyConnectedTensorProduct(
                 self.irreps_node_input,
                 self.irreps_node_attr,
                 self.irreps_node_input + self.irreps_node_output
-            ), output_list=True))(node_input, node_attr)
+            ))(node_input, node_attr)
         else:
-            tmp = jax.vmap(partial(HLinear(
+            tmp = jax.vmap(HLinear(
                 self.irreps_node_input,
                 self.irreps_node_input + self.irreps_node_output
-            ), output_list=True))(node_input)
+            ))(node_input)
 
-        node_features, node_self_out = tmp[:len(self.irreps_node_input)], tmp[len(self.irreps_node_input):]
+        node_features, node_self_out = tmp.list[:len(self.irreps_node_input)], tmp.list[len(self.irreps_node_input):]
 
         # stat('node_features', node_features)
         # stat('node_self_out', node_self_out)
@@ -123,7 +127,7 @@ class Convolution(hk.Module):
 
             # stat('weight', weight)
 
-            edge_features = jax.vmap(partial(tp.left_right, output_list=False), (0, 0, 0), 0)(weight, edge_features, edge_attr)
+            edge_features: IrrepsData = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr)
         else:
             weight = [
                 hk.get_parameter(
@@ -133,15 +137,15 @@ class Convolution(hk.Module):
                 )
                 for ins in tp.instructions
             ]
-            edge_features = jax.vmap(partial(tp.left_right, output_list=False), (None, 0, 0), 0)(weight, edge_features, edge_attr)
+            edge_features: IrrepsData = jax.vmap(tp.left_right, (None, 0, 0), 0)(weight, edge_features, edge_attr)
 
         # stat('edge_features 2', edge_features)
 
         ######################################################################################
 
-        shape = self.irreps_node_input.shape_of(node_input)
+        shape = node_input._shape_from_list()
 
-        node_features = index_add(edge_dst, edge_features, out_dim=shape[0])
+        node_features = index_add(edge_dst, edge_features.contiguous, out_dim=shape[0])
 
         node_features = node_features / self.num_neighbors**0.5
 
@@ -150,16 +154,16 @@ class Convolution(hk.Module):
         ######################################################################################
 
         if self.irreps_node_attr is not None and node_attr is not None:
-            node_conv_out = jax.vmap(partial(HFullyConnectedTensorProduct(
+            node_conv_out = jax.vmap(HFullyConnectedTensorProduct(
                 irreps_mid,
                 self.irreps_node_attr,
                 self.irreps_node_output
-            ), output_list=True))(node_features, node_attr)
+            ))(node_features, node_attr)
         else:
-            node_conv_out = jax.vmap(partial(HLinear(
+            node_conv_out = jax.vmap(HLinear(
                 irreps_mid,
                 self.irreps_node_output
-            ), output_list=True))(node_features)
+            ))(node_features)
 
         # stat('node_conv_out', node_conv_out)
 
@@ -178,4 +182,6 @@ class Convolution(hk.Module):
                 return x
             return c * x + s * y
 
-        return [f(x, y) for x, y in zip(node_self_out, node_conv_out)]
+        output = [f(x, y) for x, y in zip(node_self_out, node_conv_out.list)]
+
+        return IrrepsData.from_list(self.irreps_node_output, output)

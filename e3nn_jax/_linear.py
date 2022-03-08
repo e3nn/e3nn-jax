@@ -3,7 +3,7 @@ from typing import Any, List, NamedTuple, Optional, Tuple, Union
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps
+from e3nn_jax import Irreps, IrrepsData
 
 from ._tensor_product import _sum_tensors
 
@@ -108,21 +108,21 @@ class Linear:
         self.instructions = instructions
         self.output_mask = output_mask
 
-    def __call__(self, ws, x, output_list=False):
+    def __call__(self, ws, x):
         """
         ws: List of arrays
-        x: array
+        x: input
         """
-        x_list = self.irreps_in.to_list(x)  # [[mul, ir.dim], ...]
-        assert all(x is None or x.ndim == 2 for x in x_list), "the input of Linear must be a list of 2D arrays"
+        x = IrrepsData.new(self.irreps_in, x)
+        assert all(x is None or x.ndim == 2 for x in x.list), "the input of Linear must be a list of 2D arrays"
 
         out_list = [
             ins.path_weight * w
             if ins.i_in == -1 else
             (
                 None
-                if x_list[ins.i_in] is None else
-                ins.path_weight * jnp.einsum("uw,ui->wi", w, x_list[ins.i_in])
+                if x.list[ins.i_in] is None else
+                ins.path_weight * jnp.einsum("uw,ui->wi", w, x.list[ins.i_in])
             )
             for ins, w in zip(self.instructions, ws)
         ]
@@ -131,13 +131,8 @@ class Linear:
             _sum_tensors(
                 [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
                 shape=(mul_ir_out.mul, mul_ir_out.ir.dim,),
-                empty_return_none=output_list,
+                empty_return_none=True,
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
-            if mul_ir_out.mul > 0
         ]
-        if output_list:
-            return out
-        if self.irreps_out.dim == 0:
-            return jnp.zeros((0,))
-        return jnp.concatenate([x.flatten() for x in out])
+        return IrrepsData.from_list(self.irreps_out, out)

@@ -1,4 +1,4 @@
-from e3nn_jax import ScalarActivation, ElementwiseTensorProduct, Irreps
+from e3nn_jax import ScalarActivation, ElementwiseTensorProduct, Irreps, IrrepsData
 
 
 class Gate:
@@ -80,21 +80,21 @@ class Gate:
         r"""evaluate the gate activation function.
 
         Args:
-            features (`jnp.ndarray`): The features to be passed through the gate activation.
+            features: The features to be passed through the gate activation.
 
         Returns:
-            `jnp.ndarray`: The output of the gate activation function.
+            `IrrepsData`: The output of the gate activation function.
         """
-        features = self.irreps_in.to_list(features)
-        scalars = features[:len(self.irreps_scalars)]
-        gates = features[len(self.irreps_scalars): -len(self.irreps_gated)]
-        gated = features[-len(self.irreps_gated):]
+        features = IrrepsData.new(self.irreps_in, features).list
+        scalars = IrrepsData.from_list(self.irreps_scalars, features[:len(self.irreps_scalars)])
+        gates = IrrepsData.from_list(self.irreps_gates, features[len(self.irreps_scalars): -len(self.irreps_gated)])
+        gated = IrrepsData.from_list(self.irreps_gated, features[-len(self.irreps_gated):])
 
         scalars = self.act_scalars(scalars)
         if gates:
             gates = self.act_gates(gates)
-            gated = self.mul.left_right(gated, gates, output_list=True)
-            features = scalars + gated
+            gated = self.mul.left_right(gated, gates)
+            features = IrrepsData.from_list(self.irreps_out, scalars.list + gated.list)
         else:
             features = scalars
         return features
