@@ -12,7 +12,7 @@ def test_equivariant(keys, irreps):
     @hk.transform_with_state
     def b(x, is_training=True):
         m = BatchNorm(irreps)
-        return m(x, is_training)
+        return m(x, is_training).contiguous
 
     params, state = b.init(next(keys), irreps.randn(next(keys), (16, -1)))
     _, state = b.apply(params, state, irreps.randn(next(keys), (16, -1)))
@@ -66,11 +66,11 @@ def test_normalization(keys, instance):
     x = jax.random.normal(next(keys), (batch, n, irreps.dim)) * 5 + 10
     x, state = b.apply(params, state, x)
 
-    a = x[..., :3]  # [batch, space, mul]
+    a = x.list[0]  # [batch, space, mul, 1]
     assert jnp.max(jnp.abs(a.mean([0, 1]))) < float_tolerance
     assert jnp.max(jnp.abs(jnp.square(a).mean([0, 1]) - 1)) < sqrt_float_tolerance
 
-    a = x[..., 3:].reshape(batch, n, 4, 3)  # [batch, space, mul, repr]
+    a = x.list[1]  # [batch, space, mul, repr]
     assert jnp.max(jnp.abs(jnp.square(a).sum(3).mean([0, 1]) - 1)) < sqrt_float_tolerance
 
     @hk.without_apply_rng
@@ -84,9 +84,9 @@ def test_normalization(keys, instance):
     x = jax.random.normal(next(keys), (batch, n, irreps.dim)) * 5 + 10.0
     x, state = b.apply(params, state, x)
 
-    a = x[..., :3]  # [batch, space, mul]
+    a = x.list[0]  # [batch, space, mul, 1]
     assert jnp.max(jnp.abs(a.mean([0, 1]))) < float_tolerance
     assert jnp.max(jnp.abs(jnp.square(a).mean([0, 1]) - 1)) < sqrt_float_tolerance
 
-    a = x[..., 3:].reshape(batch, n, 4, 3)  # [batch, space, mul, repr]
+    a = x.list[1]  # [batch, space, mul, repr]
     assert jnp.max(jnp.abs(jnp.square(a).mean(3).mean([0, 1]) - 1)) < sqrt_float_tolerance

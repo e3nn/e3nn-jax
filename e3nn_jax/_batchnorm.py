@@ -3,7 +3,7 @@ import haiku as hk
 import jax.numpy as jnp
 import jax
 
-from e3nn_jax import Irreps
+from e3nn_jax import Irreps, IrrepsData
 
 
 class BatchNorm(hk.Module):
@@ -63,8 +63,10 @@ class BatchNorm(hk.Module):
             weight = hk.get_parameter("weight", shape=(self.num_features,), init=jnp.ones)
             bias = hk.get_parameter("bias", shape=(self.num_scalar,), init=jnp.zeros)
 
-        batch, *size, dim = input.shape
-        input = input.reshape(batch, -1, dim)  # [batch, sample, stacked features]
+        input = IrrepsData.new(self.irreps, input)
+        batch, *size = input._shape_from_list()
+        input = input.list
+        input = [x.reshape(batch, -1, mul, ir.dim) for (mul, ir), x in zip(self.irreps, input)]
 
         if is_training and not self.instance:
             new_means = []
@@ -77,13 +79,10 @@ class BatchNorm(hk.Module):
         irm = 0
         ib = 0
 
-        for (mul, ir), irrep_slice in zip(self.irreps, self.irreps.slices()):
-            d = ir.dim
+        for (mul, ir), field in zip(self.irreps, input):
             k = i + mul
-            field = input[..., irrep_slice]  # [batch, sample, mul * repr]
 
             # [batch, sample, mul, repr]
-            field = field.reshape(batch, -1, mul, d)
 
             if ir.is_scalar():  # scalars
                 if is_training or self.instance:
@@ -135,7 +134,7 @@ class BatchNorm(hk.Module):
                 field += sub_bias.reshape(mul, 1)  # [batch, sample, mul, repr]
                 ib += mul
 
-            fields.append(field.reshape(batch, -1, mul * d))  # [batch, sample, mul * repr]
+            fields.append(field)  # [batch, sample, mul, repr]
             i = k
 
         if is_training and not self.instance:
@@ -144,5 +143,5 @@ class BatchNorm(hk.Module):
             if len(new_vars):
                 hk.set_state("running_var", jnp.concatenate(new_vars))
 
-        output = jnp.concatenate(fields, axis=2)  # [batch, sample, stacked features]
-        return output.reshape(batch, *size, dim)
+        output = [x.reshape(batch, *size, mul, ir.dim) for (mul, ir), x in zip(self.irreps, fields)]
+        return IrrepsData.from_list(self.irreps, output)
