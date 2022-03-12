@@ -133,7 +133,7 @@ def zoom(input, resize_rate):
     """
     nx, ny, nz = input.shape[-3:]
 
-    if isinstance(resize_rate, int):
+    if isinstance(resize_rate, (float, int)):
         resize_rate = (resize_rate,) * 3
 
     def f(n_src, n_dst):

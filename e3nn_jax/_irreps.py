@@ -880,3 +880,11 @@ class IrrepsData:
             raise ValueError("Not allowed to create an IrrepsData from a list full of None")
 
         return IrrepsData(irreps, self.contiguous, new_list)
+
+    def __add__(self, other):
+        assert self.irreps == other.irreps
+        return jax.tree_map(lambda x, y: x + y, self, other)
+
+    def __sub__(self, other):
+        assert self.irreps == other.irreps
+        return jax.tree_map(lambda x, y: x - y, self, other)
