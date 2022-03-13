@@ -888,3 +888,20 @@ class IrrepsData:
     def __sub__(self, other):
         assert self.irreps == other.irreps
         return jax.tree_map(lambda x, y: x - y, self, other)
+
+    @staticmethod
+    def cat(args):
+        r"""Concatenate IrrepsData
+
+        Args:
+            args (list of `IrrepsData`): list of data to concatenate
+
+        Returns:
+            `IrrepsData`: concatenated data
+        """
+        irreps = Irreps(sum([x.irreps for x in args], Irreps("")))
+        return IrrepsData(
+            irreps,
+            jnp.concatenate([x.contiguous for x in args], axis=-1),
+            sum([x.list for x in args], [])
+        )
