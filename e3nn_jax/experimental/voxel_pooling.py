@@ -138,9 +138,8 @@ def zoom(input, resize_rate):
 
     def f(n_src, n_dst):
         a = n_src / n_dst * jnp.arange(n_dst)
-        # delta = 0.5 * (n_src / n_dst - 1)
-        # return delta + a
-        return a  # the offset to the left make it compatible with the stride
+        delta = 0.5 * (n_src / n_dst - 1)
+        return delta + a
 
     xi = f(nx, round(nx * resize_rate[0]))
     yi = f(ny, round(ny * resize_rate[1]))
