@@ -521,6 +521,24 @@ class Irreps(tuple):
         irreps = Irreps([(mul, ir) for ir, _, mul in out])
         return Ret(irreps, p, inv)
 
+    def filter(self, ir_list):
+        r"""Filter the irreps.
+
+        Args:
+            ir_list (list of `Irrep`): list of irrep to keep
+
+        Returns:
+            `Irreps`: filtered irreps
+
+        Examples:
+            >>> Irreps("1e + 2e + 0e").filter(["0e", "1e"])
+            1x1e+1x0e
+        """
+        if isinstance(ir_list, (str, Irrep)):
+            ir_list = [ir_list]
+        ir_list = {Irrep(ir) for ir in ir_list}
+        return Irreps([(mul, ir) for mul, ir in self if ir in ir_list])
+
     @property
     def dim(self) -> int:
         return sum(mul * ir.dim for mul, ir in self)
