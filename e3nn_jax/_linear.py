@@ -89,7 +89,7 @@ class Linear:
             for i_out, (bias, mul_ir) in enumerate(zip(biases, irreps_out)) if bias
         ]
 
-        with jax.core.eval_context():
+        with jax.ensure_compile_time_eval():
             if irreps_out.dim > 0:
                 output_mask = jnp.concatenate([
                     jnp.ones(mul_ir.dim)

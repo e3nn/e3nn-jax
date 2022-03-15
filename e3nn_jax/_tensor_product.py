@@ -174,7 +174,7 @@ class TensorProduct:
             for ins, alpha in zip(instructions, normalization_coefficients)
         ]
 
-        with jax.core.eval_context():
+        with jax.ensure_compile_time_eval():
             if self.irreps_out.dim > 0:
                 self.output_mask = jnp.concatenate([
                     jnp.ones(mul_ir.dim)
@@ -243,7 +243,7 @@ class TensorProduct:
         assert all(x is None or x.ndim == 2 for x in input2.list), "the input of TensorProduct must be a list of 2D arrays"
 
         if fuse_all:
-            with jax.core.eval_context():
+            with jax.ensure_compile_time_eval():
                 num_path = weights_flat.size
                 has_path_with_no_weights = any(not ins.has_weight for ins in self.instructions)
                 i = 0
@@ -335,7 +335,7 @@ class TensorProduct:
 
             xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
 
-            with jax.core.eval_context():
+            with jax.ensure_compile_time_eval():
                 w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
                 w3j = ins.path_weight * w3j
 
@@ -470,7 +470,7 @@ class TensorProduct:
                 assert w.shape == ins.path_shape
                 weight_index += 1
 
-            with jax.core.eval_context():
+            with jax.ensure_compile_time_eval():
                 w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
 
             if ins.connection_mode == 'uvw':

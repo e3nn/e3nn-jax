@@ -5,7 +5,7 @@ from e3nn_jax import Irreps, IrrepsData
 
 
 def normalize_function(phi):
-    with jax.core.eval_context():
+    with jax.ensure_compile_time_eval():
         k = jax.random.PRNGKey(0)
         x = jax.random.normal(k, (1_000_000,))
         c = jnp.mean(phi(x)**2)**0.5
@@ -19,7 +19,7 @@ def normalize_function(phi):
 
 
 def parity_function(phi):
-    with jax.core.eval_context():
+    with jax.ensure_compile_time_eval():
         x = jnp.linspace(0.0, 10.0, 256)
 
         a1, a2 = phi(x), phi(-x)

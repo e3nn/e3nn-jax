@@ -20,7 +20,7 @@ class Convolution(hk.Module):
         self.num_radial_basis = num_radial_basis
         self.steps = steps
 
-        with jax.core.eval_context():
+        with jax.ensure_compile_time_eval():
             r = self.diameter / 2
 
             s = math.floor(r / self.steps[0])

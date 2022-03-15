@@ -169,7 +169,7 @@ class Convolution(hk.Module):
 
         ######################################################################################
 
-        with jax.core.eval_context():
+        with jax.ensure_compile_time_eval():
             c = jnp.cos(self.mixing_angle)
             s = jnp.sin(self.mixing_angle)
 

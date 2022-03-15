@@ -24,7 +24,7 @@ def lowpass_filter(input, scale, strides, transposed=False, steps=(1, 1, 1)):
     if isinstance(strides, int):
         strides = (strides,) * 3
 
-    with jax.core.eval_context():
+    with jax.ensure_compile_time_eval():
         sigma = 0.5 * (scale ** 2 - 1)**0.5
 
         size = int(1 + 2 * 2.5 * sigma)
