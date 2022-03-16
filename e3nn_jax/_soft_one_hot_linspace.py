@@ -2,6 +2,15 @@ import jax.numpy as jnp
 
 
 def sus(x):
+    r"""Soft Unit Step function. ``-inf->0, 0->0, 2->0.6, +inf->1``
+
+    .. math::
+        \text{sus}(x) = \begin{cases}
+            0, & \text{if } x < 0 \\
+            exp(-1/x), & \text{if } x \geq 0 \\
+        \end{cases}
+
+    """
     return jnp.where(x > 0.0, jnp.exp(-1.0 / jnp.where(x > 0.0, x, 1.0)), 0.0)
 
 

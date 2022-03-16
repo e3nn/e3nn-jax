@@ -1,9 +1,8 @@
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, IrrepsData, TensorProduct, index_add, Linear
-from e3nn_jax.nn import (HFullyConnectedTensorProduct,
-                         HTensorProductMLP)
+from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Linear, FullyConnectedTensorProduct
+from e3nn_jax.nn import HTensorProductMLP
 
 
 def _instructions_uvu(irreps_in1, irreps_in2, ir_out_list):
@@ -33,21 +32,21 @@ def _instructions_uvu(irreps_in1, irreps_in2, ir_out_list):
     return irreps_out, instructions
 
 
-def _tensor_product_mlp_uvu(irreps_in1, irreps_in2, ir_out_list, features, phi):
+def _tensor_product_mlp_uvu(irreps_in1, irreps_in2, ir_out_list, list_neurons, phi):
     irreps_out, instructions = _instructions_uvu(irreps_in1, irreps_in2, ir_out_list)
-    tp = TensorProduct(irreps_in1, irreps_in2, irreps_out, instructions)
-    return HTensorProductMLP(tp, features, phi)
+    tp = FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions)
+    return HTensorProductMLP(tp, list_neurons, phi)
 
 
 class Transformer(hk.Module):
-    def __init__(self, irreps_node_input, irreps_node_output, irreps_edge_attr, features, phi, num_heads=1):
+    def __init__(self, irreps_node_input, irreps_node_output, irreps_edge_attr, list_neurons, phi, num_heads=1):
         super().__init__()
 
         self.irreps_node_input = Irreps(irreps_node_input)
         self.irreps_edge_attr = Irreps(irreps_edge_attr)
         self.irreps_node_output = Irreps(irreps_node_output)
 
-        self.features = features
+        self.list_neurons = list_neurons
         self.phi = phi
         self.num_heads = num_heads
 
@@ -68,20 +67,24 @@ class Transformer(hk.Module):
         """
         node_f = IrrepsData.new(self.irreps_node_input, node_f).contiguous
 
-        tp_k = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_input, self.features, self.phi)
+        tp_k = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_input, self.list_neurons, self.phi)
         edge_k = jax.vmap(tp_k)(edge_scalar_attr, node_f[edge_src], edge_attr)
 
-        dot = HFullyConnectedTensorProduct(self.irreps_node_input, tp_k.irreps_out, f"{self.num_heads}x 0e")
+        dot = FullyConnectedTensorProduct(
+            irreps_in1=self.irreps_node_input,
+            irreps_in2=tp_k.irreps_out,
+            irreps_out=f"{self.num_heads}x 0e"
+        )
         exp = edge_weight_cutoff[:, None] * jnp.exp(jax.vmap(dot)(node_f[edge_dst], edge_k).contiguous)  # array[edge, head]
         z = index_add(edge_dst, exp, len(node_f))  # array[node, head]
         z = jnp.where(z == 0.0, 1.0, z)
         alpha = exp / z[edge_dst]  # array[edge, head]
 
-        tp_v = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_output, self.features, self.phi)
+        tp_v = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_output, self.list_neurons, self.phi)
         edge_v = jax.vmap(tp_v)(edge_scalar_attr, node_f[edge_src], edge_attr)  # list of array[edge, mul, ir]
         edge_v = [jnp.sqrt(jax.nn.relu(alpha))[:, :, None, None] * v.reshape(v.shape[0], self.num_heads, v.shape[1] // self.num_heads, v.shape[2]) for v in edge_v.list]
         edge_v = jnp.concatenate([v.reshape(v.shape[0], -1) for v in edge_v], axis=-1)  # array[edge, irreps]
 
         node_out = index_add(edge_dst, edge_v, len(node_f))
-        lin = Linear(tp_v.irreps_out, self.irreps_node_output)
+        lin = Linear(irreps_in=tp_v.irreps_out, irreps_out=self.irreps_node_output)
         return jax.vmap(lin)(node_out)

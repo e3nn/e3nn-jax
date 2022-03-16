@@ -6,7 +6,7 @@ from functools import partial, reduce
 
 import jax
 import jax.numpy as jnp
-from e3nn_jax import FullyConnectedTensorProduct, Irreps, IrrepsData
+from e3nn_jax import FunctionalFullyConnectedTensorProduct, Irreps, IrrepsData
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -80,7 +80,7 @@ def main():
         irreps_in2_red = Irreps([(mul // c_in2, ir) for mul, ir in irreps_in2])
         irreps_out_red = Irreps([(mul // c_out, ir) for mul, ir in irreps_out])
 
-        tp = FullyConnectedTensorProduct(irreps_in1_red, irreps_in2_red, irreps_out_red)
+        tp = FunctionalFullyConnectedTensorProduct(irreps_in1_red, irreps_in2_red, irreps_out_red)
 
         f = partial(
             tp.left_right,
@@ -108,7 +108,7 @@ def main():
         w_shape = (c_in1, c_in2, c_out)
         print(f"extrachannels = {w_shape}")
     else:
-        tp = FullyConnectedTensorProduct(
+        tp = FunctionalFullyConnectedTensorProduct(
             irreps_in1,
             irreps_in2,
             irreps_out,

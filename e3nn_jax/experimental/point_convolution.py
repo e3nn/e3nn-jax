@@ -3,8 +3,8 @@ from functools import partial
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, IrrepsData, TensorProduct, index_add, Linear
-from e3nn_jax.nn import HMLP, HFullyConnectedTensorProduct
+from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Linear, FullyConnectedTensorProduct
+from e3nn_jax.nn import HMLP
 
 
 class Convolution(hk.Module):
@@ -35,7 +35,7 @@ class Convolution(hk.Module):
         super().__init__()
 
         self.irreps_node_input = Irreps(irreps_node_input)
-        self.irreps_node_attr = Irreps(irreps_node_attr)
+        self.irreps_node_attr = Irreps(irreps_node_attr) if irreps_node_attr is not None else None
         self.irreps_edge_attr = Irreps(irreps_edge_attr)
         self.irreps_node_output = Irreps(irreps_node_output)
         self.fc_neurons = fc_neurons
@@ -52,16 +52,10 @@ class Convolution(hk.Module):
 
         if self.irreps_node_attr is not None and node_attr is not None:
             node_attr = IrrepsData.new(self.irreps_node_attr, node_attr)
-            tmp = jax.vmap(HFullyConnectedTensorProduct(
-                self.irreps_node_input,
-                self.irreps_node_attr,
-                self.irreps_node_input + self.irreps_node_output
-            ))(node_input, node_attr)
+
+            tmp = jax.vmap(FullyConnectedTensorProduct(self.irreps_node_input + self.irreps_node_output))(node_input, node_attr)
         else:
-            tmp = jax.vmap(Linear(
-                self.irreps_node_input,
-                self.irreps_node_input + self.irreps_node_output
-            ))(node_input)
+            tmp = jax.vmap(Linear(self.irreps_node_input + self.irreps_node_output))(node_input)
 
         node_features, node_self_out = tmp.list[:len(self.irreps_node_input)], tmp.list[len(self.irreps_node_input):]
 
@@ -96,7 +90,7 @@ class Convolution(hk.Module):
             for i_1, i_2, i_out, mode, train in instructions
         ]
 
-        tp = TensorProduct(
+        tp = FunctionalTensorProduct(
             self.irreps_node_input,
             self.irreps_edge_attr,
             irreps_mid,
@@ -149,21 +143,15 @@ class Convolution(hk.Module):
 
         node_features = node_features / self.num_neighbors**0.5
 
+        node_features = IrrepsData.from_contiguous(irreps_mid, node_features)
         # stat('node_features', node_features)
 
         ######################################################################################
 
         if self.irreps_node_attr is not None and node_attr is not None:
-            node_conv_out = jax.vmap(HFullyConnectedTensorProduct(
-                irreps_mid,
-                self.irreps_node_attr,
-                self.irreps_node_output
-            ))(node_features, node_attr)
+            node_conv_out = jax.vmap(FullyConnectedTensorProduct(self.irreps_node_output))(node_features, node_attr)
         else:
-            node_conv_out = jax.vmap(Linear(
-                irreps_mid,
-                self.irreps_node_output
-            ))(node_features)
+            node_conv_out = jax.vmap(Linear(self.irreps_node_output))(node_features)
 
         # stat('node_conv_out', node_conv_out)
 

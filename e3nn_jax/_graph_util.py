@@ -28,13 +28,14 @@ def index_add(i, x, out_dim):
     return jnp.zeros((out_dim,) + x.shape[1:]).at[i].add(x)
 
 
-def radius_graph(pos, r_max, batch):
+def radius_graph(pos, r_max, batch=None, size=None):
     r"""naive and inefficient version of ``torch_cluster.radius_graph``
 
     Args:
         pos (`jnp.ndarray`): array of shape ``(n, 3)``
         r_max (float):
         batch (`jnp.ndarray`): indices
+        size (int): size of the output
 
     Returns:
         `jnp.ndarray`: src
@@ -48,7 +49,7 @@ def radius_graph(pos, r_max, batch):
         (DeviceArray([ 3,  7, 10, 11, 12, 18], dtype=int32), DeviceArray([ 7,  3, 11, 10, 18, 12], dtype=int32))
     """
     r = jax.vmap(jax.vmap(lambda x, y: jnp.linalg.norm(x - y), (None, 0), 0), (0, None), 0)(pos, pos)
-    src, dst = jnp.where((r < r_max) & (r > 0))
+    src, dst = jnp.where((r < r_max) & (r > 0), size=size, fill_value=-1)
 
     if batch is None:
         return src, dst

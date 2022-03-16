@@ -4,7 +4,7 @@ import operator
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import (FullyConnectedTensorProduct, Irreps, TensorProduct,
+from e3nn_jax import (FunctionalFullyConnectedTensorProduct, Irreps, FunctionalTensorProduct,
                       TensorSquare)
 
 
@@ -18,7 +18,7 @@ def _prod(xs):
 @pytest.mark.parametrize('specialized_code', [False, True])
 @pytest.mark.parametrize('irrep_normalization', ['component', 'norm'])
 def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, jitted, connection_mode):
-    tp = TensorProduct(
+    tp = FunctionalTensorProduct(
         Irreps("10x0o + 10x1o + 1x2e"),
         Irreps("10x0o + 10x1o + 1x2o"),
         Irreps("10x0e + 10x1e + 2x2o"),
@@ -55,7 +55,7 @@ def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, ji
 
 
 def test_fuse_all(keys):
-    tp = TensorProduct(
+    tp = FunctionalTensorProduct(
         "10x0e + 5x1e",
         "0e + 1e",
         "10x0e + 5x1e",
@@ -77,7 +77,7 @@ def test_fuse_all(keys):
 
 
 def test_fuse_all_no_weight(keys):
-    tp = TensorProduct(
+    tp = FunctionalTensorProduct(
         "10x0e",
         "10x0e",
         "10x0e",
@@ -97,7 +97,7 @@ def test_fuse_all_no_weight(keys):
 
 
 def test_fuse_all_mix_weight(keys):
-    tp = TensorProduct(
+    tp = FunctionalTensorProduct(
         "5x0e",
         "5x0e",
         "5x0e",
@@ -118,7 +118,7 @@ def test_fuse_all_mix_weight(keys):
 
 
 def test_fuse(keys):
-    tp = FullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
+    tp = FunctionalFullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
 
     ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
     wf = jnp.concatenate([w.flatten() for w in ws])
@@ -133,7 +133,7 @@ def test_fuse(keys):
 @pytest.mark.parametrize('path_normalization', ['element', 'path'])
 @pytest.mark.parametrize('irrep_normalization', ['component', 'norm'])
 def test_normalization(keys, irrep_normalization, path_normalization):
-    tp = FullyConnectedTensorProduct(
+    tp = FunctionalFullyConnectedTensorProduct(
         "5x0e+1x0e+10x1e",
         "2x0e+2x1e+10x1e",
         "1000x1e+1000x0e",

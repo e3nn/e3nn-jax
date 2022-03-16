@@ -47,7 +47,7 @@ class Instruction(NamedTuple):
     path_shape: tuple
 
 
-class TensorProduct:
+class FunctionalTensorProduct:
     r"""Tensor product of two tensors.
 
     Args:

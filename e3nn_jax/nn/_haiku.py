@@ -1,26 +1,9 @@
+# TODO remove all these classes and remove e3nn_jax.nn
 from typing import Callable, Sequence
 
 import haiku as hk
 import jax.numpy as jnp
-from e3nn_jax import (FullyConnectedTensorProduct, Irreps, IrrepsData,
-                      TensorProduct, TensorSquare, normalize_function)
-
-
-class HFullyConnectedTensorProduct(hk.Module):
-    def __init__(self, irreps_in1, irreps_in2, irreps_out):
-        super().__init__()
-
-        self.irreps_in1 = Irreps(irreps_in1)
-        self.irreps_in2 = Irreps(irreps_in2)
-        self.irreps_out = Irreps(irreps_out)
-
-    def __call__(self, x1, x2) -> IrrepsData:
-        tp = FullyConnectedTensorProduct(self.irreps_in1, self.irreps_in2, self.irreps_out)
-        ws = [
-            hk.get_parameter(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
-            for ins in tp.instructions
-        ]
-        return tp.left_right(ws, x1, x2)
+from e3nn_jax import Irreps, FunctionalTensorProduct, TensorSquare, normalize_function
 
 
 class HTensorSquare(hk.Module):
@@ -65,7 +48,7 @@ class HTensorProductMLP(hk.Module):
     irreps_in2: Irreps
     irreps_out: Irreps
 
-    def __init__(self, tp: TensorProduct, features: Sequence[int], phi: Callable):
+    def __init__(self, tp: FunctionalTensorProduct, features: Sequence[int], phi: Callable):
         super().__init__()
 
         self.tp = tp

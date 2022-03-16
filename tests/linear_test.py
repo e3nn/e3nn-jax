@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, FunctionalLinear, TensorProduct
+from e3nn_jax import Irreps, FunctionalLinear, FunctionalTensorProduct
 
 import pytest
 
@@ -25,7 +25,7 @@ class SlowLinear:
             if ir_in == ir_out
         ]
 
-        self.tp = TensorProduct(
+        self.tp = FunctionalTensorProduct(
             irreps_in,
             "0e",
             irreps_out,

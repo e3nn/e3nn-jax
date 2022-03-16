@@ -4,7 +4,7 @@ from typing import Tuple
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import (FullyConnectedTensorProduct, Irreps, FunctionalLinear,
+from e3nn_jax import (FunctionalFullyConnectedTensorProduct, Irreps, FunctionalLinear,
                       soft_one_hot_linspace, spherical_harmonics)
 from jax import lax
 
@@ -71,7 +71,7 @@ class Convolution(hk.Module):
         sc = sc.reshape(x.shape[:-1] + (-1,))
 
         # convolution
-        tp = FullyConnectedTensorProduct(self.irreps_in, self.irreps_sh, self.irreps_out)
+        tp = FunctionalFullyConnectedTensorProduct(self.irreps_in, self.irreps_sh, self.irreps_out)
 
         tp_right = tp.right
         for _ in range(3):

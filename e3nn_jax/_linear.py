@@ -6,7 +6,7 @@ import jax.numpy as jnp
 
 from e3nn_jax import Irreps, IrrepsData
 
-from ._tensor_product import _sum_tensors
+from ._core_tensor_product import _sum_tensors
 
 
 class Instruction(NamedTuple):
@@ -140,18 +140,19 @@ class FunctionalLinear:
 
 
 class Linear(hk.Module):
-    def __init__(self, irreps_out):
+    def __init__(self, irreps_out, *, irreps_in=None):
         super().__init__()
 
         self.irreps_out = Irreps(irreps_out)
+        self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None
         self.instructions = None
         self.biases = False
 
-    def __call__(self, x, irreps_in=None):
-        if irreps_in is None and not isinstance(x, IrrepsData):
+    def __call__(self, x):
+        if self.irreps_in is None and not isinstance(x, IrrepsData):
             raise ValueError("the input of Linear must be an IrrepsData, or `irreps_in` must be specified")
-        if irreps_in is not None:
-            x = IrrepsData.new(irreps_in, x)
+        if self.irreps_in is not None:
+            x = IrrepsData.new(self.irreps_in, x)
 
         lin = FunctionalLinear(x.irreps, self.irreps_out, self.instructions, biases=self.biases)
         w = [
