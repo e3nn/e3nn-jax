@@ -23,15 +23,17 @@ def test_convolution(keys):
             steps=(1.0, 1.0, 1.0),
         )(x)
 
+    f = jax.jit(c.apply)
+
     x0 = irreps_in.randn(next(keys), (3, 8, 8, 8, -1))
     x0 = jnp.pad(x0, ((0, 0), (4, 4), (4, 4), (4, 4), (0, 0)))
 
     w = c.init(next(keys), x0)
-    y0 = jax.jit(c.apply)(w, x0)
+    y0 = f(w, x0)
 
     x1 = jnp.rot90(x0, axes=(2, 3))
     x1 = irreps_in.transform_by_angles(x1, 0.0, jnp.pi / 2, 0.0)
-    y1 = jax.jit(c.apply)(w, x1)
+    y1 = f(w, x1)
 
     y2 = jnp.rot90(y0, axes=(2, 3))
     y2 = irreps_out.transform_by_angles(y2, 0.0, jnp.pi / 2, 0.0)
