@@ -1,4 +1,3 @@
-# TODO remove all these classes and remove e3nn_jax.nn
 from typing import Callable, Sequence
 
 import haiku as hk
@@ -6,33 +5,33 @@ import jax.numpy as jnp
 from e3nn_jax import Irreps, FunctionalTensorProduct, normalize_function
 
 
-class HMLP(hk.Module):
-    def __init__(self, features: Sequence[int], phi: Callable):
+class MultiLayerPerceptron(hk.Module):
+    def __init__(self, list_neurons: Sequence[int], phi: Callable):
         super().__init__()
 
-        self.features = features
+        self.list_neurons = list_neurons
         self.phi = phi
 
     def __call__(self, x):
         phi = normalize_function(self.phi)
 
-        for h in self.features:
+        for h in self.list_neurons:
             d = hk.Linear(h, with_bias=False, w_init=hk.initializers.RandomNormal())
             x = phi(d(x) / x.shape[-1]**0.5)
 
         return x
 
 
-class HTensorProductMLP(hk.Module):
+class TensorProductMultiLayerPerceptron(hk.Module):
     irreps_in1: Irreps
     irreps_in2: Irreps
     irreps_out: Irreps
 
-    def __init__(self, tp: FunctionalTensorProduct, features: Sequence[int], phi: Callable):
+    def __init__(self, tp: FunctionalTensorProduct, list_neurons: Sequence[int], phi: Callable):
         super().__init__()
 
         self.tp = tp
-        self.mlp = HMLP(features, phi)
+        self.mlp = MultiLayerPerceptron(list_neurons, phi)
 
         self.irreps_in1 = tp.irreps_in1.simplify()
         self.irreps_in2 = tp.irreps_in2.simplify()

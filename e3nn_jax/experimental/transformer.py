@@ -1,8 +1,7 @@
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Linear, FullyConnectedTensorProduct
-from e3nn_jax.nn import HTensorProductMLP
+from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Linear, FullyConnectedTensorProduct, TensorProductMultiLayerPerceptron
 
 
 def _instructions_uvu(irreps_in1, irreps_in2, ir_out_list):
@@ -35,7 +34,7 @@ def _instructions_uvu(irreps_in1, irreps_in2, ir_out_list):
 def _tensor_product_mlp_uvu(irreps_in1, irreps_in2, ir_out_list, list_neurons, phi):
     irreps_out, instructions = _instructions_uvu(irreps_in1, irreps_in2, ir_out_list)
     tp = FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions)
-    return HTensorProductMLP(tp, list_neurons, phi)
+    return TensorProductMultiLayerPerceptron(tp, list_neurons, phi)
 
 
 class Transformer(hk.Module):

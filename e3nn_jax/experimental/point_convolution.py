@@ -3,8 +3,7 @@ from functools import partial
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Linear, FullyConnectedTensorProduct
-from e3nn_jax.nn import HMLP
+from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Linear, FullyConnectedTensorProduct, MultiLayerPerceptron
 
 
 class Convolution(hk.Module):
@@ -99,7 +98,7 @@ class Convolution(hk.Module):
         irreps_mid = irreps_mid.simplify()
 
         if self.fc_neurons:
-            weight = HMLP(
+            weight = MultiLayerPerceptron(
                 self.fc_neurons,
                 jax.nn.gelu
             )(edge_scalar_attr)
