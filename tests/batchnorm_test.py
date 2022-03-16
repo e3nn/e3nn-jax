@@ -11,7 +11,7 @@ def test_equivariant(keys, irreps):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = BatchNorm(irreps)
+        m = BatchNorm(irreps=irreps)
         return m(x, is_training).contiguous
 
     params, state = b.init(next(keys), irreps.randn(next(keys), (16, -1)))
@@ -34,7 +34,7 @@ def test_modes(keys, affine, reduce, normalization, instance):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = BatchNorm(irreps, affine=affine, reduce=reduce, normalization=normalization, instance=instance)
+        m = BatchNorm(irreps=irreps, affine=affine, reduce=reduce, normalization=normalization, instance=instance)
         return m(x, is_training)
 
     params, state = b.init(next(keys), irreps.randn(next(keys), (16, -1)))
@@ -58,7 +58,7 @@ def test_normalization(keys, instance):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = BatchNorm(irreps, normalization='norm', instance=instance)
+        m = BatchNorm(irreps=irreps, normalization='norm', instance=instance)
         return m(x, is_training)
 
     params, state = b.init(next(keys), irreps.randn(next(keys), (16, -1)))
@@ -76,7 +76,7 @@ def test_normalization(keys, instance):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = BatchNorm(irreps, normalization='component', instance=instance)
+        m = BatchNorm(irreps=irreps, normalization='component', instance=instance)
         return m(x, is_training)
 
     params, state = b.init(next(keys), irreps.randn(next(keys), (16, -1)))

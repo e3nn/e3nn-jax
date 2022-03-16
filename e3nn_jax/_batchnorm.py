@@ -21,17 +21,14 @@ class BatchNorm(hk.Module):
         instance: whether to use instance normalization
         normalization: normalization mode, either 'norm' or 'component'
     """
-    def __init__(self, irreps, eps=1e-5, momentum=0.1, affine=True, reduce='mean', instance=False, normalization='component'):
+    def __init__(self, *, irreps=None, eps=1e-5, momentum=0.1, affine=True, reduce='mean', instance=False, normalization='component'):
         super().__init__()
 
-        self.irreps = Irreps(irreps)
+        self.irreps = Irreps(irreps) if irreps is not None else irreps
         self.eps = eps
         self.momentum = momentum
         self.affine = affine
         self.instance = instance
-
-        self.num_scalar = sum(mul for mul, ir in self.irreps if ir.is_scalar())
-        self.num_features = self.irreps.num_irreps
 
         assert isinstance(reduce, str), "reduce should be passed as a string value"
         assert reduce in ['mean', 'max'], "reduce needs to be 'mean' or 'max'"
@@ -56,14 +53,21 @@ class BatchNorm(hk.Module):
         Returns:
             output: normalized tensor of shape ``(..., irreps.dim)``
         """
-        if not self.instance:
-            running_mean = hk.get_state("running_mean", shape=(self.num_scalar,), init=jnp.zeros)
-            running_var = hk.get_state("running_var", shape=(self.num_features,), init=jnp.ones)
-        if self.affine:
-            weight = hk.get_parameter("weight", shape=(self.num_features,), init=jnp.ones)
-            bias = hk.get_parameter("bias", shape=(self.num_scalar,), init=jnp.zeros)
+        if self.irreps is not None:
+            input = IrrepsData.new(self.irreps, input)
+        if not isinstance(input, IrrepsData):
+            raise ValueError("input should be of type IrrepsData")
 
-        input = IrrepsData.new(self.irreps, input)
+        num_scalar = sum(mul for mul, ir in self.irreps if ir.is_scalar())
+        num_features = self.irreps.num_irreps
+
+        if not self.instance:
+            running_mean = hk.get_state("running_mean", shape=(num_scalar,), init=jnp.zeros)
+            running_var = hk.get_state("running_var", shape=(num_features,), init=jnp.ones)
+        if self.affine:
+            weight = hk.get_parameter("weight", shape=(num_features,), init=jnp.ones)
+            bias = hk.get_parameter("bias", shape=(num_scalar,), init=jnp.zeros)
+
         batch, *size = input._shape_from_list()
         input = input.list
         input = [x.reshape(batch, -1, mul, ir.dim) for (mul, ir), x in zip(self.irreps, input)]
