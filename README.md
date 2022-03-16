@@ -1,7 +1,8 @@
-# e3nn-jax
-
 :construction: :construction: :construction:
 Disclamier: This is a work in progress. No part of the library can be considered stable.
+
+# e3nn-jax
+[![Coverage Status](https://coveralls.io/repos/github/e3nn/e3nn-jax/badge.svg?branch=main)](https://coveralls.io/github/e3nn/e3nn-jax?branch=main)
 
 ## What is different from the pytorch version?
 
@@ -42,7 +43,7 @@ f(x, y)
 
 `jax` version (this repo):
 ```python
-tp = FullyConnectedTensorProduct(irreps1, irreps2, irreps3)
+tp = FunctionalFullyConnectedTensorProduct(irreps1, irreps2, irreps3)
 w = [jax.random.normal(key, i.path_shape) for i in tp.instructions if i.has_weight]
 f = jax.vmap(tp.left_right, (None, 0, 0), 0)
 f = jax.jit(f)
@@ -61,7 +62,7 @@ f(x, y, w)
 
 `jax` version:
 ```python
-tp = FullyConnectedTensorProduct(irreps1, irreps2, irreps3)
+tp = FunctionalFullyConnectedTensorProduct(irreps1, irreps2, irreps3)
 w = [jax.random.normal(key, (10,) + i.path_shape) for i in tp.instructions if i.has_weight]
 f = jax.vmap(tp.left_right, (0, 0, 0), 0)
 f = jax.jit(f)
@@ -79,7 +80,7 @@ def compose(f, g):
     return lambda *x: g(f(*x))
 
 def tp_extra_channels(irreps_in1, irreps_in2, irreps_out):
-    tp = FullyConnectedTensorProduct(irreps_in1, irreps_in2, irreps_out)
+    tp = FunctionalFullyConnectedTensorProduct(irreps_in1, irreps_in2, irreps_out)
 
     f = tp.left_right
     f = jax.vmap(f, (0, None, None), 0)  # channel_out
