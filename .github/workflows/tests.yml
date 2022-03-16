@@ -39,7 +39,12 @@ jobs:
         pip install .
     - name: Install pytest
       run: |
-        pip install pytest
+        pip install pytest pytest-cov
+        pip install coveralls
     - name: Test with pytest
       run: |
-        pytest --doctest-modules --ignore=docs/ --ignore=examples/ .
+        coverage run --source=e3nn_jax -m pytest --doctest-modules --ignore=docs/ --ignore=examples/ .
+    - name: Upload to coveralls
+      if: github.event_name == 'push'
+      run: |
+        COVERALLS_REPO_TOKEN=${{ secrets.COVERALLS_TOKEN }} coveralls
