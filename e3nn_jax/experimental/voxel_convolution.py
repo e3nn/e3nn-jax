@@ -4,16 +4,17 @@ from typing import Tuple
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import (FunctionalFullyConnectedTensorProduct, Irreps, FunctionalLinear,
-                      soft_one_hot_linspace, spherical_harmonics)
+from e3nn_jax import (FunctionalFullyConnectedTensorProduct, Linear,
+                      Irreps, IrrepsData, soft_one_hot_linspace,
+                      spherical_harmonics)
 from jax import lax
 
 
 class Convolution(hk.Module):
-    def __init__(self, irreps_in, irreps_out, irreps_sh, diameter: float, num_radial_basis: int, steps: Tuple[float, float, float]):
+    def __init__(self, irreps_out, irreps_sh, diameter: float, num_radial_basis: int, steps: Tuple[float, float, float], *, irreps_in=None):
         super().__init__()
 
-        self.irreps_in = Irreps(irreps_in)
+        self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None
         self.irreps_out = Irreps(irreps_out)
         self.irreps_sh = Irreps(irreps_sh)
         self.diameter = diameter
@@ -50,28 +51,25 @@ class Convolution(hk.Module):
                 normalization='component'
             )  # [x, y, z, irreps_sh.dim]
 
-    def __call__(self, x):
+    def __call__(self, x: IrrepsData) -> IrrepsData:
         """
         x: [batch, x, y, z, irreps_in.dim]
         """
+        if self.irreps_in is not None:
+            x = IrrepsData.new(self.irreps_in, x)
+        if not isinstance(x, IrrepsData):
+            raise ValueError("Convolution: input should be of type IrrepsData")
+
+        irreps_in = x.irreps
 
         # self-connection
-        lin = FunctionalLinear(self.irreps_in, self.irreps_out)
-        f = jax.vmap(lin, (None, 0), 0)
-        w = [
-            hk.get_parameter(
-                f'linear_weight {i.i_in} -> {i.i_out}',
-                i.path_shape,
-                x.dtype,
-                hk.initializers.RandomNormal()
-            )
-            for i in lin.instructions
-        ]
-        sc = f(w, x.reshape(-1, x.shape[-1])).contiguous
-        sc = sc.reshape(x.shape[:-1] + (-1,))
+        lin = Linear(self.irreps_out)
+        for _ in range(1 + 3):
+            lin = jax.vmap(lin)
+        sc = lin(x)
 
         # convolution
-        tp = FunctionalFullyConnectedTensorProduct(self.irreps_in, self.irreps_sh, self.irreps_out)
+        tp = FunctionalFullyConnectedTensorProduct(irreps_in, self.irreps_sh, self.irreps_out)
 
         tp_right = tp.right
         for _ in range(3):
@@ -81,8 +79,7 @@ class Convolution(hk.Module):
             hk.get_parameter(
                 f'weight {i.i_in1} x {i.i_in2} -> {i.i_out}',
                 (self.num_radial_basis,) + i.path_shape,
-                x.dtype,
-                hk.initializers.RandomNormal()
+                init=hk.initializers.RandomNormal()
             )
             for i in tp.instructions
         ]
@@ -92,11 +89,12 @@ class Convolution(hk.Module):
         ]
         k = tp_right(w, self.sh)  # [x,y,z, irreps_in.dim, irreps_out.dim]
         x = lax.conv_general_dilated(
-            lhs=x,
+            lhs=x.contiguous,
             rhs=k,
             window_strides=(1, 1, 1),
             padding='SAME',
             dimension_numbers=('NXYZC', 'XYZIO', 'NXYZC')
         )
+        x = IrrepsData.from_contiguous(self.irreps_out, x)
 
         return sc + x

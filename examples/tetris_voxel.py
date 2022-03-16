@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-from e3nn_jax import Gate, Irreps
+from e3nn_jax import Gate, Irreps, IrrepsData
 from e3nn_jax.experimental.voxel_convolution import Convolution
 from tqdm.auto import tqdm
 
@@ -51,26 +51,25 @@ def main():
             f'{mul0}x0e + {mul0}x0o', [jax.nn.gelu, jnp.tanh],
             f'{2 * mul1}x0e', [jax.nn.sigmoid], f'{mul1}x1e + {mul1}x1o'
         )
-
-        def g(x):
-            y = jax.vmap(gate)(x.reshape(-1, x.shape[-1]))
-            y = y.contiguous
-            return y.reshape(x.shape[:-1] + (-1,))
+        g = gate
+        for _ in range(1 + 3):
+            g = jax.vmap(g)
 
         # Shallower and wider convolutions also works
 
         # kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=5.5, num_radial_basis=3, steps=(1.0, 1.0, 1.0))
         kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
 
-        x = x[..., None]
-        x = g(Convolution(Irreps('0e'), gate.irreps_in, **kw)(x))
+        x = IrrepsData.from_contiguous('0e', x[..., None])
+        x = g(Convolution(irreps_out=gate.irreps_in, **kw)(x))
 
         # for _ in range(1):
         for _ in range(4):
-            x = g(Convolution(gate.irreps_out, gate.irreps_in, **kw)(x))
+            x = g(Convolution(gate.irreps_in, **kw)(x))
 
-        x = Convolution(gate.irreps_out, Irreps('0o + 7x0e'), **kw)(x)
+        x = Convolution('0o + 7x0e', **kw)(x)
 
+        x = x.contiguous
         x = jnp.sum(x, axis=(1, 2, 3))
         return x
 

@@ -160,8 +160,7 @@ def create_model(config):
             x = activation(x)
             tp = TensorSquare(irreps_features, init=hk.initializers.Constant(0.0))
             y = jax.vmap(tp)(x)
-            x = jax.tree_map(add, x, y)
-            return x
+            return x + y
 
         irreps_out = Irreps('4x0e')
 

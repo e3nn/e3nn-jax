@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import haiku as hk
 
-from e3nn_jax import Irreps
+from e3nn_jax import Irreps, IrrepsData
 from e3nn_jax.experimental.voxel_convolution import Convolution
 
 
@@ -14,14 +14,15 @@ def test_convolution(keys):
     @hk.without_apply_rng
     @hk.transform
     def c(x):
-        return Convolution(
-            irreps_in=irreps_in,
+        x = IrrepsData.from_contiguous(irreps_in, x)
+        x = Convolution(
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,
             diameter=3.9,
             num_radial_basis=3,
             steps=(1.0, 1.0, 1.0),
         )(x)
+        return x.contiguous
 
     f = jax.jit(c.apply)
 

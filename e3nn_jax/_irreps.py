@@ -901,11 +901,13 @@ class IrrepsData:
 
     def __add__(self, other):
         assert self.irreps == other.irreps
-        return jax.tree_map(lambda x, y: x + y, self, other)
+        list = [x if y is None else (y if x is None else x + y) for x, y in zip(self.list, other.list)]
+        return IrrepsData(self.irreps, self.contiguous + other.contiguous, list)
 
     def __sub__(self, other):
         assert self.irreps == other.irreps
-        return jax.tree_map(lambda x, y: x - y, self, other)
+        list = [x if y is None else (-y if x is None else x - y) for x, y in zip(self.list, other.list)]
+        return IrrepsData(self.irreps, self.contiguous - other.contiguous, list)
 
     @staticmethod
     def cat(args):
