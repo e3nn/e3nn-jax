@@ -4,7 +4,7 @@ from typing import Tuple
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import (FullyConnectedTensorProduct, Irreps, Linear,
+from e3nn_jax import (FullyConnectedTensorProduct, Irreps, FunctionalLinear,
                       soft_one_hot_linspace, spherical_harmonics)
 from jax import lax
 
@@ -56,7 +56,7 @@ class Convolution(hk.Module):
         """
 
         # self-connection
-        lin = Linear(self.irreps_in, self.irreps_out)
+        lin = FunctionalLinear(self.irreps_in, self.irreps_out)
         f = jax.vmap(lin, (None, 0), 0)
         w = [
             hk.get_parameter(

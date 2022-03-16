@@ -35,7 +35,7 @@ from ._wigner import wigner_3j, wigner_D, wigner_J, wigner_3j_sympy, wigner_gene
 from ._irreps import Irrep, Irreps, IrrepsData
 from ._spherical_harmonics import spherical_harmonics
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
-from ._linear import Linear
+from ._linear import FunctionalLinear, Linear
 from ._tensor_product import TensorProduct
 from ._tp_makers import FullyConnectedTensorProduct, FullTensorProduct, ElementwiseTensorProduct, TensorSquare
 from ._activation import ScalarActivation, normalize_function
@@ -77,7 +77,7 @@ __all__ = [
     "Irrep", "Irreps", "IrrepsData",
     "spherical_harmonics",
     "sus", "soft_one_hot_linspace",
-    "Linear",
+    "FunctionalLinear", "Linear",
     "TensorProduct",
     "FullyConnectedTensorProduct", "FullTensorProduct", "ElementwiseTensorProduct", "TensorSquare",
     "ScalarActivation", "normalize_function",

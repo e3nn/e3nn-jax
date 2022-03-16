@@ -3,8 +3,8 @@ from functools import partial
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, IrrepsData, TensorProduct, index_add
-from e3nn_jax.nn import HMLP, HFullyConnectedTensorProduct, HLinear
+from e3nn_jax import Irreps, IrrepsData, TensorProduct, index_add, Linear
+from e3nn_jax.nn import HMLP, HFullyConnectedTensorProduct
 
 
 class Convolution(hk.Module):
@@ -58,7 +58,7 @@ class Convolution(hk.Module):
                 self.irreps_node_input + self.irreps_node_output
             ))(node_input, node_attr)
         else:
-            tmp = jax.vmap(HLinear(
+            tmp = jax.vmap(Linear(
                 self.irreps_node_input,
                 self.irreps_node_input + self.irreps_node_output
             ))(node_input)
@@ -160,7 +160,7 @@ class Convolution(hk.Module):
                 self.irreps_node_output
             ))(node_features, node_attr)
         else:
-            node_conv_out = jax.vmap(HLinear(
+            node_conv_out = jax.vmap(Linear(
                 irreps_mid,
                 self.irreps_node_output
             ))(node_features)

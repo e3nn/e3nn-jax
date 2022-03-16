@@ -1,8 +1,8 @@
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, IrrepsData, TensorProduct, index_add
-from e3nn_jax.nn import (HFullyConnectedTensorProduct, HLinear,
+from e3nn_jax import Irreps, IrrepsData, TensorProduct, index_add, Linear
+from e3nn_jax.nn import (HFullyConnectedTensorProduct,
                          HTensorProductMLP)
 
 
@@ -83,5 +83,5 @@ class Transformer(hk.Module):
         edge_v = jnp.concatenate([v.reshape(v.shape[0], -1) for v in edge_v], axis=-1)  # array[edge, irreps]
 
         node_out = index_add(edge_dst, edge_v, len(node_f))
-        lin = HLinear(tp_v.irreps_out, self.irreps_node_output)
+        lin = Linear(tp_v.irreps_out, self.irreps_node_output)
         return jax.vmap(lin)(node_out)

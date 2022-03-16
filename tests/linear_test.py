@@ -1,12 +1,12 @@
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, Linear, TensorProduct
+from e3nn_jax import Irreps, FunctionalLinear, TensorProduct
 
 import pytest
 
 
 class SlowLinear:
-    r"""Inefficient implimentation of Linear relying on TensorProduct."""
+    r"""Inefficient implimentation of FunctionalLinear relying on TensorProduct."""
 
     def __init__(
         self,
@@ -49,7 +49,7 @@ class SlowLinear:
 )
 def test_linear_like_tp(keys, irreps_in, irreps_out):
     """Test that Linear gives the same results as the corresponding TensorProduct."""
-    m = Linear(irreps_in, irreps_out)
+    m = FunctionalLinear(irreps_in, irreps_out)
     m_tp = SlowLinear(irreps_in, irreps_out)
 
     ws = [jax.random.normal(next(keys), i.path_shape) for i in m.instructions]

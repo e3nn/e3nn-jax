@@ -1,5 +1,6 @@
 from typing import Any, List, NamedTuple, Optional, Tuple, Union
 
+import haiku as hk
 import jax
 import jax.numpy as jnp
 
@@ -15,7 +16,7 @@ class Instruction(NamedTuple):
     path_weight: float
 
 
-class Linear:
+class FunctionalLinear:
     irreps_in: Irreps
     irreps_out: Irreps
     instructions: List[Instruction]
@@ -136,3 +137,27 @@ class Linear:
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]
         return IrrepsData.from_list(self.irreps_out, out)
+
+
+class Linear(hk.Module):
+    def __init__(self, irreps_out):
+        super().__init__()
+
+        self.irreps_out = Irreps(irreps_out)
+        self.instructions = None
+        self.biases = False
+
+    def __call__(self, x, irreps_in=None):
+        if irreps_in is None and not isinstance(x, IrrepsData):
+            raise ValueError("the input of Linear must be an IrrepsData, or `irreps_in` must be specified")
+        if irreps_in is not None:
+            x = IrrepsData.new(irreps_in, x)
+
+        lin = FunctionalLinear(x.irreps, self.irreps_out, self.instructions, biases=self.biases)
+        w = [
+            hk.get_parameter(f'bias {ins.i_out}', shape=ins.path_shape, init=hk.initializers.Constant(0.0))
+            if ins.i_in == -1 else
+            hk.get_parameter(f'weight {ins.i_in} -> {ins.i_out}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
+            for ins in lin.instructions
+        ]
+        return lin(w, x)

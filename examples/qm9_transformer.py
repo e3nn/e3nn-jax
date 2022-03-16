@@ -13,9 +13,9 @@ import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
 from e3nn_jax import (Irreps, IrrepsData, ScalarActivation, index_add,
-                      soft_one_hot_linspace, spherical_harmonics, sus)
+                      soft_one_hot_linspace, spherical_harmonics, sus, Linear)
 from e3nn_jax.experimental.transformer import Transformer
-from e3nn_jax.nn import HLinear, HTensorSquare
+from e3nn_jax.nn import HTensorSquare
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
 from tqdm.auto import tqdm
@@ -182,7 +182,7 @@ def create_model(config):
         # stat('edge_weight_cutoff', edge_weight_cutoff)
 
         irreps = Irreps(f"{mul0}x0e")
-        x = jax.vmap(HLinear(irreps_node_attr, irreps))(node_attr)
+        x = jax.vmap(Linear(irreps_node_attr, irreps))(node_attr)
 
         # stat('x', x)
 
