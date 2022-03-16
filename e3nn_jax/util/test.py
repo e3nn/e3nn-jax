@@ -1,3 +1,4 @@
+# TODO make all of this IrrepsData compatible
 import inspect
 import itertools
 import logging

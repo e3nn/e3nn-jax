@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import haiku as hk
 
-from e3nn_jax import Irreps
+from e3nn_jax import Irreps, IrrepsData
 
 
 class Dropout(hk.Module):
@@ -22,45 +22,46 @@ class Dropout(hk.Module):
     Returns:
         `Dropout`: the dropout module
     """
-    def __init__(self, irreps, p):
+    def __init__(self, p, *, irreps=None):
         super().__init__()
-        self.irreps = Irreps(irreps)
+        self.irreps = Irreps(irreps) if irreps is not None else None
         self.p = p
 
     def __repr__(self):
-        return f"{self.__class__.__name__} ({self.irreps}, p={self.p})"
+        return f"{self.__class__.__name__} (p={self.p})"
 
-    def __call__(self, rng, x, is_training=True):
+    def __call__(self, rng, x: IrrepsData, is_training=True) -> IrrepsData:
         """equivariant dropout
 
         Args:
             rng (`jax.random.PRNGKey`): the random number generator
-            x (`jnp.ndarray`): the input
+            x (IrrepsData): the input
             is_training (bool): whether to perform dropout
 
         Returns:
-            `jnp.ndarray`: the output
+            IrrepsData: the output
         """
         if not is_training:
             return x
 
-        batch = x.shape[0]
+        if self.irreps is not None:
+            x = IrrepsData.new(self.irreps, x)
+        if not isinstance(x, IrrepsData):
+            raise TypeError(f"{self.__class__.__name__} only supports IrrepsData")
 
         noises = []
-        for mul, ir in self.irreps:
-            dim = ir.dim
-
+        out_list = []
+        for (mul, ir), a in zip(x.irreps, x.list):
             if self.p >= 1:
-                noise = jnp.zeros((batch, mul, 1), dtype=x.dtype)
+                out_list.append(None)
+                noises.append(jnp.zeros((mul * ir.dim,)))
             elif self.p <= 0:
-                noise = jnp.ones((batch, mul, 1), dtype=x.dtype)
+                out_list.append(a)
+                noises.append(jnp.ones((mul * ir.dim,)))
             else:
-                noise = jax.random.bernoulli(rng, p=1 - self.p, shape=(batch, mul, 1)) / (1 - self.p)
+                noise = jax.random.bernoulli(rng, p=1 - self.p, shape=(mul, 1)) / (1 - self.p)
+                out_list.append(noise * a)
+                noises.append(jnp.repeat(noise, ir.dim, axis=1).flatten())
 
-            noise = jnp.tile(noise, (1, 1, dim)).reshape(batch, mul * dim)
-            noises.append(noise)
-
-        noise = jnp.concatenate(noises, axis=-1)
-        while len(noise.shape) < len(x.shape):
-            noise = noise[:, None]
-        return x * noise
+        noises = jnp.concatenate(noises)
+        return IrrepsData(x.irreps, x.contiguous * noises, out_list)
