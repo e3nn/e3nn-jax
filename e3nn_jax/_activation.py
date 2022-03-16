@@ -61,8 +61,14 @@ class ScalarActivation:
         self.acts = acts
 
     def __call__(self, features):
-        features = IrrepsData.new(self.irreps_in, features).list
-        return IrrepsData.from_list(self.irreps_out, [x if act is None or x is None else act(x) for act, x in zip(self.acts, features)])
+        features = IrrepsData.new(self.irreps_in, features)
+        # TODO fix the case cos(None) = 1 (not None)
+        list = [x if act is None or x is None else act(x) for act, x in zip(self.acts, features.list)]
+        if self.acts and self.acts.count(self.acts[0]) == len(self.acts):
+            # for performance, if all the activation functions are the same, we can apply it to the contiguous array as well
+            contiguous = features.contiguous if self.acts[0] is None else self.acts[0](features.contiguous)
+            return IrrepsData(self.irreps_out, contiguous, list)
+        return IrrepsData.from_list(self.irreps_out, list)
 
 
 class KeyValueActivation:
