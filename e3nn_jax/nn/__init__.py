@@ -1,7 +1,6 @@
-from ._haiku import (HMLP, HTensorProductMLP, HTensorSquare)
+from ._haiku import HMLP, HTensorProductMLP
 
 __all__ = [
     "HMLP",
     "HTensorProductMLP",
-    "HTensorSquare",
 ]

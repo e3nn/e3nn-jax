@@ -3,27 +3,7 @@ from typing import Callable, Sequence
 
 import haiku as hk
 import jax.numpy as jnp
-from e3nn_jax import Irreps, FunctionalTensorProduct, TensorSquare, normalize_function
-
-
-class HTensorSquare(hk.Module):
-    def __init__(self, irreps_in, irreps_out, init=None):
-        super().__init__()
-
-        self.irreps_in = Irreps(irreps_in)
-        self.irreps_out = Irreps(irreps_out)
-
-        if init is None:
-            init = hk.initializers.RandomNormal()
-        self.init = init
-
-    def __call__(self, x):
-        tp = TensorSquare(self.irreps_in, self.irreps_out)
-        ws = [
-            hk.get_parameter(f'weight {i}', shape=ins.path_shape, init=self.init)
-            for i, ins in enumerate(tp.instructions)
-        ]
-        return tp.left_right(ws, x, x)
+from e3nn_jax import Irreps, FunctionalTensorProduct, normalize_function
 
 
 class HMLP(hk.Module):

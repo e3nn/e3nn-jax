@@ -13,9 +13,8 @@ import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
 from e3nn_jax import (Irreps, IrrepsData, ScalarActivation, index_add,
-                      soft_one_hot_linspace, spherical_harmonics, sus, Linear)
+                      soft_one_hot_linspace, spherical_harmonics, sus, Linear, TensorSquare)
 from e3nn_jax.experimental.transformer import Transformer
-from e3nn_jax.nn import HTensorSquare
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
 from tqdm.auto import tqdm
@@ -159,7 +158,7 @@ def create_model(config):
 
         def act(x):
             x = activation(x)
-            tp = HTensorSquare(irreps_features, irreps_features, init=hk.initializers.Constant(0.0))
+            tp = TensorSquare(irreps_features, init=hk.initializers.Constant(0.0))
             y = jax.vmap(tp)(x)
             x = jax.tree_map(add, x, y)
             return x

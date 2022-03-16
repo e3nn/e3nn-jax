@@ -57,7 +57,7 @@ class FullyConnectedTensorProduct(hk.Module):
         return tp.left_right(ws, x1, x2)
 
 
-def FullTensorProduct(
+def FunctionalFullTensorProduct(
     irreps_in1: Any,
     irreps_in2: Any,
     filter_ir_out=None,
@@ -94,7 +94,7 @@ def FullTensorProduct(
     return FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, irrep_normalization=irrep_normalization)
 
 
-def ElementwiseTensorProduct(
+def FunctionalElementwiseTensorProduct(
     irreps_in1: Any,
     irreps_in2: Any,
     filter_ir_out=None,
@@ -143,7 +143,7 @@ def ElementwiseTensorProduct(
     return FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, irrep_normalization=irrep_normalization, path_normalization=path_normalization)
 
 
-def TensorSquare(
+def FunctionalTensorSquare(
     irreps_in: Irreps,
     irreps_out: Irreps,
     irrep_normalization: str = None,
@@ -202,3 +202,26 @@ def TensorSquare(
                             ]
 
     return FunctionalTensorProduct(irreps_in, irreps_in, irreps_out, instructions, irrep_normalization='none', **kwargs)
+
+
+class TensorSquare(hk.Module):
+    def __init__(self, irreps_out, *, irreps_in=None, init=None):
+        super().__init__()
+
+        self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None
+        self.irreps_out = Irreps(irreps_out)
+
+        if init is None:
+            init = hk.initializers.RandomNormal()
+        self.init = init
+
+    def __call__(self, x: IrrepsData) -> IrrepsData:
+        if self.irreps_in is not None:
+            x = IrrepsData.new(self.irreps_in, x)
+
+        tp = FunctionalTensorSquare(x.irreps, self.irreps_out)
+        ws = [
+            hk.get_parameter(f'weight {i}', shape=ins.path_shape, init=self.init)
+            for i, ins in enumerate(tp.instructions)
+        ]
+        return tp.left_right(ws, x, x)
