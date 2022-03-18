@@ -1,6 +1,5 @@
 import collections
 import itertools
-import warnings
 from functools import partial
 from typing import List, Optional
 
