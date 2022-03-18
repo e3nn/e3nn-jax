@@ -38,7 +38,7 @@ from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import FunctionalLinear, Linear
 from ._core_tensor_product import FunctionalTensorProduct
 from ._tensor_products import FunctionalFullyConnectedTensorProduct, FullyConnectedTensorProduct, FunctionalFullTensorProduct, FunctionalElementwiseTensorProduct, FunctionalTensorSquare, TensorSquare
-from ._activation import ScalarActivation, normalize_function
+from ._activation import scalar_activation, normalize_function
 from ._gate import Gate
 from ._batchnorm import BatchNorm
 from ._dropout import Dropout
@@ -81,7 +81,7 @@ __all__ = [
     "FunctionalLinear", "Linear",
     "FunctionalTensorProduct",
     "FunctionalFullyConnectedTensorProduct", "FullyConnectedTensorProduct", "FunctionalFullTensorProduct", "FunctionalElementwiseTensorProduct", "FunctionalTensorSquare", "TensorSquare",
-    "ScalarActivation", "normalize_function",
+    "scalar_activation", "normalize_function",
     "Gate", "BatchNorm", "Dropout",
     "MultiLayerPerceptron", "TensorProductMultiLayerPerceptron",
 ]

@@ -12,7 +12,7 @@ import torch
 import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
-from e3nn_jax import (Irreps, IrrepsData, ScalarActivation, index_add,
+from e3nn_jax import (Irreps, IrrepsData, scalar_activation, index_add,
                       soft_one_hot_linspace, spherical_harmonics, sus, Linear, TensorSquare)
 from e3nn_jax.experimental.transformer import Transformer
 from torch_geometric.datasets import QM9
@@ -145,19 +145,9 @@ def create_model(config):
         mul2 = config['mul2']
 
         irreps_features = Irreps(f'{mul0}x0e + {mul0}x0o + {mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o').simplify()
-        activation = ScalarActivation(irreps_features, [jax.nn.gelu, jnp.tanh] + [None] * (len(irreps_features) - 2))
-
-        def add(x, y):
-            if x is None and y is None:
-                return None
-            if x is None:
-                return y
-            if y is None:
-                return x
-            return x + y
 
         def act(x):
-            x = activation(x)
+            x = scalar_activation(x, [jax.nn.gelu, jnp.tanh] + [None] * (len(x.irreps) - 2))
             tp = TensorSquare(irreps_features, init=hk.initializers.Constant(0.0))
             y = jax.vmap(tp)(x)
             return x + y

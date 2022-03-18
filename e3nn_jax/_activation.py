@@ -1,7 +1,10 @@
+from typing import Callable, List, Optional
+
 import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Irreps, IrrepsData
+from e3nn_jax.util.no_data import overload_for_irreps_without_data
 
 
 def normalize_function(phi):
@@ -31,46 +34,54 @@ def parity_function(phi):
             return 0
 
 
-class ScalarActivation:
-    irreps_in: Irreps
-    irreps_out: Irreps
+def is_zero_in_zero(phi):
+    with jax.ensure_compile_time_eval():
+        return jnp.allclose(phi(0), 0)
 
-    def __init__(self, irreps_in, acts):
-        irreps_in = Irreps(irreps_in)
-        assert len(irreps_in) == len(acts), (irreps_in, acts)
 
-        irreps_out = []
-        for (mul, (l_in, p_in)), act in zip(irreps_in, acts):
-            if act is not None:
-                if l_in != 0:
-                    raise ValueError("Activation: cannot apply an activation function to a non-scalar input.")
+@overload_for_irreps_without_data(irrepsdata_argnums=[0])
+def scalar_activation(features: IrrepsData, acts: List[Optional[Callable[[float], float]]]) -> IrrepsData:
+    assert isinstance(features, IrrepsData)
 
-                p_out = parity_function(act) if p_in == -1 else p_in
-                irreps_out.append((mul, (0, p_out)))
+    assert len(features.irreps) == len(acts), (features.irreps, acts)
 
-                if p_out == 0:
-                    raise ValueError("Activation: the parity is violated! The input scalar is odd but the activation is neither even nor odd.")
+    list = []
+
+    irreps_out = []
+    for (mul, (l_in, p_in)), x, act in zip(features.irreps, features.list, acts):
+        if act is not None:
+            if l_in != 0:
+                raise ValueError("Activation: cannot apply an activation function to a non-scalar input.")
+
+            act = normalize_function(act)
+
+            p_out = parity_function(act) if p_in == -1 else p_in
+            if p_out == 0:
+                raise ValueError("Activation: the parity is violated! The input scalar is odd but the activation is neither even nor odd.")
+
+            irreps_out.append((mul, (0, p_out)))
+            if x is None:
+                if is_zero_in_zero(act):
+                    list.append(None)
+                else:
+                    list.append(act(jnp.ones(features._shape_from_list() + (mul, 1))))
             else:
-                irreps_out.append((mul, (l_in, p_in)))
+                list.append(act(x))
+        else:
+            irreps_out.append((mul, (l_in, p_in)))
+            list.append(x)
 
-        # normalize the second moment
-        acts = [normalize_function(act) if act is not None else None for act in acts]
+    irreps_out = Irreps(irreps_out)
 
-        self.irreps_in = irreps_in
-        self.irreps_out = Irreps(irreps_out)
-        self.acts = acts
+    if acts and acts.count(acts[0]) == len(acts):
+        # for performance, if all the activation functions are the same, we can apply it to the contiguous array as well
+        contiguous = features.contiguous if acts[0] is None else normalize_function(acts[0])(features.contiguous)
+        return IrrepsData(irreps_out, contiguous, list)
 
-    def __call__(self, features):
-        features = IrrepsData.new(self.irreps_in, features)
-        # TODO fix the case cos(None) = 1 (not None)
-        list = [x if act is None or x is None else act(x) for act, x in zip(self.acts, features.list)]
-        if self.acts and self.acts.count(self.acts[0]) == len(self.acts):
-            # for performance, if all the activation functions are the same, we can apply it to the contiguous array as well
-            contiguous = features.contiguous if self.acts[0] is None else self.acts[0](features.contiguous)
-            return IrrepsData(self.irreps_out, contiguous, list)
-        return IrrepsData.from_list(self.irreps_out, list)
+    return IrrepsData.from_list(irreps_out, list)
 
 
+# TODO remove this class and follow the same pattern as scalar_activation
 class KeyValueActivation:
     irreps_key: Irreps
     irreps_value: Irreps
@@ -80,6 +91,7 @@ class KeyValueActivation:
         self.irreps_key = Irreps(irreps_key)
         self.irreps_value = Irreps(irreps_value)
 
+        # TODO compute irreps_out
         # irreps_out =
 
     def __call__(self, keys, values):

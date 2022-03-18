@@ -670,7 +670,7 @@ class IrrepsData:
 
     @staticmethod
     def zeros(irreps: Irreps, shape) -> "IrrepsData":
-        return IrrepsData(irreps, jnp.zeros(shape + (irreps.dim,)), [None] * len(irreps))
+        return IrrepsData(Irreps(irreps), jnp.zeros(shape + (irreps.dim,)), [None] * len(irreps))
 
     @staticmethod
     def new(irreps, any) -> "IrrepsData":
@@ -755,6 +755,7 @@ class IrrepsData:
         for x in self.list:
             if x is not None:
                 return x.shape[:-2]
+        print("warning: IrrepsData._shape_from_list: not able to get shape from list")
         return self.contiguous.shape[:-1]
 
     @partial(jax.jit, inline=True)
@@ -925,3 +926,9 @@ class IrrepsData:
             jnp.concatenate([x.contiguous for x in args], axis=-1),
             sum([x.list for x in args], [])
         )
+
+    @staticmethod
+    def randn(irreps, key, size=(), *, normalization='component'):
+        irreps = Irreps(irreps)
+        x = irreps.randn(key, size + (-1,), normalization=normalization)
+        return IrrepsData.from_contiguous(irreps, x)

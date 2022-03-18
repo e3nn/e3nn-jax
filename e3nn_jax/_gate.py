@@ -1,4 +1,4 @@
-from e3nn_jax import ScalarActivation, FunctionalElementwiseTensorProduct, Irreps, IrrepsData
+from e3nn_jax import scalar_activation, FunctionalElementwiseTensorProduct, Irreps, IrrepsData
 
 
 class Gate:
@@ -62,16 +62,16 @@ class Gate:
         self.irreps_scalars, self.irreps_gates, self.irreps_gated = irreps_scalars, irreps_gates, irreps_gated  # self.sc.irreps_outs
         self.irreps_in = irreps_scalars + irreps_gates + irreps_gated
 
-        self.act_scalars = ScalarActivation(irreps_scalars, act_scalars)
-        irreps_scalars = self.act_scalars.irreps_out
-
-        self.act_gates = ScalarActivation(irreps_gates, act_gates)
-        irreps_gates = self.act_gates.irreps_out
+        irreps_scalars = scalar_activation(irreps_scalars, act_scalars)
+        irreps_gates = scalar_activation(irreps_gates, act_gates)
 
         self.mul = FunctionalElementwiseTensorProduct(irreps_gated, irreps_gates)
         irreps_gated = self.mul.irreps_out
 
         self.irreps_out = irreps_scalars + irreps_gated
+
+        self.act_scalars = act_scalars
+        self.act_gates = act_gates
 
     def __repr__(self):
         return f"{self.__class__.__name__} ({self.irreps_in} -> {self.irreps_out})"
@@ -90,9 +90,9 @@ class Gate:
         gates = IrrepsData.from_list(self.irreps_gates, features[len(self.irreps_scalars): -len(self.irreps_gated)])
         gated = IrrepsData.from_list(self.irreps_gated, features[-len(self.irreps_gated):])
 
-        scalars = self.act_scalars(scalars)
+        scalars = scalar_activation(scalars, self.act_scalars)
         if gates:
-            gates = self.act_gates(gates)
+            gates = scalar_activation(gates, self.act_gates)
             gated = self.mul.left_right(gated, gates)
             features = IrrepsData.from_list(self.irreps_out, scalars.list + gated.list)
         else:
