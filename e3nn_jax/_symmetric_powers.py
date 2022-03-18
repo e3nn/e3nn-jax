@@ -1,11 +1,11 @@
 import itertools
-import operator
 from collections import defaultdict
-from functools import lru_cache, reduce
+from functools import lru_cache
 
 import sympy
 
 from e3nn_jax._wigner import wigner_3j_sympy
+from e3nn_jax.util import prod
 
 
 @lru_cache(maxsize=None)
@@ -33,12 +33,8 @@ def is_symmetric(xx):
     return all(x == 0 for x in symmetric_terms(xx))
 
 
-def _prod(xs):
-    return reduce(operator.mul, xs, 1)
-
-
 def new_array(*shape):
-    return sympy.Array(sympy.zeros(_prod(shape), 1)).reshape(*shape)
+    return sympy.Array(sympy.zeros(prod(shape), 1)).reshape(*shape)
 
 
 def tensordot(a, b, i, j):
@@ -55,8 +51,8 @@ def tensordot(a, b, i, j):
     a_shape = a.shape
     b_shape = b.shape
 
-    a = a.reshape(_prod(a_shape[:-1]), a_shape[-1])
-    b = b.reshape(b_shape[0], _prod(b_shape[1:]))
+    a = a.reshape(prod(a_shape[:-1]), a_shape[-1])
+    b = b.reshape(b_shape[0], prod(b_shape[1:]))
 
     out = sympy.SparseMatrix(a) @ sympy.SparseMatrix(b)
     out = sympy.Array(out)

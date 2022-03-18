@@ -1,14 +1,8 @@
-import functools
-import operator
 from typing import Any, List, Optional
 
 import haiku as hk
 
 from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsData
-
-
-def _prod(xs):
-    return functools.reduce(operator.mul, xs, 1)
 
 
 def FunctionalFullyConnectedTensorProduct(

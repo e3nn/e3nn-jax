@@ -758,6 +758,20 @@ class IrrepsData:
     def shape(self):
         return self.contiguous.shape[:-1]
 
+    def reshape(self, shape) -> "IrrepsData":
+        list = [
+            None if x is None else x.reshape(shape + (mul, ir.dim))
+            for (mul, ir), x in zip(self.irreps, self.list)
+        ]
+        return IrrepsData(self.irreps, self.contiguous.reshape(shape + (self.irreps.dim,)), list)
+
+    def replace_none_with_zeros(self) -> "IrrepsData":
+        list = [
+            jnp.zeros(self.shape + (mul, ir.dim)) if x is None else x
+            for (mul, ir), x in zip(self.irreps, self.list)
+        ]
+        return IrrepsData(self.irreps, self.contiguous, list)
+
     @partial(jax.jit, inline=True)
     def transform_by_angles(self, alpha, beta, gamma, k=0):
         r"""Rotate the data by angles according to the irreps

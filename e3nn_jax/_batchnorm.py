@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax
 
 from e3nn_jax import Irreps, IrrepsData
-from e3nn_jax._tensor_products import _prod  # TODO put this _prod in until
+from e3nn_jax.util import prod
 
 
 class BatchNorm(hk.Module):
@@ -63,6 +63,9 @@ class BatchNorm(hk.Module):
 
         irreps = input.irreps
 
+        # TODO add test cases with None in input.list
+        input = input.replace_none_with_zeros()  # TODO remove this, and support efficiently None
+
         num_scalar = sum(mul for mul, ir in irreps if ir.is_scalar())
         num_features = irreps.num_irreps
 
@@ -74,10 +77,10 @@ class BatchNorm(hk.Module):
             bias = hk.get_parameter("bias", shape=(num_scalar,), init=jnp.zeros)
 
         batch, *size = input.shape
-        # TODO add test case for when _prod(size) == 0
-        # TODO add support for None in the input.list!
+        # TODO add test case for when prod(size) == 0
+
+        input = input.reshape((batch, prod(size)))
         input = input.list
-        input = [x.reshape(batch, _prod(size), mul, ir.dim) for (mul, ir), x in zip(irreps, input)]
 
         if is_training and not self.instance:
             new_means = []
@@ -157,4 +160,4 @@ class BatchNorm(hk.Module):
                 hk.set_state("running_var", jnp.concatenate(new_vars))
 
         output = [x.reshape(batch, *size, mul, ir.dim) for (mul, ir), x in zip(irreps, fields)]
-        return IrrepsData.from_list(irreps, output, (batch,) + size)
+        return IrrepsData.from_list(irreps, output, (batch,) + tuple(size))

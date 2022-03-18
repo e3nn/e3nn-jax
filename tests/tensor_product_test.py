@@ -1,15 +1,9 @@
-import functools
-import operator
-
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import (FunctionalFullyConnectedTensorProduct, Irreps, FunctionalTensorProduct,
-                      FunctionalTensorSquare)
-
-
-def _prod(xs):
-    return functools.reduce(operator.mul, xs, 1)
+from e3nn_jax import (FunctionalFullyConnectedTensorProduct,
+                      FunctionalTensorProduct, FunctionalTensorSquare, Irreps)
+from e3nn_jax.util import prod
 
 
 @pytest.mark.parametrize('connection_mode', ['uvw', 'uvu', 'uvv'])
@@ -157,7 +151,7 @@ def test_normalization(keys, irrep_normalization, path_normalization):
 def test_square_normalization(keys):
     irreps = Irreps("2x0e + 3x1e + 2x2e + 3e")
     tp = FunctionalTensorSquare(irreps, irreps, irrep_normalization='component')
-    n = sum(_prod(ins.path_shape) for ins in tp.instructions if ins.has_weight)
+    n = sum(prod(ins.path_shape) for ins in tp.instructions if ins.has_weight)
 
     @jax.vmap
     def f(w, x):

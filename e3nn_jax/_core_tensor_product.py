@@ -1,6 +1,4 @@
-import functools
 import itertools
-import operator
 from functools import lru_cache, partial
 from math import sqrt
 from typing import Any, List, NamedTuple, Optional
@@ -9,12 +7,9 @@ import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Irreps, IrrepsData, wigner_3j
+from e3nn_jax.util import prod
 
 from ._einsum import einsum as opt_einsum
-
-
-def _prod(xs):
-    return functools.reduce(operator.mul, xs, 1)
 
 
 def _sum_tensors(xs, shape, empty_return_none=False):
@@ -233,7 +228,7 @@ class FunctionalTensorProduct:
             i = 0
             for ins in self.instructions:
                 if ins.has_weight:
-                    n = _prod(ins.path_shape)
+                    n = prod(ins.path_shape)
                     weights_list.append(weights[i:i+n].reshape(ins.path_shape))
                     i += n
             assert i == weights.size
@@ -531,8 +526,8 @@ class FunctionalTensorProduct:
         ], axis=0)
 
     def __repr__(self):
-        npath = sum(_prod(i.path_shape) for i in self.instructions)
-        nweight = sum(_prod(i.path_shape) for i in self.instructions if i.has_weight)
+        npath = sum(prod(i.path_shape) for i in self.instructions)
+        nweight = sum(prod(i.path_shape) for i in self.instructions if i.has_weight)
         return (
             f"{self.__class__.__name__}"
             f"({self.irreps_in1.simplify()} x {self.irreps_in2.simplify()} "
