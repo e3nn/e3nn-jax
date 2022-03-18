@@ -2,7 +2,7 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
-from e3nn_jax import IrrepsData
+from e3nn_jax import IrrepsData, index_add
 from e3nn_jax.util import prod
 from jax import lax
 
@@ -155,16 +155,7 @@ def zoom(input, resize_rate):
     return output
 
 
-def _norm_maxpool(input, strides):
-    r"""Norm maxpooling.
-
-    Args:
-        input: [x, y, z, c] or [x, y, c] or any other spatial dimension
-        strides: strides of the pooling operation
-
-    Returns:
-        [x, y, z, c] or [x, y, c] or any other spatial dimension
-    """
+def _index_max_norm(input, strides):
     norms = jnp.sum(input**2, axis=-1)
     shape = input.shape[:-1]
     dim = len(shape)
@@ -185,8 +176,30 @@ def _norm_maxpool(input, strides):
         window_strides=strides,
         padding=((0, 0),) * dim,
     )
+    return idxs
 
-    return input.reshape(-1, input.shape[-1])[idxs]
+
+@jax.custom_vjp
+def norm_maxpool(input, strides):
+    idxs = _index_max_norm(input, strides)
+    return input.reshape(prod(input.shape[:-1]), input.shape[-1])[idxs]
+
+
+def norm_maxpool_fwd(input, strides):
+    idxs = _index_max_norm(input, strides)
+    output = input.reshape(prod(input.shape[:-1]), input.shape[-1])[idxs]
+    return output, (idxs, input.shape)
+
+
+def norm_maxpool_bwd(residuals, grad):
+    idxs, shape = residuals
+    idxs = idxs.flatten()
+    grad = index_add(idxs, grad.reshape(idxs.shape[0], -1), prod(shape[:-1]))
+    grad = grad.reshape(shape)
+    return (grad, None)
+
+
+norm_maxpool.defvjp(norm_maxpool_fwd, norm_maxpool_bwd)
 
 
 @partial(jax.jit, static_argnames={"strides"})
@@ -203,7 +216,7 @@ def maxpool(input: IrrepsData, strides) -> IrrepsData:
     assert len(input.shape) == len(strides)
 
     list = [
-        None if x is None else jax.vmap(lambda x: _norm_maxpool(x, strides), -2, -2)(x)
+        None if x is None else jax.vmap(lambda x: norm_maxpool(x, strides), -2, -2)(x)
         for x in input.list
     ]
 
