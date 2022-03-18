@@ -674,7 +674,7 @@ class IrrepsData:
         return IrrepsData(irreps, jnp.zeros(shape + (irreps.dim,)), [None] * len(irreps))
 
     @staticmethod
-    def new(irreps, any) -> "IrrepsData":
+    def new(irreps: Irreps, any) -> "IrrepsData":
         r"""Create a new IrrepsData
 
         Args:
@@ -691,7 +691,7 @@ class IrrepsData:
         return IrrepsData.from_contiguous(irreps, any)
 
     @staticmethod
-    def from_list(irreps, list, shape=()):
+    def from_list(irreps: Irreps, list, shape=None) -> "IrrepsData":
         r"""Create an IrrepsData from a list of arrays
 
         Args:
@@ -713,11 +713,14 @@ class IrrepsData:
             if x is not None:
                 shape = x.shape[:-2]
 
+        if shape is None:
+            raise ValueError("shape could not be inferred, please specify it")
+
         if irreps.dim > 0:
             contiguous = jnp.concatenate([
                 jnp.zeros(shape + (mul_ir.dim,))
                 if x is None else
-                x.reshape(shape + (x.shape[-2] * x.shape[-1],))
+                x.reshape(shape + (mul_ir.dim,))
                 for mul_ir, x in zip(irreps, list)
             ], axis=-1)
         else:
@@ -725,7 +728,7 @@ class IrrepsData:
         return IrrepsData(irreps, contiguous, list)
 
     @staticmethod
-    def from_contiguous(irreps, contiguous):
+    def from_contiguous(irreps: Irreps, contiguous) -> "IrrepsData":
         r"""Create an IrrepsData from a contiguous array
 
         Args:
