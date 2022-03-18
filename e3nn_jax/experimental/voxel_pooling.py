@@ -158,8 +158,7 @@ def zoom(input, resize_rate):
 def _index_max_norm(input, strides):
     norms = jnp.sum(input**2, axis=-1)
     shape = input.shape[:-1]
-    dim = len(shape)
-    assert dim == len(strides)
+    assert len(shape) == len(strides)
     idxs = jnp.arange(prod(shape)).reshape(shape)
 
     def g(a, b):
@@ -174,7 +173,7 @@ def _index_max_norm(input, strides):
         g,
         window_dimensions=strides,
         window_strides=strides,
-        padding=((0, 0),) * dim,
+        padding=((0, 0),) * len(strides),
     )
     return idxs
 
@@ -202,7 +201,6 @@ def norm_maxpool_bwd(residuals, grad):
 norm_maxpool.defvjp(norm_maxpool_fwd, norm_maxpool_bwd)
 
 
-@partial(jax.jit, static_argnames={"strides"})
 def maxpool(input: IrrepsData, strides) -> IrrepsData:
     r"""
     Args:

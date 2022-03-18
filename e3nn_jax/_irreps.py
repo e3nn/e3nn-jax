@@ -713,7 +713,7 @@ class IrrepsData:
         assert all(
             x is None or x.shape == shape + (mul, ir.dim)
             for x, (mul, ir) in zip(list, irreps)
-        )
+        ), ([x.shape for x in list if x is not None], shape)
 
         if irreps.dim > 0:
             contiguous = jnp.concatenate([
