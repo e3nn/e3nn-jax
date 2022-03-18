@@ -460,15 +460,17 @@ class FunctionalTensorProduct:
             mul_ir_in2 = self.irreps_in2[ins.i_in2]
             mul_ir_out = self.irreps_out[ins.i_out]
 
-            if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
-                continue
-
             x2 = input2.list[ins.i_in2]
 
             if ins.has_weight:
                 w = weights[weight_index]
-                assert w.shape == ins.path_shape
+                assert w.shape == ins.path_shape, (w.shape, ins.path_shape, weight_index, ins)
                 weight_index += 1
+
+            if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
+                # TODO add tests for this case
+                out_list += [jnp.zeros((mul_ir_in1.dim, mul_ir_out.dim))]
+                continue
 
             with jax.ensure_compile_time_eval():
                 w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)

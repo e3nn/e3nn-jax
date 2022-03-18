@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import jax
 
 from e3nn_jax import Irreps, IrrepsData
+from e3nn_jax._tensor_products import _prod  # TODO put this _prod in until
 
 
 class BatchNorm(hk.Module):
@@ -23,6 +24,8 @@ class BatchNorm(hk.Module):
     """
     def __init__(self, *, irreps=None, eps=1e-5, momentum=0.1, affine=True, reduce='mean', instance=False, normalization='component'):
         super().__init__()
+
+        # TODO test with and without irreps argument given
 
         self.irreps = Irreps(irreps) if irreps is not None else irreps
         self.eps = eps
@@ -58,8 +61,10 @@ class BatchNorm(hk.Module):
         if not isinstance(input, IrrepsData):
             raise ValueError("input should be of type IrrepsData")
 
-        num_scalar = sum(mul for mul, ir in self.irreps if ir.is_scalar())
-        num_features = self.irreps.num_irreps
+        irreps = input.irreps
+
+        num_scalar = sum(mul for mul, ir in irreps if ir.is_scalar())
+        num_features = irreps.num_irreps
 
         if not self.instance:
             running_mean = hk.get_state("running_mean", shape=(num_scalar,), init=jnp.zeros)
@@ -69,8 +74,9 @@ class BatchNorm(hk.Module):
             bias = hk.get_parameter("bias", shape=(num_scalar,), init=jnp.zeros)
 
         batch, *size = input._shape_from_list()
+        # TODO add test case for when _prod(size) == 0
         input = input.list
-        input = [x.reshape(batch, -1, mul, ir.dim) for (mul, ir), x in zip(self.irreps, input)]
+        input = [x.reshape(batch, _prod(size), mul, ir.dim) for (mul, ir), x in zip(irreps, input)]
 
         if is_training and not self.instance:
             new_means = []
@@ -83,7 +89,7 @@ class BatchNorm(hk.Module):
         irm = 0
         ib = 0
 
-        for (mul, ir), field in zip(self.irreps, input):
+        for (mul, ir), field in zip(irreps, input):
             k = i + mul
 
             # [batch, sample, mul, repr]
@@ -131,7 +137,9 @@ class BatchNorm(hk.Module):
                 sub_weight = weight[i: k]  # [mul]
                 field_norm = field_norm * sub_weight  # [(batch,) mul]
 
-            field = field * field_norm.reshape(-1, 1, mul, 1)  # [batch, sample, mul, repr]
+            # TODO add test case for when mul == 0
+            field_norm = field_norm[..., None, :, None]  # [(batch,) 1, mul, 1]
+            field = field * field_norm  # [batch, sample, mul, repr]
 
             if self.affine and ir.is_scalar():  # scalars
                 sub_bias = bias[ib: ib + mul]  # [mul]
@@ -147,5 +155,5 @@ class BatchNorm(hk.Module):
             if len(new_vars):
                 hk.set_state("running_var", jnp.concatenate(new_vars))
 
-        output = [x.reshape(batch, *size, mul, ir.dim) for (mul, ir), x in zip(self.irreps, fields)]
-        return IrrepsData.from_list(self.irreps, output)
+        output = [x.reshape(batch, *size, mul, ir.dim) for (mul, ir), x in zip(irreps, fields)]
+        return IrrepsData.from_list(irreps, output)

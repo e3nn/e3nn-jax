@@ -36,19 +36,19 @@ def parity_function(phi):
 
 def is_zero_in_zero(phi):
     with jax.ensure_compile_time_eval():
-        return jnp.allclose(phi(0), 0)
+        return jnp.allclose(phi(jnp.array(0.0)), 0.0)
 
 
 @overload_for_irreps_without_data(irrepsdata_argnums=[0])
-def scalar_activation(features: IrrepsData, acts: List[Optional[Callable[[float], float]]]) -> IrrepsData:
-    assert isinstance(features, IrrepsData)
+def scalar_activation(input: IrrepsData, acts: List[Optional[Callable[[float], float]]]) -> IrrepsData:
+    assert isinstance(input, IrrepsData)
 
-    assert len(features.irreps) == len(acts), (features.irreps, acts)
+    assert len(input.irreps) == len(acts), (input.irreps, acts)
 
     list = []
 
     irreps_out = []
-    for (mul, (l_in, p_in)), x, act in zip(features.irreps, features.list, acts):
+    for (mul, (l_in, p_in)), x, act in zip(input.irreps, input.list, acts):
         if act is not None:
             if l_in != 0:
                 raise ValueError("Activation: cannot apply an activation function to a non-scalar input.")
@@ -64,7 +64,7 @@ def scalar_activation(features: IrrepsData, acts: List[Optional[Callable[[float]
                 if is_zero_in_zero(act):
                     list.append(None)
                 else:
-                    list.append(act(jnp.ones(features._shape_from_list() + (mul, 1))))
+                    list.append(act(jnp.ones(input._shape_from_list() + (mul, 1))))
             else:
                 list.append(act(x))
         else:
@@ -75,7 +75,7 @@ def scalar_activation(features: IrrepsData, acts: List[Optional[Callable[[float]
 
     if acts and acts.count(acts[0]) == len(acts):
         # for performance, if all the activation functions are the same, we can apply it to the contiguous array as well
-        contiguous = features.contiguous if acts[0] is None else normalize_function(acts[0])(features.contiguous)
+        contiguous = input.contiguous if acts[0] is None else normalize_function(acts[0])(input.contiguous)
         return IrrepsData(irreps_out, contiguous, list)
 
     return IrrepsData.from_list(irreps_out, list)

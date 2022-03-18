@@ -670,7 +670,8 @@ class IrrepsData:
 
     @staticmethod
     def zeros(irreps: Irreps, shape) -> "IrrepsData":
-        return IrrepsData(Irreps(irreps), jnp.zeros(shape + (irreps.dim,)), [None] * len(irreps))
+        irreps = Irreps(irreps)
+        return IrrepsData(irreps, jnp.zeros(shape + (irreps.dim,)), [None] * len(irreps))
 
     @staticmethod
     def new(irreps, any) -> "IrrepsData":
@@ -749,7 +750,7 @@ class IrrepsData:
         return IrrepsData(irreps, contiguous, list)
 
     def __repr__(self):
-        return f"IrrepsData({self.irreps})"
+        return f"IrrepsData({self.irreps}, {self.contiguous}, {self.list})"
 
     def _shape_from_list(self):
         for x in self.list:
@@ -828,7 +829,8 @@ class IrrepsData:
         """
         # Optimization: we use only the list of arrays, not the contiguous data
         irreps = Irreps(irreps)
-        assert irreps.unify() == self.irreps.unify()
+        assert self.irreps.simplify() == irreps.simplify(), (self.irreps, irreps)
+        # TODO test cases with mul == 0
 
         shape = self._shape_from_list()
 

@@ -71,10 +71,6 @@ class Convolution(hk.Module):
         # convolution
         tp = FunctionalFullyConnectedTensorProduct(irreps_in, self.irreps_sh, self.irreps_out)
 
-        tp_right = tp.right
-        for _ in range(3):
-            tp_right = jax.vmap(tp_right, (0, 0), 0)
-
         w = [
             hk.get_parameter(
                 f'weight {i.i_in1} x {i.i_in2} -> {i.i_out}',
@@ -87,7 +83,12 @@ class Convolution(hk.Module):
             jnp.einsum("xyzk,k...->xyz...", self.emb, x) / (self.sh.shape[0] * self.sh.shape[1] * self.sh.shape[2])  # [x,y,z, tp_w]
             for x in w
         ]
+
+        tp_right = tp.right
+        for _ in range(3):
+            tp_right = jax.vmap(tp_right, (0, 0), 0)
         k = tp_right(w, self.sh)  # [x,y,z, irreps_in.dim, irreps_out.dim]
+
         x = lax.conv_general_dilated(
             lhs=x.contiguous,
             rhs=k,
