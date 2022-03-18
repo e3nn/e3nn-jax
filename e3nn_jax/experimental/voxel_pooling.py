@@ -2,6 +2,8 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+from e3nn_jax import IrrepsData
+from e3nn_jax.util import prod
 from jax import lax
 
 
@@ -151,3 +153,60 @@ def zoom(input, resize_rate):
     output = output.reshape(*input.shape[:-3], len(xi), len(yi), len(zi))
 
     return output
+
+
+def _norm_maxpool(input, strides):
+    r"""Norm maxpooling.
+
+    Args:
+        input: [x, y, z, c] or [x, y, c] or any other spatial dimension
+        strides: strides of the pooling operation
+
+    Returns:
+        [x, y, z, c] or [x, y, c] or any other spatial dimension
+    """
+    norms = jnp.sum(input**2, axis=-1)
+    shape = input.shape[:-1]
+    dim = len(shape)
+    assert dim == len(strides)
+    idxs = jnp.arange(prod(shape)).reshape(shape)
+
+    def g(a, b):
+        an, ai = a
+        bn, bi = b
+        which = an >= bn
+        return (jnp.where(which, an, bn), jnp.where(which, ai, bi))
+
+    _, idxs = lax.reduce_window(
+        (norms, idxs),
+        (-jnp.inf, -1),
+        g,
+        window_dimensions=strides,
+        window_strides=strides,
+        padding=((0, 0),) * dim,
+    )
+
+    return input.reshape(-1, input.shape[-1])[idxs]
+
+
+@partial(jax.jit, static_argnames={"strides"})
+def maxpool(input: IrrepsData, strides) -> IrrepsData:
+    r"""
+    Args:
+        input: IrrepsData of shape [x, y, z]
+        strides: tuple of ints
+
+    Returns:
+        IrrepsData
+    """
+    assert isinstance(input, IrrepsData)
+    assert len(input.shape) == len(strides)
+
+    list = [
+        None if x is None else jax.vmap(lambda x: _norm_maxpool(x, strides), -2, -2)(x)
+        for x in input.list
+    ]
+
+    shape = tuple(a // s for a, s in zip(input.shape, strides))
+
+    return IrrepsData.from_list(input.irreps, list, shape)
