@@ -169,4 +169,4 @@ class Convolution(hk.Module):
 
         output = [f(x, y) for x, y in zip(node_self_out, node_conv_out.list)]
 
-        return IrrepsData.from_list(self.irreps_node_output, output)
+        return IrrepsData.from_list(self.irreps_node_output, output, node_input.shape)

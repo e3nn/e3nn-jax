@@ -75,6 +75,7 @@ class BatchNorm(hk.Module):
 
         batch, *size = input.shape
         # TODO add test case for when _prod(size) == 0
+        # TODO add support for None in the input.list!
         input = input.list
         input = [x.reshape(batch, _prod(size), mul, ir.dim) for (mul, ir), x in zip(irreps, input)]
 
@@ -156,4 +157,4 @@ class BatchNorm(hk.Module):
                 hk.set_state("running_var", jnp.concatenate(new_vars))
 
         output = [x.reshape(batch, *size, mul, ir.dim) for (mul, ir), x in zip(irreps, fields)]
-        return IrrepsData.from_list(irreps, output)
+        return IrrepsData.from_list(irreps, output, (batch,) + size)

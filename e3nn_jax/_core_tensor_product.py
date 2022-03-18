@@ -301,7 +301,7 @@ class FunctionalTensorProduct:
                     weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
 
                 out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1.contiguous, input2.contiguous)
-            return IrrepsData.new(self.irreps_out, out)
+            return IrrepsData.from_contiguous(self.irreps_out, out)
 
         @lru_cache(maxsize=None)
         def multiply(in1, in2, mode):
@@ -430,7 +430,7 @@ class FunctionalTensorProduct:
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]
-        return IrrepsData.from_list(self.irreps_out, out)
+        return IrrepsData.from_list(self.irreps_out, out, ())
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=('optimize_einsums', 'custom_einsum_vjp'))
     @partial(jax.profiler.annotate_function, name="TensorProduct.right")

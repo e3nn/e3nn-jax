@@ -78,7 +78,7 @@ def scalar_activation(input: IrrepsData, acts: List[Optional[Callable[[float], f
         contiguous = input.contiguous if acts[0] is None else normalize_function(acts[0])(input.contiguous)
         return IrrepsData(irreps_out, contiguous, list)
 
-    return IrrepsData.from_list(irreps_out, list)
+    return IrrepsData.from_list(irreps_out, list, input.shape)
 
 
 # TODO remove this class and follow the same pattern as scalar_activation

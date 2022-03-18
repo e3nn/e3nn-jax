@@ -109,26 +109,26 @@ class FunctionalLinear:
         self.instructions = instructions
         self.output_mask = output_mask
 
-    def __call__(self, ws, x):
+    def __call__(self, ws, input):
         """
         ws: List of arrays
         x: input
         """
-        x = IrrepsData.new(self.irreps_in, x)
-        assert all(x is None or x.ndim == 2 for x in x.list), "the input of Linear must be a list of 2D arrays"
+        input = IrrepsData.new(self.irreps_in, input)
+        assert all(x is None or x.ndim == 2 for x in input.list), "the input of Linear must be a list of 2D arrays"
 
         out_list = [
             ins.path_weight * w
             if ins.i_in == -1 else
             (
                 None
-                if x.list[ins.i_in] is None else
-                ins.path_weight * jnp.einsum("uw,ui->wi", w, x.list[ins.i_in])
+                if input.list[ins.i_in] is None else
+                ins.path_weight * jnp.einsum("uw,ui->wi", w, input.list[ins.i_in])
             )
             for ins, w in zip(self.instructions, ws)
         ]
 
-        out = [
+        output = [
             _sum_tensors(
                 [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
                 shape=(mul_ir_out.mul, mul_ir_out.ir.dim,),
@@ -136,7 +136,7 @@ class FunctionalLinear:
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]
-        return IrrepsData.from_list(self.irreps_out, out)
+        return IrrepsData.from_list(self.irreps_out, output, input.shape)
 
 
 class Linear(hk.Module):

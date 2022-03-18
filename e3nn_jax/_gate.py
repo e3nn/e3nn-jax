@@ -76,7 +76,7 @@ class Gate:
     def __repr__(self):
         return f"{self.__class__.__name__} ({self.irreps_in} -> {self.irreps_out})"
 
-    def __call__(self, features):
+    def __call__(self, features: IrrepsData) -> IrrepsData:
         r"""evaluate the gate activation function.
 
         Args:
@@ -86,15 +86,16 @@ class Gate:
             `IrrepsData`: The output of the gate activation function.
         """
         features = IrrepsData.new(self.irreps_in, features).list
-        scalars = IrrepsData.from_list(self.irreps_scalars, features[:len(self.irreps_scalars)])
-        gates = IrrepsData.from_list(self.irreps_gates, features[len(self.irreps_scalars): -len(self.irreps_gated)])
-        gated = IrrepsData.from_list(self.irreps_gated, features[-len(self.irreps_gated):])
+        scalars = IrrepsData.from_list(self.irreps_scalars, features[:len(self.irreps_scalars)], ())
+        gates = IrrepsData.from_list(self.irreps_gates, features[len(self.irreps_scalars): -len(self.irreps_gated)], ())
+        gated = IrrepsData.from_list(self.irreps_gated, features[-len(self.irreps_gated):], ())
 
         scalars = scalar_activation(scalars, self.act_scalars)
         if gates:
             gates = scalar_activation(gates, self.act_gates)
             gated = self.mul.left_right(gated, gates)
-            features = IrrepsData.from_list(self.irreps_out, scalars.list + gated.list)
+            features = IrrepsData.cat([scalars, gated])
+            assert self.irreps_out == features.irreps
         else:
             features = scalars
         return features

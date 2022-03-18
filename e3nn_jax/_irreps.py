@@ -1,7 +1,7 @@
 import collections
 import itertools
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -687,11 +687,17 @@ class IrrepsData:
         if isinstance(any, IrrepsData):
             return any.convert(irreps)
         if isinstance(any, list):
-            return IrrepsData.from_list(irreps, any)
+            shape = None
+            for x in any:
+                if x is not None:
+                    shape = x.shape[:-2]
+            if shape is None:
+                raise ValueError("IrrepsData.new cannot infer shape from list of arrays")
+            return IrrepsData.from_list(irreps, any, shape)
         return IrrepsData.from_contiguous(irreps, any)
 
     @staticmethod
-    def from_list(irreps: Irreps, list, shape=None) -> "IrrepsData":
+    def from_list(irreps: Irreps, list, shape: Tuple[int]) -> "IrrepsData":
         r"""Create an IrrepsData from a list of arrays
 
         Args:
@@ -705,16 +711,9 @@ class IrrepsData:
         assert len(irreps) == len(list), f"irreps has {len(irreps)} elements and list has {len(list)}"
         assert all(x is None or isinstance(x, jnp.ndarray) for x in list)
         assert all(
-            x is None or x.shape[-2:] == (mul, ir.dim)
+            x is None or x.shape == shape + (mul, ir.dim)
             for x, (mul, ir) in zip(list, irreps)
         )
-
-        for x in list:
-            if x is not None:
-                shape = x.shape[:-2]
-
-        if shape is None:
-            raise ValueError("shape could not be inferred, please specify it")
 
         if irreps.dim > 0:
             contiguous = jnp.concatenate([
@@ -779,7 +778,7 @@ class IrrepsData:
             if x is not None else None
             for (mul, ir), x in zip(self.irreps, self.list)
         ]
-        return IrrepsData.from_list(self.irreps, new_list)
+        return IrrepsData.from_list(self.irreps, new_list, self.shape)
 
     @partial(jax.jit, inline=True)
     def transform_by_quaternion(self, q, k=0):
@@ -822,7 +821,7 @@ class IrrepsData:
             ValueError: if the irreps are not compatible
 
         Example:
-        >>> id = IrrepsData.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
+        >>> id = IrrepsData.new("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
         >>> jax.tree_map(lambda x: x.shape, id.convert("20x0e")).list
         [(1, 20, 1)]
         """
