@@ -1,5 +1,6 @@
 import collections
 import itertools
+import warnings
 from functools import partial
 from typing import List, Optional
 
@@ -752,11 +753,8 @@ class IrrepsData:
     def __repr__(self):
         return f"IrrepsData({self.irreps}, {self.contiguous}, {self.list})"
 
-    def _shape_from_list(self):
-        for x in self.list:
-            if x is not None:
-                return x.shape[:-2]
-        print("warning: IrrepsData._shape_from_list: not able to get shape from list")
+    @property
+    def shape(self):
         return self.contiguous.shape[:-1]
 
     @partial(jax.jit, inline=True)
@@ -773,10 +771,9 @@ class IrrepsData:
             IrrepsData
         """
         # Optimization: we use only the list of arrays, not the contiguous data
-        shape = self._shape_from_list()
-        D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _mul, ir in self.irreps}}
+        D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _, ir in self.irreps}}
         new_list = [
-            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), shape + (mul, ir.dim))
+            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape + (mul, ir.dim))
             if x is not None else None
             for (mul, ir), x in zip(self.irreps, self.list)
         ]
@@ -832,7 +829,7 @@ class IrrepsData:
         assert self.irreps.simplify() == irreps.simplify(), (self.irreps, irreps)
         # TODO test cases with mul == 0
 
-        shape = self._shape_from_list()
+        shape = self.shape
 
         new_list = []
         current_array = 0

@@ -64,7 +64,7 @@ def scalar_activation(input: IrrepsData, acts: List[Optional[Callable[[float], f
                 if is_zero_in_zero(act):
                     list.append(None)
                 else:
-                    list.append(act(jnp.ones(input._shape_from_list() + (mul, 1))))
+                    list.append(act(jnp.ones(input.shape + (mul, 1))))
             else:
                 list.append(act(x))
         else:

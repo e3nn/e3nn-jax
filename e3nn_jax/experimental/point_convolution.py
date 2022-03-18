@@ -136,9 +136,7 @@ class Convolution(hk.Module):
 
         ######################################################################################
 
-        shape = node_input._shape_from_list()
-
-        node_features = index_add(edge_dst, edge_features.contiguous, out_dim=shape[0])
+        node_features = index_add(edge_dst, edge_features.contiguous, out_dim=node_input.shape[0])
 
         node_features = node_features / self.num_neighbors**0.5
 

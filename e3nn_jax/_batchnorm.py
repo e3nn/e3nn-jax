@@ -73,7 +73,7 @@ class BatchNorm(hk.Module):
             weight = hk.get_parameter("weight", shape=(num_features,), init=jnp.ones)
             bias = hk.get_parameter("bias", shape=(num_scalar,), init=jnp.zeros)
 
-        batch, *size = input._shape_from_list()
+        batch, *size = input.shape
         # TODO add test case for when _prod(size) == 0
         input = input.list
         input = [x.reshape(batch, _prod(size), mul, ir.dim) for (mul, ir), x in zip(irreps, input)]
