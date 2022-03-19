@@ -1,101 +1,40 @@
-from e3nn_jax import scalar_activation, FunctionalElementwiseTensorProduct, Irreps, IrrepsData
+from typing import Callable, List, Optional
+
+from e3nn_jax import IrrepsData, elementwise_tensor_product, scalar_activation
+from e3nn_jax.util.decorators import overload_for_irreps_without_data
 
 
-class Gate:
+@overload_for_irreps_without_data((0,))
+def gate(input: IrrepsData, acts: List[Optional[Callable]]) -> IrrepsData:
     r"""Gate activation function.
 
-    The gate activation is a direct sum of two sets of irreps. The first set
-    of irreps is ``irreps_scalars`` passed through activation functions
-    ``act_scalars``. The second set of irreps is ``irreps_gated`` multiplied
-    by the scalars ``irreps_gates`` passed through activation functions
-    ``act_gates``. Mathematically, this can be written as:
+    The input is split into scalars that are activated separately, scalars that are used as gates, and non-scalars that are multiplied by the gates.
 
-    .. math::
-        \left(\bigoplus_i \phi_i(x_i) \right) \oplus \left(\bigoplus_j \phi_j(g_j) y_j \right)
+    List of assumptions:
 
-    where :math:`x_i` and :math:`\phi_i` are from ``irreps_scalars`` and
-    ``act_scalars``, and :math:`g_j`, :math:`\phi_j`, and :math:`y_j` are
-    from ``irreps_gates``, ``act_gates``, and ``irreps_gated``.
-
-    The parameters passed in should adhere to the following conditions:
-
-    1. ``len(irreps_scalars) == len(act_scalars)``.
-    2. ``len(irreps_gates) == len(act_gates)``.
-    3. ``irreps_gates.num_irreps == irreps_gated.num_irreps``.
+    - The scalars are on the left side of the input.
+    - The gate scalars are on the right side of the scalars.
 
     Args:
-        irreps_scalars (`Irreps`): The irreps of the scalars.
-        act_scalars (list of functions): The activation functions of the scalars. The length of this list must be the same as the length of ``irreps_scalars``.
-        irreps_gates (`Irreps`): The irreps of the gates.
-        act_gates (list of functions): The activation functions of the gates. The length of this list must be the same as the length of ``irreps_gates``.
-        irreps_gated (`Irreps`): The irreps multiplied by the gates.
+        input (IrrepsData): Input data.
+        acts: The list of activation functions. Its length must be equal to the number of scalar blocks in the input.
 
     Returns:
-        `Gate`: The gate activation function.
-
-    Examples:
-        >>> import jax.numpy as jnp
-        >>> g = Gate("16x0o", [jnp.tanh], "32x0o", [jnp.tanh], "16x1e+16x1o")
-        >>> g.irreps_out
-        16x0o+16x1o+16x1e
+        IrrepsData: Output data.
     """
-    irreps_in: Irreps
-    irreps_out: Irreps
+    assert isinstance(input, IrrepsData)
 
-    def __init__(self, irreps_scalars, act_scalars, irreps_gates, act_gates, irreps_gated):
-        super().__init__()
-        irreps_scalars = Irreps(irreps_scalars)
-        irreps_gates = Irreps(irreps_gates)
-        irreps_gated = Irreps(irreps_gated)
+    input = scalar_activation(input, acts + [None] * (len(input.irreps) - len(acts)))
 
-        if len(irreps_gates) > 0 and irreps_gates.lmax > 0:
-            raise ValueError(f"Gate scalars must be scalars, instead got irreps_gates = {irreps_gates}")
-        if len(irreps_scalars) > 0 and irreps_scalars.lmax > 0:
-            raise ValueError(f"Scalars must be scalars, instead got irreps_scalars = {irreps_scalars}")
-        if irreps_gates.num_irreps != irreps_gated.num_irreps:
-            raise ValueError((
-                f"There are {irreps_gated.num_irreps} irreps in irreps_gated, "
-                f"but a different number ({irreps_gates.num_irreps}) of gate scalars in irreps_gates"
-            ))
+    scalars = None
+    j = len(acts)
+    irreps_gated = input.irreps[j:]
+    for i in range(j + 1):
+        if input.irreps[i:j].num_irreps == irreps_gated.num_irreps:
+            scalars, gates, gated = input.split([i, j])
+            break
 
-        # self.sc = _SortCut(irreps_scalars, irreps_gates, irreps_gated)
-        self.irreps_scalars, self.irreps_gates, self.irreps_gated = irreps_scalars, irreps_gates, irreps_gated  # self.sc.irreps_outs
-        self.irreps_in = irreps_scalars + irreps_gates + irreps_gated
+    if scalars is None:
+        raise ValueError(f"Gate: did not manage to split the input {input.irreps} into scalars, gates and gated.")
 
-        irreps_scalars = scalar_activation(irreps_scalars, act_scalars)
-        irreps_gates = scalar_activation(irreps_gates, act_gates)
-
-        self.mul = FunctionalElementwiseTensorProduct(irreps_gated, irreps_gates)
-        irreps_gated = self.mul.irreps_out
-
-        self.irreps_out = irreps_scalars + irreps_gated
-
-        self.act_scalars = act_scalars
-        self.act_gates = act_gates
-
-    def __repr__(self):
-        return f"{self.__class__.__name__} ({self.irreps_in} -> {self.irreps_out})"
-
-    def __call__(self, features: IrrepsData) -> IrrepsData:
-        r"""evaluate the gate activation function.
-
-        Args:
-            features: The features to be passed through the gate activation.
-
-        Returns:
-            `IrrepsData`: The output of the gate activation function.
-        """
-        features = IrrepsData.new(self.irreps_in, features).list
-        scalars = IrrepsData.from_list(self.irreps_scalars, features[:len(self.irreps_scalars)], ())
-        gates = IrrepsData.from_list(self.irreps_gates, features[len(self.irreps_scalars): -len(self.irreps_gated)], ())
-        gated = IrrepsData.from_list(self.irreps_gated, features[-len(self.irreps_gated):], ())
-
-        scalars = scalar_activation(scalars, self.act_scalars)
-        if gates:
-            gates = scalar_activation(gates, self.act_gates)
-            gated = self.mul.left_right(gated, gates)
-            features = IrrepsData.cat([scalars, gated])
-            assert self.irreps_out == features.irreps
-        else:
-            features = scalars
-        return features
+    return IrrepsData.cat([scalars, elementwise_tensor_product(gates, gated)])

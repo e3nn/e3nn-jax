@@ -4,7 +4,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
-from e3nn_jax import (Gate, Irreps, IrrepsData, index_add, radius_graph,
+from e3nn_jax import (gate, Irreps, IrrepsData, index_add, radius_graph,
                       spherical_harmonics)
 from e3nn_jax.experimental.point_convolution import Convolution
 
@@ -40,36 +40,24 @@ def tetris():
 
 
 def model(x, edge_src, edge_dst, edge_attr):
-    gate = Gate('32x0e + 32x0o', [jax.nn.gelu, jnp.tanh], '16x0e', [jax.nn.sigmoid], '8x1e + 8x1o')
-    g = jax.vmap(gate)
+    x = IrrepsData.from_contiguous("0e", x)
+    edge_attr = IrrepsData.from_list("0e + 1o + 2e", edge_attr, (edge_src.shape[0],))
 
     kw = dict(
         irreps_node_attr=Irreps('0e'),
-        irreps_edge_attr=Irreps('0e + 1o + 2e'),
         fc_neurons=None,
         num_neighbors=1.5,
     )
 
-    x = g(
-        Convolution(
-            irreps_node_input=Irreps('0e'),
-            irreps_node_output=gate.irreps_in,
+    for _ in range(4):
+        x = Convolution(
+            irreps_node_output='32x0e + 32x0o + 16x0e + 8x1e + 8x1o',
             **kw
         )(x, edge_src, edge_dst, edge_attr)
-    )
-
-    for _ in range(3):
-        x = g(
-            Convolution(
-                irreps_node_input=gate.irreps_out,
-                irreps_node_output=gate.irreps_in,
-                **kw
-            )(x, edge_src, edge_dst, edge_attr)
-        )
+        x = jax.vmap(gate, (0, None), 0)(x, [jax.nn.gelu, jnp.tanh, jax.nn.sigmoid])
 
     x = Convolution(
-        irreps_node_input=gate.irreps_out,
-        irreps_node_output=Irreps('0o + 6x0e'),
+        irreps_node_output='0o + 6x0e',
         **kw
     )(x, edge_src, edge_dst, edge_attr)
 
@@ -111,8 +99,8 @@ def main():
     pos, labels, batch = tetris()
     edge_src, edge_dst = radius_graph(pos, 1.1, batch)
     irreps_sh = Irreps("0e + 1o + 2e")
-    edge_attr = IrrepsData.from_contiguous(irreps_sh, spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component')).list
-    node_input = [jnp.ones((pos.shape[0], 1, 1))]
+    edge_attr = spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component').list
+    node_input = jnp.ones((pos.shape[0], 1))
     input = (node_input, edge_src, edge_dst, edge_attr)
 
     params = f.init(jax.random.PRNGKey(3), input)

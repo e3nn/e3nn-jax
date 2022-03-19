@@ -1,23 +1,19 @@
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, Gate, rand_matrix
+from e3nn_jax import IrrepsData, gate, rand_matrix
 
 
 def test_gate(keys):
-    irreps_scalars, act_scalars = Irreps("16x0o"), [jnp.tanh]
-    irreps_gates, act_gates, irreps_gated = Irreps("32x0o"), [jnp.tanh], Irreps("16x1e+16x1o")
+    f = jax.jit(jax.vmap(lambda x: gate(x, [jnp.tanh, jnp.tanh])))
 
-    g = Gate(irreps_scalars, act_scalars, irreps_gates, act_gates, irreps_gated)
-    f = jax.jit(lambda x: jax.vmap(g)(x).contiguous)
-
-    x = g.irreps_in.randn(next(keys), (10, -1,))
+    x = IrrepsData.randn("16x0o + 32x0o + 16x1e + 16x1o", next(keys), (10,))
     y = f(x)
 
-    assert jnp.abs(jnp.log(jnp.mean(y**2))) < 0.2
+    assert jnp.abs(jnp.log(jnp.mean(y.contiguous**2))) < 0.2
 
     R = -rand_matrix(next(keys), ())
-    y1 = g.irreps_out.transform_by_matrix(y, R)
-    y2 = f(g.irreps_in.transform_by_matrix(x, R))
+    y1 = y.transform_by_matrix(R)
+    y2 = f(x.transform_by_matrix(R))
 
-    assert jnp.allclose(y1, y2, atol=1e-6)
+    assert jnp.allclose(y1.contiguous, y2.contiguous, atol=1e-6)

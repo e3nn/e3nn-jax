@@ -2,11 +2,12 @@ r"""Spherical Harmonics as polynomials of x, y, z
 """
 import math
 from functools import partial
+
 import jax
 import jax.numpy as jnp
 from jax.numpy import sqrt
 
-from e3nn_jax import Irreps, wigner_3j_sympy
+from e3nn_jax import Irreps, IrrepsData, wigner_3j_sympy
 
 
 @partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
@@ -15,7 +16,7 @@ def spherical_harmonics(
     x,
     normalize: bool,
     normalization: str = 'integral'
-):
+) -> IrrepsData:
     r"""Spherical harmonics
 
     .. image:: https://user-images.githubusercontent.com/333780/79220728-dbe82c00-7e54-11ea-82c7-b3acbd9b2246.gif
@@ -63,12 +64,8 @@ def spherical_harmonics(
     assert all([l % 2 == 1 or p == 1 for _, (l, p) in irreps_out])
     assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) <= 1
 
-    ls = []
-    for mul, (l, p) in irreps_out:
-        ls.extend([l] * mul)
-
-    _lmax = 11
-    if max(ls) > _lmax:
+    _lmax = 8
+    if irreps_out.lmax > _lmax:
         raise NotImplementedError(f'spherical_harmonics maximum l implemented is {_lmax}, send us an email to ask for more')
 
     if normalize:
@@ -76,21 +73,21 @@ def spherical_harmonics(
         x = x / jnp.where(r == 0.0, 1.0, r)
 
     sh = _spherical_harmonics(x[..., 0], x[..., 1], x[..., 2])
-    sh = [next(sh) for _ in range(max(ls) + 1)]
-    sh = jnp.stack([y for l in ls for y in sh[l]], axis=-1)
+    sh = [jnp.stack(next(sh), axis=-1) for _ in range(irreps_out.lmax + 1)]
+    sh = [jnp.repeat(sh[ir.l][..., None, :], mul, -2) for mul, ir in irreps_out]
 
     if normalization == 'integral':
-        sh = sh * jnp.concatenate([
-            (math.sqrt(2 * l + 1) / math.sqrt(4 * math.pi)) * jnp.ones((2 * l + 1,))
-            for l in ls
-        ])
+        sh = [
+            (math.sqrt(ir.dim) / math.sqrt(4 * math.pi)) * y
+            for (_, ir), y in zip(irreps_out, sh)
+        ]
     elif normalization == 'component':
-        sh = sh * jnp.concatenate([
-            math.sqrt(2 * l + 1) * jnp.ones((2 * l + 1,))
-            for l in ls
-        ])
+        sh = [
+            math.sqrt(ir.dim) * y
+            for (_, ir), y in zip(irreps_out, sh)
+        ]
 
-    return sh
+    return IrrepsData.from_list(irreps_out, sh, x.shape[:-1])
 
 
 def _spherical_harmonics(x, y, z):

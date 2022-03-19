@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Irreps, IrrepsData
-from e3nn_jax.util.no_data import overload_for_irreps_without_data
+from e3nn_jax.util.decorators import overload_for_irreps_without_data
 
 
 def normalize_function(phi):

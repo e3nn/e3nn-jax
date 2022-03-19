@@ -3,6 +3,7 @@ from typing import Any, List, Optional
 import haiku as hk
 
 from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsData
+from e3nn_jax.util.decorators import overload_for_irreps_without_data
 
 
 def FunctionalFullyConnectedTensorProduct(
@@ -51,6 +52,7 @@ class FullyConnectedTensorProduct(hk.Module):
         return tp.left_right(ws, x1, x2)
 
 
+# TODO make it a function like elementwise_tensor_product
 def FunctionalFullTensorProduct(
     irreps_in1: Any,
     irreps_in2: Any,
@@ -88,22 +90,24 @@ def FunctionalFullTensorProduct(
     return FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, irrep_normalization=irrep_normalization)
 
 
-def FunctionalElementwiseTensorProduct(
-    irreps_in1: Any,
-    irreps_in2: Any,
+@overload_for_irreps_without_data((0, 1))
+def elementwise_tensor_product(
+    input1: IrrepsData,
+    input2: IrrepsData,
     filter_ir_out=None,
     irrep_normalization: str = 'component',
     path_normalization: str = 'element',
-):
-    irreps_in1 = Irreps(irreps_in1).simplify()
-    irreps_in2 = Irreps(irreps_in2).simplify()
+) -> IrrepsData:
+    input1 = input1.simplify()
+    input2 = input2.simplify()
+
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
-    assert irreps_in1.num_irreps == irreps_in2.num_irreps
+    assert input1.irreps.num_irreps == input2.irreps.num_irreps
 
-    irreps_in1 = list(irreps_in1)
-    irreps_in2 = list(irreps_in2)
+    irreps_in1 = list(input1.irreps)
+    irreps_in2 = list(input2.irreps)
 
     i = 0
     while i < len(irreps_in1):
@@ -118,6 +122,9 @@ def FunctionalElementwiseTensorProduct(
             irreps_in1[i] = (mul_2, ir_1)
             irreps_in1.insert(i + 1, (mul_1 - mul_2, ir_1))
         i += 1
+
+    input1 = input1.convert(irreps_in1)
+    input2 = input2.convert(irreps_in2)
 
     irreps_out = []
     instructions = []
@@ -134,7 +141,16 @@ def FunctionalElementwiseTensorProduct(
                 (i, i, i_out, 'uuu', False)
             ]
 
-    return FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, irrep_normalization=irrep_normalization, path_normalization=path_normalization)
+    tp = FunctionalTensorProduct(
+        irreps_in1,
+        irreps_in2,
+        irreps_out,
+        instructions,
+        irrep_normalization=irrep_normalization,
+        path_normalization=path_normalization
+    )
+
+    return tp.left_right(input1, input2)
 
 
 def FunctionalTensorSquare(

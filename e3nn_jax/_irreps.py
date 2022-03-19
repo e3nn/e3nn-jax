@@ -772,6 +772,17 @@ class IrrepsData:
         ]
         return IrrepsData(self.irreps, self.contiguous, list)
 
+    def simplify(self) -> "IrrepsData":
+        return self.convert(self.irreps.simplify())
+
+    def split(self, indices: List[int]) -> List["IrrepsData"]:
+        contiguous_parts = jnp.split(self.contiguous, [self.irreps[:i].dim for i in indices], axis=-1)
+        assert len(contiguous_parts) == len(indices) + 1
+        return [
+            IrrepsData(self.irreps[i:j], contiguous, self.list[i:j])
+            for (i, j), contiguous in zip(zip([0] + indices, indices + [len(self.irreps)]), contiguous_parts)
+        ]
+
     @partial(jax.jit, inline=True)
     def transform_by_angles(self, alpha, beta, gamma, k=0):
         r"""Rotate the data by angles according to the irreps

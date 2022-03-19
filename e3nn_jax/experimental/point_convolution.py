@@ -11,14 +11,8 @@ class Convolution(hk.Module):
 
     Parameters
     ----------
-    irreps_node_input : `e3nn.o3.Irreps`
-        representation of the input node features
-
     irreps_node_attr : `e3nn.o3.Irreps`
         representation of the node attributes
-
-    irreps_edge_attr : `e3nn.o3.Irreps`
-        representation of the edge attributes
 
     irreps_node_output : `e3nn.o3.Irreps` or None
         representation of the output node features
@@ -30,21 +24,19 @@ class Convolution(hk.Module):
     num_neighbors : float
         typical number of nodes convolved over
     """
-    def __init__(self, irreps_node_input, irreps_node_attr, irreps_edge_attr, irreps_node_output, fc_neurons, num_neighbors, mixing_angle=jnp.pi / 8.0):
+    def __init__(self, irreps_node_attr, irreps_node_output, fc_neurons, num_neighbors, mixing_angle=jnp.pi / 8.0):
         super().__init__()
 
-        self.irreps_node_input = Irreps(irreps_node_input)
         self.irreps_node_attr = Irreps(irreps_node_attr) if irreps_node_attr is not None else None
-        self.irreps_edge_attr = Irreps(irreps_edge_attr)
         self.irreps_node_output = Irreps(irreps_node_output)
         self.fc_neurons = fc_neurons
         self.num_neighbors = num_neighbors
         self.mixing_angle = mixing_angle
 
     @partial(jax.profiler.annotate_function, name="convolution")
-    def __call__(self, node_input, edge_src, edge_dst, edge_attr, node_attr=None, edge_scalar_attr=None):
-        node_input = IrrepsData.new(self.irreps_node_input, node_input)
-        edge_attr = IrrepsData.new(self.irreps_edge_attr, edge_attr)
+    def __call__(self, node_input: IrrepsData, edge_src, edge_dst, edge_attr: IrrepsData, node_attr=None, edge_scalar_attr=None) -> IrrepsData:
+        assert isinstance(node_input, IrrepsData)
+        assert isinstance(edge_attr, IrrepsData)
 
         # def stat(text, z):
         #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
@@ -52,11 +44,11 @@ class Convolution(hk.Module):
         if self.irreps_node_attr is not None and node_attr is not None:
             node_attr = IrrepsData.new(self.irreps_node_attr, node_attr)
 
-            tmp = jax.vmap(FullyConnectedTensorProduct(self.irreps_node_input + self.irreps_node_output))(node_input, node_attr)
+            tmp = jax.vmap(FullyConnectedTensorProduct(node_input.irreps + self.irreps_node_output))(node_input, node_attr)
         else:
-            tmp = jax.vmap(Linear(self.irreps_node_input + self.irreps_node_output))(node_input)
+            tmp = jax.vmap(Linear(node_input.irreps + self.irreps_node_output))(node_input)
 
-        node_features, node_self_out = tmp.list[:len(self.irreps_node_input)], tmp.list[len(self.irreps_node_input):]
+        node_features, node_self_out = tmp.list[:len(node_input.irreps)], tmp.list[len(node_input.irreps):]
 
         # stat('node_features', node_features)
         # stat('node_self_out', node_self_out)
@@ -68,8 +60,8 @@ class Convolution(hk.Module):
 
         irreps_mid = []
         instructions = []
-        for i, (mul, ir_in) in enumerate(self.irreps_node_input):
-            for j, (_, ir_edge) in enumerate(self.irreps_edge_attr):
+        for i, (mul, ir_in) in enumerate(node_input.irreps):
+            for j, (_, ir_edge) in enumerate(edge_attr.irreps):
                 for ir_out in ir_in * ir_edge:
                     if ir_out in self.irreps_node_output or ir_out.is_scalar():
                         k = len(irreps_mid)
@@ -78,8 +70,8 @@ class Convolution(hk.Module):
         irreps_mid = Irreps(irreps_mid)
 
         assert irreps_mid.dim > 0, (
-            f"irreps_node_input={self.irreps_node_input} "
-            f"time irreps_edge_attr={self.irreps_edge_attr} "
+            f"irreps_node_input={node_input.irreps} "
+            f"time irreps_edge_attr={edge_attr.irreps} "
             f"produces nothing in irreps_node_output={self.irreps_node_output}"
         )
 
@@ -90,8 +82,8 @@ class Convolution(hk.Module):
         ]
 
         tp = FunctionalTensorProduct(
-            self.irreps_node_input,
-            self.irreps_edge_attr,
+            node_input.irreps,
+            edge_attr.irreps,
             irreps_mid,
             instructions,
         )

@@ -10,9 +10,9 @@ def test_equivariance(keys, l):
     x = jax.random.normal(keys[0], (3,))
     abc = rand_angles(keys[1], ())
     y1 = spherical_harmonics(irreps, angles_to_matrix(*abc) @ x, False)
-    y2 = irreps.transform_by_angles(spherical_harmonics(irreps, x, False), *abc)
+    y2 = spherical_harmonics(irreps, x, False).transform_by_angles(*abc)
 
-    assert jnp.abs(y1 - y2).max() < 1e-4
+    assert jnp.abs(y1.contiguous - y2.contiguous).max() < 1e-4
 
 
 def test_closure(keys):
@@ -21,7 +21,7 @@ def test_closure(keys):
     integral of 1 over the unit sphere = 4 pi
     """
     x = jax.random.normal(keys[0], (1_000_000, 3))
-    Ys = [spherical_harmonics(Irreps([l]), x, True) for l in range(0, 3 + 1)]
+    Ys = [spherical_harmonics(Irreps([l]), x, True).contiguous for l in range(0, 3 + 1)]
     for l1, Y1 in enumerate(Ys):
         for l2, Y2 in enumerate(Ys):
             m = Y1[:, :, None] * Y2[:, None, :]
