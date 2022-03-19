@@ -73,7 +73,7 @@ class Convolution(hk.Module):
 
         w = [
             hk.get_parameter(
-                f'weight {i.i_in1} x {i.i_in2} -> {i.i_out}',
+                f'w[{i.i_in1},{i.i_in2},{i.i_out}] {tp.irreps_in1[i.i_in1]},{tp.irreps_in2[i.i_in2]},{tp.irreps_out[i.i_out]}',
                 (self.num_radial_basis,) + i.path_shape,
                 init=hk.initializers.RandomNormal()
             )

@@ -46,28 +46,33 @@ class FullyConnectedTensorProduct(hk.Module):
 
         tp = FunctionalFullyConnectedTensorProduct(x1.irreps, x2.irreps, self.irreps_out)
         ws = [
-            hk.get_parameter(f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
+            hk.get_parameter(
+                f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
+                shape=ins.path_shape,
+                init=hk.initializers.RandomNormal()
+            )
             for ins in tp.instructions
         ]
         return tp.left_right(ws, x1, x2)
 
 
-# TODO make it a function like elementwise_tensor_product
-def FunctionalFullTensorProduct(
-    irreps_in1: Any,
-    irreps_in2: Any,
+@overload_for_irreps_without_data((0, 1))
+def full_tensor_product(
+    input1: IrrepsData,
+    input2: IrrepsData,
     filter_ir_out=None,
     irrep_normalization: str = 'component',
 ):
-    irreps_in1 = Irreps(irreps_in1)
-    irreps_in2 = Irreps(irreps_in2)
+    input1 = input1.simplify()
+    input2 = input2.simplify()
+
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
     irreps_out = []
     instructions = []
-    for i_1, (mul_1, ir_1) in enumerate(irreps_in1):
-        for i_2, (mul_2, ir_2) in enumerate(irreps_in2):
+    for i_1, (mul_1, ir_1) in enumerate(input1.irreps):
+        for i_2, (mul_2, ir_2) in enumerate(input2.irreps):
             for ir_out in ir_1 * ir_2:
 
                 if filter_ir_out is not None and ir_out not in filter_ir_out:
@@ -87,7 +92,15 @@ def FunctionalFullTensorProduct(
         for i_1, i_2, i_out, mode, train in instructions
     ]
 
-    return FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, irrep_normalization=irrep_normalization)
+    tp = FunctionalTensorProduct(
+        input1.irreps,
+        input2.irreps,
+        irreps_out,
+        instructions,
+        irrep_normalization=irrep_normalization
+    )
+
+    return tp.left_right(input1, input2)
 
 
 @overload_for_irreps_without_data((0, 1))
@@ -231,7 +244,11 @@ class TensorSquare(hk.Module):
 
         tp = FunctionalTensorSquare(x.irreps, self.irreps_out)
         ws = [
-            hk.get_parameter(f'weight {i}', shape=ins.path_shape, init=self.init)
+            hk.get_parameter(
+                f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
+                shape=ins.path_shape,
+                init=self.init
+            )
             for i, ins in enumerate(tp.instructions)
         ]
         return tp.left_right(ws, x, x)

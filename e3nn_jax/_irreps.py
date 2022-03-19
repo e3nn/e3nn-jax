@@ -920,8 +920,6 @@ class IrrepsData:
             x is None or x.shape[-2:] == (mul, ir.dim)
             for x, (mul, ir) in zip(new_list, irreps)
         )
-        if all(x is None for x in new_list):
-            raise ValueError("Not allowed to create an IrrepsData from a list full of None")
 
         return IrrepsData(irreps, self.contiguous, new_list)
 

@@ -37,7 +37,7 @@ from ._spherical_harmonics import spherical_harmonics
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import FunctionalLinear, Linear
 from ._core_tensor_product import FunctionalTensorProduct
-from ._tensor_products import FunctionalFullyConnectedTensorProduct, FullyConnectedTensorProduct, FunctionalFullTensorProduct, elementwise_tensor_product, FunctionalTensorSquare, TensorSquare
+from ._tensor_products import FunctionalFullyConnectedTensorProduct, FullyConnectedTensorProduct, full_tensor_product, elementwise_tensor_product, FunctionalTensorSquare, TensorSquare
 from ._activation import scalar_activation, normalize_function
 from ._gate import gate
 from ._batchnorm import BatchNorm
@@ -80,7 +80,7 @@ __all__ = [
     "sus", "soft_one_hot_linspace",
     "FunctionalLinear", "Linear",
     "FunctionalTensorProduct",
-    "FunctionalFullyConnectedTensorProduct", "FullyConnectedTensorProduct", "FunctionalFullTensorProduct", "elementwise_tensor_product", "FunctionalTensorSquare", "TensorSquare",
+    "FunctionalFullyConnectedTensorProduct", "FullyConnectedTensorProduct", "full_tensor_product", "elementwise_tensor_product", "FunctionalTensorSquare", "TensorSquare",
     "scalar_activation", "normalize_function",
     "gate",
     "BatchNorm",

@@ -156,9 +156,9 @@ class Linear(hk.Module):
 
         lin = FunctionalLinear(x.irreps, self.irreps_out, self.instructions, biases=self.biases)
         w = [
-            hk.get_parameter(f'bias {ins.i_out}', shape=ins.path_shape, init=hk.initializers.Constant(0.0))
+            hk.get_parameter(f'b[{ins.i_out}] {lin.irreps_out[ins.i_out]}', shape=ins.path_shape, init=hk.initializers.Constant(0.0))
             if ins.i_in == -1 else
-            hk.get_parameter(f'weight {ins.i_in} -> {ins.i_out}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
+            hk.get_parameter(f'w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
             for ins in lin.instructions
         ]
         return lin(w, x)

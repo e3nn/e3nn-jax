@@ -101,7 +101,7 @@ class Convolution(hk.Module):
                 jnp.einsum(
                     "x...,ex->e...",
                     hk.get_parameter(
-                        f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}',
+                        f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
                         shape=(weight.shape[1],) + ins.path_shape,
                         init=hk.initializers.RandomNormal()
                     ) / weight.shape[1]**0.5,
@@ -116,7 +116,7 @@ class Convolution(hk.Module):
         else:
             weight = [
                 hk.get_parameter(
-                    f'weight {ins.i_in1} x {ins.i_in2} -> {ins.i_out}',
+                    f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
                     shape=ins.path_shape,
                     init=hk.initializers.RandomNormal()
                 )

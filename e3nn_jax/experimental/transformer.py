@@ -29,7 +29,7 @@ class TensorProductMultiLayerPerceptron(hk.Module):
             jnp.einsum(
                 "x...,x->...",
                 hk.get_parameter(
-                    f'{i.i_in1} x {i.i_in2} -> {i.i_out}',
+                    f'w[{i.i_in1},{i.i_in2},{i.i_out}] {self.tp.irreps_in1[i.i_in1]},{self.tp.irreps_in2[i.i_in2]},{self.tp.irreps_out[i.i_out]}',
                     shape=(w.shape[0],) + i.path_shape,
                     init=hk.initializers.RandomNormal()
                 ) / w.shape[0]**0.5,
