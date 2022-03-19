@@ -191,7 +191,7 @@ def _spherical_harmonics(x, y, z):
     yield [sh8_0, sh8_1, sh8_2, sh8_3, sh8_4, sh8_5, sh8_6, sh8_7, sh8_8, sh8_9, sh8_10, sh8_11, sh8_12, sh8_13, sh8_14, sh8_15, sh8_16]
 
 
-def generate_spherical_harmonics():
+def generate_spherical_harmonics():  # pragma: no cover
     import sympy
 
     xyz = sympy.symbols("x, y, z")

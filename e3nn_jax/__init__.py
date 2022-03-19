@@ -42,7 +42,7 @@ from ._activation import scalar_activation, normalize_function
 from ._gate import gate
 from ._batchnorm import BatchNorm
 from ._dropout import Dropout
-from ._nn import MultiLayerPerceptron, TensorProductMultiLayerPerceptron
+from ._nn import MultiLayerPerceptron
 
 __all__ = [
     "index_add", "radius_graph",
@@ -85,5 +85,5 @@ __all__ = [
     "gate",
     "BatchNorm",
     "Dropout",
-    "MultiLayerPerceptron", "TensorProductMultiLayerPerceptron",
+    "MultiLayerPerceptron",
 ]

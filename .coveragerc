@@ -1,0 +1,8 @@
+[run]
+source=e3nn_jax
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise
+    except
