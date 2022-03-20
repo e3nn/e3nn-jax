@@ -109,15 +109,22 @@ class FunctionalLinear:
         self.instructions = instructions
         self.output_mask = output_mask
 
-    def __call__(self, ws, input):
-        """
-        ws: List of arrays
-        x: input
-        """
-        input = IrrepsData.new(self.irreps_in, input)
-        assert all(x is None or x.ndim == 2 for x in input.list), "the input of Linear must be a list of 2D arrays"
+    def aggregate_paths(self, paths, output_shape) -> IrrepsData:
+        output = [
+            _sum_tensors(
+                [out for ins, out in zip(self.instructions, paths) if ins.i_out == i_out],
+                shape=output_shape + (mul_ir_out.mul, mul_ir_out.ir.dim,),
+                empty_return_none=True,
+            )
+            for i_out, mul_ir_out in enumerate(self.irreps_out)
+        ]
+        return IrrepsData.from_list(self.irreps_out, output, output_shape)
 
-        out_list = [
+    def __call__(self, ws: List[jnp.array], input: IrrepsData) -> IrrepsData:
+        input = IrrepsData.new(self.irreps_in, input)
+        assert len(input.shape) == 0
+
+        paths = [
             ins.path_weight * w
             if ins.i_in == -1 else
             (
@@ -127,16 +134,7 @@ class FunctionalLinear:
             )
             for ins, w in zip(self.instructions, ws)
         ]
-
-        output = [
-            _sum_tensors(
-                [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
-                shape=(mul_ir_out.mul, mul_ir_out.ir.dim,),
-                empty_return_none=True,
-            )
-            for i_out, mul_ir_out in enumerate(self.irreps_out)
-        ]
-        return IrrepsData.from_list(self.irreps_out, output, input.shape)
+        return self.aggregate_paths(paths, input.shape)
 
 
 class Linear(hk.Module):
@@ -148,17 +146,17 @@ class Linear(hk.Module):
         self.instructions = None
         self.biases = False
 
-    def __call__(self, x):
-        if self.irreps_in is None and not isinstance(x, IrrepsData):
+    def __call__(self, input):
+        if self.irreps_in is None and not isinstance(input, IrrepsData):
             raise ValueError("the input of Linear must be an IrrepsData, or `irreps_in` must be specified")
         if self.irreps_in is not None:
-            x = IrrepsData.new(self.irreps_in, x)
+            input = IrrepsData.new(self.irreps_in, input)
 
-        lin = FunctionalLinear(x.irreps, self.irreps_out, self.instructions, biases=self.biases)
+        lin = FunctionalLinear(input.irreps, self.irreps_out, self.instructions, biases=self.biases)
         w = [
             hk.get_parameter(f'b[{ins.i_out}] {lin.irreps_out[ins.i_out]}', shape=ins.path_shape, init=hk.initializers.Constant(0.0))
             if ins.i_in == -1 else
             hk.get_parameter(f'w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
             for ins in lin.instructions
         ]
-        return lin(w, x)
+        return lin(w, input)

@@ -773,6 +773,13 @@ class IrrepsData:
         ]
         return IrrepsData(self.irreps, self.contiguous, list)
 
+    def remove_nones(self) -> "IrrepsData":
+        if any(x is None for x in self.list):
+            irreps = [mul_ir for mul_ir, x in zip(self.irreps, self.list) if x is not None]
+            list = [x for x in self.list if x is not None]
+            return IrrepsData.from_list(irreps, list, self.shape)
+        return self
+
     def simplify(self) -> "IrrepsData":
         return self.convert(self.irreps.simplify())
 

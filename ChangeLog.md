@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IrrepsData.repeat_mul_by_last_axis`
 - `IrrepsData.factor_mul_to_last_axis`
 - add `axis` argument to `IrrepsData.cat`
+- `IrrepsData.remove_nones`
 
 ## [0.4.0] - 2022-03-19
 
