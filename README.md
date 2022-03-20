@@ -7,7 +7,7 @@ Disclamier: This is a work in progress. No part of the library can be considered
 ## What is different from the pytorch version?
 
 - no more `shared_weights` and `internal_weights` in `TensorProduct`. Extensive use of `jax.vmap` instead (see example below)
-- support of python list of `jnp.array` for the data. This allows to avoid unnecessary `jnp.concatenante` followed by indexing to reverse the concatenation
+- support of python structure `IrrepsData` that contains a contiguous version of the data and a list of `jnp.array` for the data. This allows to avoid unnecessary `jnp.concatenante` followed by indexing to reverse the concatenation
 - support of `None` in the list of `jnp.array` to avoid unnecessary computation with zeros
 
 ## Example
@@ -31,6 +31,32 @@ irreps.D_from_angles(alpha=0.0, beta=0.0, gamma=0.0, k=1)  # the matrix that app
 # DeviceArray([[ 1.,  0.],
 #              [ 0., -1.]], dtype=float32)
 ```
+
+`IrrepsData` contains both the irreps and the data.
+Here is the example of the tensor product of the two vectors.
+```python
+from e3nn_jax import full_tensor_product, IrrepsData
+
+out = full_tensor_product(
+    IrrepsData.from_contiguous("1o", jnp.array([2.0, 0.0, 0.0])),
+    IrrepsData.from_contiguous("1o", jnp.array([0.0, 2.0, 0.0]))
+)
+# out is of type `IrrepsData` and contains the following fields:
+
+out.irreps
+# 1x0e+1x1e+1x2e
+
+out.contiguous
+# DeviceArray([0.  , 0.  , 0.  , 2.83, 0.  , 2.83, 0.  , 0.  , 0.  ], dtype=float32)
+
+out.list
+# [DeviceArray([[0.]], dtype=float32),
+#  DeviceArray([[0.  , 0.  , 2.83]], dtype=float32),
+#  DeviceArray([[0.  , 2.83, 0.  , 0.  , 0.  ]], dtype=float32)]
+```
+
+The two fields `contiguous` and `list` contain the same information under different forms.
+This is not a performence issue, we rely on `jax.jit` to optimize the code and get rid of the unused operations.
 
 ## Shared weights
 
