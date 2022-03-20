@@ -995,6 +995,7 @@ class IrrepsData:
         assert {x.irreps for x in args} == {args[0].irreps}
         while axis < 0:
             axis += len(args[0].shape)
+        args = [x.replace_none_with_zeros() for x in args]
         return IrrepsData(
             args[0].irreps,
             jnp.concatenate([x.contiguous for x in args], axis=axis),
