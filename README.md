@@ -1,6 +1,3 @@
-:construction: :construction: :construction:
-Disclamier: This is a work in progress. No part of the library can be considered stable.
-
 # e3nn-jax
 [![Coverage Status](https://coveralls.io/repos/github/e3nn/e3nn-jax/badge.svg?branch=main)](https://coveralls.io/github/e3nn/e3nn-jax?branch=main)
 
