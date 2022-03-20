@@ -963,20 +963,35 @@ class IrrepsData:
         return IrrepsData(self.irreps, self.contiguous - other.contiguous, list)
 
     @staticmethod
-    def cat(args):
+    def cat(args, axis="irreps"):
         r"""Concatenate IrrepsData
 
         Args:
             args (list of `IrrepsData`): list of data to concatenate
+            axis (str or int): axis to concatenate on
 
         Returns:
             `IrrepsData`: concatenated data
         """
-        irreps = Irreps(sum([x.irreps for x in args], Irreps("")))
+        assert len(args) >= 1
+        if axis == "irreps":
+            irreps = Irreps(sum([x.irreps for x in args], Irreps("")))
+            return IrrepsData(
+                irreps,
+                jnp.concatenate([x.contiguous for x in args], axis=-1),
+                sum([x.list for x in args], [])
+            )
+        elif axis == "mul":
+            raise NotImplementedError
+
+        assert isinstance(axis, int)
+        assert {x.irreps for x in args} == {args[0].irreps}
+        while axis < 0:
+            axis += len(args[0].shape)
         return IrrepsData(
-            irreps,
-            jnp.concatenate([x.contiguous for x in args], axis=-1),
-            sum([x.list for x in args], [])
+            args[0].irreps,
+            jnp.concatenate([x.contiguous for x in args], axis=axis),
+            [jnp.concatenate(xs, axis=axis) for xs in zip(*[x.list for x in args])]
         )
 
     @staticmethod
