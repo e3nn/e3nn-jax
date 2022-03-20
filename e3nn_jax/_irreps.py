@@ -1,5 +1,6 @@
 import collections
 import itertools
+import math
 from functools import partial
 from typing import List, Optional, Tuple
 
@@ -782,6 +783,34 @@ class IrrepsData:
             IrrepsData(self.irreps[i:j], contiguous, self.list[i:j])
             for (i, j), contiguous in zip(zip([0] + indices, indices + [len(self.irreps)]), contiguous_parts)
         ]
+
+    def repeat_irreps_by_last_axis(self) -> "IrrepsData":
+        assert len(self.shape) >= 1
+        irreps = (self.shape[-1] * self.irreps).simplify()
+        contiguous = self.contiguous.reshape(self.shape[:-1] + (irreps.dim,))
+        return IrrepsData.from_contiguous(irreps, contiguous)
+
+    def repeat_mul_by_last_axis(self) -> "IrrepsData":
+        assert len(self.shape) >= 1
+        irreps = Irreps([(self.shape[-1] * mul, ir) for mul, ir in self.irreps])
+        list = [
+            None if x is None else x.reshape(self.shape[:-1] + (mul, ir.dim))
+            for (mul, ir), x in zip(irreps, self.list)
+        ]
+        return IrrepsData.from_list(irreps, list, self.shape[:-1])
+
+    def factor_irreps_to_last_axis(self) -> "IrrepsData":
+        raise NotImplementedError
+
+    def factor_mul_to_last_axis(self, factor=None) -> "IrrepsData":
+        if factor is None:
+            factor = math.gcd(*(mul for mul, _ in self.irreps))
+        irreps = Irreps([(mul // factor, ir) for mul, ir in self.irreps])
+        list = [
+            None if x is None else x.reshape(self.shape + (factor, mul, ir.dim))
+            for (mul, ir), x in zip(irreps, self.list)
+        ]
+        return IrrepsData.from_list(irreps, list, self.shape + (factor,))
 
     @partial(jax.jit, inline=True)
     def transform_by_angles(self, alpha, beta, gamma, k=0):

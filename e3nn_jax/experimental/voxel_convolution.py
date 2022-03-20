@@ -49,7 +49,7 @@ class Convolution(hk.Module):
                 x=lattice,
                 normalize=True,
                 normalization='component'
-            ).contiguous  # [x, y, z, irreps_sh.dim]
+            )  # [x, y, z, irreps_sh.dim]
 
     def __call__(self, x: IrrepsData) -> IrrepsData:
         """

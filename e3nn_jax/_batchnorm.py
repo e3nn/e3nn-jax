@@ -50,11 +50,11 @@ class BatchNorm(hk.Module):
         r"""evaluate the batch normalization
 
         Args:
-            input: input tensor of shape ``(..., irreps.dim)``
+            input: input tensor of shape ``(batch, [spatial], irreps.dim)``
             is_training: whether to train or evaluate
 
         Returns:
-            output: normalized tensor of shape ``(..., irreps.dim)``
+            output: normalized tensor of shape ``(batch, [spatial], irreps.dim)``
         """
         if self.irreps is not None:
             input = IrrepsData.new(self.irreps, input)
