@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import haiku as hk
 
-from e3nn_jax import IrrepsData, radius_graph, spherical_harmonics
+from e3nn_jax import Irreps, IrrepsData, radius_graph, spherical_harmonics
 from e3nn_jax.experimental.point_convolution import Convolution
 
 
@@ -13,7 +13,7 @@ def test_point_convolution(keys):
         edge_attr = spherical_harmonics("0e + 1e + 2e", pos[dst] - pos[src], True)
 
         return Convolution(
-            "8x0e + 8x0o",
+            "8x0e + 8x0o + 5e",
             fc_neurons=[],
             num_neighbors=2.0,
         )(x, src, dst, edge_attr)
@@ -29,6 +29,10 @@ def test_point_convolution(keys):
     src, dst = radius_graph(pos, 2.0)
 
     w = model.init(next(keys), pos, src, dst, x)
-    apply(w, pos, src, dst, x)
+    out = apply(w, pos, src, dst, x)
+
+    assert out.shape == x.shape
+    assert out.irreps == Irreps("8x0e + 8x0o + 5e")
+    assert out.list[2] is None
 
     # TODO test equivariance

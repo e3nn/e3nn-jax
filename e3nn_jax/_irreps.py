@@ -974,6 +974,17 @@ class IrrepsData:
         list = [x if y is None else (-y if x is None else x - y) for x, y in zip(self.list, other.list)]
         return IrrepsData(self.irreps, self.contiguous - other.contiguous, list)
 
+    def __mul__(self, other):
+        list = [None if x is None else x * other for x in self.list]
+        return IrrepsData(self.irreps, self.contiguous * other, list)
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __truediv__(self, other):
+        list = [None if x is None else x / other for x in self.list]
+        return IrrepsData(self.irreps, self.contiguous / other, list)
+
     @staticmethod
     def cat(args, axis="irreps"):
         r"""Concatenate IrrepsData

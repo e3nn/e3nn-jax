@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IrrepsData.factor_mul_to_last_axis`
 - add `axis` argument to `IrrepsData.cat`
 - `IrrepsData.remove_nones`
+- `IrrepsData.ones`
+
+## Changed
+- `experimental.point_convolution.Convolution` simplified interface using `IrrepsData`
 
 ## [0.4.0] - 2022-03-19
 

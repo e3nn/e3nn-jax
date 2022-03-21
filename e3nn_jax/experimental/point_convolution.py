@@ -7,10 +7,10 @@ from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Lin
 
 
 class Convolution(hk.Module):
-    r"""equivariant convolution
+    r"""Equivariant Point Convolution
 
     Args:
-        irreps_node_output : `e3nn.o3.Irreps` or None
+        irreps_node_output : `e3nn.o3.Irreps`
             representation of the output node features
 
         fc_neurons : list of int
@@ -33,24 +33,17 @@ class Convolution(hk.Module):
         assert isinstance(node_input, IrrepsData)
         assert isinstance(edge_attr, IrrepsData)
 
-        # def stat(text, z):
-        #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
-
         if node_attr is not None:
             tmp = jax.vmap(FullyConnectedTensorProduct(node_input.irreps + self.irreps_node_output))(node_input, node_attr)
         else:
             tmp = jax.vmap(Linear(node_input.irreps + self.irreps_node_output))(node_input)
 
-        node_features, node_self_out = tmp.list[:len(node_input.irreps)], tmp.list[len(node_input.irreps):]
-
-        # stat('node_features', node_features)
-        # stat('node_self_out', node_self_out)
+        node_features, node_self_out = tmp.split([len(node_input.irreps)])
 
         edge_features = jax.tree_map(lambda x: x[edge_src], node_features)
+        del node_features
 
-        # stat('edge_features', edge_features)
         ######################################################################################
-
         irreps_mid = []
         instructions = []
         for i, (mul, ir_in) in enumerate(node_input.irreps):
@@ -80,15 +73,12 @@ class Convolution(hk.Module):
             irreps_mid,
             instructions,
         )
-        irreps_mid = irreps_mid.simplify()
 
         if self.fc_neurons:
             weight = MultiLayerPerceptron(
                 self.fc_neurons,
                 jax.nn.gelu
             )(edge_scalar_attr)
-
-            # stat('weight', weight)
 
             weight = [
                 jnp.einsum(
@@ -103,8 +93,6 @@ class Convolution(hk.Module):
                 for ins in tp.instructions
             ]
 
-            # stat('weight', weight)
-
             edge_features: IrrepsData = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr)
         else:
             weight = [
@@ -117,16 +105,11 @@ class Convolution(hk.Module):
             ]
             edge_features: IrrepsData = jax.vmap(tp.left_right, (None, 0, 0), 0)(weight, edge_features, edge_attr)
 
-        # stat('edge_features 2', edge_features)
-
+        edge_features = edge_features.remove_nones().simplify()
         ######################################################################################
 
-        node_features = index_add(edge_dst, edge_features.contiguous, out_dim=node_input.shape[0])
-
+        node_features = jax.tree_map(lambda x: index_add(edge_dst, x, out_dim=node_input.shape[0]), edge_features)
         node_features = node_features / self.num_neighbors**0.5
-
-        node_features = IrrepsData.from_contiguous(irreps_mid, node_features)
-        # stat('node_features', node_features)
 
         ######################################################################################
 
@@ -135,23 +118,10 @@ class Convolution(hk.Module):
         else:
             node_conv_out = jax.vmap(Linear(self.irreps_node_output))(node_features)
 
-        # stat('node_conv_out', node_conv_out)
-
         ######################################################################################
 
         with jax.ensure_compile_time_eval():
             c = jnp.cos(self.mixing_angle)
             s = jnp.sin(self.mixing_angle)
 
-        def f(x, y):
-            if x is None and y is None:
-                return None
-            if x is None:
-                return y
-            if y is None:
-                return x
-            return c * x + s * y
-
-        output = [f(x, y) for x, y in zip(node_self_out, node_conv_out.list)]
-
-        return IrrepsData.from_list(self.irreps_node_output, output, node_input.shape)
+        return c * node_self_out + s * node_conv_out
