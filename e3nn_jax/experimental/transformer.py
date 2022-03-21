@@ -73,6 +73,32 @@ def _tensor_product_mlp_uvu(irreps_in1, irreps_in2, ir_out_list, list_neurons, p
     return TensorProductMultiLayerPerceptron(tp, list_neurons, phi)
 
 
+def index_max(i, x, out_dim):
+    r"""perform the operation
+
+    ```
+    out = zeros(out_dim, ...)
+    out[i] += x
+    ```
+
+    Args:
+        i (`jnp.ndarray`): array of indices
+        x (`jnp.ndarray`): array of data
+        out_dim (int): size of the output
+
+    Returns:
+        `jnp.ndarray`: ``out``
+
+    Example:
+       >>> i = jnp.array([0, 2, 2, 0])
+       >>> x = jnp.array([1.0, 2.0, 3.0, -10.0])
+       >>> index_max(i, x, out_dim=4)
+       DeviceArray([1.,  0.,  3.,  0.], dtype=float32)
+    """
+    # out_dim = jnp.max(i) + 1
+    return jnp.zeros((out_dim,) + x.shape[1:]).at[i].max(x)
+
+
 class Transformer(hk.Module):
     def __init__(self, irreps_node_input, irreps_node_output, irreps_edge_attr, list_neurons, phi, num_heads=1):
         super().__init__()
@@ -110,7 +136,12 @@ class Transformer(hk.Module):
             irreps_in2=tp_k.irreps_out,
             irreps_out=f"{self.num_heads}x 0e"
         )
-        exp = edge_weight_cutoff[:, None] * jnp.exp(jax.vmap(dot)(node_f[edge_dst], edge_k).contiguous)  # array[edge, head]
+        #exp = edge_weight_cutoff[:, None] * jnp.exp(jax.vmap(dot)(node_f[edge_dst], edge_k).contiguous)  # array[edge, head]
+        exp = jax.vmap(dot)(node_f[edge_dst], edge_k).contiguous
+        exp_max = index_max(edge_dst, exp, len(node_f))
+        exp = exp - exp_max[edge_dst]
+        exp = edge_weight_cutoff[:, None] * jnp.exp(exp)  # array[edge, head]
+        
         z = index_add(edge_dst, exp, len(node_f))  # array[node, head]
         z = jnp.where(z == 0.0, 1.0, z)
         alpha = exp / z[edge_dst]  # array[edge, head]
