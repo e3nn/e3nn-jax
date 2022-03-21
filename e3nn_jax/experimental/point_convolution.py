@@ -9,25 +9,20 @@ from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Lin
 class Convolution(hk.Module):
     r"""equivariant convolution
 
-    Parameters
-    ----------
-    irreps_node_attr : `e3nn.o3.Irreps`
-        representation of the node attributes
+    Args:
+        irreps_node_output : `e3nn.o3.Irreps` or None
+            representation of the output node features
 
-    irreps_node_output : `e3nn.o3.Irreps` or None
-        representation of the output node features
+        fc_neurons : list of int
+            number of neurons per layers in the fully connected network
+            first layer and hidden layers but not the output layer
 
-    fc_neurons : list of int
-        number of neurons per layers in the fully connected network
-        first layer and hidden layers but not the output layer
-
-    num_neighbors : float
-        typical number of nodes convolved over
+        num_neighbors : float
+            typical number of nodes convolved over
     """
-    def __init__(self, irreps_node_attr, irreps_node_output, fc_neurons, num_neighbors, mixing_angle=jnp.pi / 8.0):
+    def __init__(self, irreps_node_output, fc_neurons, num_neighbors, mixing_angle=jnp.pi / 8.0):
         super().__init__()
 
-        self.irreps_node_attr = Irreps(irreps_node_attr) if irreps_node_attr is not None else None
         self.irreps_node_output = Irreps(irreps_node_output)
         self.fc_neurons = fc_neurons
         self.num_neighbors = num_neighbors
@@ -41,9 +36,7 @@ class Convolution(hk.Module):
         # def stat(text, z):
         #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
 
-        if self.irreps_node_attr is not None and node_attr is not None:
-            node_attr = IrrepsData.new(self.irreps_node_attr, node_attr)
-
+        if node_attr is not None:
             tmp = jax.vmap(FullyConnectedTensorProduct(node_input.irreps + self.irreps_node_output))(node_input, node_attr)
         else:
             tmp = jax.vmap(Linear(node_input.irreps + self.irreps_node_output))(node_input)
@@ -137,7 +130,7 @@ class Convolution(hk.Module):
 
         ######################################################################################
 
-        if self.irreps_node_attr is not None and node_attr is not None:
+        if node_attr is not None:
             node_conv_out = jax.vmap(FullyConnectedTensorProduct(self.irreps_node_output))(node_features, node_attr)
         else:
             node_conv_out = jax.vmap(Linear(self.irreps_node_output))(node_features)
