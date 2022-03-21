@@ -51,16 +51,9 @@ def model(pos, edge_src, edge_dst):
     )
 
     for _ in range(4):
-        node_feat = Convolution(
-            '32x0e + 32x0o + 16x0e + 8x1e + 8x1o',
-            **kw
-        )(node_feat, edge_src, edge_dst, edge_attr)
-        node_feat = jax.vmap(gate, (0, None), 0)(node_feat, [jax.nn.gelu, jnp.tanh, jax.nn.sigmoid])
-
-    node_feat = Convolution(
-        '0o + 6x0e',
-        **kw
-    )(node_feat, edge_src, edge_dst, edge_attr)
+        node_feat = Convolution('32x0e + 32x0o + 16x0e + 8x1e + 8x1o', **kw)(node_feat, edge_src, edge_dst, edge_attr)
+        node_feat = jax.vmap(lambda x: gate(x, [jax.nn.gelu, jnp.tanh, jax.nn.sigmoid]))(node_feat)
+    node_feat = Convolution('0o + 6x0e', **kw)(node_feat, edge_src, edge_dst, edge_attr)
 
     return node_feat.contiguous
 
@@ -100,10 +93,8 @@ def main():
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
 
     wall = time.perf_counter()
-    it = 0
-    for _ in range(2000):
+    for it in range(1, 2000):
         params, opt_state, loss, accuracy, pred = update(params, opt_state, pos, edge_src, edge_dst, labels, batch)
-        it += 1
 
         print(f"[{it}] accuracy = {100 * accuracy:.0f}%")
 
@@ -111,8 +102,6 @@ def main():
             total = time.perf_counter() - wall
             print(f"100% accuracy has been reach in {total:.1f}s after {it} iterations ({1000 * total/it:.1f}ms/it).")
             break
-
-    print(pred)
 
 
 if __name__ == '__main__':
