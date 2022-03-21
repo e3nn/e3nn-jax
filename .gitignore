@@ -14,3 +14,4 @@ dist
 *.so
 *.txt
 *.nb
+examples/icon.png
