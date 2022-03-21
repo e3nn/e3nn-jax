@@ -975,6 +975,7 @@ class IrrepsData:
         return IrrepsData(self.irreps, self.contiguous - other.contiguous, list)
 
     def __mul__(self, other) -> "IrrepsData":
+        other = jnp.array(other)
         list = [None if x is None else x * other[..., None, None] for x in self.list]
         return IrrepsData(self.irreps, self.contiguous * other[..., None], list)
 
@@ -982,6 +983,7 @@ class IrrepsData:
         return self * other
 
     def __truediv__(self, other) -> "IrrepsData":
+        other = jnp.array(other)
         list = [None if x is None else x / other[..., None, None] for x in self.list]
         return IrrepsData(self.irreps, self.contiguous / other[..., None], list)
 
