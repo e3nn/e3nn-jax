@@ -13,8 +13,7 @@ def test_point_convolution(keys):
         edge_attr = spherical_harmonics("0e + 1e + 2e", pos[dst] - pos[src], True)
 
         return Convolution(
-            irreps_node_attr=None,
-            irreps_node_output="8x0e + 8x0o",
+            "8x0e + 8x0o",
             fc_neurons=[],
             num_neighbors=2.0,
         )(x, src, dst, edge_attr)
