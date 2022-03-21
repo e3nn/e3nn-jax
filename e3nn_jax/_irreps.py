@@ -964,26 +964,26 @@ class IrrepsData:
 
         return IrrepsData(irreps, self.contiguous, new_list)
 
-    def __add__(self, other):
+    def __add__(self, other: "IrrepsData") -> "IrrepsData":
         assert self.irreps == other.irreps
         list = [x if y is None else (y if x is None else x + y) for x, y in zip(self.list, other.list)]
         return IrrepsData(self.irreps, self.contiguous + other.contiguous, list)
 
-    def __sub__(self, other):
+    def __sub__(self, other: "IrrepsData") -> "IrrepsData":
         assert self.irreps == other.irreps
         list = [x if y is None else (-y if x is None else x - y) for x, y in zip(self.list, other.list)]
         return IrrepsData(self.irreps, self.contiguous - other.contiguous, list)
 
-    def __mul__(self, other):
-        list = [None if x is None else x * other for x in self.list]
-        return IrrepsData(self.irreps, self.contiguous * other, list)
+    def __mul__(self, other) -> "IrrepsData":
+        list = [None if x is None else x * other[..., None, None] for x in self.list]
+        return IrrepsData(self.irreps, self.contiguous * other[..., None], list)
 
-    def __rmul__(self, other):
+    def __rmul__(self, other) -> "IrrepsData":
         return self * other
 
-    def __truediv__(self, other):
-        list = [None if x is None else x / other for x in self.list]
-        return IrrepsData(self.irreps, self.contiguous / other, list)
+    def __truediv__(self, other) -> "IrrepsData":
+        list = [None if x is None else x / other[..., None, None] for x in self.list]
+        return IrrepsData(self.irreps, self.contiguous / other[..., None], list)
 
     @staticmethod
     def cat(args, axis="irreps"):

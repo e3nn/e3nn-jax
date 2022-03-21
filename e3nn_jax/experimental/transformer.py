@@ -10,11 +10,11 @@ class TensorProductMultiLayerPerceptron(hk.Module):
     irreps_in2: Irreps
     irreps_out: Irreps
 
-    def __init__(self, tp: FunctionalTensorProduct, list_neurons, phi):
+    def __init__(self, tp: FunctionalTensorProduct, list_neurons, act):
         super().__init__()
 
         self.tp = tp
-        self.mlp = MultiLayerPerceptron(list_neurons, phi)
+        self.mlp = MultiLayerPerceptron(list_neurons, act)
 
         self.irreps_in1 = tp.irreps_in1.simplify()
         self.irreps_in2 = tp.irreps_in2.simplify()
@@ -22,7 +22,7 @@ class TensorProductMultiLayerPerceptron(hk.Module):
 
         assert all(i.has_weight for i in self.tp.instructions)
 
-    def __call__(self, emb, x1, x2):
+    def __call__(self, emb, x1: IrrepsData, x2: IrrepsData) -> IrrepsData:
         w = self.mlp(emb)
 
         w = [
@@ -37,7 +37,11 @@ class TensorProductMultiLayerPerceptron(hk.Module):
             )
             for i in self.tp.instructions
         ]
-        return self.tp.left_right(w, x1, x2)
+
+        x1 = x1.convert(self.irreps_in1)
+        x2 = x2.convert(self.irreps_in2)
+
+        return self.tp.left_right(w, x1, x2).convert(self.irreps_out)
 
 
 def _instructions_uvu(irreps_in1, irreps_in2, ir_out_list):
@@ -67,59 +71,60 @@ def _instructions_uvu(irreps_in1, irreps_in2, ir_out_list):
     return irreps_out, instructions
 
 
-def _tensor_product_mlp_uvu(irreps_in1, irreps_in2, ir_out_list, list_neurons, phi):
+def _tensor_product_mlp_uvu(irreps_in1, irreps_in2, ir_out_list, list_neurons, act):
     irreps_out, instructions = _instructions_uvu(irreps_in1, irreps_in2, ir_out_list)
     tp = FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions)
-    return TensorProductMultiLayerPerceptron(tp, list_neurons, phi)
+    return TensorProductMultiLayerPerceptron(tp, list_neurons, act)
+
+
+def _index_max(i, x, out_dim):
+    return jnp.zeros((out_dim,) + x.shape[1:]).at[i].max(x)
 
 
 class Transformer(hk.Module):
-    def __init__(self, irreps_node_input, irreps_node_output, irreps_edge_attr, list_neurons, phi, num_heads=1):
+    def __init__(self, irreps_node_output, list_neurons, act, num_heads=1):
         super().__init__()
 
-        self.irreps_node_input = Irreps(irreps_node_input)
-        self.irreps_edge_attr = Irreps(irreps_edge_attr)
         self.irreps_node_output = Irreps(irreps_node_output)
-
         self.list_neurons = list_neurons
-        self.phi = phi
+        self.act = act
         self.num_heads = num_heads
 
-        assert all(mul % num_heads == 0 for mul, _ in self.irreps_node_input), "num_heads must divide all irreps_node_input multiplicities"
-
-    def __call__(self, edge_src, edge_dst, edge_scalar_attr, edge_attr, edge_weight_cutoff, node_f):
+    def __call__(self, edge_src, edge_dst, edge_scalar_attr, edge_weight_cutoff, edge_attr: IrrepsData, node_feat: IrrepsData) -> IrrepsData:
         r"""
         Args:
             edge_src (array of int32): source index of the edges
             edge_dst (array of int32): destination index of the edges
             edge_scalar_attr (array of float): scalar attributes of the edges (typically given by ``soft_one_hot_linspace``)
-            edge_attr (array of float): attributes of the edges (typically given by ``spherical_harmonics``)
-            edge_weight_cutoff (float): cutoff weight for the edges (typically given by ``sus``)
-            node_f (array of float): features of the nodes
+            edge_weight_cutoff (array of float): cutoff weight for the edges (typically given by ``sus``)
+            edge_attr (IrrepsData): attributes of the edges (typically given by ``spherical_harmonics``)
+            node_f (IrrepsData): features of the nodes
 
         Returns:
-            array of float: output features of the nodes
+            IrrepsData: output features of the nodes
         """
-        node_f = IrrepsData.new(self.irreps_node_input, node_f).contiguous
+        edge_src_feat = jax.tree_map(lambda x: x[edge_src], node_feat)
+        edge_dst_feat = jax.tree_map(lambda x: x[edge_dst], node_feat)
 
-        tp_k = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_input, self.list_neurons, self.phi)
-        edge_k = jax.vmap(tp_k)(edge_scalar_attr, node_f[edge_src], edge_attr)
+        tp_mlp = _tensor_product_mlp_uvu(edge_src_feat.irreps, edge_attr.irreps, node_feat.irreps, self.list_neurons, self.act)
+        edge_k = jax.vmap(tp_mlp)(edge_scalar_attr, edge_src_feat, edge_attr)
+        del tp_mlp
 
-        dot = FullyConnectedTensorProduct(
-            irreps_in1=self.irreps_node_input,
-            irreps_in2=tp_k.irreps_out,
-            irreps_out=f"{self.num_heads}x 0e"
-        )
-        exp = edge_weight_cutoff[:, None] * jnp.exp(jax.vmap(dot)(node_f[edge_dst], edge_k).contiguous)  # array[edge, head]
-        z = index_add(edge_dst, exp, len(node_f))  # array[node, head]
+        tp_mlp = _tensor_product_mlp_uvu(edge_src_feat.irreps, edge_attr.irreps, self.irreps_node_output, self.list_neurons, self.act)
+        edge_v = jax.vmap(tp_mlp)(edge_scalar_attr, edge_src_feat, edge_attr)
+        del tp_mlp
+        assert all(mul % self.num_heads == 0 for mul, _ in edge_v.irreps), "num_heads must divide all node_feat multiplicities"
+
+        edge_logit = jax.vmap(FullyConnectedTensorProduct(f"{self.num_heads}x0e"))(edge_dst_feat, edge_k).contiguous
+        node_maxlogit = _index_max(edge_dst, edge_logit, node_feat.shape[0])  # array[node, head]
+        exp = edge_weight_cutoff[:, None] * jnp.exp(edge_logit - node_maxlogit[edge_dst])  # array[edge, head]
+        z = index_add(edge_dst, exp, node_feat.shape[0])  # array[node, head]
         z = jnp.where(z == 0.0, 1.0, z)
         alpha = exp / z[edge_dst]  # array[edge, head]
 
-        tp_v = _tensor_product_mlp_uvu(self.irreps_node_input, self.irreps_edge_attr, self.irreps_node_output, self.list_neurons, self.phi)
-        edge_v = jax.vmap(tp_v)(edge_scalar_attr, node_f[edge_src], edge_attr)  # list of array[edge, mul, ir]
-        edge_v = [jnp.sqrt(jax.nn.relu(alpha))[:, :, None, None] * v.reshape(v.shape[0], self.num_heads, v.shape[1] // self.num_heads, v.shape[2]) for v in edge_v.list]
-        edge_v = jnp.concatenate([v.reshape(v.shape[0], -1) for v in edge_v], axis=-1)  # array[edge, irreps]
+        edge_v = edge_v.factor_mul_to_last_axis(self.num_heads)  # IrrepsData[edge, head, irreps_out]
+        edge_v = edge_v * jnp.sqrt(jax.nn.relu(alpha))  # IrrepsData[edge, head, irreps_out]
+        edge_v = edge_v.repeat_mul_by_last_axis()  # IrrepsData[edge, irreps_out]
 
-        node_out = index_add(edge_dst, edge_v, len(node_f))
-        lin = Linear(irreps_in=tp_v.irreps_out, irreps_out=self.irreps_node_output)
-        return jax.vmap(lin)(node_out)
+        node_out = jax.tree_map(lambda x: index_add(edge_dst, x, node_feat.shape[0]), edge_v)  # IrrepsData[node, irreps_out]
+        return jax.vmap(Linear(self.irreps_node_output))(node_out)

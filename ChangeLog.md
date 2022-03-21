@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Changed
 - `experimental.point_convolution.Convolution` simplified interface using `IrrepsData`
+- `experimental.transformer.Transformer` simplified interface using `IrrepsData` and swap two arguments order
 
 ## [0.4.0] - 2022-03-19
 
