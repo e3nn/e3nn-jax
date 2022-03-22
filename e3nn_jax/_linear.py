@@ -152,6 +152,7 @@ class Linear(hk.Module):
         if self.irreps_in is not None:
             input = IrrepsData.new(self.irreps_in, input)
 
+        input = input.remove_nones()
         lin = FunctionalLinear(input.irreps, self.irreps_out, self.instructions, biases=self.biases)
         w = [
             hk.get_parameter(f'b[{ins.i_out}] {lin.irreps_out[ins.i_out]}', shape=ins.path_shape, init=hk.initializers.Constant(0.0))

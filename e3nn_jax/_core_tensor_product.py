@@ -185,13 +185,13 @@ class FunctionalTensorProduct:
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all'))
     @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
-    def left_right(self, weights, input1, input2=None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False) -> IrrepsData:
+    def left_right(self, weights, input1: IrrepsData, input2: IrrepsData = None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False) -> IrrepsData:
         r"""Compute the tensor product of two input tensors.
 
         Args:
             weights (array or list of arrays): The weights of the tensor product.
-            input1 (array or list of arrays): The first input tensor.
-            input2 (array or list of arrays): The second input tensor.
+            input1 (IrrepsData): The first input tensor.
+            input2 (IrrepsData): The second input tensor.
             specialized_code (bool): If True, use the specialized code for the
                 tensor product.
             optimize_einsums (bool): If True, optimize the einsum code.
@@ -234,8 +234,8 @@ class FunctionalTensorProduct:
             assert i == weights.size
         del weights
 
-        assert all(x is None or x.ndim == 2 for x in input1.list), "the input of TensorProduct must be a list of 2D arrays"
-        assert all(x is None or x.ndim == 2 for x in input2.list), "the input of TensorProduct must be a list of 2D arrays"
+        assert len(input1.shape) == 0
+        assert len(input2.shape) == 0
 
         if fuse_all:
             with jax.ensure_compile_time_eval():
@@ -429,7 +429,7 @@ class FunctionalTensorProduct:
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=('optimize_einsums', 'custom_einsum_vjp'))
     @partial(jax.profiler.annotate_function, name="TensorProduct.right")
-    def right(self, weights, input2=None, *, optimize_einsums=False, custom_einsum_vjp=False):
+    def right(self, weights, input2: IrrepsData = None, *, optimize_einsums=False, custom_einsum_vjp=False):
         if input2 is None:
             weights, input2 = [], weights
 

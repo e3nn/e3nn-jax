@@ -44,7 +44,10 @@ class FullyConnectedTensorProduct(hk.Module):
         if self.irreps_in2 is not None:
             x2 = IrrepsData.new(self.irreps_in2, x2)
 
-        tp = FunctionalFullyConnectedTensorProduct(x1.irreps, x2.irreps, self.irreps_out)
+        x1 = x1.remove_nones().simplify()
+        x2 = x2.remove_nones().simplify()
+
+        tp = FunctionalFullyConnectedTensorProduct(x1.irreps, x2.irreps, self.irreps_out.simplify())
         ws = [
             hk.get_parameter(
                 f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
@@ -53,7 +56,8 @@ class FullyConnectedTensorProduct(hk.Module):
             )
             for ins in tp.instructions
         ]
-        return tp.left_right(ws, x1, x2)
+        output = tp.left_right(ws, x1, x2)
+        return output.convert(self.irreps_out)
 
 
 @overload_for_irreps_without_data((0, 1))
@@ -63,8 +67,8 @@ def full_tensor_product(
     filter_ir_out=None,
     irrep_normalization: str = 'component',
 ):
-    input1 = input1.simplify()
-    input2 = input2.simplify()
+    input1 = input1.remove_nones().simplify()
+    input2 = input2.remove_nones().simplify()
 
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -111,8 +115,8 @@ def elementwise_tensor_product(
     irrep_normalization: str = 'component',
     path_normalization: str = 'element',
 ) -> IrrepsData:
-    input1 = input1.simplify()
-    input2 = input2.simplify()
+    input1 = input1.remove_nones().simplify()
+    input2 = input2.remove_nones().simplify()
 
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -177,8 +181,8 @@ def FunctionalTensorSquare(
 
     assert irrep_normalization in ['component', 'norm', 'none']
 
-    irreps_in = Irreps(irreps_in).simplify()
-    irreps_out = Irreps(irreps_out).simplify()
+    irreps_in = Irreps(irreps_in)
+    irreps_out = Irreps(irreps_out)
 
     instructions = []
     for i_1, (mul_1, ir_1) in enumerate(irreps_in):
@@ -238,17 +242,19 @@ class TensorSquare(hk.Module):
             init = hk.initializers.RandomNormal()
         self.init = init
 
-    def __call__(self, x: IrrepsData) -> IrrepsData:
+    def __call__(self, input: IrrepsData) -> IrrepsData:
         if self.irreps_in is not None:
-            x = IrrepsData.new(self.irreps_in, x)
+            input = IrrepsData.new(self.irreps_in, input)
 
-        tp = FunctionalTensorSquare(x.irreps, self.irreps_out)
+        input = input.remove_nones().simplify()
+
+        tp = FunctionalTensorSquare(input.irreps, self.irreps_out)
         ws = [
             hk.get_parameter(
                 f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
                 shape=ins.path_shape,
                 init=self.init
             )
-            for i, ins in enumerate(tp.instructions)
+            for ins in tp.instructions
         ]
-        return tp.left_right(ws, x, x)
+        return tp.left_right(ws, input, input)

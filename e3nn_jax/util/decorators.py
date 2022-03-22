@@ -15,8 +15,8 @@ def overload_for_irreps_without_data(irrepsdata_argnums=None, irrepsdata_argname
             if any(isinstance(arg, (Irreps, str)) for arg in concerned_args):
                 # assume arguments are Irreps (not IrrepsData)
 
-                args = [IrrepsData.zeros(a, shape) if i in argnums else a for i, a in enumerate(args)]
-                kwargs = {k: IrrepsData.zeros(v, shape) if k in argnames else v for k, v in kwargs.items()}
+                args = [IrrepsData.ones(a, shape) if i in argnums else a for i, a in enumerate(args)]
+                kwargs = {k: IrrepsData.ones(v, shape) if k in argnames else v for k, v in kwargs.items()}
                 output = func(*args, **kwargs)
                 if isinstance(output, IrrepsData):
                     return output.irreps

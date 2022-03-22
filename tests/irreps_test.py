@@ -104,3 +104,6 @@ def test_irreps_data_convert():
 
     id = IrrepsData.new("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))])
     assert jax.tree_map(lambda x: x.shape, id.convert("5x0e + 5x0e + 5x1e + 5x1e")).list == [None, None, (1, 5, 3), (1, 5, 3)]
+
+    id = IrrepsData.zeros("10x0e + 10x1e", ())
+    id = id.convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
