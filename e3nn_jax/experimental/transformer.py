@@ -43,15 +43,16 @@ class TensorProductMultiLayerPerceptron(hk.Module):
         return self.tp.left_right(w, x1, x2).convert(self.irreps_out)
 
 
-def _instructions_uvu(irreps_in1, irreps_in2):
+def _instructions_uvu(irreps_in1, irreps_in2, out_ir_list):
     irreps_out = []
     instructions = []
     for i1, (mul, ir_in1) in enumerate(irreps_in1):
         for i2, (_, ir_in2) in enumerate(irreps_in2):
             for ir_out in ir_in1 * ir_in2:
-                k = len(irreps_out)
-                irreps_out.append((mul, ir_out))
-                instructions.append((i1, i2, k, 'uvu', True))
+                if ir_out in out_ir_list:
+                    k = len(irreps_out)
+                    irreps_out.append((mul, ir_out))
+                    instructions.append((i1, i2, k, 'uvu', True))
     irreps_out = Irreps(irreps_out)
 
     irreps_out, p, _ = irreps_out.sort()
@@ -63,8 +64,8 @@ def _instructions_uvu(irreps_in1, irreps_in2):
     return irreps_out, instructions
 
 
-def _tp_mlp_uvu(emb, input1: IrrepsData, input2: IrrepsData, *, list_neurons, act) -> IrrepsData:
-    irreps_out, instructions = _instructions_uvu(input1.irreps, input2.irreps)
+def _tp_mlp_uvu(emb, input1: IrrepsData, input2: IrrepsData, out_ir_list, *, list_neurons, act) -> IrrepsData:
+    irreps_out, instructions = _instructions_uvu(input1.irreps, input2.irreps, out_ir_list)
     tp = FunctionalTensorProduct(input1.irreps, input2.irreps, irreps_out, instructions)
     return TensorProductMultiLayerPerceptron(tp, list_neurons, act)(emb, input1, input2)
 
@@ -99,8 +100,8 @@ class Transformer(hk.Module):
         edge_dst_feat = jax.tree_map(lambda x: x[edge_dst], node_feat)
 
         kw = dict(list_neurons=self.list_neurons, act=self.act)
-        edge_k = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, **kw))(edge_scalar_attr, edge_src_feat, edge_attr)  # IrrepData[edge, irreps]
-        edge_v = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, **kw))(edge_scalar_attr, edge_src_feat, edge_attr)  # IrrepData[edge, irreps]
+        edge_k = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, edge_dst_feat.irreps, **kw))(edge_scalar_attr, edge_src_feat, edge_attr)  # IrrepData[edge, irreps]
+        edge_v = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, self.irreps_node_output, **kw))(edge_scalar_attr, edge_src_feat, edge_attr)  # IrrepData[edge, irreps]
 
         edge_logit = jax.vmap(FullyConnectedTensorProduct(f"{self.num_heads}x0e"))(edge_dst_feat, edge_k).contiguous  # array[edge, head]
         node_logit_max = _index_max(edge_dst, edge_logit, node_feat.shape[0])  # array[node, head]
