@@ -64,7 +64,7 @@ def _instructions_uvu(irreps_in1, irreps_in2):
 
 
 def _tp_mlp_uvu(emb, input1: IrrepsData, input2: IrrepsData, *, list_neurons, act) -> IrrepsData:
-    irreps_out, instructions = _instructions_uvu(input1.irreps, input2.irreps, filter)
+    irreps_out, instructions = _instructions_uvu(input1.irreps, input2.irreps)
     tp = FunctionalTensorProduct(input1.irreps, input2.irreps, irreps_out, instructions)
     return TensorProductMultiLayerPerceptron(tp, list_neurons, act)(emb, input1, input2)
 
