@@ -51,7 +51,7 @@ def scalar_activation(input: IrrepsData, acts: List[Optional[Callable[[float], f
     for (mul, (l_in, p_in)), x, act in zip(input.irreps, input.list, acts):
         if act is not None:
             if l_in != 0:
-                raise ValueError("Activation: cannot apply an activation function to a non-scalar input.")
+                raise ValueError(f"Activation: cannot apply an activation function to a non-scalar input. {input.irreps} {acts}")
 
             act = normalize_function(act)
 
