@@ -31,9 +31,10 @@ def gate(input: IrrepsData, acts: List[Optional[Callable]] = None, even_act=jax.
     else:
         j = 0
         for j, (_, ir) in enumerate(input.irreps):
-            if not ir.is_scalar:
+            if ir.l > 0:
                 break
     scalars, gated = input.split([j])
+    assert scalars.irreps.lmax == 0, (input.irreps, j, scalars.irreps)
 
     if acts is not None:
         scalars = scalar_activation(scalars, acts)
