@@ -817,6 +817,10 @@ class IrrepsData:
     def factor_mul_to_last_axis(self, factor=None) -> "IrrepsData":
         if factor is None:
             factor = math.gcd(*(mul for mul, _ in self.irreps))
+
+        if not all(mul % factor == 0 for mul, _ in self.irreps):
+            raise ValueError(f"factor {factor} does not divide all multiplicities")
+
         irreps = Irreps([(mul // factor, ir) for mul, ir in self.irreps])
         list = [
             None if x is None else x.reshape(self.shape + (factor, mul, ir.dim))

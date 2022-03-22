@@ -1,4 +1,3 @@
-# TODO rewrite with better integration of IrrepsData
 import haiku as hk
 import jax
 import jax.numpy as jnp
@@ -44,23 +43,16 @@ class TensorProductMultiLayerPerceptron(hk.Module):
         return self.tp.left_right(w, x1, x2).convert(self.irreps_out)
 
 
-def _instructions_uvu(irreps_in1, irreps_in2, ir_out_list):
+def _instructions_uvu(irreps_in1, irreps_in2):
     irreps_out = []
     instructions = []
     for i1, (mul, ir_in1) in enumerate(irreps_in1):
         for i2, (_, ir_in2) in enumerate(irreps_in2):
             for ir_out in ir_in1 * ir_in2:
-                if ir_out in ir_out_list:
-                    k = len(irreps_out)
-                    irreps_out.append((mul, ir_out))
-                    instructions.append((i1, i2, k, 'uvu', True))
+                k = len(irreps_out)
+                irreps_out.append((mul, ir_out))
+                instructions.append((i1, i2, k, 'uvu', True))
     irreps_out = Irreps(irreps_out)
-
-    assert irreps_out.dim > 0, (
-        f"irreps_in1={irreps_in1} "
-        f"time irreps_in2={irreps_in2} "
-        f"produces nothing in irreps_out={ir_out_list}"
-    )
 
     irreps_out, p, _ = irreps_out.sort()
     instructions = [
@@ -71,10 +63,10 @@ def _instructions_uvu(irreps_in1, irreps_in2, ir_out_list):
     return irreps_out, instructions
 
 
-def _tensor_product_mlp_uvu(irreps_in1, irreps_in2, ir_out_list, list_neurons, act):
-    irreps_out, instructions = _instructions_uvu(irreps_in1, irreps_in2, ir_out_list)
-    tp = FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions)
-    return TensorProductMultiLayerPerceptron(tp, list_neurons, act)
+def _tp_mlp_uvu(emb, input1: IrrepsData, input2: IrrepsData, *, list_neurons, act) -> IrrepsData:
+    irreps_out, instructions = _instructions_uvu(input1.irreps, input2.irreps, filter)
+    tp = FunctionalTensorProduct(input1.irreps, input2.irreps, irreps_out, instructions)
+    return TensorProductMultiLayerPerceptron(tp, list_neurons, act)(emb, input1, input2)
 
 
 def _index_max(i, x, out_dim):
@@ -106,18 +98,13 @@ class Transformer(hk.Module):
         edge_src_feat = jax.tree_map(lambda x: x[edge_src], node_feat)
         edge_dst_feat = jax.tree_map(lambda x: x[edge_dst], node_feat)
 
-        tp_mlp = _tensor_product_mlp_uvu(edge_src_feat.irreps, edge_attr.irreps, node_feat.irreps, self.list_neurons, self.act)
-        edge_k = jax.vmap(tp_mlp)(edge_scalar_attr, edge_src_feat, edge_attr)
-        del tp_mlp
+        kw = dict(list_neurons=self.list_neurons, act=self.act)
+        edge_k = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, **kw))(edge_scalar_attr, edge_src_feat, edge_attr)  # IrrepData[edge, irreps]
+        edge_v = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, **kw))(edge_scalar_attr, edge_src_feat, edge_attr)  # IrrepData[edge, irreps]
 
-        tp_mlp = _tensor_product_mlp_uvu(edge_src_feat.irreps, edge_attr.irreps, self.irreps_node_output, self.list_neurons, self.act)
-        edge_v = jax.vmap(tp_mlp)(edge_scalar_attr, edge_src_feat, edge_attr)
-        del tp_mlp
-        assert all(mul % self.num_heads == 0 for mul, _ in edge_v.irreps), "num_heads must divide all node_feat multiplicities"
-
-        edge_logit = jax.vmap(FullyConnectedTensorProduct(f"{self.num_heads}x0e"))(edge_dst_feat, edge_k).contiguous
-        node_maxlogit = _index_max(edge_dst, edge_logit, node_feat.shape[0])  # array[node, head]
-        exp = edge_weight_cutoff[:, None] * jnp.exp(edge_logit - node_maxlogit[edge_dst])  # array[edge, head]
+        edge_logit = jax.vmap(FullyConnectedTensorProduct(f"{self.num_heads}x0e"))(edge_dst_feat, edge_k).contiguous  # array[edge, head]
+        node_logit_max = _index_max(edge_dst, edge_logit, node_feat.shape[0])  # array[node, head]
+        exp = edge_weight_cutoff[:, None] * jnp.exp(edge_logit - node_logit_max[edge_dst])  # array[edge, head]
         z = index_add(edge_dst, exp, node_feat.shape[0])  # array[node, head]
         z = jnp.where(z == 0.0, 1.0, z)
         alpha = exp / z[edge_dst]  # array[edge, head]
@@ -127,4 +114,4 @@ class Transformer(hk.Module):
         edge_v = edge_v.repeat_mul_by_last_axis()  # IrrepsData[edge, irreps_out]
 
         node_out = jax.tree_map(lambda x: index_add(edge_dst, x, node_feat.shape[0]), edge_v)  # IrrepsData[node, irreps_out]
-        return jax.vmap(Linear(self.irreps_node_output))(node_out)
+        return jax.vmap(Linear(self.irreps_node_output))(node_out)  # IrrepsData[edge, head, irreps_out]
