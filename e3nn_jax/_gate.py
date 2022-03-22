@@ -38,6 +38,11 @@ def gate(input: IrrepsData, acts: List[Optional[Callable]] = None, even_act=jax.
     if acts is not None:
         scalars = scalar_activation(scalars, acts)
 
+    if gated.irreps.dim == 0:
+        if acts is None:
+            scalars = scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
+        return scalars
+
     gates = None
     for i in range(j + 1):
         if scalars.irreps[i:].num_irreps == gated.irreps.num_irreps:

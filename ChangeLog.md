@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add `axis` argument to `IrrepsData.cat`
 - `IrrepsData.remove_nones`
 - `IrrepsData.ones`
+- `gate` list of activations argument is now optional
 
 ## Changed
 - `experimental.point_convolution.Convolution` simplified interface using `IrrepsData`
