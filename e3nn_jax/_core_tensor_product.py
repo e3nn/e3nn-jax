@@ -320,6 +320,8 @@ class FunctionalTensorProduct:
                 weight_index += 1
 
             if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
+                # TODO verify that there is no need for
+                # out_list += [None]
                 continue
 
             x1 = input1.list[ins.i_in1]

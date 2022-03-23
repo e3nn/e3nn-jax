@@ -67,9 +67,6 @@ def full_tensor_product(
     filter_ir_out=None,
     irrep_normalization: str = 'component',
 ):
-    input1 = input1.remove_nones().simplify()
-    input2 = input2.remove_nones().simplify()
-
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
@@ -115,9 +112,6 @@ def elementwise_tensor_product(
     irrep_normalization: str = 'component',
     path_normalization: str = 'element',
 ) -> IrrepsData:
-    input1 = input1.remove_nones().simplify()
-    input2 = input2.remove_nones().simplify()
-
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
