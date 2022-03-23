@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2022-03-23
+## Changed
+- `gate` list of activations argument is now optional
+- `experimental.transformer.Transformer` simplified interface using `IrrepsData` and swap two arguments order
+
 ## [0.4.1] - 2022-03-21
 ### Added
 - `IrrepsData.repeat_irreps_by_last_axis`
@@ -14,11 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add `axis` argument to `IrrepsData.cat`
 - `IrrepsData.remove_nones`
 - `IrrepsData.ones`
-- `gate` list of activations argument is now optional
 
 ## Changed
 - `experimental.point_convolution.Convolution` simplified interface using `IrrepsData`
-- `experimental.transformer.Transformer` simplified interface using `IrrepsData` and swap two arguments order
 
 ## [0.4.0] - 2022-03-19
 
