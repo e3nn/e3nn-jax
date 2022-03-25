@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `IrrepsData` can be given as argument of `spherical_harmonics`
 
+## Changed
+- `BatchNorm` supports None
+
 ## [0.4.2] - 2022-03-23
 ## Changed
 - `gate` list of activations argument is now optional

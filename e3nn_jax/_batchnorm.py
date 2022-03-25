@@ -1,10 +1,114 @@
 
+from functools import partial
+
 import haiku as hk
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
 
 from e3nn_jax import Irreps, IrrepsData
 from e3nn_jax.util import prod
+
+
+@partial(jax.jit, static_argnums=(5, 6, 7, 8, 9, 10, 11))
+def _batch_norm(input, running_mean, running_var, weight, bias, normalization, reduce, is_training, is_instance, has_affine, momentum, epsilon):
+    def _roll_avg(curr, update):
+        return (1 - momentum) * curr + momentum * jax.lax.stop_gradient(update)
+
+    batch, *size = input.shape
+    # TODO add test case for when prod(size) == 0
+
+    input = input.reshape((batch, prod(size)))
+
+    new_means = []
+    new_vars = []
+
+    fields = []
+
+    # You need all of these constants because of the ordering of the irreps
+    i = 0
+    irm = 0
+    ib = 0
+
+    for (mul, ir), field in zip(input.irreps, input.list):
+        k = i + mul
+
+        if field is None:
+            # [batch, sample, mul, repr]
+            if ir.is_scalar():  # scalars
+                if is_training or is_instance:
+                    if not is_instance:
+                        new_means.append(jnp.zeros((mul,)))
+                irm += mul
+
+            if is_training or is_instance:
+                if not is_instance:
+                    new_vars.append(jnp.ones((mul,)))
+
+            if has_affine and ir.is_scalar():  # scalars
+                ib += mul
+
+            fields.append(field)  # [batch, sample, mul, repr]
+            i = k
+        else:
+            # [batch, sample, mul, repr]
+            if ir.is_scalar():  # scalars
+                if is_training or is_instance:
+                    if is_instance:
+                        field_mean = field.mean(1).reshape(batch, mul)  # [batch, mul]
+                    else:
+                        field_mean = field.mean([0, 1]).reshape(mul)  # [mul]
+                        new_means.append(
+                            _roll_avg(running_mean[irm: irm + mul], field_mean)
+                        )
+                else:
+                    field_mean = running_mean[irm: irm + mul]
+                irm += mul
+
+                # [batch, sample, mul, repr]
+                field = field - field_mean.reshape(-1, 1, mul, 1)
+
+            if is_training or is_instance:
+                if normalization == 'norm':
+                    field_norm = jnp.square(field).sum(3)  # [batch, sample, mul]
+                elif normalization == 'component':
+                    field_norm = jnp.square(field).mean(3)  # [batch, sample, mul]
+                else:
+                    raise ValueError("Invalid normalization option {}".format(normalization))
+
+                if reduce == 'mean':
+                    field_norm = field_norm.mean(1)  # [batch, mul]
+                elif reduce == 'max':
+                    field_norm = field_norm.max(1)  # [batch, mul]
+                else:
+                    raise ValueError("Invalid reduce option {}".format(reduce))
+
+                if not is_instance:
+                    field_norm = field_norm.mean(0)  # [mul]
+                    new_vars.append(_roll_avg(running_var[i: k], field_norm))
+            else:
+                field_norm = running_var[i: k]
+
+            field_norm = jax.lax.rsqrt(field_norm + epsilon)  # [(batch,) mul]
+
+            if has_affine:
+                sub_weight = weight[i: k]  # [mul]
+                field_norm = field_norm * sub_weight  # [(batch,) mul]
+
+            # TODO add test case for when mul == 0
+            field_norm = field_norm[..., None, :, None]  # [(batch,) 1, mul, 1]
+            field = field * field_norm  # [batch, sample, mul, repr]
+
+            if has_affine and ir.is_scalar():  # scalars
+                sub_bias = bias[ib: ib + mul]  # [mul]
+                field += sub_bias.reshape(mul, 1)  # [batch, sample, mul, repr]
+                ib += mul
+
+            fields.append(field)  # [batch, sample, mul, repr]
+            i = k
+
+    output = IrrepsData.from_list(input.irreps, fields, (batch, prod(size)))
+    output = output.reshape((batch,) + tuple(size))
+    return output, new_means, new_vars
 
 
 class BatchNorm(hk.Module):
@@ -43,9 +147,6 @@ class BatchNorm(hk.Module):
     def __repr__(self):
         return f"{self.__class__.__name__} ({self.irreps}, eps={self.eps}, momentum={self.momentum})"
 
-    def _roll_avg(self, curr, update):
-        return (1 - self.momentum) * curr + self.momentum * jax.lax.stop_gradient(update)
-
     def __call__(self, input, is_training=True):
         r"""evaluate the batch normalization
 
@@ -61,97 +162,37 @@ class BatchNorm(hk.Module):
         if not isinstance(input, IrrepsData):
             raise ValueError("input should be of type IrrepsData")
 
-        irreps = input.irreps
-
-        # TODO add test cases with None in input.list
-        input = input.replace_none_with_zeros()  # TODO remove this, and support efficiently None
-
-        num_scalar = sum(mul for mul, ir in irreps if ir.is_scalar())
-        num_features = irreps.num_irreps
+        num_scalar = sum(mul for mul, ir in input.irreps if ir.is_scalar())
+        num_features = input.irreps.num_irreps
 
         if not self.instance:
             running_mean = hk.get_state("running_mean", shape=(num_scalar,), init=jnp.zeros)
             running_var = hk.get_state("running_var", shape=(num_features,), init=jnp.ones)
+        else:
+            running_mean = None
+            running_var = None
+
         if self.affine:
             weight = hk.get_parameter("weight", shape=(num_features,), init=jnp.ones)
             bias = hk.get_parameter("bias", shape=(num_scalar,), init=jnp.zeros)
+        else:
+            weight = None
+            bias = None
 
-        batch, *size = input.shape
-        # TODO add test case for when prod(size) == 0
-
-        input = input.reshape((batch, prod(size)))
-        input = input.list
-
-        if is_training and not self.instance:
-            new_means = []
-            new_vars = []
-
-        fields = []
-
-        # You need all of these constants because of the ordering of the irreps
-        i = 0
-        irm = 0
-        ib = 0
-
-        for (mul, ir), field in zip(irreps, input):
-            k = i + mul
-
-            # [batch, sample, mul, repr]
-
-            if ir.is_scalar():  # scalars
-                if is_training or self.instance:
-                    if self.instance:
-                        field_mean = field.mean(1).reshape(batch, mul)  # [batch, mul]
-                    else:
-                        field_mean = field.mean([0, 1]).reshape(mul)  # [mul]
-                        new_means.append(
-                            self._roll_avg(running_mean[irm: irm + mul], field_mean)
-                        )
-                else:
-                    field_mean = running_mean[irm: irm + mul]
-                irm += mul
-
-                # [batch, sample, mul, repr]
-                field = field - field_mean.reshape(-1, 1, mul, 1)
-
-            if is_training or self.instance:
-                if self.normalization == 'norm':
-                    field_norm = jnp.square(field).sum(3)  # [batch, sample, mul]
-                elif self.normalization == 'component':
-                    field_norm = jnp.square(field).mean(3)  # [batch, sample, mul]
-                else:
-                    raise ValueError("Invalid normalization option {}".format(self.normalization))
-
-                if self.reduce == 'mean':
-                    field_norm = field_norm.mean(1)  # [batch, mul]
-                elif self.reduce == 'max':
-                    field_norm = field_norm.max(1)  # [batch, mul]
-                else:
-                    raise ValueError("Invalid reduce option {}".format(self.reduce))
-
-                if not self.instance:
-                    field_norm = field_norm.mean(0)  # [mul]
-                    new_vars.append(self._roll_avg(running_var[i: k], field_norm))
-            else:
-                field_norm = running_var[i: k]
-
-            field_norm = jax.lax.rsqrt(field_norm + self.eps)  # [(batch,) mul]
-
-            if self.affine:
-                sub_weight = weight[i: k]  # [mul]
-                field_norm = field_norm * sub_weight  # [(batch,) mul]
-
-            # TODO add test case for when mul == 0
-            field_norm = field_norm[..., None, :, None]  # [(batch,) 1, mul, 1]
-            field = field * field_norm  # [batch, sample, mul, repr]
-
-            if self.affine and ir.is_scalar():  # scalars
-                sub_bias = bias[ib: ib + mul]  # [mul]
-                field += sub_bias.reshape(mul, 1)  # [batch, sample, mul, repr]
-                ib += mul
-
-            fields.append(field)  # [batch, sample, mul, repr]
-            i = k
+        output, new_means, new_vars = _batch_norm(
+            input,
+            running_mean=running_mean,
+            running_var=running_var,
+            weight=weight,
+            bias=bias,
+            normalization=self.normalization,
+            reduce=self.reduce,
+            is_training=is_training,
+            is_instance=self.instance,
+            has_affine=self.affine,
+            momentum=self.momentum,
+            epsilon=self.eps,
+        )
 
         if is_training and not self.instance:
             if len(new_means):
@@ -159,5 +200,4 @@ class BatchNorm(hk.Module):
             if len(new_vars):
                 hk.set_state("running_var", jnp.concatenate(new_vars))
 
-        output = [x.reshape(batch, *size, mul, ir.dim) for (mul, ir), x in zip(irreps, fields)]
-        return IrrepsData.from_list(irreps, output, (batch,) + tuple(size))
+        return output
