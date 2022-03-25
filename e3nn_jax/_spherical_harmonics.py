@@ -63,6 +63,12 @@ def spherical_harmonics(
 
     assert all([l % 2 == 1 or p == 1 for _, (l, p) in irreps_out])
     assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) <= 1
+    if isinstance(x, IrrepsData):
+        [(mul, ir)] = x.irreps
+        assert mul == 1
+        assert ir.l == 1
+        assert all([ir.p == p for _, (l, p) in irreps_out if l % 2 == 1])
+        x = x.contiguous
 
     _lmax = 8
     if irreps_out.lmax > _lmax:
