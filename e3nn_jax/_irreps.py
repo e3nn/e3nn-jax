@@ -764,6 +764,10 @@ class IrrepsData:
     def shape(self):
         return self.contiguous.shape[:-1]
 
+    @property
+    def ndim(self):
+        return len(self.shape)
+
     def reshape(self, shape) -> "IrrepsData":
         list = [
             None if x is None else x.reshape(shape + (mul, ir.dim))
