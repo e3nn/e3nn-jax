@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Changed
 - `BatchNorm` supports None
+- `BatchNorm` supports change default value of `eps` from `1e-5` to `1e-4`
 - `gate` change default odd activation to (1 - exp(x^2)) * x
 
 ## [0.4.2] - 2022-03-23

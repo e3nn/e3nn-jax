@@ -122,7 +122,7 @@ class BatchNorm(hk.Module):
         instance: whether to use instance normalization
         normalization: normalization mode, either 'norm' or 'component'
     """
-    def __init__(self, *, irreps=None, eps=1e-5, momentum=0.1, affine=True, reduce='mean', instance=False, normalization='component'):
+    def __init__(self, *, irreps=None, eps=1e-4, momentum=0.1, affine=True, reduce='mean', instance=False, normalization='component'):
         super().__init__()
 
         # TODO test with and without irreps argument given
