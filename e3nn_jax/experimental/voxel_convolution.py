@@ -60,7 +60,7 @@ class Convolution(hk.Module):
         if not isinstance(x, IrrepsData):
             raise ValueError("Convolution: input should be of type IrrepsData")
 
-        irreps_in = x.irreps
+        x = x.remove_nones().simplify()
 
         # self-connection
         lin = Linear(self.irreps_out)
@@ -68,8 +68,17 @@ class Convolution(hk.Module):
             lin = jax.vmap(lin)
         sc = lin(x)
 
+        irreps_out = Irreps([
+            (mul, ir) for (mul, ir) in self.irreps_out
+            if any(
+                ir in ir_in * ir_sh
+                for _, ir_in in x.irreps
+                for _, ir_sh in self.irreps_sh
+            )
+        ])
+
         # convolution
-        tp = FunctionalFullyConnectedTensorProduct(irreps_in, self.irreps_sh, self.irreps_out)
+        tp = FunctionalFullyConnectedTensorProduct(x.irreps, self.irreps_sh, irreps_out)
 
         w = [
             hk.get_parameter(
@@ -89,13 +98,23 @@ class Convolution(hk.Module):
             tp_right = jax.vmap(tp_right, (0, 0), 0)
         k = tp_right(w, self.sh)  # [x,y,z, irreps_in.dim, irreps_out.dim]
 
-        x = lax.conv_general_dilated(
+        x = IrrepsData.from_contiguous(irreps_out, lax.conv_general_dilated(
             lhs=x.contiguous,
             rhs=k,
             window_strides=(1, 1, 1),
             padding='SAME',
             dimension_numbers=('NXYZC', 'XYZIO', 'NXYZC')
-        )
-        x = IrrepsData.from_contiguous(self.irreps_out, x)
+        ))
+
+        if irreps_out != self.irreps_out:
+            list = []
+            i = 0
+            for mul_ir in self.irreps_out:
+                if i < len(irreps_out) and irreps_out[i] == mul_ir:
+                    list.append(x.list[i])
+                    i += 1
+                else:
+                    list.append(None)
+            x = IrrepsData.from_list(self.irreps_out, list, x.shape)
 
         return sc + x
