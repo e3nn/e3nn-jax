@@ -52,7 +52,7 @@ def model(pos, edge_src, edge_dst):
 
     for _ in range(4):
         node_feat = Convolution('32x0e + 32x0o + 16x0e + 8x1e + 8x1o', **kw)(node_feat, edge_src, edge_dst, edge_attr)
-        node_feat = jax.vmap(lambda x: gate(x, [jax.nn.gelu, jnp.tanh, jax.nn.sigmoid]))(node_feat)
+        node_feat = jax.vmap(gate)(node_feat)
     node_feat = Convolution('0o + 6x0e', **kw)(node_feat, edge_src, edge_dst, edge_attr)
 
     return node_feat.contiguous

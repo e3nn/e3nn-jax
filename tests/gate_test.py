@@ -5,7 +5,7 @@ from e3nn_jax import IrrepsData, gate, rand_matrix
 
 
 def test_gate(keys):
-    f = jax.jit(jax.vmap(lambda x: gate(x, [jnp.tanh, jnp.tanh])))
+    f = jax.jit(jax.vmap(gate))
 
     x = IrrepsData.randn("16x0o + 32x0o + 16x1e + 16x1o", next(keys), (10,))
     y = f(x)
