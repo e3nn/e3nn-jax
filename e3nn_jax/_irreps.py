@@ -771,6 +771,15 @@ class IrrepsData:
         ]
         return IrrepsData(self.irreps, self.contiguous.reshape(shape + (self.irreps.dim,)), list)
 
+    def broadcast_to(self, shape) -> "IrrepsData":
+        assert isinstance(shape, tuple)
+        contiguous = jnp.broadcast_to(self.contiguous, shape + (self.irreps.dim,))
+        list = [
+            None if x is None else jnp.broadcast_to(x, shape + (mul, ir.dim))
+            for (mul, ir), x in zip(self.irreps, self.list)
+        ]
+        return IrrepsData(self.irreps, contiguous, list)
+
     def replace_none_with_zeros(self) -> "IrrepsData":
         list = [
             jnp.zeros(self.shape + (mul, ir.dim)) if x is None else x
@@ -878,7 +887,7 @@ class IrrepsData:
         k = (1 - d) / 2
         return self.transform_by_angles(*matrix_to_angles(R), k)
 
-    def convert(self, irreps):
+    def convert(self, irreps: Irreps) -> "IrrepsData":
         r"""Convert the list property into an equivalent irreps
 
         Args:
