@@ -24,31 +24,27 @@ def _batch_norm(input, running_mean, running_var, weight, bias, normalization, r
 
     fields = []
 
-    # You need all of these constants because of the ordering of the irreps
-    i = 0
-    irm = 0
-    ib = 0
+    i_wei = 0  # index for running_var and weight
+    i_rmu = 0  # index for running_mean
+    i_bia = 0  # index for bias
 
     for (mul, ir), field in zip(input.irreps, input.list):
-        k = i + mul
-
         if field is None:
             # [batch, sample, mul, repr]
             if ir.is_scalar():  # scalars
                 if is_training or is_instance:
                     if not is_instance:
                         new_means.append(jnp.zeros((mul,)))
-                irm += mul
+                i_rmu += mul
 
             if is_training or is_instance:
                 if not is_instance:
                     new_vars.append(jnp.ones((mul,)))
 
             if has_affine and ir.is_scalar():  # scalars
-                ib += mul
+                i_bia += mul
 
             fields.append(field)  # [batch, sample, mul, repr]
-            i = k
         else:
             # [batch, sample, mul, repr]
             if ir.is_scalar():  # scalars
@@ -58,11 +54,11 @@ def _batch_norm(input, running_mean, running_var, weight, bias, normalization, r
                     else:
                         field_mean = field.mean([0, 1]).reshape(mul)  # [mul]
                         new_means.append(
-                            _roll_avg(running_mean[irm: irm + mul], field_mean)
+                            _roll_avg(running_mean[i_rmu: i_rmu + mul], field_mean)
                         )
                 else:
-                    field_mean = running_mean[irm: irm + mul]
-                irm += mul
+                    field_mean = running_mean[i_rmu: i_rmu + mul]
+                i_rmu += mul
 
                 # [batch, sample, mul, repr]
                 field = field - field_mean.reshape(-1, 1, mul, 1)
@@ -84,14 +80,14 @@ def _batch_norm(input, running_mean, running_var, weight, bias, normalization, r
 
                 if not is_instance:
                     field_norm = field_norm.mean(0)  # [mul]
-                    new_vars.append(_roll_avg(running_var[i: k], field_norm))
+                    new_vars.append(_roll_avg(running_var[i_wei: i_wei + mul], field_norm))
             else:
-                field_norm = running_var[i: k]
+                field_norm = running_var[i_wei: i_wei + mul]
 
             field_norm = jax.lax.rsqrt(field_norm + epsilon)  # [(batch,) mul]
 
             if has_affine:
-                sub_weight = weight[i: k]  # [mul]
+                sub_weight = weight[i_wei: i_wei + mul]  # [mul]
                 field_norm = field_norm * sub_weight  # [(batch,) mul]
 
             # TODO add test case for when mul == 0
@@ -99,12 +95,12 @@ def _batch_norm(input, running_mean, running_var, weight, bias, normalization, r
             field = field * field_norm  # [batch, sample, mul, repr]
 
             if has_affine and ir.is_scalar():  # scalars
-                sub_bias = bias[ib: ib + mul]  # [mul]
+                sub_bias = bias[i_bia: i_bia + mul]  # [mul]
                 field += sub_bias.reshape(mul, 1)  # [batch, sample, mul, repr]
-                ib += mul
+                i_bia += mul
 
             fields.append(field)  # [batch, sample, mul, repr]
-            i = k
+        i_wei += mul
 
     output = IrrepsData.from_list(input.irreps, fields, (batch, prod(size)))
     output = output.reshape((batch,) + tuple(size))

@@ -15,3 +15,5 @@ dist
 *.txt
 *.nb
 examples/icon.png
+examples/gif.py
+*.gif
