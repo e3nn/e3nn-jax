@@ -9,20 +9,18 @@ from e3nn_jax.util.decorators import overload_for_irreps_without_data
 
 @partial(jax.jit, static_argnums=(1, 2, 3, 4))
 def _gate(input: IrrepsData, even_act, odd_act, even_gate_act, odd_gate_act) -> IrrepsData:
-    # split l=0 vs l>0
-    j = 0
+    scalars, gated = input, None
     for j, (_, ir) in enumerate(input.irreps):
         if ir.l > 0:
+            scalars, gated = input.split([j])
             break
-    scalars, gated = input.split([j])
     assert scalars.irreps.lmax == 0
 
-    # apply scalar activation if there is no gate
-    if gated.irreps.dim == 0:
-        scalars = scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
-        return scalars
+    # No gates:
+    if gated is None:
+        return scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
 
-    # extract gates from scalars
+    # Get the scalar gates:
     gates = None
     for i in range(j + 1):
         if scalars.irreps[i:].num_irreps == gated.irreps.num_irreps:
@@ -30,7 +28,7 @@ def _gate(input: IrrepsData, even_act, odd_act, even_gate_act, odd_gate_act) -> 
             break
 
     if gates is None:
-        raise ValueError(f"Gate: did not manage to split the input {input.irreps} into scalars, gates and gated.")
+        raise ValueError(f"Gate: did not manage to split the input {input.irreps} into scalars, gates ({scalars.irreps}) and gated ({gated.irreps}).")
 
     scalars = scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
     gates = scalar_activation(gates, [even_gate_act if ir.p == 1 else odd_gate_act for _, ir in gates.irreps])
@@ -57,8 +55,17 @@ def gate(input: IrrepsData, even_act=None, odd_act=None, even_gate_act=None, odd
         IrrepsData: Output data.
 
     Examples:
+        The 3 even scalars are used as gates.
         >>> gate("12x0e + 3x0e + 2x1e + 1x2e")
         12x0e+2x1e+1x2e
+
+        Odd scalars used as gates change the parity of the gated quantities:
+        >>> gate("12x0e + 3x0o + 2x1e + 1x2e")
+        12x0e+2x1o+1x2o
+
+        Without anything to gate, all the scalars are activated:
+        >>> gate("12x0e + 3x0o")
+        12x0e+3x0o
     """
     assert isinstance(input, IrrepsData)
 
