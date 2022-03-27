@@ -666,8 +666,8 @@ class IrrepsData:
     r"""Class storing data and its irreps"""
 
     irreps: Irreps = static_field()
-    contiguous: jnp.array
-    list: List[Optional[jnp.array]]
+    contiguous: jnp.ndarray
+    list: List[Optional[jnp.ndarray]]
 
     @staticmethod
     def zeros(irreps: Irreps, shape) -> "IrrepsData":

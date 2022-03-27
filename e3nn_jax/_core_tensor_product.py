@@ -183,9 +183,17 @@ class FunctionalTensorProduct:
             else:
                 self.output_mask = jnp.ones(0)
 
-    @partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all'))
-    @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
-    def left_right(self, weights, input1: IrrepsData, input2: IrrepsData = None, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False) -> IrrepsData:
+    def left_right(
+        self,
+        weights: List[jnp.ndarray],
+        input1: IrrepsData,
+        input2: IrrepsData = None,
+        *,
+        specialized_code=False,
+        optimize_einsums=True,
+        custom_einsum_vjp=False,
+        fuse_all=False
+    ) -> IrrepsData:
         r"""Compute the tensor product of two input tensors.
 
         Args:
@@ -205,327 +213,24 @@ class FunctionalTensorProduct:
         if input2 is None:
             weights, input1, input2 = [], weights, input1
 
-        # = Short-circut for zero dimensional =
-        if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
-            return IrrepsData.zeros(self.irreps_out, ())
-
-        if custom_einsum_vjp:
-            assert optimize_einsums
-            einsum = opt_einsum
-        else:
-            einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
-
         input1 = IrrepsData.new(self.irreps_in1, input1)
         input2 = IrrepsData.new(self.irreps_in2, input2)
 
-        if isinstance(weights, list):
-            assert len(weights) == len([ins for ins in self.instructions if ins.has_weight]), (len(weights), len([ins for ins in self.instructions if ins.has_weight]))
-            weights_flat = _flat_concatenate(weights)
-            weights_list = weights
-        else:
-            weights_flat = weights
-            weights_list = []
-            i = 0
-            for ins in self.instructions:
-                if ins.has_weight:
-                    n = prod(ins.path_shape)
-                    weights_list.append(weights[i:i+n].reshape(ins.path_shape))
-                    i += n
-            assert i == weights.size
-        del weights
+        return _left_right(self, weights, input1, input2, specialized_code=specialized_code, optimize_einsums=optimize_einsums, custom_einsum_vjp=custom_einsum_vjp, fuse_all=fuse_all)
 
-        assert len(input1.shape) == 0
-        assert len(input2.shape) == 0
-
-        if fuse_all:
-            with jax.ensure_compile_time_eval():
-                num_path = weights_flat.size
-                has_path_with_no_weights = any(not ins.has_weight for ins in self.instructions)
-                i = 0
-
-                if has_path_with_no_weights:
-                    num_path += 1
-                    i += 1
-
-                big_w3j = jnp.zeros((num_path, self.irreps_in1.dim, self.irreps_in2.dim, self.irreps_out.dim))
-                for ins in self.instructions:
-                    mul_ir_in1 = self.irreps_in1[ins.i_in1]
-                    mul_ir_in2 = self.irreps_in2[ins.i_in2]
-                    mul_ir_out = self.irreps_out[ins.i_out]
-                    m1, m2, mo = mul_ir_in1.mul, mul_ir_in2.mul, mul_ir_out.mul
-                    d1, d2, do = mul_ir_in1.ir.dim, mul_ir_in2.ir.dim, mul_ir_out.ir.dim
-                    s1 = self.irreps_in1[:ins.i_in1].dim
-                    s2 = self.irreps_in2[:ins.i_in2].dim
-                    so = self.irreps_out[:ins.i_out].dim
-
-                    w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
-
-                    def set_w3j(i, u, v, w):
-                        return big_w3j.at[i, s1+u*d1: s1+(u+1)*d1, s2+v*d2: s2+(v+1)*d2, so+w*do: so+(w+1)*do].add(ins.path_weight * w3j)
-
-                    if ins.connection_mode == 'uvw':
-                        assert ins.has_weight
-                        for u, v, w in itertools.product(range(m1), range(m2), range(mo)):
-                            big_w3j = set_w3j(i, u, v, w)
-                            i += 1
-                    elif ins.connection_mode == 'uvu':
-                        assert ins.has_weight
-                        for u, v in itertools.product(range(m1), range(m2)):
-                            big_w3j = set_w3j(i, u, v, u)
-                            i += 1
-                    elif ins.connection_mode == 'uvv':
-                        assert ins.has_weight
-                        for u, v in itertools.product(range(m1), range(m2)):
-                            big_w3j = set_w3j(i, u, v, v)
-                            i += 1
-                    elif ins.connection_mode == 'uuu':
-                        for u in range(m1):
-                            if ins.has_weight:
-                                big_w3j = set_w3j(i, u, u, u)
-                                i += 1
-                            else:
-                                big_w3j = set_w3j(0, u, u, u)
-                    else:
-                        assert False
-
-            if has_path_with_no_weights and big_w3j.shape[0] == 1:
-                big_w3j = big_w3j.reshape(big_w3j.shape[1:])
-                out = einsum("ijk,i,j->k", big_w3j, input1.contiguous, input2.contiguous)
-            else:
-                if has_path_with_no_weights:
-                    weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
-
-                out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1.contiguous, input2.contiguous)
-            return IrrepsData.from_contiguous(self.irreps_out, out)
-
-        @lru_cache(maxsize=None)
-        def multiply(in1, in2, mode):
-            if mode == 'uv':
-                return einsum('ui,vj->uvij', input1.list[in1], input2.list[in2])
-            if mode == 'uu':
-                return einsum('ui,uj->uij', input1.list[in1], input2.list[in2])
-
-        weight_index = 0
-
-        out_list = []
-
-        for ins in self.instructions:
-            mul_ir_in1 = self.irreps_in1[ins.i_in1]
-            mul_ir_in2 = self.irreps_in2[ins.i_in2]
-            mul_ir_out = self.irreps_out[ins.i_out]
-
-            if ins.has_weight:
-                w = weights_list[weight_index]
-                assert w.shape == ins.path_shape
-                weight_index += 1
-
-            if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
-                # TODO verify that there is no need for
-                # out_list += [None]
-                continue
-
-            x1 = input1.list[ins.i_in1]
-            x2 = input2.list[ins.i_in2]
-            if x1 is None or x2 is None:
-                out_list += [None]
-                continue
-
-            xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
-
-            with jax.ensure_compile_time_eval():
-                w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
-                w3j = ins.path_weight * w3j
-
-            if ins.connection_mode == 'uvw':
-                assert ins.has_weight
-                if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
-                    out = ins.path_weight * einsum("uvw,uv->w", w, xx.reshape(mul_ir_in1.dim, mul_ir_in2.dim))
-                elif specialized_code and mul_ir_in1.ir.l == 0:
-                    out = ins.path_weight * einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
-                elif specialized_code and mul_ir_in2.ir.l == 0:
-                    out = ins.path_weight * einsum("uvw,ui,v->wi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
-                elif specialized_code and mul_ir_out.ir.l == 0:
-                    out = ins.path_weight * einsum("uvw,ui,vi->w", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
-                else:
-                    out = einsum("uvw,ijk,uvij->wk", w, w3j, xx)
-            if ins.connection_mode == 'uvu':
-                assert mul_ir_in1.mul == mul_ir_out.mul
-                if ins.has_weight:
-                    if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
-                        out = ins.path_weight * einsum("uv,u,v->u", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
-                    elif specialized_code and mul_ir_in1.ir.l == 0:
-                        out = ins.path_weight * einsum("uv,u,vj->uj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
-                    elif specialized_code and mul_ir_in2.ir.l == 0:
-                        out = ins.path_weight * einsum("uv,ui,v->ui", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
-                    elif specialized_code and mul_ir_out.ir.l == 0:
-                        out = ins.path_weight * einsum("uv,ui,vi->u", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
-                    else:
-                        out = einsum("uv,ijk,uvij->uk", w, w3j, xx)
-                else:
-                    # not so useful operation because v is summed
-                    out = einsum("ijk,uvij->uk", w3j, xx)
-            if ins.connection_mode == 'uvv':
-                assert mul_ir_in2.mul == mul_ir_out.mul
-                if ins.has_weight:
-                    if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
-                        out = ins.path_weight * einsum("uv,u,v->v", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
-                    elif specialized_code and mul_ir_in1.ir.l == 0:
-                        out = ins.path_weight * einsum("uv,u,vj->vj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
-                    elif specialized_code and mul_ir_in2.ir.l == 0:
-                        out = ins.path_weight * einsum("uv,ui,v->vi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
-                    elif specialized_code and mul_ir_out.ir.l == 0:
-                        out = ins.path_weight * einsum("uv,ui,vi->v", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
-                    else:
-                        out = einsum("uv,ijk,uvij->vk", w, w3j, xx)
-                else:
-                    # not so useful operation because u is summed
-                    out = einsum("ijk,uvij->vk", w3j, xx)
-            if ins.connection_mode == 'uuw':
-                assert mul_ir_in1.mul == mul_ir_in2.mul
-                if ins.has_weight:
-                    out = einsum("uw,ijk,uij->wk", w, w3j, xx)
-                else:
-                    # equivalent to tp(x, y, 'uuu').sum('u')
-                    assert mul_ir_out.mul == 1
-                    out = einsum("ijk,uij->k", w3j, xx)
-            if ins.connection_mode == 'uuu':
-                assert mul_ir_in1.mul == mul_ir_in2.mul == mul_ir_out.mul
-                if ins.has_weight:
-                    out = einsum("u,ijk,uij->uk", w, w3j, xx)
-                else:
-                    out = einsum("ijk,uij->uk", w3j, xx)
-            if ins.connection_mode == 'uvuv':
-                assert mul_ir_in1.mul * mul_ir_in2.mul == mul_ir_out.mul
-                if ins.has_weight:
-                    out = einsum("uv,ijk,uvij->uvk", w, w3j, xx)
-                else:
-                    out = einsum("ijk,uvij->uvk", w3j, xx)
-            if ins.connection_mode == 'uvu<v':
-                assert mul_ir_in1.mul == mul_ir_in2.mul
-                assert mul_ir_in1.mul * (mul_ir_in1.mul - 1) // 2 == mul_ir_out.mul
-                i = jnp.triu_indices(mul_ir_in1.mul, 1)
-                xx = xx[i[0], i[1]]  # uvij -> wij
-                if ins.has_weight:
-                    out = einsum("w,ijk,wij->wk", w, w3j, xx)
-                else:
-                    out = einsum("ijk,wij->wk", w3j, xx)
-            if ins.connection_mode == 'u<vw':
-                assert mul_ir_in1.mul == mul_ir_in2.mul
-                assert ins.has_weight
-                i = jnp.triu_indices(mul_ir_in1.mul, 1)
-                xx = multiply(ins.i_in1, ins.i_in2, 'uv')
-                xx = xx[i[0], i[1]]  # uvij -> qij
-                out = einsum("qw,ijk,qij->wk", w, w3j, xx)
-
-            out_list += [out]
-
-        out = [
-            _sum_tensors(
-                [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
-                shape=(mul_ir_out.mul, mul_ir_out.ir.dim),
-                empty_return_none=True,
-            )
-            for i_out, mul_ir_out in enumerate(self.irreps_out)
-        ]
-        return IrrepsData.from_list(self.irreps_out, out, ())
-
-    @partial(jax.jit, static_argnums=(0,), static_argnames=('optimize_einsums', 'custom_einsum_vjp'))
-    @partial(jax.profiler.annotate_function, name="TensorProduct.right")
-    def right(self, weights, input2: IrrepsData = None, *, optimize_einsums=False, custom_einsum_vjp=False):
+    def right(
+        self,
+        weights: List[jnp.ndarray],
+        input2: IrrepsData = None,
+        *,
+        optimize_einsums=False,
+        custom_einsum_vjp=False
+    ) -> jnp.ndarray:
         if input2 is None:
             weights, input2 = [], weights
 
-        # = Short-circut for zero dimensional =
-        if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
-            return jnp.zeros((self.irreps_in1.dim, self.irreps_out.dim,))
-
-        # = extract individual input irreps =
         input2 = IrrepsData.new(self.irreps_in2, input2)
-
-        if custom_einsum_vjp:
-            assert optimize_einsums
-            einsum = opt_einsum
-        else:
-            einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
-
-        weight_index = 0
-
-        out_list = []
-
-        for ins in self.instructions:
-            mul_ir_in1 = self.irreps_in1[ins.i_in1]
-            mul_ir_in2 = self.irreps_in2[ins.i_in2]
-            mul_ir_out = self.irreps_out[ins.i_out]
-
-            x2 = input2.list[ins.i_in2]
-
-            if ins.has_weight:
-                w = weights[weight_index]
-                assert w.shape == ins.path_shape, (w.shape, ins.path_shape, weight_index, ins)
-                weight_index += 1
-
-            if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
-                # TODO add tests for this case
-                out_list += [jnp.zeros((mul_ir_in1.dim, mul_ir_out.dim))]
-                continue
-
-            with jax.ensure_compile_time_eval():
-                w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
-
-            if ins.connection_mode == 'uvw':
-                assert ins.has_weight
-                out = einsum("uvw,ijk,vj->uiwk", w, w3j, x2)
-            if ins.connection_mode == 'uvu':
-                assert mul_ir_in1.mul == mul_ir_out.mul
-                if ins.has_weight:
-                    out = einsum("uv,ijk,vj,uw->uiwk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
-                else:
-                    # not so useful operation because v is summed
-                    out = einsum("ijk,vj,uw->uiwk", w3j, x2, jnp.eye(mul_ir_in1.mul))
-            if ins.connection_mode == 'uvv':
-                assert mul_ir_in2.mul == mul_ir_out.mul
-                if ins.has_weight:
-                    out = einsum("uv,ijk,vj->uivk", w, w3j, x2)
-                else:
-                    # not so useful operation because u is summed
-                    out = einsum("ijk,vj,u->uivk", w3j, x2, jnp.ones((mul_ir_in1.mul,)))
-            if ins.connection_mode == 'uuw':
-                assert mul_ir_in1.mul == mul_ir_in2.mul
-                if ins.has_weight:
-                    out = einsum("uw,ijk,uj->uiwk", w, w3j, x2)
-                else:
-                    # equivalent to tp(x, y, 'uuu').sum('u')
-                    assert mul_ir_out.mul == 1
-                    out = einsum("ijk,uj->uik", w3j, x2)
-            if ins.connection_mode == 'uuu':
-                assert mul_ir_in1.mul == mul_ir_in2.mul == mul_ir_out.mul
-                if ins.has_weight:
-                    out = einsum("u,ijk,uj,uw->uiwk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
-                else:
-                    out = einsum("ijk,uj,uw->uiwk", w3j, x2, jnp.eye(mul_ir_in1.mul))
-            if ins.connection_mode == 'uvuv':
-                assert mul_ir_in1.mul * mul_ir_in2.mul == mul_ir_out.mul
-                if ins.has_weight:
-                    out = einsum("uv,ijk,vj,uw->uiwvk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
-                else:
-                    out = einsum("ijk,vj,uw->uiwvk", w3j, x2, jnp.eye(mul_ir_in1.mul))
-
-            out = ins.path_weight * out
-
-            out_list += [out.reshape(mul_ir_in1.dim, mul_ir_out.dim)]
-
-        return jnp.concatenate([
-            jnp.concatenate([
-                _sum_tensors(
-                    [out for ins, out in zip(self.instructions, out_list) if (ins.i_in1, ins.i_out) == (i_in1, i_out)],
-                    shape=(mul_ir_in1.dim, mul_ir_out.dim),
-                )
-                for i_out, mul_ir_out in enumerate(self.irreps_out)
-                if mul_ir_out.mul > 0
-            ], axis=1)
-            for i_in1, mul_ir_in1 in enumerate(self.irreps_in1)
-            if mul_ir_in1.mul > 0
-        ], axis=0)
+        return _right(self, weights, input2, optimize_einsums=optimize_einsums, custom_einsum_vjp=custom_einsum_vjp)
 
     def __repr__(self):
         npath = sum(prod(i.path_shape) for i in self.instructions)
@@ -535,3 +240,322 @@ class FunctionalTensorProduct:
             f"({self.irreps_in1.simplify()} x {self.irreps_in2.simplify()} "
             f"-> {self.irreps_out.simplify()} | {npath} paths | {nweight} weights)"
         )
+
+
+@partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all'))
+@partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
+def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False):
+
+    # = Short-circut for zero dimensional =
+    if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
+        return IrrepsData.zeros(self.irreps_out, ())
+
+    if custom_einsum_vjp:
+        assert optimize_einsums
+        einsum = opt_einsum
+    else:
+        einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
+
+    if isinstance(weights, list):
+        assert len(weights) == len([ins for ins in self.instructions if ins.has_weight]), (len(weights), len([ins for ins in self.instructions if ins.has_weight]))
+        weights_flat = _flat_concatenate(weights)
+        weights_list = weights
+    else:
+        weights_flat = weights
+        weights_list = []
+        i = 0
+        for ins in self.instructions:
+            if ins.has_weight:
+                n = prod(ins.path_shape)
+                weights_list.append(weights[i:i+n].reshape(ins.path_shape))
+                i += n
+        assert i == weights.size
+    del weights
+
+    assert len(input1.shape) == 0
+    assert len(input2.shape) == 0
+
+    if fuse_all:
+        with jax.ensure_compile_time_eval():
+            num_path = weights_flat.size
+            has_path_with_no_weights = any(not ins.has_weight for ins in self.instructions)
+            i = 0
+
+            if has_path_with_no_weights:
+                num_path += 1
+                i += 1
+
+            big_w3j = jnp.zeros((num_path, self.irreps_in1.dim, self.irreps_in2.dim, self.irreps_out.dim))
+            for ins in self.instructions:
+                mul_ir_in1 = self.irreps_in1[ins.i_in1]
+                mul_ir_in2 = self.irreps_in2[ins.i_in2]
+                mul_ir_out = self.irreps_out[ins.i_out]
+                m1, m2, mo = mul_ir_in1.mul, mul_ir_in2.mul, mul_ir_out.mul
+                d1, d2, do = mul_ir_in1.ir.dim, mul_ir_in2.ir.dim, mul_ir_out.ir.dim
+                s1 = self.irreps_in1[:ins.i_in1].dim
+                s2 = self.irreps_in2[:ins.i_in2].dim
+                so = self.irreps_out[:ins.i_out].dim
+
+                w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+
+                def set_w3j(i, u, v, w):
+                    return big_w3j.at[i, s1+u*d1: s1+(u+1)*d1, s2+v*d2: s2+(v+1)*d2, so+w*do: so+(w+1)*do].add(ins.path_weight * w3j)
+
+                if ins.connection_mode == 'uvw':
+                    assert ins.has_weight
+                    for u, v, w in itertools.product(range(m1), range(m2), range(mo)):
+                        big_w3j = set_w3j(i, u, v, w)
+                        i += 1
+                elif ins.connection_mode == 'uvu':
+                    assert ins.has_weight
+                    for u, v in itertools.product(range(m1), range(m2)):
+                        big_w3j = set_w3j(i, u, v, u)
+                        i += 1
+                elif ins.connection_mode == 'uvv':
+                    assert ins.has_weight
+                    for u, v in itertools.product(range(m1), range(m2)):
+                        big_w3j = set_w3j(i, u, v, v)
+                        i += 1
+                elif ins.connection_mode == 'uuu':
+                    for u in range(m1):
+                        if ins.has_weight:
+                            big_w3j = set_w3j(i, u, u, u)
+                            i += 1
+                        else:
+                            big_w3j = set_w3j(0, u, u, u)
+                else:
+                    assert False
+
+        if has_path_with_no_weights and big_w3j.shape[0] == 1:
+            big_w3j = big_w3j.reshape(big_w3j.shape[1:])
+            out = einsum("ijk,i,j->k", big_w3j, input1.contiguous, input2.contiguous)
+        else:
+            if has_path_with_no_weights:
+                weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
+
+            out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1.contiguous, input2.contiguous)
+        return IrrepsData.from_contiguous(self.irreps_out, out)
+
+    @lru_cache(maxsize=None)
+    def multiply(in1, in2, mode):
+        if mode == 'uv':
+            return einsum('ui,vj->uvij', input1.list[in1], input2.list[in2])
+        if mode == 'uu':
+            return einsum('ui,uj->uij', input1.list[in1], input2.list[in2])
+
+    weight_index = 0
+
+    out_list = []
+
+    for ins in self.instructions:
+        mul_ir_in1 = self.irreps_in1[ins.i_in1]
+        mul_ir_in2 = self.irreps_in2[ins.i_in2]
+        mul_ir_out = self.irreps_out[ins.i_out]
+
+        if ins.has_weight:
+            w = weights_list[weight_index]
+            assert w.shape == ins.path_shape
+            weight_index += 1
+
+        if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
+            # TODO verify that there is no need for
+            # out_list += [None]
+            continue
+
+        x1 = input1.list[ins.i_in1]
+        x2 = input2.list[ins.i_in2]
+        if x1 is None or x2 is None:
+            out_list += [None]
+            continue
+
+        xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
+
+        with jax.ensure_compile_time_eval():
+            w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+            w3j = ins.path_weight * w3j
+
+        if ins.connection_mode == 'uvw':
+            assert ins.has_weight
+            if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
+                out = ins.path_weight * einsum("uvw,uv->w", w, xx.reshape(mul_ir_in1.dim, mul_ir_in2.dim))
+            elif specialized_code and mul_ir_in1.ir.l == 0:
+                out = ins.path_weight * einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
+            elif specialized_code and mul_ir_in2.ir.l == 0:
+                out = ins.path_weight * einsum("uvw,ui,v->wi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
+            elif specialized_code and mul_ir_out.ir.l == 0:
+                out = ins.path_weight * einsum("uvw,ui,vi->w", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
+            else:
+                out = einsum("uvw,ijk,uvij->wk", w, w3j, xx)
+        if ins.connection_mode == 'uvu':
+            assert mul_ir_in1.mul == mul_ir_out.mul
+            if ins.has_weight:
+                if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
+                    out = ins.path_weight * einsum("uv,u,v->u", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
+                elif specialized_code and mul_ir_in1.ir.l == 0:
+                    out = ins.path_weight * einsum("uv,u,vj->uj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
+                elif specialized_code and mul_ir_in2.ir.l == 0:
+                    out = ins.path_weight * einsum("uv,ui,v->ui", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
+                elif specialized_code and mul_ir_out.ir.l == 0:
+                    out = ins.path_weight * einsum("uv,ui,vi->u", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
+                else:
+                    out = einsum("uv,ijk,uvij->uk", w, w3j, xx)
+            else:
+                # not so useful operation because v is summed
+                out = einsum("ijk,uvij->uk", w3j, xx)
+        if ins.connection_mode == 'uvv':
+            assert mul_ir_in2.mul == mul_ir_out.mul
+            if ins.has_weight:
+                if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
+                    out = ins.path_weight * einsum("uv,u,v->v", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
+                elif specialized_code and mul_ir_in1.ir.l == 0:
+                    out = ins.path_weight * einsum("uv,u,vj->vj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
+                elif specialized_code and mul_ir_in2.ir.l == 0:
+                    out = ins.path_weight * einsum("uv,ui,v->vi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
+                elif specialized_code and mul_ir_out.ir.l == 0:
+                    out = ins.path_weight * einsum("uv,ui,vi->v", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
+                else:
+                    out = einsum("uv,ijk,uvij->vk", w, w3j, xx)
+            else:
+                # not so useful operation because u is summed
+                out = einsum("ijk,uvij->vk", w3j, xx)
+        if ins.connection_mode == 'uuw':
+            assert mul_ir_in1.mul == mul_ir_in2.mul
+            if ins.has_weight:
+                out = einsum("uw,ijk,uij->wk", w, w3j, xx)
+            else:
+                # equivalent to tp(x, y, 'uuu').sum('u')
+                assert mul_ir_out.mul == 1
+                out = einsum("ijk,uij->k", w3j, xx)
+        if ins.connection_mode == 'uuu':
+            assert mul_ir_in1.mul == mul_ir_in2.mul == mul_ir_out.mul
+            if ins.has_weight:
+                out = einsum("u,ijk,uij->uk", w, w3j, xx)
+            else:
+                out = einsum("ijk,uij->uk", w3j, xx)
+        if ins.connection_mode == 'uvuv':
+            assert mul_ir_in1.mul * mul_ir_in2.mul == mul_ir_out.mul
+            if ins.has_weight:
+                out = einsum("uv,ijk,uvij->uvk", w, w3j, xx)
+            else:
+                out = einsum("ijk,uvij->uvk", w3j, xx)
+        if ins.connection_mode == 'uvu<v':
+            assert mul_ir_in1.mul == mul_ir_in2.mul
+            assert mul_ir_in1.mul * (mul_ir_in1.mul - 1) // 2 == mul_ir_out.mul
+            i = jnp.triu_indices(mul_ir_in1.mul, 1)
+            xx = xx[i[0], i[1]]  # uvij -> wij
+            if ins.has_weight:
+                out = einsum("w,ijk,wij->wk", w, w3j, xx)
+            else:
+                out = einsum("ijk,wij->wk", w3j, xx)
+        if ins.connection_mode == 'u<vw':
+            assert mul_ir_in1.mul == mul_ir_in2.mul
+            assert ins.has_weight
+            i = jnp.triu_indices(mul_ir_in1.mul, 1)
+            xx = multiply(ins.i_in1, ins.i_in2, 'uv')
+            xx = xx[i[0], i[1]]  # uvij -> qij
+            out = einsum("qw,ijk,qij->wk", w, w3j, xx)
+
+        out_list += [out]
+
+    out = [
+        _sum_tensors(
+            [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
+            shape=(mul_ir_out.mul, mul_ir_out.ir.dim),
+            empty_return_none=True,
+        )
+        for i_out, mul_ir_out in enumerate(self.irreps_out)
+    ]
+    return IrrepsData.from_list(self.irreps_out, out, ())
+
+
+@partial(jax.jit, static_argnums=(0,), static_argnames=('optimize_einsums', 'custom_einsum_vjp'))
+@partial(jax.profiler.annotate_function, name="TensorProduct.right")
+def _right(self: FunctionalTensorProduct, weights, input2, *, optimize_einsums=False, custom_einsum_vjp=False):
+    # = Short-circut for zero dimensional =
+    if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
+        return jnp.zeros((self.irreps_in1.dim, self.irreps_out.dim,))
+
+    if custom_einsum_vjp:
+        assert optimize_einsums
+        einsum = opt_einsum
+    else:
+        einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
+
+    weight_index = 0
+
+    out_list = []
+
+    for ins in self.instructions:
+        mul_ir_in1 = self.irreps_in1[ins.i_in1]
+        mul_ir_in2 = self.irreps_in2[ins.i_in2]
+        mul_ir_out = self.irreps_out[ins.i_out]
+
+        x2 = input2.list[ins.i_in2]
+
+        if ins.has_weight:
+            w = weights[weight_index]
+            assert w.shape == ins.path_shape, (w.shape, ins.path_shape, weight_index, ins)
+            weight_index += 1
+
+        if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
+            # TODO add tests for this case
+            out_list += [jnp.zeros((mul_ir_in1.dim, mul_ir_out.dim))]
+            continue
+
+        with jax.ensure_compile_time_eval():
+            w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+
+        if ins.connection_mode == 'uvw':
+            assert ins.has_weight
+            out = einsum("uvw,ijk,vj->uiwk", w, w3j, x2)
+        if ins.connection_mode == 'uvu':
+            assert mul_ir_in1.mul == mul_ir_out.mul
+            if ins.has_weight:
+                out = einsum("uv,ijk,vj,uw->uiwk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
+            else:
+                # not so useful operation because v is summed
+                out = einsum("ijk,vj,uw->uiwk", w3j, x2, jnp.eye(mul_ir_in1.mul))
+        if ins.connection_mode == 'uvv':
+            assert mul_ir_in2.mul == mul_ir_out.mul
+            if ins.has_weight:
+                out = einsum("uv,ijk,vj->uivk", w, w3j, x2)
+            else:
+                # not so useful operation because u is summed
+                out = einsum("ijk,vj,u->uivk", w3j, x2, jnp.ones((mul_ir_in1.mul,)))
+        if ins.connection_mode == 'uuw':
+            assert mul_ir_in1.mul == mul_ir_in2.mul
+            if ins.has_weight:
+                out = einsum("uw,ijk,uj->uiwk", w, w3j, x2)
+            else:
+                # equivalent to tp(x, y, 'uuu').sum('u')
+                assert mul_ir_out.mul == 1
+                out = einsum("ijk,uj->uik", w3j, x2)
+        if ins.connection_mode == 'uuu':
+            assert mul_ir_in1.mul == mul_ir_in2.mul == mul_ir_out.mul
+            if ins.has_weight:
+                out = einsum("u,ijk,uj,uw->uiwk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
+            else:
+                out = einsum("ijk,uj,uw->uiwk", w3j, x2, jnp.eye(mul_ir_in1.mul))
+        if ins.connection_mode == 'uvuv':
+            assert mul_ir_in1.mul * mul_ir_in2.mul == mul_ir_out.mul
+            if ins.has_weight:
+                out = einsum("uv,ijk,vj,uw->uiwvk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
+            else:
+                out = einsum("ijk,vj,uw->uiwvk", w3j, x2, jnp.eye(mul_ir_in1.mul))
+
+        out = ins.path_weight * out
+
+        out_list += [out.reshape(mul_ir_in1.dim, mul_ir_out.dim)]
+
+    return jnp.concatenate([
+        jnp.concatenate([
+            _sum_tensors(
+                [out for ins, out in zip(self.instructions, out_list) if (ins.i_in1, ins.i_out) == (i_in1, i_out)],
+                shape=(mul_ir_in1.dim, mul_ir_out.dim),
+            )
+            for i_out, mul_ir_out in enumerate(self.irreps_out)
+            if mul_ir_out.mul > 0
+        ], axis=1)
+        for i_in1, mul_ir_in1 in enumerate(self.irreps_in1)
+        if mul_ir_in1.mul > 0
+    ], axis=0)

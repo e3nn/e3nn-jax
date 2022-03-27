@@ -120,7 +120,7 @@ class FunctionalLinear:
         ]
         return IrrepsData.from_list(self.irreps_out, output, output_shape)
 
-    def __call__(self, ws: List[jnp.array], input: IrrepsData) -> IrrepsData:
+    def __call__(self, ws: List[jnp.ndarray], input: IrrepsData) -> IrrepsData:
         input = IrrepsData.new(self.irreps_in, input)
         assert len(input.shape) == 0
 
