@@ -53,11 +53,11 @@ out.list
 The two fields `contiguous` and `list` contain the same information under different forms.
 This is not a performence issue, we rely on `jax.jit` to optimize the code and get rid of the unused operations.
 
-## Shared weights
+## FullyConnectedTensorProduct
 
 `torch` version ([e3nn](github.com/e3nn/e3nn) repo):
 ```python
-f = o3.FullyConnectedTensorProduct(irreps1, irreps2, irreps3, shared_weights=True)
+f = o3.FullyConnectedTensorProduct(irreps_in1, irreps_in2, irreps_out)
 
 f(x, y)
 ```
@@ -82,23 +82,4 @@ x2 = e3nn.IrrepsData.randn(irreps_in2, jax.random.PRNGKey(1), (10,))
 w = tp.init(jax.random.PRNGKey(2), x1, x2)
 
 out = tp.apply(w, x1, x2)
-```
-
-## Batch weights
-
-`torch` version:
-```python
-f = o3.FullyConnectedTensorProduct(irreps1, irreps2, irreps3, shared_weights=False)
-
-f(x, y, w)
-```
-
-`jax` version:
-```python
-tp = e3nn.FunctionalFullyConnectedTensorProduct(irreps1, irreps2, irreps3)
-w = [jax.random.normal(key, (10,) + i.path_shape) for i in tp.instructions if i.has_weight]
-f = jax.vmap(tp.left_right, (0, 0, 0), 0)
-f = jax.jit(f)
-
-f(w, x, y)
 ```
