@@ -10,7 +10,6 @@ from jax.numpy import sqrt
 from e3nn_jax import Irreps, IrrepsData, wigner_3j_sympy
 
 
-@partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
 def spherical_harmonics(
     irreps_out,
     x,
@@ -74,6 +73,11 @@ def spherical_harmonics(
     if irreps_out.lmax > _lmax:
         raise NotImplementedError(f'spherical_harmonics maximum l implemented is {_lmax}, send us an email to ask for more')
 
+    return _jited_spherical_harmonics(irreps_out, x, normalize, normalization)
+
+
+@partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
+def _jited_spherical_harmonics(irreps_out, x, normalize, normalization):
     if normalize:
         r = jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True)
         x = x / jnp.where(r == 0.0, 1.0, r)
