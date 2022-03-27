@@ -14,7 +14,7 @@ def sus(x):
     return jnp.where(x > 0.0, jnp.exp(-1.0 / jnp.where(x > 0.0, x, 1.0)), 0.0)
 
 
-def soft_one_hot_linspace(x, start, end, number, basis=None, cutoff=None):
+def soft_one_hot_linspace(input: jnp.ndarray, *, start: float, end: float, number: int, basis: str = None, cutoff: bool = None):
     r"""Projection on a basis of functions
 
     Returns a set of :math:`\{y_i(x)\}_{i=1}^N`,
@@ -80,7 +80,7 @@ def soft_one_hot_linspace(x, start, end, number, basis=None, cutoff=None):
         for axs, b in zip(axss, bases):
             for ax, c in zip(axs, [True, False]):
                 plt.sca(ax)
-                plt.plot(x, soft_one_hot_linspace(x, -0.5, 1.5, number=4, basis=b, cutoff=c))
+                plt.plot(x, soft_one_hot_linspace(x, start=-0.5, end=1.5, number=4, basis=b, cutoff=c))
                 plt.plot([-0.5]*2, [-2, 2], 'k-.')
                 plt.plot([1.5]*2, [-2, 2], 'k-.')
                 plt.title(f"{b}" + (" with cutoff" if c else ""))
@@ -95,7 +95,7 @@ def soft_one_hot_linspace(x, start, end, number, basis=None, cutoff=None):
         for axs, b in zip(axss, bases):
             for ax, c in zip(axs, [True, False]):
                 plt.sca(ax)
-                plt.plot(x, soft_one_hot_linspace(x, -0.5, 1.5, number=4, basis=b, cutoff=c).pow(2).sum(1))
+                plt.plot(x, soft_one_hot_linspace(x, start=-0.5, end=1.5, number=4, basis=b, cutoff=c).pow(2).sum(1))
                 plt.plot([-0.5]*2, [-2, 2], 'k-.')
                 plt.plot([1.5]*2, [-2, 2], 'k-.')
                 plt.title(f"{b}" + (" with cutoff" if c else ""))
@@ -114,7 +114,7 @@ def soft_one_hot_linspace(x, start, end, number, basis=None, cutoff=None):
         step = values[1] - values[0]
         values = values[1:-1]
 
-    diff = (x[..., None] - values) / step
+    diff = (input[..., None] - values) / step
 
     if basis == 'gaussian':
         return jnp.exp(-diff**2) / 1.12
@@ -126,7 +126,7 @@ def soft_one_hot_linspace(x, start, end, number, basis=None, cutoff=None):
         return 1.14136 * jnp.exp(2.0) * sus(diff + 1.0) * sus(1.0 - diff)
 
     if basis == 'fourier':
-        x = (x[..., None] - start) / (end - start)
+        x = (input[..., None] - start) / (end - start)
         if not cutoff:
             i = jnp.arange(0, number)
             return jnp.cos(jnp.pi * i * x) / jnp.sqrt(0.25 + number / 2)
@@ -139,7 +139,7 @@ def soft_one_hot_linspace(x, start, end, number, basis=None, cutoff=None):
             )
 
     if basis == 'bessel':
-        x = x[..., None] - start
+        x = input[..., None] - start
         c = end - start
         bessel_roots = jnp.arange(1, number + 1) * jnp.pi
         out = jnp.sqrt(2 / c) * jnp.sin(bessel_roots * x / c) / x

@@ -36,7 +36,7 @@ class Convolution(hk.Module):
             lattice = jnp.stack(jnp.meshgrid(x, y, z, indexing='ij'), axis=-1)  # [x, y, z, R^3]
 
             self.emb = soft_one_hot_linspace(
-                x=jnp.linalg.norm(lattice, ord=2, axis=-1),
+                jnp.linalg.norm(lattice, ord=2, axis=-1),
                 start=0.0,
                 end=self.diameter / 2,
                 number=self.num_radial_basis,
@@ -46,7 +46,7 @@ class Convolution(hk.Module):
 
             self.sh = spherical_harmonics(
                 irreps_out=self.irreps_sh,
-                x=lattice,
+                input=lattice,
                 normalize=True,
                 normalization='component'
             )  # [x, y, z, irreps_sh.dim]
