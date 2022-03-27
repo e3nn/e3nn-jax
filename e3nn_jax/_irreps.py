@@ -841,8 +841,7 @@ class IrrepsData:
         ]
         return IrrepsData.from_list(irreps, list, self.shape + (factor,))
 
-    @partial(jax.jit, inline=True)
-    def transform_by_angles(self, alpha, beta, gamma, k=0):
+    def transform_by_angles(self, alpha: float, beta: float, gamma: float, k: int = 0) -> "IrrepsData":
         r"""Rotate the data by angles according to the irreps
 
         Args:
@@ -863,8 +862,7 @@ class IrrepsData:
         ]
         return IrrepsData.from_list(self.irreps, new_list, self.shape)
 
-    @partial(jax.jit, inline=True)
-    def transform_by_quaternion(self, q, k=0):
+    def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsData":
         r"""Rotate data by a rotation given by a quaternion
 
         Args:
@@ -876,8 +874,7 @@ class IrrepsData:
         """
         return self.transform_by_angles(*quaternion_to_angles(q), k)
 
-    @partial(jax.jit, inline=True)
-    def transform_by_matrix(self, R):
+    def transform_by_matrix(self, R: jnp.ndarray) -> "IrrepsData":
         r"""Rotate data by a rotation given by a matrix
 
         Args:

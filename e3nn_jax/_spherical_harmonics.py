@@ -12,7 +12,7 @@ from e3nn_jax import Irreps, IrrepsData, wigner_3j_sympy
 
 
 def spherical_harmonics(
-    irreps_out: Irreps,
+    irreps_out: Union[Irreps, int],
     input: Union[IrrepsData, jnp.ndarray],
     normalize: bool,
     normalization: str = 'integral'
@@ -49,7 +49,7 @@ def spherical_harmonics(
     .. _Wikipedia: https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics
 
     Args:
-        irreps_out (`Irreps`): output irreps
+        irreps_out (`Irreps` or int): output irreps
         input (`IrrepsData` or `jnp.ndarray`): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
@@ -59,16 +59,25 @@ def spherical_harmonics(
     """
     assert normalization in ['integral', 'component', 'norm']
 
+    if isinstance(irreps_out, int):
+        l = irreps_out
+        assert isinstance(input, IrrepsData)
+        [(mul, ir)] = input.irreps
+        irreps_out = Irreps([(1, (l, ir.p**l))])
+
     irreps_out = Irreps(irreps_out)
 
     assert all([l % 2 == 1 or p == 1 for _, (l, p) in irreps_out])
     assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) <= 1
+
     if isinstance(input, IrrepsData):
         [(mul, ir)] = input.irreps
         assert mul == 1
         assert ir.l == 1
         assert all([ir.p == p for _, (l, p) in irreps_out if l % 2 == 1])
         x = input.contiguous
+    else:
+        x = input
 
     _lmax = 8
     if irreps_out.lmax > _lmax:
