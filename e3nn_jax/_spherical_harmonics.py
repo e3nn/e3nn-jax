@@ -2,6 +2,7 @@ r"""Spherical Harmonics as polynomials of x, y, z
 """
 import math
 from functools import partial
+from typing import Union
 
 import jax
 import jax.numpy as jnp
@@ -11,8 +12,8 @@ from e3nn_jax import Irreps, IrrepsData, wigner_3j_sympy
 
 
 def spherical_harmonics(
-    irreps_out,
-    x,
+    irreps_out: Irreps,
+    input: Union[IrrepsData, jnp.ndarray],
     normalize: bool,
     normalization: str = 'integral'
 ) -> IrrepsData:
@@ -49,7 +50,7 @@ def spherical_harmonics(
 
     Args:
         irreps_out (`Irreps`): output irreps
-        x (`jnp.ndarray`): cartesian coordinates
+        input (`IrrepsData` or `jnp.ndarray`): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
 
@@ -62,12 +63,12 @@ def spherical_harmonics(
 
     assert all([l % 2 == 1 or p == 1 for _, (l, p) in irreps_out])
     assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) <= 1
-    if isinstance(x, IrrepsData):
-        [(mul, ir)] = x.irreps
+    if isinstance(input, IrrepsData):
+        [(mul, ir)] = input.irreps
         assert mul == 1
         assert ir.l == 1
         assert all([ir.p == p for _, (l, p) in irreps_out if l % 2 == 1])
-        x = x.contiguous
+        x = input.contiguous
 
     _lmax = 8
     if irreps_out.lmax > _lmax:
