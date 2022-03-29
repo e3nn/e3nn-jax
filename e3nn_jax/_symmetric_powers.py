@@ -99,20 +99,17 @@ def dot(xs, ys):
 
 
 def orthonormalize(original):
-    r"""orthonomalize vectors
+    r"""orthonomalize vectors :math:`x \in \mathbb{R}^{n \times d}`
+    by looking for a matrix :math:`\mathbf{Q} \in \mathbb{R}^{n \times n}`
+    such that :math:`y = \mathbf{Q} x \in \mathbb{R}^{m \times d}` for some :math:`m \leq n`
+    and the rows of :math:`y` is orthonormal.
 
-    Parameters
-    ----------
-    original : list of vectors
-        list of the original vectors :math:`x`
+    Args:
+        original (list of sympy.Array): list of the original vectors :math:`x`
 
-    Returns
-    -------
-    final : list of vectors
-        list of orthonomalized vectors :math:`y`
-
-    matrix : matrix
-        the matrix :math:`A` such that :math:`y = A x`
+    Returns:
+        final (list of sympy.Array): list of orthonomalized vectors :math:`y`
+        matrix (sympy.Matrix): orthonomalization matrix :math:`\mathbf{Q}`
     """
     final = []
     matrix = []
@@ -144,6 +141,11 @@ def orthonormalize(original):
 
 
 def solve_symmetric(candidates):
+    r"""
+
+    Args:
+        candidates (list of sympy.Array): each array is of the shape ``(2l_out+1,) + rank * (2l_in+1,)``
+    """
     assert len(candidates) >= 1
 
     if len(candidates) == 1:
@@ -154,17 +156,17 @@ def solve_symmetric(candidates):
             return []
 
     variables = [sympy.symbols(f"x{i}") for i in range(len(candidates))]
-    tensors = sum_axis0([x * c for x, c in zip(variables, candidates)])
-    constraints = tuple({sympy.expand(x) for tensor in tensors[:1] for x in symmetric_terms(tensor)})
+    tensors = sum_axis0([x * c for x, c in zip(variables, candidates)])                                # [x, y+z, 2z]
+    constraints = tuple({sympy.expand(x) for tensor in tensors[:1] for x in symmetric_terms(tensor)})  # {x+y=0, z=0}
 
-    solutions = sympy.solve(constraints, variables, manual=True, dict=True)
+    solutions = sympy.solve(constraints, variables, manual=True, dict=True)                            # {x -> -y, z -> 0}
     assert len(solutions) == 1
     solution = solutions[0]
-    tensors = tensors.subs(solution)
+    tensors = tensors.subs(solution)                                                                   # [-y, y, 0]
 
-    tensors = [tensors.subs(x, 1).subs(zip(variables, [0] * len(variables))) for x in variables]
-    norms = [sympy.sqrt(sum(sympy.flatten(s.applyfunc(lambda x: x**2)))) for s in tensors]
-    solutions = [s / n for s, n in zip(tensors, norms) if not n.is_zero]
+    tensors = [tensors.subs(x, 1).subs(zip(variables, [0] * len(variables))) for x in variables]       # [0, 0, 0], [-1, 1, 0], [0, 0, 0]
+    norms = [sympy.sqrt(sum(sympy.flatten(s.applyfunc(lambda x: x**2)))) for s in tensors]             # [0, sqrt(2), 0]
+    solutions = [s / n for s, n in zip(tensors, norms) if not n.is_zero]                               # [-1, 1, 0] / sqrt(2)
 
     # assert all(is_symmetric(x) for sol in solutions for x in sol)
     return solutions
@@ -185,6 +187,17 @@ def contract_with_variables(solution):
 
 @lru_cache(maxsize=None)
 def symmetric_powers(l, n, lmax):
+    r"""
+    Returns the symmetric powers of the Wigner 3j symbol
+
+    Args:
+        l (int): the order of the indices
+        n (int): the rank of the tensor (number of indices)
+        lmax (int): the maximum order in the output
+
+    Returns:
+        dict of the form {l_out: list of sympy arrays}: each array is of shape ``(2l_out+1, 2l+1, ..., 2l+1)``
+    """
     assert n > 0
     assert l <= lmax
 
