@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - add `loop` argument to `radius_graph`
 
+## Changed
+- use `chex.dataclass` instead of custom `dataclass`
+
 ## [0.4.3] - 2022-03-26
 ### Added
 - `IrrepsData` can be given as argument of `spherical_harmonics`

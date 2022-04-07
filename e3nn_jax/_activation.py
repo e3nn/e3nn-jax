@@ -76,7 +76,7 @@ def scalar_activation(input: IrrepsData, acts: List[Optional[Callable[[float], f
     if acts and acts.count(acts[0]) == len(acts):
         # for performance, if all the activation functions are the same, we can apply it to the contiguous array as well
         contiguous = input.contiguous if acts[0] is None else normalize_function(acts[0])(input.contiguous)
-        return IrrepsData(irreps_out, contiguous, list)
+        return IrrepsData(irreps=irreps_out, contiguous=contiguous, list=list)
 
     return IrrepsData.from_list(irreps_out, list, input.shape)
 

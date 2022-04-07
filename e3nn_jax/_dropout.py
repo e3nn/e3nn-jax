@@ -64,4 +64,4 @@ class Dropout(hk.Module):
                 noises.append(jnp.repeat(noise, ir.dim, axis=1).flatten())
 
         noises = jnp.concatenate(noises)
-        return IrrepsData(x.irreps, x.contiguous * noises, out_list)
+        return IrrepsData(irreps=x.irreps, contiguous=x.contiguous * noises, list=out_list)
