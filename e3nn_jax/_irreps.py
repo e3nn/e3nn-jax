@@ -210,6 +210,9 @@ class Irrep(tuple):
         raise NotImplementedError
 
 
+jax.tree_util.register_pytree_node(Irrep, lambda ir: ((), ir), lambda ir, _: ir)
+
+
 class _MulIr(tuple):
     def __new__(cls, mul, ir=None):
         if ir is None:
