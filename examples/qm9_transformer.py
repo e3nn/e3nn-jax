@@ -1,9 +1,9 @@
-# TODO update this code to the new API (IrrepsData)
 import argparse
 import random
 import time
 from itertools import count
 
+import e3nn_jax as e3nn
 import haiku as hk
 import jax
 import jax.numpy as jnp
@@ -13,8 +13,6 @@ import torch
 import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
-from e3nn_jax import (Irreps, IrrepsData, scalar_activation, index_add,
-                      soft_one_hot_linspace, spherical_harmonics, sus, Linear, TensorSquare)
 from e3nn_jax.experimental.transformer import Transformer
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
@@ -115,19 +113,20 @@ def dummy_fill(a, num_graphs, num_nodes, num_edges):
 def create_model(config):
     @hk.transform
     def f(a):
-        irreps_node_attr = Irreps('5x0e')
-        node_attr = a['x'][:, :5] * 5**0.5
+        node_attr = e3nn.IrrepsData.from_contiguous('5x0e', a['x'][:, :5] * 5**0.5)
         pos = a['pos']
         edge_src, edge_dst = a['edge_index']
 
-        irreps_sh = Irreps.spherical_harmonics(config['shlmax'])
-        edge_attr = IrrepsData.from_contiguous(irreps_sh, spherical_harmonics(
-            irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization='component'
-        ))
+        edge_attr = e3nn.spherical_harmonics(
+            e3nn.Irreps.spherical_harmonics(config['shlmax']),
+            pos[edge_dst] - pos[edge_src],
+            True,
+            normalization='component'
+        )
 
         maximum_radius = 1.9  # max 1.81 in QM9 from pyg
         edge_length = jnp.linalg.norm(pos[edge_dst] - pos[edge_src], axis=1)
-        edge_scalars = soft_one_hot_linspace(
+        edge_scalars = e3nn.soft_one_hot_linspace(
             edge_length,
             start=0.0,
             end=maximum_radius,
@@ -138,27 +137,26 @@ def create_model(config):
 
         edge_scalars = jnp.concatenate([edge_scalars, node_attr[edge_src], node_attr[edge_dst]], axis=1)
 
-        edge_weight_cutoff = 1.4 * sus(10 * (1 - edge_length / maximum_radius))
+        edge_weight_cutoff = 1.4 * e3nn.sus(10 * (1 - edge_length / maximum_radius))
         edge_scalars *= edge_weight_cutoff[:, None]
 
         mul0 = config['mul0']
         mul1 = config['mul1']
         mul2 = config['mul2']
 
-        irreps_features = Irreps(f'{mul0}x0e + {mul0}x0o + {mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o').simplify()
+        irreps_features = e3nn.Irreps(f'{mul0}x0e + {mul0}x0o + {mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o').simplify()
 
-        def act(x):
-            x = scalar_activation(x, [jax.nn.gelu, jnp.tanh] + [None] * (len(x.irreps) - 2))
-            tp = TensorSquare(irreps_features, init=hk.initializers.Constant(0.0))
+        def act(x: e3nn.IrrepsData) -> e3nn.IrrepsData:
+            x = e3nn.scalar_activation(x, [jax.nn.gelu, jnp.tanh] + [None] * (len(x.irreps) - 2))
+            tp = e3nn.TensorSquare(irreps_features, init=hk.initializers.Constant(0.0))
             y = jax.vmap(tp)(x)
             return x + y
 
-        irreps_out = Irreps('4x0e')
+        irreps_out = e3nn.Irreps('4x0e')
 
         kw = dict(
-            irreps_edge_attr=irreps_sh,
-            features=[config['radial_num_neurons']] * config['radial_num_layers'],
-            phi=jax.nn.gelu,
+            list_neurons=[config['radial_num_neurons']] * config['radial_num_layers'],
+            act=jax.nn.gelu,
             num_heads=config['num_heads'],
         )
 
@@ -170,40 +168,20 @@ def create_model(config):
         # stat('edge_attr', edge_attr)
         # stat('edge_weight_cutoff', edge_weight_cutoff)
 
-        irreps = Irreps(f"{mul0}x0e")
-        x = jax.vmap(Linear(irreps_node_attr, irreps))(node_attr)
+        irreps = e3nn.Irreps(f"{mul0}x0e")
+        x = jax.vmap(e3nn.Linear(irreps))(node_attr)
 
         # stat('x', x)
 
-        x = Transformer(
-            irreps_node_input=irreps,
-            irreps_node_output=irreps_features,
-            **kw,
-        )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
-
-        # stat('T(x)', x)
-
-        x = act(x)
-
-        # stat('gT(x)', x)
-
-        for _ in range(config['num_layers']):
-            x = Transformer(
-                irreps_node_input=irreps_features,
-                irreps_node_output=irreps_features,
-                **kw,
-            )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
+        for _ in range(config['num_layers'] + 1):
+            x = Transformer(irreps_features, **kw)(edge_src, edge_dst, edge_scalars, edge_weight_cutoff, edge_attr, x)
 
             # stat('T ...(x)', x)
 
             x = act(x)
             # stat('gT ...(x)', x)
 
-        x = Transformer(
-            irreps_node_input=irreps_features,
-            irreps_node_output=irreps_out,
-            **kw,
-        )(edge_src, edge_dst, edge_scalars, edge_attr, edge_weight_cutoff, x)
+        x = Transformer(irreps_out, **kw)(edge_src, edge_dst, edge_scalars, edge_weight_cutoff, edge_attr, x)
 
         # stat('T ...(x)', x)
 
@@ -215,7 +193,7 @@ def create_model(config):
         out = a['x'][:, :5] @ M + 10.0 * out
         # stat('pred', out)
 
-        return index_add(a['batch'], out, a['y'].shape[0])
+        return e3nn.index_add(a['batch'], out, a['y'].shape[0])
     return f
 
 
