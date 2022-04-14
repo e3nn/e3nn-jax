@@ -79,10 +79,6 @@ def spherical_harmonics(
     else:
         x = input
 
-    _lmax = 12
-    if irreps_out.lmax > _lmax:
-        raise NotImplementedError(f'spherical_harmonics maximum l implemented is {_lmax}, send us an email to ask for more')
-
     return _jited_spherical_harmonics(irreps_out, x, normalize, normalization)
 
 
