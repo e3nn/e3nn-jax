@@ -1,6 +1,6 @@
 from functools import wraps
 
-from e3nn_jax import IrrepsData, Irreps
+from e3nn_jax import Irreps, IrrepsData
 
 
 def overload_for_irreps_without_data(irrepsdata_argnums=None, irrepsdata_argnames=None, shape=()):

@@ -6,7 +6,7 @@ from typing import Any, List, NamedTuple, Optional
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, IrrepsData, wigner_3j
+from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
 from e3nn_jax.util import prod
 
 from ._einsum import einsum as opt_einsum
@@ -296,7 +296,7 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
                 s2 = self.irreps_in2[:ins.i_in2].dim
                 so = self.irreps_out[:ins.i_out].dim
 
-                w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+                w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
 
                 def set_w3j(i, u, v, w):
                     return big_w3j.at[i, s1+u*d1: s1+(u+1)*d1, s2+v*d2: s2+(v+1)*d2, so+w*do: so+(w+1)*do].add(ins.path_weight * w3j)
@@ -371,7 +371,7 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
         xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
 
         with jax.ensure_compile_time_eval():
-            w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+            w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
             w3j = ins.path_weight * w3j
 
         if ins.connection_mode == 'uvw':
@@ -503,7 +503,7 @@ def _right(self: FunctionalTensorProduct, weights, input2, *, optimize_einsums=F
             continue
 
         with jax.ensure_compile_time_eval():
-            w3j = wigner_3j(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+            w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
 
         if ins.connection_mode == 'uvw':
             assert ins.has_weight

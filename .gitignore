@@ -17,3 +17,4 @@ dist
 examples/icon.png
 examples/gif.py
 *.gif
+examples/gif

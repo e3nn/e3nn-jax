@@ -4,8 +4,9 @@ from functools import lru_cache
 
 import sympy
 
-from e3nn_jax._wigner import wigner_3j_sympy
+from e3nn_jax import clebsch_gordan
 from e3nn_jax.util import prod
+from e3nn_jax.util.sympy import sqrtQarray_to_sympy
 
 
 @lru_cache(maxsize=None)
@@ -71,7 +72,7 @@ def product_lll(output, input_1, input_2):
     else:
         l2 = input_2.shape[0] // 2
 
-    out = wigner_3j_sympy(output, l1, l2)  # ijk
+    out = sqrtQarray_to_sympy(clebsch_gordan(output, l1, l2))  # ijk
 
     if not isinstance(input_1, int):
         out = tensordot(out, input_1, 1, 0)

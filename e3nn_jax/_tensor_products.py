@@ -8,7 +8,7 @@ from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsData
 from e3nn_jax.util.decorators import overload_for_irreps_without_data
 
 
-def _naive_broadcast_decorator(func):
+def naive_broadcast_decorator(func):
     def wrapper(*args):
         shape = jnp.broadcast_shapes(*(arg.shape for arg in args))
         args = [arg.broadcast_to(shape) for arg in args]
@@ -69,7 +69,7 @@ class FullyConnectedTensorProduct(hk.Module):
             )
             for ins in tp.instructions
         ]
-        f = _naive_broadcast_decorator(lambda x1, x2: tp.left_right(ws, x1, x2))
+        f = naive_broadcast_decorator(lambda x1, x2: tp.left_right(ws, x1, x2))
         output = f(x1, x2)
         return output.convert(self.irreps_out)
 
@@ -115,7 +115,7 @@ def full_tensor_product(
         irrep_normalization=irrep_normalization
     )
 
-    return _naive_broadcast_decorator(tp.left_right)(input1, input2)
+    return naive_broadcast_decorator(tp.left_right)(input1, input2)
 
 
 @overload_for_irreps_without_data((0, 1))
@@ -175,7 +175,7 @@ def elementwise_tensor_product(
         path_normalization=path_normalization
     )
 
-    return _naive_broadcast_decorator(tp.left_right)(input1, input2)
+    return naive_broadcast_decorator(tp.left_right)(input1, input2)
 
 
 def FunctionalTensorSquare(
