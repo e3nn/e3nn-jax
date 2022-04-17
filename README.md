@@ -1,7 +1,19 @@
 # e3nn-jax
 [![Coverage Status](https://coveralls.io/repos/github/e3nn/e3nn-jax/badge.svg?branch=main)](https://coveralls.io/github/e3nn/e3nn-jax?branch=main)
 
-## What is different from the pytorch version?
+## Installation
+
+To install the latest released version:
+```
+pip install --upgrade e3nn-jax
+```
+
+To install the latest GitHub version:
+```
+pip install git+https://github.com/e3nn/e3nn-jax.git
+```
+
+## What is different from the PyTorch version?
 
 - no more `shared_weights` and `internal_weights` in `TensorProduct`. Extensive use of `jax.vmap` instead (see example below)
 - support of python structure `IrrepsData` that contains a contiguous version of the data and a list of `jnp.ndarray` for the data. This allows to avoid unnecessary `jnp.concatenante` followed by indexing to reverse the concatenation
