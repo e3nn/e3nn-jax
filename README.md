@@ -13,6 +13,12 @@ To install the latest GitHub version:
 pip install git+https://github.com/e3nn/e3nn-jax.git
 ```
 
+To install from a local copy:
+```
+pip install -r requirements.txt
+pip install -e .
+```
+
 ## What is different from the PyTorch version?
 
 - no more `shared_weights` and `internal_weights` in `TensorProduct`. Extensive use of `jax.vmap` instead (see example below)
