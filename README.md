@@ -4,19 +4,26 @@
 ## Installation
 
 To install the latest released version:
-```
+```bash
 pip install --upgrade e3nn-jax
 ```
 
 To install the latest GitHub version:
-```
+```bash
 pip install git+https://github.com/e3nn/e3nn-jax.git
 ```
 
-To install from a local copy:
-```
+To install from a local copy for development, we recommend creating a virtual enviroment:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-pip install -e .
+```
+
+To check that the tests are running:
+```bash
+pip install pytest
+pytest tests/tensor_products_test.py
 ```
 
 ## What is different from the PyTorch version?
