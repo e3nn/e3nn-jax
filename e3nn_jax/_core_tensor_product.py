@@ -39,8 +39,7 @@ def _compute_element_path_normalization_factors(
     instructions: List[Instruction],
     first_input_variance: List[float],
     second_input_variance: List[float],
-    path_normalization: str,
-) -> Dict[int, float]:
+) -> Dict[Instruction, float]:
     """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'element' path normalization."""
     path_normalization_sums = collections.defaultdict(lambda: 0.0)
     for instruction in instructions:
@@ -60,8 +59,7 @@ def _compute_standard_path_normalization_factors(
     instructions: List[Instruction],
     first_input_variance: List[float],
     second_input_variance: List[float],
-    path_normalization: str,
-) -> Dict[int, float]:
+) -> Dict[Instruction, float]:
     """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'path' path normalization."""
     path_normalization_counts = collections.defaultdict(lambda: 0.0)
     for instruction in instructions:
@@ -74,32 +72,6 @@ def _compute_standard_path_normalization_factors(
         * path_normalization_counts[instruction.i_out]
         for instruction in instructions
     }
-
-
-def compute_path_normalization_factors(
-    instructions: List[Instruction],
-    first_input_variance: List[float],
-    second_input_variance: List[float],
-    path_normalization: str,
-) -> Dict[int, float]:
-    """Returns a dictionary with keys as the unique values of Instruction.i_out and values as the corresponding path normalization factor."""
-    if path_normalization == "element":
-        return _compute_element_path_normalization_factors(
-            instructions,
-            first_input_variance,
-            second_input_variance,
-            path_normalization,
-        )
-
-    if path_normalization == "path":
-        return _compute_standard_path_normalization_factors(
-            instructions,
-            first_input_variance,
-            second_input_variance,
-            path_normalization,
-        )
-
-    raise ValueError(f"Unsupported path normalization: {path_normalization}.")
 
 
 def normalize_instruction_path_weights(
@@ -115,9 +87,14 @@ def normalize_instruction_path_weights(
 ) -> List[Instruction]:
     """Returns instructions with normalized path weights."""
     # Precompute normalization factors.
-    path_normalization_factors = compute_path_normalization_factors(
-        instructions, first_input_variance, second_input_variance, path_normalization
-    )
+    if path_normalization == "element":
+        fn = _compute_element_path_normalization_factors
+    elif path_normalization == "path":
+        fn = _compute_standard_path_normalization_factors
+    else:
+        raise ValueError(f"Unsupported path normalization: {path_normalization}.")
+
+    path_normalization_factors = fn(instructions, first_input_variance, second_input_variance)
 
     def compute_normalized_path_weight_fn(instruction: Instruction) -> float:
         return compute_normalized_path_weight(
@@ -127,7 +104,6 @@ def normalize_instruction_path_weights(
             output_irreps,
             output_variance,
             irrep_normalization,
-            path_normalization,
             path_normalization_factors,
         )
 
@@ -144,8 +120,7 @@ def compute_normalized_path_weight(
     output_irreps: Irreps,
     output_variance: List[float],
     irrep_normalization: str,
-    path_normalization: str,
-    path_normalization_factors: Dict[int, float],
+    path_normalization_factors: Dict[Instruction, float],
 ) -> float:
     """Computes normalized path weight for a single instructions, with precomputed path normalization factors."""
 
