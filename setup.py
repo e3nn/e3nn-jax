@@ -38,7 +38,6 @@ setup(
         'dm-haiku',
         'optax',
         'sympy',
-        'chex',
     ],
     include_package_data=True,
     classifiers=[

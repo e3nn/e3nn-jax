@@ -1,4 +1,5 @@
 notebook
+.venv
 .vscode
 .coverage
 .pytest_cache
@@ -13,6 +14,7 @@ dist
 .ipynb_checkpoints
 *.so
 *.txt
+!requirements.txt
 *.nb
 examples/icon.png
 examples/gif.py

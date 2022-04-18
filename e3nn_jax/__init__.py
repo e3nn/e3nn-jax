@@ -31,6 +31,7 @@ from ._rotation import (
     angles_to_xyz,
     xyz_to_angles,
 )
+from ._su2 import su2_clebsch_gordan, su2_generators
 from ._so3 import clebsch_gordan, wigner_D, generators
 from ._instruction import Instruction
 from ._irreps import Irrep, Irreps, IrrepsData
@@ -76,6 +77,7 @@ __all__ = [
     "axis_angle_to_angles",
     "angles_to_xyz",
     "xyz_to_angles",
+    "su2_clebsch_gordan", "su2_generators",
     "clebsch_gordan", "wigner_D", "generators",
     "Irrep", "Irreps", "IrrepsData",
     "spherical_harmonics",

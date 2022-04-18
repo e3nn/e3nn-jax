@@ -4,7 +4,7 @@ import math
 from functools import partial
 from typing import List, Optional, Tuple
 
-import chex
+import dataclasses
 import jax
 import jax.numpy as jnp
 import jax.scipy
@@ -666,13 +666,13 @@ class Irreps(tuple):
 jax.tree_util.register_pytree_node(Irreps, lambda irreps: ((), irreps), lambda irreps, _: irreps)
 
 
-@chex.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class IrrepsData:
     r"""Class storing data and its irreps"""
 
     irreps: Irreps
-    contiguous: chex.ArrayDevice
-    list: List[Optional[chex.ArrayDevice]]
+    contiguous: jnp.ndarray
+    list: List[Optional[jnp.ndarray]]
 
     @staticmethod
     def zeros(irreps: Irreps, shape) -> "IrrepsData":
@@ -1044,3 +1044,6 @@ class IrrepsData:
         irreps = Irreps(irreps)
         x = irreps.randn(key, size + (-1,), normalization=normalization)
         return IrrepsData.from_contiguous(irreps, x)
+
+
+jax.tree_util.register_pytree_node(IrrepsData, lambda x: ((x.contiguous, x.list), x.irreps), lambda x, data: IrrepsData(irreps=x, contiguous=data[0], list=data[1]))
