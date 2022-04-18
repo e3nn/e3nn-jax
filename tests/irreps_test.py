@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import Irrep, Irreps, IrrepsData
+from e3nn_jax import Irrep, Irreps, IrrepsData, MulIrrep
 
 
 def test_creation():
@@ -70,9 +70,9 @@ def test_empty_irreps():
 
 def test_getitem():
     irreps = Irreps("16x1e + 3e + 2e + 5o")
-    assert irreps[0] == (16, Irrep("1e"))
-    assert irreps[3] == (1, Irrep("5o"))
-    assert irreps[-1] == (1, Irrep("5o"))
+    assert irreps[0] == MulIrrep(16, Irrep("1e"))
+    assert irreps[3] == MulIrrep(1, Irrep("5o"))
+    assert irreps[-1] == MulIrrep(1, Irrep("5o"))
 
     sliced = irreps[2:]
     assert isinstance(sliced, Irreps)
