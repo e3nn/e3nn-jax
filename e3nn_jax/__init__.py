@@ -34,7 +34,7 @@ from ._rotation import (
 from ._su2 import su2_clebsch_gordan, su2_generators
 from ._so3 import clebsch_gordan, wigner_D, generators
 from ._instruction import Instruction
-from ._irreps import Irrep, Irreps, IrrepsData
+from ._irreps import Irrep, MulIrrep, Irreps, IrrepsData
 from ._spherical_harmonics import spherical_harmonics
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import FunctionalLinear, Linear
@@ -91,6 +91,7 @@ __all__ = [
     "wigner_D",
     "generators",
     "Irrep",
+    "MulIrrep",
     "Irreps",
     "IrrepsData",
     "spherical_harmonics",

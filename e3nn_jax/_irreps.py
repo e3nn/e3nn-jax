@@ -54,7 +54,8 @@ class Irrep:
     def __init__(self, l, p=None):
         if p is None:
             if isinstance(l, Irrep):
-                return l
+                p = l.p
+                l = l.l
 
             if isinstance(l, str):
                 try:
@@ -196,26 +197,24 @@ class Irrep:
         yield self.l
         yield self.p
 
+    def __lt__(self, other):
+        return (self.l, self.p) < (other.l, other.p)
+
 
 jax.tree_util.register_pytree_node(Irrep, lambda ir: ((), ir), lambda ir, _: ir)
 
 
-class _MulIr(tuple):
-    def __new__(cls, mul, ir=None):
+@dataclasses.dataclass(init=False, frozen=True)
+class MulIrrep:
+    mul: int
+    ir: Irrep
+
+    def __init__(self, mul, ir=None):
         if ir is None:
             mul, ir = mul
 
-        assert isinstance(mul, int)
-        assert isinstance(ir, Irrep)
-        return super().__new__(cls, (mul, ir))
-
-    @property
-    def mul(self) -> int:
-        return self[0]
-
-    @property
-    def ir(self) -> Irrep:
-        return self[1]
+        object.__setattr__(self, "mul", mul)
+        object.__setattr__(self, "ir", ir)
 
     @property
     def dim(self) -> int:
@@ -224,11 +223,15 @@ class _MulIr(tuple):
     def __repr__(self):
         return f"{self.mul}x{self.ir}"
 
-    def count(self, _value):
-        raise NotImplementedError
+    def __iter__(self):
+        yield self.mul
+        yield self.ir
 
-    def index(self, _value):
-        raise NotImplementedError
+    def __lt__(self, other):
+        return (self.mul, self.ir) < (other.mul, other.ir)
+
+
+jax.tree_util.register_pytree_node(MulIrrep, lambda mulir: ((), mulir), lambda mulir, _: mulir)
 
 
 class Irreps(tuple):
@@ -275,7 +278,7 @@ class Irreps(tuple):
 
         out = []
         if isinstance(irreps, Irrep):
-            out.append(_MulIr(1, Irrep(irreps)))
+            out.append(MulIrrep(1, Irrep(irreps)))
         elif isinstance(irreps, str):
             try:
                 if irreps.strip() != "":
@@ -289,7 +292,7 @@ class Irreps(tuple):
                             ir = Irrep(mul_ir)
 
                         assert isinstance(mul, int) and mul >= 0
-                        out.append(_MulIr(mul, ir))
+                        out.append(MulIrrep(mul, ir))
             except Exception:
                 raise ValueError(f'Unable to convert string "{irreps}" into an Irreps')
         elif irreps is None:
@@ -302,7 +305,7 @@ class Irreps(tuple):
                 elif isinstance(mul_ir, Irrep):
                     mul = 1
                     ir = mul_ir
-                elif isinstance(mul_ir, _MulIr):
+                elif isinstance(mul_ir, MulIrrep):
                     mul, ir = mul_ir
                 elif isinstance(mul_ir, int):
                     mul, ir = 1, Irrep(l=mul_ir, p=1)
@@ -316,7 +319,7 @@ class Irreps(tuple):
                 if not (isinstance(mul, int) and mul >= 0 and ir is not None):
                     raise ValueError(f'Unable to interpret "{mul_ir}" as an irrep.')
 
-                out.append(_MulIr(mul, ir))
+                out.append(MulIrrep(mul, ir))
         return super().__new__(cls, out)
 
     @staticmethod
