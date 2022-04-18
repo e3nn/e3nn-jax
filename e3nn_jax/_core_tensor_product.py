@@ -113,20 +113,24 @@ def normalize_instruction_path_weights(
     irrep_normalization: str,
     path_normalization: str,
 ) -> List[Instruction]:
-    """Computes normalized path weights for the instructions."""
+    """Returns instructions with normalized path weights."""
+    # Precompute normalization factors.
     path_normalization_factors = compute_path_normalization_factors(
         instructions, first_input_variance, second_input_variance, path_normalization
     )
-    compute_normalized_path_weight_fn = partial(
-        compute_normalized_path_weight,
-        first_input_irreps=first_input_irreps,
-        second_input_irreps=second_input_irreps,
-        output_irreps=output_irreps,
-        output_variance=output_variance,
-        irrep_normalization=irrep_normalization,
-        path_normalization=path_normalization,
-        path_normalization_factors=path_normalization_factors,
-    )
+
+    def compute_normalized_path_weight_fn(instruction: Instruction) -> float:
+        return compute_normalized_path_weight(
+            instruction,
+            first_input_irreps,
+            second_input_irreps,
+            output_irreps,
+            output_variance,
+            irrep_normalization,
+            path_normalization,
+            path_normalization_factors,
+        )
+
     return [
         instruction.replace(path_weight=compute_normalized_path_weight_fn(instruction))
         for instruction in instructions
