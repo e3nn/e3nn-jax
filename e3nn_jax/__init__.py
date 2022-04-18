@@ -32,6 +32,7 @@ from ._rotation import (
     xyz_to_angles,
 )
 from ._so3 import clebsch_gordan, wigner_D, generators
+from ._instruction import Instruction
 from ._irreps import Irrep, Irreps, IrrepsData
 from ._spherical_harmonics import spherical_harmonics
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
@@ -51,6 +52,7 @@ __all__ = [
     "rand_angles",
     "compose_angles",
     "inverse_angles",
+    "Instruction",
     "identity_quaternion",
     "rand_quaternion",
     "compose_quaternion",

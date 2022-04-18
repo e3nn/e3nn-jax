@@ -1,12 +1,15 @@
+"""Defines the functional tensor product."""
+
 import itertools
 from functools import lru_cache, partial
 from math import sqrt
-from typing import Any, List, NamedTuple, Optional
+import collections
+from typing import Any, List, Dict, Optional
 
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
+from e3nn_jax import Irreps, IrrepsData, clebsch_gordan, Instruction
 from e3nn_jax.util import prod
 
 from ._einsum import einsum as opt_einsum
@@ -31,15 +34,85 @@ def _flat_concatenate(xs):
         return jnp.concatenate([x.flatten() for x in xs])
     return jnp.zeros((0,))
 
+def _compute_element_path_normalization_factors(instructions: List[Instruction], first_input_variance: List[float], second_input_variance: List[float], path_normalization: str) -> Dict[int, float]:
+    """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'element' path normalization."""
+    path_normalization_sums = collections.defaultdict(lambda: 0.)
+    for instruction in instructions:
+        path_normalization_sums[instruction.i_out] += first_input_variance[instruction.i_in1] * second_input_variance[instruction.i_in2] * instruction.num_elements
 
-class Instruction(NamedTuple):
-    i_in1: int
-    i_in2: int
-    i_out: int
-    connection_mode: str
-    has_weight: bool
-    path_weight: float
-    path_shape: tuple
+    return {
+        instruction: path_normalization_sums[instruction.i_out]
+        for instruction in instructions
+    }
+
+def _compute_standard_path_normalization_factors(instructions: List[Instruction], first_input_variance: List[float], second_input_variance: List[float], path_normalization: str) -> Dict[int, float]:
+    """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'path' path normalization."""
+    path_normalization_counts = collections.defaultdict(lambda: 0.)
+    for instruction in instructions:
+        path_normalization_counts[instruction.i_out] += 1
+
+    return [
+        instruction: (first_input_variance[instruction.i_in1] * second_input_variance[instruction.i_in2] * instruction.num_elements) * path_normalization_counts[instruction.i_out]
+        for instruction in instructions
+    ]
+
+
+def compute_path_normalization_factors(instructions: List[Instruction], first_input_variance: List[float], second_input_variance: List[float], path_normalization: str) -> Dict[int, float]:
+    """Returns a dictionary with keys as the unique values of Instruction.i_out and values as the corresponding path normalization factor."""
+    if path_normalization == 'element':
+        return _compute_element_path_normalization_factors(instructions, first_input_variance, second_input_variance, path_normalization)
+
+    if path_normalization == 'path':
+        return _compute_standard_path_normalization_factors(instructions, first_input_variance, second_input_variance, path_normalization)
+
+    raise ValueError(f'Unsupported path normalization: {path_normalization}.')
+
+def normalize_instruction_path_weights(instructions: List[Instruction], first_input_irreps: Irreps, second_input_irreps: Irreps, output_irreps: Irreps,
+    first_input_variance: List[float], second_input_variance: List[float], output_variance: List[float], irrep_normalization: str, path_normalization: str) -> List[Instruction]:
+    """Computes normalized path weights for the instructions."""
+    path_normalization_factors = compute_path_normalization_factors(instructions, first_input_variance, second_input_variance, path_normalization)
+    compute_normalized_path_weight_fn = partial(
+        compute_normalized_path_weight,
+        first_input_irreps=first_input_irreps,
+        second_input_irreps=second_input_irreps,
+        output_irreps=output_irreps,
+        output_variance=output_variance,
+        irrep_normalization=irrep_normalization,
+        path_normalization=path_normalization,
+        path_normalization_factors=path_normalization_factors)
+    return [
+        instruction.replace(path_weight=compute_normalized_path_weight_fn(instruction))
+        for instruction in instructions
+    ]
+
+def compute_normalized_path_weight(instruction: Instruction, first_input_irreps: Irreps, second_input_irreps: Irreps, output_irreps: Irreps,
+    output_variance: List[float], irrep_normalization: str, path_normalization: str, path_normalization_factors: Dict[int, float]) -> float:
+    """Computes normalized path weight for a single instructions, with precomputed path normalization factors."""
+
+    if irrep_normalization not in ['component', 'norm', 'none']:
+        raise ValueError(f'Unsupported irrep normalization: {irrep_normalization}.')
+
+    mul_ir_in1 = first_input_irreps[instruction.i_in1]
+    mul_ir_in2 = second_input_irreps[instruction.i_in2]
+    mul_ir_out = output_irreps[instruction.i_out]
+
+    assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
+    assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
+
+    if irrep_normalization == 'component':
+        alpha = mul_ir_out.ir.dim
+    if irrep_normalization == 'norm':
+        alpha = mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
+    if irrep_normalization == 'none':
+        alpha = 1
+
+    path_normalization_factor = path_normalization_factors[instruction]
+    if path_normalization_factor > 0.0:
+        alpha /= path_normalization_factor
+
+    alpha *= output_variance[instruction.i_out]
+    alpha *= instruction.path_weight
+    return sqrt(alpha)
 
 
 class FunctionalTensorProduct:
@@ -80,9 +153,6 @@ class FunctionalTensorProduct:
         irrep_normalization: str = 'component',
         path_normalization: str = 'element',
     ):
-        assert irrep_normalization in ['component', 'norm', 'none']
-        assert path_normalization in ['element', 'path']
-
         self.irreps_in1 = Irreps(irreps_in1)
         self.irreps_in2 = Irreps(irreps_in2)
         self.irreps_out = Irreps(irreps_out)
@@ -92,16 +162,7 @@ class FunctionalTensorProduct:
         instructions = [
             Instruction(
                 i_in1, i_in2, i_out, connection_mode, has_weight, path_weight,
-                {
-                    'uvw': (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul, self.irreps_out[i_out].mul),
-                    'uvu': (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
-                    'uvv': (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
-                    'uuw': (self.irreps_in1[i_in1].mul, self.irreps_out[i_out].mul),
-                    'uuu': (self.irreps_in1[i_in1].mul,),
-                    'uvuv': (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
-                    'uvu<v': (self.irreps_in1[i_in1].mul * (self.irreps_in2[i_in2].mul - 1) // 2,),
-                    'u<vw': (self.irreps_in1[i_in1].mul * (self.irreps_in2[i_in2].mul - 1) // 2, self.irreps_out[i_out].mul),
-                }[connection_mode],
+                self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul, self.irreps_out[i_out].mul
             )
             for i_in1, i_in2, i_out, connection_mode, has_weight, path_weight in instructions
         ]
@@ -115,59 +176,7 @@ class FunctionalTensorProduct:
         if out_var is None:
             out_var = [1.0 for _ in range(len(self.irreps_out))]
 
-        def num_elements(ins):
-            return {
-                'uvw': (self.irreps_in1[ins.i_in1].mul * self.irreps_in2[ins.i_in2].mul),
-                'uvu': self.irreps_in2[ins.i_in2].mul,
-                'uvv': self.irreps_in1[ins.i_in1].mul,
-                'uuw': self.irreps_in1[ins.i_in1].mul,
-                'uuu': 1,
-                'uvuv': 1,
-                'uvu<v': 1,
-                'u<vw': self.irreps_in1[ins.i_in1].mul * (self.irreps_in2[ins.i_in2].mul - 1) // 2,
-            }[ins.connection_mode]
-
-        normalization_coefficients = []
-        for ins in instructions:
-            mul_ir_in1 = self.irreps_in1[ins.i_in1]
-            mul_ir_in2 = self.irreps_in2[ins.i_in2]
-            mul_ir_out = self.irreps_out[ins.i_out]
-            assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
-            assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
-            assert ins.connection_mode in ['uvw', 'uvu', 'uvv', 'uuw', 'uuu', 'uvuv', 'uvu<v', 'u<vw']
-
-            alpha = None
-
-            if irrep_normalization == 'component':
-                alpha = mul_ir_out.ir.dim
-            if irrep_normalization == 'norm':
-                alpha = mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
-            if irrep_normalization == 'none':
-                alpha = 1
-
-            x = None
-
-            if path_normalization == 'element':
-                x = sum(
-                    in1_var[i.i_in1] * in2_var[i.i_in2] * num_elements(i)
-                    for i in instructions
-                    if i.i_out == ins.i_out
-                )
-            if path_normalization == 'path':
-                x = in1_var[ins.i_in1] * in2_var[ins.i_in2] * num_elements(ins)
-                x *= len([i for i in instructions if i.i_out == ins.i_out])
-
-            if x > 0.0:
-                alpha /= x
-            alpha *= out_var[ins.i_out]
-            alpha *= ins.path_weight
-
-            normalization_coefficients += [sqrt(alpha)]
-
-        self.instructions = [
-            Instruction(ins.i_in1, ins.i_in2, ins.i_out, ins.connection_mode, ins.has_weight, alpha, ins.path_shape)
-            for ins, alpha in zip(instructions, normalization_coefficients)
-        ]
+        self.instructions = normalize_instruction_path_weights(instructions, self.irreps_in1, self.irreps_in2, self.irreps_out, in1_var, in2_var, out_var, irrep_normalization, path_normalization)
 
         with jax.ensure_compile_time_eval():
             if self.irreps_out.dim > 0:
