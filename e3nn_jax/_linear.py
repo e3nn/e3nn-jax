@@ -28,9 +28,9 @@ class FunctionalLinear:
         irreps_out: Any,
         instructions: Optional[List[Tuple[int, int]]] = None,
         biases: Optional[Union[List[bool], bool]] = None,
-        path_normalization: str = 'element',
+        path_normalization: str = "element",
     ):
-        assert path_normalization in ['element', 'path']
+        assert path_normalization in ["element", "path"]
 
         irreps_in = Irreps(irreps_in)
         irreps_out = Irreps(irreps_out)
@@ -56,19 +56,14 @@ class FunctionalLinear:
 
         def alpha(ins):
             x = sum(
-                irreps_in[i.i_in if path_normalization == 'element' else ins.i_in].mul
+                irreps_in[i.i_in if path_normalization == "element" else ins.i_in].mul
                 for i in instructions
                 if i.i_out == ins.i_out
             )
             return 1.0 if x == 0 else x
 
         instructions = [
-            Instruction(
-                i_in=ins.i_in,
-                i_out=ins.i_out,
-                path_shape=ins.path_shape,
-                path_weight=alpha(ins)**(-0.5)
-            )
+            Instruction(i_in=ins.i_in, i_out=ins.i_out, path_shape=ins.path_shape, path_weight=alpha(ins) ** (-0.5))
             for ins in instructions
         ]
 
@@ -81,26 +76,21 @@ class FunctionalLinear:
         assert all(ir.is_scalar() or (not b) for b, (_, ir) in zip(biases, irreps_out))
 
         instructions += [
-            Instruction(
-                i_in=-1,
-                i_out=i_out,
-                path_shape=(mul_ir.dim,),
-                path_weight=1.0
-            )
-            for i_out, (bias, mul_ir) in enumerate(zip(biases, irreps_out)) if bias
+            Instruction(i_in=-1, i_out=i_out, path_shape=(mul_ir.dim,), path_weight=1.0)
+            for i_out, (bias, mul_ir) in enumerate(zip(biases, irreps_out))
+            if bias
         ]
 
         with jax.ensure_compile_time_eval():
             if irreps_out.dim > 0:
-                output_mask = jnp.concatenate([
-                    jnp.ones(mul_ir.dim)
-                    if any(
-                        (ins.i_out == i_out) and (0 not in ins.path_shape)
-                        for ins in instructions
-                    )
-                    else jnp.zeros(mul_ir.dim)
-                    for i_out, mul_ir in enumerate(irreps_out)
-                ])
+                output_mask = jnp.concatenate(
+                    [
+                        jnp.ones(mul_ir.dim)
+                        if any((ins.i_out == i_out) and (0 not in ins.path_shape) for ins in instructions)
+                        else jnp.zeros(mul_ir.dim)
+                        for i_out, mul_ir in enumerate(irreps_out)
+                    ]
+                )
             else:
                 output_mask = jnp.ones(0)
 
@@ -113,7 +103,11 @@ class FunctionalLinear:
         output = [
             _sum_tensors(
                 [out for ins, out in zip(self.instructions, paths) if ins.i_out == i_out],
-                shape=output_shape + (mul_ir_out.mul, mul_ir_out.ir.dim,),
+                shape=output_shape
+                + (
+                    mul_ir_out.mul,
+                    mul_ir_out.ir.dim,
+                ),
                 empty_return_none=True,
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
@@ -126,12 +120,8 @@ class FunctionalLinear:
 
         paths = [
             ins.path_weight * w
-            if ins.i_in == -1 else
-            (
-                None
-                if input.list[ins.i_in] is None else
-                ins.path_weight * jnp.einsum("uw,ui->wi", w, input.list[ins.i_in])
-            )
+            if ins.i_in == -1
+            else (None if input.list[ins.i_in] is None else ins.path_weight * jnp.einsum("uw,ui->wi", w, input.list[ins.i_in]))
             for ins, w in zip(self.instructions, ws)
         ]
         return self.aggregate_paths(paths, input.shape)
@@ -155,9 +145,15 @@ class Linear(hk.Module):
         input = input.remove_nones().simplify()
         lin = FunctionalLinear(input.irreps, self.irreps_out, self.instructions, biases=self.biases)
         w = [
-            hk.get_parameter(f'b[{ins.i_out}] {lin.irreps_out[ins.i_out]}', shape=ins.path_shape, init=hk.initializers.Constant(0.0))
-            if ins.i_in == -1 else
-            hk.get_parameter(f'w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}', shape=ins.path_shape, init=hk.initializers.RandomNormal())
+            hk.get_parameter(
+                f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", shape=ins.path_shape, init=hk.initializers.Constant(0.0)
+            )
+            if ins.i_in == -1
+            else hk.get_parameter(
+                f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+                shape=ins.path_shape,
+                init=hk.initializers.RandomNormal(),
+            )
             for ins in lin.instructions
         ]
         return lin(w, input)

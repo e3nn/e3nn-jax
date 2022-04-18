@@ -6,6 +6,7 @@ from e3nn_jax import Irreps, IrrepsData
 def overload_for_irreps_without_data(irrepsdata_argnums=None, irrepsdata_argnames=None, shape=()):
     def decorator(func):
         from jax._src.api import _infer_argnums_and_argnames
+
         argnums, argnames = _infer_argnums_and_argnames(func, irrepsdata_argnums, irrepsdata_argnames)
 
         @wraps(func)
@@ -26,6 +27,7 @@ def overload_for_irreps_without_data(irrepsdata_argnums=None, irrepsdata_argname
 
             # otherwise, assume arguments are IrrepsData
             return func(*args, **kwargs)
+
         return wrapper
 
     return decorator

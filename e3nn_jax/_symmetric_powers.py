@@ -157,17 +157,19 @@ def solve_symmetric(candidates):
             return []
 
     variables = [sympy.symbols(f"x{i}") for i in range(len(candidates))]
-    tensors = sum_axis0([x * c for x, c in zip(variables, candidates)])                                # [x, y+z, 2z]
+    tensors = sum_axis0([x * c for x, c in zip(variables, candidates)])  # [x, y+z, 2z]
     constraints = tuple({sympy.expand(x) for tensor in tensors[:1] for x in symmetric_terms(tensor)})  # {x+y=0, z=0}
 
-    solutions = sympy.solve(constraints, variables, manual=True, dict=True)                            # {x -> -y, z -> 0}
+    solutions = sympy.solve(constraints, variables, manual=True, dict=True)  # {x -> -y, z -> 0}
     assert len(solutions) == 1
     solution = solutions[0]
-    tensors = tensors.subs(solution)                                                                   # [-y, y, 0]
+    tensors = tensors.subs(solution)  # [-y, y, 0]
 
-    tensors = [tensors.subs(x, 1).subs(zip(variables, [0] * len(variables))) for x in variables]       # [0, 0, 0], [-1, 1, 0], [0, 0, 0]
-    norms = [sympy.sqrt(sum(sympy.flatten(s.applyfunc(lambda x: x**2)))) for s in tensors]             # [0, sqrt(2), 0]
-    solutions = [s / n for s, n in zip(tensors, norms) if not n.is_zero]                               # [-1, 1, 0] / sqrt(2)
+    tensors = [
+        tensors.subs(x, 1).subs(zip(variables, [0] * len(variables))) for x in variables
+    ]  # [0, 0, 0], [-1, 1, 0], [0, 0, 0]
+    norms = [sympy.sqrt(sum(sympy.flatten(s.applyfunc(lambda x: x ** 2)))) for s in tensors]  # [0, sqrt(2), 0]
+    solutions = [s / n for s, n in zip(tensors, norms) if not n.is_zero]  # [-1, 1, 0] / sqrt(2)
 
     # assert all(is_symmetric(x) for sol in solutions for x in sol)
     return solutions
@@ -203,9 +205,7 @@ def symmetric_powers(l, n, lmax):
     assert l <= lmax
 
     if n == 1:
-        return {
-            l: [sympy.Array(sympy.eye(2 * l + 1))]
-        }
+        return {l: [sympy.Array(sympy.eye(2 * l + 1))]}
 
     res = defaultdict(lambda: [])
 

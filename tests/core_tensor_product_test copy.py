@@ -1,16 +1,15 @@
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import (FunctionalFullyConnectedTensorProduct,
-                      FunctionalTensorProduct, FunctionalTensorSquare, Irreps)
+from e3nn_jax import FunctionalFullyConnectedTensorProduct, FunctionalTensorProduct, FunctionalTensorSquare, Irreps
 from e3nn_jax.util import prod
 
 
-@pytest.mark.parametrize('connection_mode', ['uvw', 'uvu', 'uvv'])
-@pytest.mark.parametrize('jitted', [False, True])
-@pytest.mark.parametrize('optimize_einsums', [False, True])
-@pytest.mark.parametrize('specialized_code', [False, True])
-@pytest.mark.parametrize('irrep_normalization', ['component', 'norm'])
+@pytest.mark.parametrize("connection_mode", ["uvw", "uvu", "uvv"])
+@pytest.mark.parametrize("jitted", [False, True])
+@pytest.mark.parametrize("optimize_einsums", [False, True])
+@pytest.mark.parametrize("specialized_code", [False, True])
+@pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
 def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, jitted, connection_mode):
     tp = FunctionalTensorProduct(
         Irreps("10x0o + 10x1o + 1x2e"),
@@ -20,18 +19,20 @@ def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, ji
             (0, 0, 0, connection_mode, True),
             (1, 1, 1, connection_mode, True),
             (1, 0, 1, connection_mode, True),
-            (2, 2, 2, 'uvw', True),
-            (2, 1, 2, 'uvw', True),
+            (2, 2, 2, "uvw", True),
+            (2, 1, 2, "uvw", True),
         ],
         irrep_normalization=irrep_normalization,
     )
 
     def f(ws, x1, x2):
         return tp.left_right(
-            ws, x1, x2,
+            ws,
+            x1,
+            x2,
             specialized_code=specialized_code,
             optimize_einsums=optimize_einsums,
-            custom_einsum_vjp=optimize_einsums
+            custom_einsum_vjp=optimize_einsums,
         )
 
     if jitted:
@@ -66,7 +67,8 @@ def test_fuse_all(keys):
     assert jnp.allclose(
         tp.left_right(w, x, y, fuse_all=True).contiguous,
         tp.left_right(w, x, y, fuse_all=False).contiguous,
-        rtol=1e-4, atol=1e-6
+        rtol=1e-4,
+        atol=1e-6,
     )
 
 
@@ -86,7 +88,8 @@ def test_fuse_all_no_weight(keys):
     assert jnp.allclose(
         tp.left_right(w, x, y, fuse_all=True).contiguous,
         tp.left_right(w, x, y, fuse_all=False).contiguous,
-        rtol=1e-4, atol=1e-6
+        rtol=1e-4,
+        atol=1e-6,
     )
 
 
@@ -100,14 +103,15 @@ def test_fuse_all_mix_weight(keys):
             (0, 0, 0, "uvw", True),
         ],
     )
-    w = jax.random.normal(keys[1], (5**3,))
+    w = jax.random.normal(keys[1], (5 ** 3,))
     x = jax.random.normal(keys[2], (5,))
     y = jax.random.normal(keys[3], (5,))
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fuse_all=True).contiguous,
         tp.left_right(w, x, y, fuse_all=False).contiguous,
-        rtol=1e-4, atol=1e-6
+        rtol=1e-4,
+        atol=1e-6,
     )
 
 
@@ -124,8 +128,8 @@ def test_fuse(keys):
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), (a, b)
 
 
-@pytest.mark.parametrize('path_normalization', ['element', 'path'])
-@pytest.mark.parametrize('irrep_normalization', ['component', 'norm'])
+@pytest.mark.parametrize("path_normalization", ["element", "path"])
+@pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
 def test_normalization(keys, irrep_normalization, path_normalization):
     tp = FunctionalFullyConnectedTensorProduct(
         "5x0e+1x0e+10x1e",
@@ -141,16 +145,16 @@ def test_normalization(keys, irrep_normalization, path_normalization):
 
     v, s = tp.left_right(ws, x1, x2).list
 
-    assert jnp.exp(jnp.abs(jnp.log(jnp.mean(s**2)))) < 2.0
-    if irrep_normalization == 'component':
-        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(v**2)))) < 2.0
-    if irrep_normalization == 'norm':
-        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(jnp.sum(v**2, axis=1))))) < 2.0
+    assert jnp.exp(jnp.abs(jnp.log(jnp.mean(s ** 2)))) < 2.0
+    if irrep_normalization == "component":
+        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(v ** 2)))) < 2.0
+    if irrep_normalization == "norm":
+        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(jnp.sum(v ** 2, axis=1))))) < 2.0
 
 
 def test_square_normalization(keys):
     irreps = Irreps("2x0e + 3x1e + 2x2e + 3e")
-    tp = FunctionalTensorSquare(irreps, irreps, irrep_normalization='component')
+    tp = FunctionalTensorSquare(irreps, irreps, irrep_normalization="component")
     n = sum(prod(ins.path_shape) for ins in tp.instructions if ins.has_weight)
 
     @jax.vmap
@@ -159,6 +163,6 @@ def test_square_normalization(keys):
 
     k = 1_000_000
     w = jax.random.normal(keys[0], (k, n))
-    x = irreps.randn(keys[1], (k, -1), normalization='component')
+    x = irreps.randn(keys[1], (k, -1), normalization="component")
     y = f(w, x)
-    assert jnp.all(jnp.exp(jnp.abs(jnp.log(jnp.mean(y**2, 0)))) < 1.1)
+    assert jnp.all(jnp.exp(jnp.abs(jnp.log(jnp.mean(y ** 2, 0)))) < 1.1)

@@ -41,12 +41,8 @@ class SlowLinear:
         return self.tp.left_right(ws, x, ones)
 
 
-@pytest.mark.parametrize(
-    "irreps_in", ["5x0e", "1e + 2e + 4x1e + 3x3o", "2x1o + 0x3e", "0x0e"]
-)
-@pytest.mark.parametrize(
-    "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
-)
+@pytest.mark.parametrize("irreps_in", ["5x0e", "1e + 2e + 4x1e + 3x3o", "2x1o + 0x3e", "0x0e"])
+@pytest.mark.parametrize("irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"])
 def test_linear_like_tp(keys, irreps_in, irreps_out):
     """Test that Linear gives the same results as the corresponding TensorProduct."""
     m = FunctionalLinear(irreps_in, irreps_out)

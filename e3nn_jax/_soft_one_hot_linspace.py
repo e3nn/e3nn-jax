@@ -14,7 +14,9 @@ def sus(x):
     return jnp.where(x > 0.0, jnp.exp(-1.0 / jnp.where(x > 0.0, x, 1.0)), 0.0)
 
 
-def soft_one_hot_linspace(input: jnp.ndarray, *, start: float, end: float, number: int, basis: str = None, cutoff: bool = None):
+def soft_one_hot_linspace(
+    input: jnp.ndarray, *, start: float, end: float, number: int, basis: str = None, cutoff: bool = None
+):
     r"""Projection on a basis of functions
 
     Returns a set of :math:`\{y_i(x)\}_{i=1}^N`,
@@ -116,29 +118,25 @@ def soft_one_hot_linspace(input: jnp.ndarray, *, start: float, end: float, numbe
 
     diff = (input[..., None] - values) / step
 
-    if basis == 'gaussian':
-        return jnp.exp(-diff**2) / 1.12
+    if basis == "gaussian":
+        return jnp.exp(-(diff ** 2)) / 1.12
 
-    if basis == 'cosine':
-        return jnp.where((-1.0 < diff) & (diff < 1.0), jnp.cos(jnp.pi/2 * diff), 0.0)
+    if basis == "cosine":
+        return jnp.where((-1.0 < diff) & (diff < 1.0), jnp.cos(jnp.pi / 2 * diff), 0.0)
 
-    if basis == 'smooth_finite':
+    if basis == "smooth_finite":
         return 1.14136 * jnp.exp(2.0) * sus(diff + 1.0) * sus(1.0 - diff)
 
-    if basis == 'fourier':
+    if basis == "fourier":
         x = (input[..., None] - start) / (end - start)
         if not cutoff:
             i = jnp.arange(0, number)
             return jnp.cos(jnp.pi * i * x) / jnp.sqrt(0.25 + number / 2)
         else:
             i = jnp.arange(1, number + 1)
-            return jnp.where(
-                (0.0 < x) & (x < 1.0),
-                jnp.sin(jnp.pi * i * x) / jnp.sqrt(0.25 + number / 2),
-                0.0
-            )
+            return jnp.where((0.0 < x) & (x < 1.0), jnp.sin(jnp.pi * i * x) / jnp.sqrt(0.25 + number / 2), 0.0)
 
-    if basis == 'bessel':
+    if basis == "bessel":
         x = input[..., None] - start
         c = end - start
         bessel_roots = jnp.arange(1, number + 1) * jnp.pi
@@ -149,4 +147,4 @@ def soft_one_hot_linspace(input: jnp.ndarray, *, start: float, end: float, numbe
         else:
             return out * ((x / c) < 1) * (0 < x)
 
-    raise ValueError(f"basis=\"{basis}\" is not a valid entry")
+    raise ValueError(f'basis="{basis}" is not a valid entry')

@@ -6,7 +6,7 @@ from e3nn_jax.util.test import assert_equivariant
 import pytest
 
 
-@pytest.mark.parametrize('irreps', [Irreps("3x0e + 3x0o + 4x1e"), Irreps("3x0o + 3x0e + 4x1e")])
+@pytest.mark.parametrize("irreps", [Irreps("3x0e + 3x0o + 4x1e"), Irreps("3x0o + 3x0e + 4x1e")])
 def test_equivariant(keys, irreps):
     @hk.without_apply_rng
     @hk.transform_with_state
@@ -24,10 +24,10 @@ def test_equivariant(keys, irreps):
     assert_equivariant(m_eval, next(keys), irreps_in=[irreps], irreps_out=[irreps])
 
 
-@pytest.mark.parametrize('affine', [True, False])
-@pytest.mark.parametrize('reduce', ['mean', 'max'])
-@pytest.mark.parametrize('normalization', ['norm', 'component'])
-@pytest.mark.parametrize('instance', [True, False])
+@pytest.mark.parametrize("affine", [True, False])
+@pytest.mark.parametrize("reduce", ["mean", "max"])
+@pytest.mark.parametrize("normalization", ["norm", "component"])
+@pytest.mark.parametrize("instance", [True, False])
 def test_modes(keys, affine, reduce, normalization, instance):
     irreps = Irreps("10x0e + 5x1e")
 
@@ -47,7 +47,7 @@ def test_modes(keys, affine, reduce, normalization, instance):
     m_eval(irreps.randn(next(keys), (20, 20, -1)))
 
 
-@pytest.mark.parametrize('instance', [True, False])
+@pytest.mark.parametrize("instance", [True, False])
 def test_normalization(keys, instance):
     float_tolerance = 1e-3
     sqrt_float_tolerance = jnp.sqrt(float_tolerance)
@@ -58,7 +58,7 @@ def test_normalization(keys, instance):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = BatchNorm(irreps=irreps, normalization='norm', instance=instance)
+        m = BatchNorm(irreps=irreps, normalization="norm", instance=instance)
         return m(x, is_training)
 
     params, state = b.init(next(keys), irreps.randn(next(keys), (16, -1)))
@@ -76,7 +76,7 @@ def test_normalization(keys, instance):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = BatchNorm(irreps=irreps, normalization='component', instance=instance)
+        m = BatchNorm(irreps=irreps, normalization="component", instance=instance)
         return m(x, is_training)
 
     params, state = b.init(next(keys), irreps.randn(next(keys), (16, -1)))

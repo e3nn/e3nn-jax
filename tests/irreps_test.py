@@ -8,7 +8,7 @@ def test_creation():
     Irrep(3, 1)
     ir = Irrep("3e")
     Irrep(ir)
-    assert Irrep('10o') == Irrep(10, -1)
+    assert Irrep("10o") == Irrep(10, -1)
     assert Irrep("1y") == Irrep("1o")
 
     irreps = Irreps(ir)
@@ -16,9 +16,9 @@ def test_creation():
     Irreps([(32, (4, -1))])
     Irreps("11e")
     assert Irreps("16x1e + 32 x 2o") == Irreps([(16, (1, 1)), (32, (2, -1))])
-    Irreps(["1e", '2o'])
-    Irreps([(16, "3e"), '1e'])
-    Irreps([(16, "3e"), '1e', (256, (1, -1))])
+    Irreps(["1e", "2o"])
+    Irreps([(16, "3e"), "1e"])
+    Irreps([(16, "3e"), "1e", (256, (1, -1))])
 
 
 def test_properties():
@@ -39,7 +39,7 @@ def test_properties():
     iterator = Irrep.iterator()
     for x in range(100):
         irrep = next(iterator)
-        assert irrep.l == x//2
+        assert irrep.l == x // 2
         assert irrep.p in (-1, 1)
         assert irrep.dim == 2 * (x // 2) + 1
 

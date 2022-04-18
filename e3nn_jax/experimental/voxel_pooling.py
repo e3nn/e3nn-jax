@@ -27,7 +27,7 @@ def lowpass_filter(input, scale, strides, transposed=False, steps=(1, 1, 1)):
         strides = (strides,) * 3
 
     with jax.ensure_compile_time_eval():
-        sigma = 0.5 * (scale ** 2 - 1)**0.5
+        sigma = 0.5 * (scale ** 2 - 1) ** 0.5
 
         size = int(1 + 2 * 2.5 * sigma)
         if size % 2 == 0:
@@ -40,10 +40,10 @@ def lowpass_filter(input, scale, strides, transposed=False, steps=(1, 1, 1)):
         y = y[jnp.abs(y) <= 1]
         z = r * steps[2] / min(steps)
         z = z[jnp.abs(z) <= 1]
-        lattice = jnp.stack(jnp.meshgrid(x, y, z, indexing='ij'), axis=-1)  # [x, y, z, R^3]
+        lattice = jnp.stack(jnp.meshgrid(x, y, z, indexing="ij"), axis=-1)  # [x, y, z, R^3]
         lattice = (size // 2) * lattice
 
-        kernel = jnp.exp(-jnp.sum(lattice**2, axis=-1) / (2 * sigma**2))
+        kernel = jnp.exp(-jnp.sum(lattice ** 2, axis=-1) / (2 * sigma ** 2))
         kernel = kernel / jnp.sum(kernel)
 
         if transposed:
@@ -65,7 +65,7 @@ def lowpass_filter(input, scale, strides, transposed=False, steps=(1, 1, 1)):
         lhs_dilation=strides if transposed else (1, 1, 1),
         window_strides=(1, 1, 1) if transposed else strides,
         padding=((pad[0], pad[0]), (pad[1], pad[1]), (pad[2], pad[2])),
-        dimension_numbers=('NCXYZ', 'IOXYZ', 'NCXYZ')
+        dimension_numbers=("NCXYZ", "IOXYZ", "NCXYZ"),
     )
 
     output = output.reshape(*input.shape[:-3], *output.shape[-3:])
@@ -147,7 +147,7 @@ def zoom(input, resize_rate):
     yi = f(ny, round(ny * resize_rate[1]))
     zi = f(nz, round(nz * resize_rate[2]))
 
-    xg, yg, zg = jnp.meshgrid(xi, yi, zi, indexing='ij')
+    xg, yg, zg = jnp.meshgrid(xi, yi, zi, indexing="ij")
 
     output = jax.vmap(interpolate_bilinear, (None, 0, 0, 0), -1)(input, xg.flatten(), yg.flatten(), zg.flatten())
     output = output.reshape(*input.shape[:-3], len(xi), len(yi), len(zi))
@@ -156,7 +156,7 @@ def zoom(input, resize_rate):
 
 
 def _index_max_norm(input, strides):
-    norms = jnp.sum(input**2, axis=-1)
+    norms = jnp.sum(input ** 2, axis=-1)
     shape = input.shape[:-1]
     assert len(shape) == len(strides)
     idxs = jnp.arange(prod(shape)).reshape(shape)
@@ -213,10 +213,7 @@ def maxpool(input: IrrepsData, strides) -> IrrepsData:
     assert isinstance(input, IrrepsData)
     assert len(input.shape) == len(strides)
 
-    list = [
-        None if x is None else jax.vmap(lambda x: norm_maxpool(x, strides), -2, -2)(x)
-        for x in input.list
-    ]
+    list = [None if x is None else jax.vmap(lambda x: norm_maxpool(x, strides), -2, -2)(x) for x in input.list]
 
     shape = tuple(a // s for a, s in zip(input.shape, strides))
 

@@ -1,4 +1,3 @@
-
 from functools import partial
 
 import haiku as hk
@@ -10,7 +9,20 @@ from e3nn_jax.util import prod
 
 
 @partial(jax.jit, static_argnums=(5, 6, 7, 8, 9, 10, 11))
-def _batch_norm(input, running_mean, running_var, weight, bias, normalization, reduce, is_training, is_instance, has_affine, momentum, epsilon):
+def _batch_norm(
+    input,
+    running_mean,
+    running_var,
+    weight,
+    bias,
+    normalization,
+    reduce,
+    is_training,
+    is_instance,
+    has_affine,
+    momentum,
+    epsilon,
+):
     def _roll_avg(curr, update):
         return (1 - momentum) * curr + momentum * jax.lax.stop_gradient(update)
 
@@ -53,41 +65,39 @@ def _batch_norm(input, running_mean, running_var, weight, bias, normalization, r
                         field_mean = field.mean(1).reshape(batch, mul)  # [batch, mul]
                     else:
                         field_mean = field.mean([0, 1]).reshape(mul)  # [mul]
-                        new_means.append(
-                            _roll_avg(running_mean[i_rmu: i_rmu + mul], field_mean)
-                        )
+                        new_means.append(_roll_avg(running_mean[i_rmu : i_rmu + mul], field_mean))
                 else:
-                    field_mean = running_mean[i_rmu: i_rmu + mul]
+                    field_mean = running_mean[i_rmu : i_rmu + mul]
                 i_rmu += mul
 
                 # [batch, sample, mul, repr]
                 field = field - field_mean.reshape(-1, 1, mul, 1)
 
             if is_training or is_instance:
-                if normalization == 'norm':
+                if normalization == "norm":
                     field_norm = jnp.square(field).sum(3)  # [batch, sample, mul]
-                elif normalization == 'component':
+                elif normalization == "component":
                     field_norm = jnp.square(field).mean(3)  # [batch, sample, mul]
                 else:
                     raise ValueError("Invalid normalization option {}".format(normalization))
 
-                if reduce == 'mean':
+                if reduce == "mean":
                     field_norm = field_norm.mean(1)  # [batch, mul]
-                elif reduce == 'max':
+                elif reduce == "max":
                     field_norm = field_norm.max(1)  # [batch, mul]
                 else:
                     raise ValueError("Invalid reduce option {}".format(reduce))
 
                 if not is_instance:
                     field_norm = field_norm.mean(0)  # [mul]
-                    new_vars.append(_roll_avg(running_var[i_wei: i_wei + mul], field_norm))
+                    new_vars.append(_roll_avg(running_var[i_wei : i_wei + mul], field_norm))
             else:
-                field_norm = running_var[i_wei: i_wei + mul]
+                field_norm = running_var[i_wei : i_wei + mul]
 
             field_norm = jax.lax.rsqrt(field_norm + epsilon)  # [(batch,) mul]
 
             if has_affine:
-                sub_weight = weight[i_wei: i_wei + mul]  # [mul]
+                sub_weight = weight[i_wei : i_wei + mul]  # [mul]
                 field_norm = field_norm * sub_weight  # [(batch,) mul]
 
             # TODO add test case for when mul == 0
@@ -95,7 +105,7 @@ def _batch_norm(input, running_mean, running_var, weight, bias, normalization, r
             field = field * field_norm  # [batch, sample, mul, repr]
 
             if has_affine and ir.is_scalar():  # scalars
-                sub_bias = bias[i_bia: i_bia + mul]  # [mul]
+                sub_bias = bias[i_bia : i_bia + mul]  # [mul]
                 field += sub_bias.reshape(mul, 1)  # [batch, sample, mul, repr]
                 i_bia += mul
 
@@ -122,7 +132,10 @@ class BatchNorm(hk.Module):
         instance: whether to use instance normalization
         normalization: normalization mode, either 'norm' or 'component'
     """
-    def __init__(self, *, irreps=None, eps=1e-4, momentum=0.1, affine=True, reduce='mean', instance=False, normalization='component'):
+
+    def __init__(
+        self, *, irreps=None, eps=1e-4, momentum=0.1, affine=True, reduce="mean", instance=False, normalization="component"
+    ):
         super().__init__()
 
         # TODO test with and without irreps argument given
@@ -134,10 +147,10 @@ class BatchNorm(hk.Module):
         self.instance = instance
 
         assert isinstance(reduce, str), "reduce should be passed as a string value"
-        assert reduce in ['mean', 'max'], "reduce needs to be 'mean' or 'max'"
+        assert reduce in ["mean", "max"], "reduce needs to be 'mean' or 'max'"
         self.reduce = reduce
 
-        assert normalization in ['norm', 'component'], "normalization needs to be 'norm' or 'component'"
+        assert normalization in ["norm", "component"], "normalization needs to be 'norm' or 'component'"
         self.normalization = normalization
 
     def __repr__(self):

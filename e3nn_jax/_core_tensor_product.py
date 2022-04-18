@@ -77,11 +77,11 @@ class FunctionalTensorProduct:
         in1_var: Optional[List[float]] = None,
         in2_var: Optional[List[float]] = None,
         out_var: Optional[List[float]] = None,
-        irrep_normalization: str = 'component',
-        path_normalization: str = 'element',
+        irrep_normalization: str = "component",
+        path_normalization: str = "element",
     ):
-        assert irrep_normalization in ['component', 'norm', 'none']
-        assert path_normalization in ['element', 'path']
+        assert irrep_normalization in ["component", "norm", "none"]
+        assert path_normalization in ["element", "path"]
 
         self.irreps_in1 = Irreps(irreps_in1)
         self.irreps_in2 = Irreps(irreps_in2)
@@ -91,16 +91,21 @@ class FunctionalTensorProduct:
         instructions = [x if len(x) == 6 else x + (1.0,) for x in instructions]
         instructions = [
             Instruction(
-                i_in1, i_in2, i_out, connection_mode, has_weight, path_weight,
+                i_in1,
+                i_in2,
+                i_out,
+                connection_mode,
+                has_weight,
+                path_weight,
                 {
-                    'uvw': (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul, self.irreps_out[i_out].mul),
-                    'uvu': (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
-                    'uvv': (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
-                    'uuw': (self.irreps_in1[i_in1].mul, self.irreps_out[i_out].mul),
-                    'uuu': (self.irreps_in1[i_in1].mul,),
-                    'uvuv': (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
-                    'uvu<v': (self.irreps_in1[i_in1].mul * (self.irreps_in2[i_in2].mul - 1) // 2,),
-                    'u<vw': (self.irreps_in1[i_in1].mul * (self.irreps_in2[i_in2].mul - 1) // 2, self.irreps_out[i_out].mul),
+                    "uvw": (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul, self.irreps_out[i_out].mul),
+                    "uvu": (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
+                    "uvv": (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
+                    "uuw": (self.irreps_in1[i_in1].mul, self.irreps_out[i_out].mul),
+                    "uuu": (self.irreps_in1[i_in1].mul,),
+                    "uvuv": (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
+                    "uvu<v": (self.irreps_in1[i_in1].mul * (self.irreps_in2[i_in2].mul - 1) // 2,),
+                    "u<vw": (self.irreps_in1[i_in1].mul * (self.irreps_in2[i_in2].mul - 1) // 2, self.irreps_out[i_out].mul),
                 }[connection_mode],
             )
             for i_in1, i_in2, i_out, connection_mode, has_weight, path_weight in instructions
@@ -117,14 +122,14 @@ class FunctionalTensorProduct:
 
         def num_elements(ins):
             return {
-                'uvw': (self.irreps_in1[ins.i_in1].mul * self.irreps_in2[ins.i_in2].mul),
-                'uvu': self.irreps_in2[ins.i_in2].mul,
-                'uvv': self.irreps_in1[ins.i_in1].mul,
-                'uuw': self.irreps_in1[ins.i_in1].mul,
-                'uuu': 1,
-                'uvuv': 1,
-                'uvu<v': 1,
-                'u<vw': self.irreps_in1[ins.i_in1].mul * (self.irreps_in2[ins.i_in2].mul - 1) // 2,
+                "uvw": (self.irreps_in1[ins.i_in1].mul * self.irreps_in2[ins.i_in2].mul),
+                "uvu": self.irreps_in2[ins.i_in2].mul,
+                "uvv": self.irreps_in1[ins.i_in1].mul,
+                "uuw": self.irreps_in1[ins.i_in1].mul,
+                "uuu": 1,
+                "uvuv": 1,
+                "uvu<v": 1,
+                "u<vw": self.irreps_in1[ins.i_in1].mul * (self.irreps_in2[ins.i_in2].mul - 1) // 2,
             }[ins.connection_mode]
 
         normalization_coefficients = []
@@ -134,26 +139,22 @@ class FunctionalTensorProduct:
             mul_ir_out = self.irreps_out[ins.i_out]
             assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
             assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
-            assert ins.connection_mode in ['uvw', 'uvu', 'uvv', 'uuw', 'uuu', 'uvuv', 'uvu<v', 'u<vw']
+            assert ins.connection_mode in ["uvw", "uvu", "uvv", "uuw", "uuu", "uvuv", "uvu<v", "u<vw"]
 
             alpha = None
 
-            if irrep_normalization == 'component':
+            if irrep_normalization == "component":
                 alpha = mul_ir_out.ir.dim
-            if irrep_normalization == 'norm':
+            if irrep_normalization == "norm":
                 alpha = mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
-            if irrep_normalization == 'none':
+            if irrep_normalization == "none":
                 alpha = 1
 
             x = None
 
-            if path_normalization == 'element':
-                x = sum(
-                    in1_var[i.i_in1] * in2_var[i.i_in2] * num_elements(i)
-                    for i in instructions
-                    if i.i_out == ins.i_out
-                )
-            if path_normalization == 'path':
+            if path_normalization == "element":
+                x = sum(in1_var[i.i_in1] * in2_var[i.i_in2] * num_elements(i) for i in instructions if i.i_out == ins.i_out)
+            if path_normalization == "path":
                 x = in1_var[ins.i_in1] * in2_var[ins.i_in2] * num_elements(ins)
                 x *= len([i for i in instructions if i.i_out == ins.i_out])
 
@@ -171,15 +172,17 @@ class FunctionalTensorProduct:
 
         with jax.ensure_compile_time_eval():
             if self.irreps_out.dim > 0:
-                self.output_mask = jnp.concatenate([
-                    jnp.ones(mul_ir.dim)
-                    if any(
-                        (ins.i_out == i_out) and (ins.path_weight != 0) and (0 not in ins.path_shape)
-                        for ins in self.instructions
-                    )
-                    else jnp.zeros(mul_ir.dim)
-                    for i_out, mul_ir in enumerate(self.irreps_out)
-                ])
+                self.output_mask = jnp.concatenate(
+                    [
+                        jnp.ones(mul_ir.dim)
+                        if any(
+                            (ins.i_out == i_out) and (ins.path_weight != 0) and (0 not in ins.path_shape)
+                            for ins in self.instructions
+                        )
+                        else jnp.zeros(mul_ir.dim)
+                        for i_out, mul_ir in enumerate(self.irreps_out)
+                    ]
+                )
             else:
                 self.output_mask = jnp.ones(0)
 
@@ -192,7 +195,7 @@ class FunctionalTensorProduct:
         specialized_code=False,
         optimize_einsums=True,
         custom_einsum_vjp=False,
-        fuse_all=False
+        fuse_all=False,
     ) -> IrrepsData:
         r"""Compute the tensor product of two input tensors.
 
@@ -216,15 +219,19 @@ class FunctionalTensorProduct:
         input1 = IrrepsData.new(self.irreps_in1, input1)
         input2 = IrrepsData.new(self.irreps_in2, input2)
 
-        return _left_right(self, weights, input1, input2, specialized_code=specialized_code, optimize_einsums=optimize_einsums, custom_einsum_vjp=custom_einsum_vjp, fuse_all=fuse_all)
+        return _left_right(
+            self,
+            weights,
+            input1,
+            input2,
+            specialized_code=specialized_code,
+            optimize_einsums=optimize_einsums,
+            custom_einsum_vjp=custom_einsum_vjp,
+            fuse_all=fuse_all,
+        )
 
     def right(
-        self,
-        weights: List[jnp.ndarray],
-        input2: IrrepsData = None,
-        *,
-        optimize_einsums=False,
-        custom_einsum_vjp=False
+        self, weights: List[jnp.ndarray], input2: IrrepsData = None, *, optimize_einsums=False, custom_einsum_vjp=False
     ) -> jnp.ndarray:
         if input2 is None:
             weights, input2 = [], weights
@@ -242,9 +249,21 @@ class FunctionalTensorProduct:
         )
 
 
-@partial(jax.jit, static_argnums=(0,), static_argnames=('specialized_code', 'optimize_einsums', 'custom_einsum_vjp', 'fuse_all'))
+@partial(
+    jax.jit, static_argnums=(0,), static_argnames=("specialized_code", "optimize_einsums", "custom_einsum_vjp", "fuse_all")
+)
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
-def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, specialized_code=False, optimize_einsums=True, custom_einsum_vjp=False, fuse_all=False):
+def _left_right(
+    self: FunctionalTensorProduct,
+    weights,
+    input1,
+    input2,
+    *,
+    specialized_code=False,
+    optimize_einsums=True,
+    custom_einsum_vjp=False,
+    fuse_all=False,
+):
 
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
@@ -254,10 +273,13 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
         assert optimize_einsums
         einsum = opt_einsum
     else:
-        einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
+        einsum = partial(jnp.einsum, optimize="optimal" if optimize_einsums else "greedy")
 
     if isinstance(weights, list):
-        assert len(weights) == len([ins for ins in self.instructions if ins.has_weight]), (len(weights), len([ins for ins in self.instructions if ins.has_weight]))
+        assert len(weights) == len([ins for ins in self.instructions if ins.has_weight]), (
+            len(weights),
+            len([ins for ins in self.instructions if ins.has_weight]),
+        )
         weights_flat = _flat_concatenate(weights)
         weights_list = weights
     else:
@@ -267,7 +289,7 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
         for ins in self.instructions:
             if ins.has_weight:
                 n = prod(ins.path_shape)
-                weights_list.append(weights[i:i+n].reshape(ins.path_shape))
+                weights_list.append(weights[i : i + n].reshape(ins.path_shape))
                 i += n
         assert i == weights.size
     del weights
@@ -292,31 +314,33 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
                 mul_ir_out = self.irreps_out[ins.i_out]
                 m1, m2, mo = mul_ir_in1.mul, mul_ir_in2.mul, mul_ir_out.mul
                 d1, d2, do = mul_ir_in1.ir.dim, mul_ir_in2.ir.dim, mul_ir_out.ir.dim
-                s1 = self.irreps_in1[:ins.i_in1].dim
-                s2 = self.irreps_in2[:ins.i_in2].dim
-                so = self.irreps_out[:ins.i_out].dim
+                s1 = self.irreps_in1[: ins.i_in1].dim
+                s2 = self.irreps_in2[: ins.i_in2].dim
+                so = self.irreps_out[: ins.i_out].dim
 
                 w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
 
                 def set_w3j(i, u, v, w):
-                    return big_w3j.at[i, s1+u*d1: s1+(u+1)*d1, s2+v*d2: s2+(v+1)*d2, so+w*do: so+(w+1)*do].add(ins.path_weight * w3j)
+                    return big_w3j.at[
+                        i, s1 + u * d1 : s1 + (u + 1) * d1, s2 + v * d2 : s2 + (v + 1) * d2, so + w * do : so + (w + 1) * do
+                    ].add(ins.path_weight * w3j)
 
-                if ins.connection_mode == 'uvw':
+                if ins.connection_mode == "uvw":
                     assert ins.has_weight
                     for u, v, w in itertools.product(range(m1), range(m2), range(mo)):
                         big_w3j = set_w3j(i, u, v, w)
                         i += 1
-                elif ins.connection_mode == 'uvu':
+                elif ins.connection_mode == "uvu":
                     assert ins.has_weight
                     for u, v in itertools.product(range(m1), range(m2)):
                         big_w3j = set_w3j(i, u, v, u)
                         i += 1
-                elif ins.connection_mode == 'uvv':
+                elif ins.connection_mode == "uvv":
                     assert ins.has_weight
                     for u, v in itertools.product(range(m1), range(m2)):
                         big_w3j = set_w3j(i, u, v, v)
                         i += 1
-                elif ins.connection_mode == 'uuu':
+                elif ins.connection_mode == "uuu":
                     for u in range(m1):
                         if ins.has_weight:
                             big_w3j = set_w3j(i, u, u, u)
@@ -338,10 +362,10 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
 
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):
-        if mode == 'uv':
-            return einsum('ui,vj->uvij', input1.list[in1], input2.list[in2])
-        if mode == 'uu':
-            return einsum('ui,uj->uij', input1.list[in1], input2.list[in2])
+        if mode == "uv":
+            return einsum("ui,vj->uvij", input1.list[in1], input2.list[in2])
+        if mode == "uu":
+            return einsum("ui,uj->uij", input1.list[in1], input2.list[in2])
 
     weight_index = 0
 
@@ -374,7 +398,7 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
             w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
             w3j = ins.path_weight * w3j
 
-        if ins.connection_mode == 'uvw':
+        if ins.connection_mode == "uvw":
             assert ins.has_weight
             if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
                 out = ins.path_weight * einsum("uvw,uv->w", w, xx.reshape(mul_ir_in1.dim, mul_ir_in2.dim))
@@ -386,7 +410,7 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
                 out = ins.path_weight * einsum("uvw,ui,vi->w", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
             else:
                 out = einsum("uvw,ijk,uvij->wk", w, w3j, xx)
-        if ins.connection_mode == 'uvu':
+        if ins.connection_mode == "uvu":
             assert mul_ir_in1.mul == mul_ir_out.mul
             if ins.has_weight:
                 if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
@@ -402,7 +426,7 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
             else:
                 # not so useful operation because v is summed
                 out = einsum("ijk,uvij->uk", w3j, xx)
-        if ins.connection_mode == 'uvv':
+        if ins.connection_mode == "uvv":
             assert mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
                 if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
@@ -418,7 +442,7 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
             else:
                 # not so useful operation because u is summed
                 out = einsum("ijk,uvij->vk", w3j, xx)
-        if ins.connection_mode == 'uuw':
+        if ins.connection_mode == "uuw":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             if ins.has_weight:
                 out = einsum("uw,ijk,uij->wk", w, w3j, xx)
@@ -426,19 +450,19 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
                 # equivalent to tp(x, y, 'uuu').sum('u')
                 assert mul_ir_out.mul == 1
                 out = einsum("ijk,uij->k", w3j, xx)
-        if ins.connection_mode == 'uuu':
+        if ins.connection_mode == "uuu":
             assert mul_ir_in1.mul == mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
                 out = einsum("u,ijk,uij->uk", w, w3j, xx)
             else:
                 out = einsum("ijk,uij->uk", w3j, xx)
-        if ins.connection_mode == 'uvuv':
+        if ins.connection_mode == "uvuv":
             assert mul_ir_in1.mul * mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
                 out = einsum("uv,ijk,uvij->uvk", w, w3j, xx)
             else:
                 out = einsum("ijk,uvij->uvk", w3j, xx)
-        if ins.connection_mode == 'uvu<v':
+        if ins.connection_mode == "uvu<v":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             assert mul_ir_in1.mul * (mul_ir_in1.mul - 1) // 2 == mul_ir_out.mul
             i = jnp.triu_indices(mul_ir_in1.mul, 1)
@@ -447,11 +471,11 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
                 out = einsum("w,ijk,wij->wk", w, w3j, xx)
             else:
                 out = einsum("ijk,wij->wk", w3j, xx)
-        if ins.connection_mode == 'u<vw':
+        if ins.connection_mode == "u<vw":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             assert ins.has_weight
             i = jnp.triu_indices(mul_ir_in1.mul, 1)
-            xx = multiply(ins.i_in1, ins.i_in2, 'uv')
+            xx = multiply(ins.i_in1, ins.i_in2, "uv")
             xx = xx[i[0], i[1]]  # uvij -> qij
             out = einsum("qw,ijk,qij->wk", w, w3j, xx)
 
@@ -468,18 +492,23 @@ def _left_right(self: FunctionalTensorProduct, weights, input1, input2, *, speci
     return IrrepsData.from_list(self.irreps_out, out, ())
 
 
-@partial(jax.jit, static_argnums=(0,), static_argnames=('optimize_einsums', 'custom_einsum_vjp'))
+@partial(jax.jit, static_argnums=(0,), static_argnames=("optimize_einsums", "custom_einsum_vjp"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.right")
 def _right(self: FunctionalTensorProduct, weights, input2, *, optimize_einsums=False, custom_einsum_vjp=False):
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
-        return jnp.zeros((self.irreps_in1.dim, self.irreps_out.dim,))
+        return jnp.zeros(
+            (
+                self.irreps_in1.dim,
+                self.irreps_out.dim,
+            )
+        )
 
     if custom_einsum_vjp:
         assert optimize_einsums
         einsum = opt_einsum
     else:
-        einsum = partial(jnp.einsum, optimize='optimal' if optimize_einsums else 'greedy')
+        einsum = partial(jnp.einsum, optimize="optimal" if optimize_einsums else "greedy")
 
     weight_index = 0
 
@@ -505,24 +534,24 @@ def _right(self: FunctionalTensorProduct, weights, input2, *, optimize_einsums=F
         with jax.ensure_compile_time_eval():
             w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
 
-        if ins.connection_mode == 'uvw':
+        if ins.connection_mode == "uvw":
             assert ins.has_weight
             out = einsum("uvw,ijk,vj->uiwk", w, w3j, x2)
-        if ins.connection_mode == 'uvu':
+        if ins.connection_mode == "uvu":
             assert mul_ir_in1.mul == mul_ir_out.mul
             if ins.has_weight:
                 out = einsum("uv,ijk,vj,uw->uiwk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
             else:
                 # not so useful operation because v is summed
                 out = einsum("ijk,vj,uw->uiwk", w3j, x2, jnp.eye(mul_ir_in1.mul))
-        if ins.connection_mode == 'uvv':
+        if ins.connection_mode == "uvv":
             assert mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
                 out = einsum("uv,ijk,vj->uivk", w, w3j, x2)
             else:
                 # not so useful operation because u is summed
                 out = einsum("ijk,vj,u->uivk", w3j, x2, jnp.ones((mul_ir_in1.mul,)))
-        if ins.connection_mode == 'uuw':
+        if ins.connection_mode == "uuw":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             if ins.has_weight:
                 out = einsum("uw,ijk,uj->uiwk", w, w3j, x2)
@@ -530,13 +559,13 @@ def _right(self: FunctionalTensorProduct, weights, input2, *, optimize_einsums=F
                 # equivalent to tp(x, y, 'uuu').sum('u')
                 assert mul_ir_out.mul == 1
                 out = einsum("ijk,uj->uik", w3j, x2)
-        if ins.connection_mode == 'uuu':
+        if ins.connection_mode == "uuu":
             assert mul_ir_in1.mul == mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
                 out = einsum("u,ijk,uj,uw->uiwk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
             else:
                 out = einsum("ijk,uj,uw->uiwk", w3j, x2, jnp.eye(mul_ir_in1.mul))
-        if ins.connection_mode == 'uvuv':
+        if ins.connection_mode == "uvuv":
             assert mul_ir_in1.mul * mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
                 out = einsum("uv,ijk,vj,uw->uiwvk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
@@ -547,15 +576,21 @@ def _right(self: FunctionalTensorProduct, weights, input2, *, optimize_einsums=F
 
         out_list += [out.reshape(mul_ir_in1.dim, mul_ir_out.dim)]
 
-    return jnp.concatenate([
-        jnp.concatenate([
-            _sum_tensors(
-                [out for ins, out in zip(self.instructions, out_list) if (ins.i_in1, ins.i_out) == (i_in1, i_out)],
-                shape=(mul_ir_in1.dim, mul_ir_out.dim),
+    return jnp.concatenate(
+        [
+            jnp.concatenate(
+                [
+                    _sum_tensors(
+                        [out for ins, out in zip(self.instructions, out_list) if (ins.i_in1, ins.i_out) == (i_in1, i_out)],
+                        shape=(mul_ir_in1.dim, mul_ir_out.dim),
+                    )
+                    for i_out, mul_ir_out in enumerate(self.irreps_out)
+                    if mul_ir_out.mul > 0
+                ],
+                axis=1,
             )
-            for i_out, mul_ir_out in enumerate(self.irreps_out)
-            if mul_ir_out.mul > 0
-        ], axis=1)
-        for i_in1, mul_ir_in1 in enumerate(self.irreps_in1)
-        if mul_ir_in1.mul > 0
-    ], axis=0)
+            for i_in1, mul_ir_in1 in enumerate(self.irreps_in1)
+            if mul_ir_in1.mul > 0
+        ],
+        axis=0,
+    )

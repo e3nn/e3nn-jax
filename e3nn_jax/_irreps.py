@@ -47,6 +47,7 @@ class Irrep(tuple):
         >>> Irrep("1o") + Irrep("2o")
         1x1o+1x2o
     """
+
     def __new__(cls, l, p=None):
         if p is None:
             if isinstance(l, Irrep):
@@ -58,12 +59,12 @@ class Irrep(tuple):
                     l = int(name[:-1])
                     assert l >= 0
                     p = {
-                        'e': 1,
-                        'o': -1,
-                        'y': (-1)**l,
+                        "e": 1,
+                        "o": -1,
+                        "y": (-1) ** l,
                     }[name[-1]]
                 except Exception:
-                    raise ValueError(f"unable to convert string \"{name}\" into an Irrep")
+                    raise ValueError(f'unable to convert string "{name}" into an Irrep')
             elif isinstance(l, tuple):
                 l, p = l
 
@@ -82,7 +83,7 @@ class Irrep(tuple):
         return self[1]
 
     def __repr__(self):
-        p = {+1: 'e', -1: 'o'}[self.p]
+        p = {+1: "e", -1: "o"}[self.p]
         return f"{self.l}{p}"
 
     @classmethod
@@ -95,8 +96,8 @@ class Irrep(tuple):
             (0e, 0o, 1o, 1e)
         """
         for l in itertools.count():
-            yield Irrep(l, (-1)**l)
-            yield Irrep(l, -(-1)**l)
+            yield Irrep(l, (-1) ** l)
+            yield Irrep(l, -((-1) ** l))
 
             if l == lmax:
                 break
@@ -125,7 +126,7 @@ class Irrep(tuple):
         """
         alpha, beta, gamma, k = jnp.broadcast_arrays(alpha, beta, gamma, k)
         k = jnp.asarray(k)
-        return wigner_D(self.l, alpha, beta, gamma) * self.p**k[..., None, None]
+        return wigner_D(self.l, alpha, beta, gamma) * self.p ** k[..., None, None]
 
     def D_from_quaternion(self, q, k=0):
         r"""Matrix of the representation, see `Irrep.D_from_angles`
@@ -281,6 +282,7 @@ class Irreps(tuple):
         >>> Irreps(), Irreps("")
         (, )
     """
+
     def __new__(cls, irreps=None):
         if isinstance(irreps, Irreps):
             return super().__new__(cls, irreps)
@@ -291,9 +293,9 @@ class Irreps(tuple):
         elif isinstance(irreps, str):
             try:
                 if irreps.strip() != "":
-                    for mul_ir in irreps.split('+'):
-                        if 'x' in mul_ir:
-                            mul, ir = mul_ir.split('x')
+                    for mul_ir in irreps.split("+"):
+                        if "x" in mul_ir:
+                            mul, ir = mul_ir.split("x")
                             mul = int(mul)
                             ir = Irrep(ir)
                         else:
@@ -303,7 +305,7 @@ class Irreps(tuple):
                         assert isinstance(mul, int) and mul >= 0
                         out.append(_MulIr(mul, ir))
             except Exception:
-                raise ValueError(f"Unable to convert string \"{irreps}\" into an Irreps")
+                raise ValueError(f'Unable to convert string "{irreps}" into an Irreps')
         elif irreps is None:
             pass
         else:
@@ -326,7 +328,7 @@ class Irreps(tuple):
                     ir = None
 
                 if not (isinstance(mul, int) and mul >= 0 and ir is not None):
-                    raise ValueError(f"Unable to interpret \"{mul_ir}\" as an irrep.")
+                    raise ValueError(f'Unable to interpret "{mul_ir}" as an irrep.')
 
                 out.append(_MulIr(mul, ir))
         return super().__new__(cls, out)
@@ -348,7 +350,7 @@ class Irreps(tuple):
             >>> Irreps.spherical_harmonics(4, p=1)
             1x0e+1x1e+1x2e+1x3e+1x4e
         """
-        return Irreps([(1, (l, p**l)) for l in range(lmax + 1)])
+        return Irreps([(1, (l, p ** l)) for l in range(lmax + 1)])
 
     def slices(self):
         r"""List of slices corresponding to indices for each irrep.
@@ -364,7 +366,7 @@ class Irreps(tuple):
             i += mul_ir.dim
         return s
 
-    def randn(self, key, size, *, normalization='component'):
+    def randn(self, key, size, *, normalization="component"):
         r"""Random tensor.
 
         Args:
@@ -385,11 +387,11 @@ class Irreps(tuple):
         """
         di = size.index(-1)
         lsize = size[:di]
-        rsize = size[di + 1:]
+        rsize = size[di + 1 :]
 
-        if normalization == 'component':
+        if normalization == "component":
             return jax.random.normal(key, lsize + (self.dim,) + rsize)
-        elif normalization == 'norm':
+        elif normalization == "norm":
             x = jnp.zeros(lsize + (self.dim,) + rsize)
             for s, (mul, ir) in zip(self.slices(), self):
                 key, k = jax.random.split(key)
@@ -682,7 +684,11 @@ class IrrepsData:
     @staticmethod
     def ones(irreps: Irreps, shape) -> "IrrepsData":
         irreps = Irreps(irreps)
-        return IrrepsData(irreps=irreps, contiguous=jnp.ones(shape + (irreps.dim,)), list=[jnp.ones(shape + (mul, ir.dim)) for mul, ir in irreps])
+        return IrrepsData(
+            irreps=irreps,
+            contiguous=jnp.ones(shape + (irreps.dim,)),
+            list=[jnp.ones(shape + (mul, ir.dim)) for mul, ir in irreps],
+        )
 
     @staticmethod
     def new(irreps: Irreps, any) -> "IrrepsData":
@@ -721,18 +727,19 @@ class IrrepsData:
         irreps = Irreps(irreps)
         assert len(irreps) == len(list), f"irreps has {len(irreps)} elements and list has {len(list)}"
         assert all(x is None or isinstance(x, jnp.ndarray) for x in list)
-        assert all(
-            x is None or x.shape == shape + (mul, ir.dim)
-            for x, (mul, ir) in zip(list, irreps)
-        ), ([x.shape for x in list if x is not None], shape)
+        assert all(x is None or x.shape == shape + (mul, ir.dim) for x, (mul, ir) in zip(list, irreps)), (
+            [x.shape for x in list if x is not None],
+            shape,
+        )
 
         if irreps.dim > 0:
-            contiguous = jnp.concatenate([
-                jnp.zeros(shape + (mul_ir.dim,))
-                if x is None else
-                x.reshape(shape + (mul_ir.dim,))
-                for mul_ir, x in zip(irreps, list)
-            ], axis=-1)
+            contiguous = jnp.concatenate(
+                [
+                    jnp.zeros(shape + (mul_ir.dim,)) if x is None else x.reshape(shape + (mul_ir.dim,))
+                    for mul_ir, x in zip(irreps, list)
+                ],
+                axis=-1,
+            )
         else:
             contiguous = jnp.zeros(shape + (0,))
         return IrrepsData(irreps=irreps, contiguous=contiguous, list=list)
@@ -756,10 +763,7 @@ class IrrepsData:
             mul, ir = irreps[0]
             list = [jnp.reshape(contiguous, shape + (mul, ir.dim))]
         else:
-            list = [
-                jnp.reshape(contiguous[..., i], shape + (mul, ir.dim))
-                for i, (mul, ir) in zip(irreps.slices(), irreps)
-            ]
+            list = [jnp.reshape(contiguous[..., i], shape + (mul, ir.dim)) for i, (mul, ir) in zip(irreps.slices(), irreps)]
         return IrrepsData(irreps=irreps, contiguous=contiguous, list=list)
 
     def __repr__(self):
@@ -774,26 +778,19 @@ class IrrepsData:
         return len(self.shape)
 
     def reshape(self, shape) -> "IrrepsData":
-        list = [
-            None if x is None else x.reshape(shape + (mul, ir.dim))
-            for (mul, ir), x in zip(self.irreps, self.list)
-        ]
+        list = [None if x is None else x.reshape(shape + (mul, ir.dim)) for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsData(irreps=self.irreps, contiguous=self.contiguous.reshape(shape + (self.irreps.dim,)), list=list)
 
     def broadcast_to(self, shape) -> "IrrepsData":
         assert isinstance(shape, tuple)
         contiguous = jnp.broadcast_to(self.contiguous, shape + (self.irreps.dim,))
         list = [
-            None if x is None else jnp.broadcast_to(x, shape + (mul, ir.dim))
-            for (mul, ir), x in zip(self.irreps, self.list)
+            None if x is None else jnp.broadcast_to(x, shape + (mul, ir.dim)) for (mul, ir), x in zip(self.irreps, self.list)
         ]
         return IrrepsData(irreps=self.irreps, contiguous=contiguous, list=list)
 
     def replace_none_with_zeros(self) -> "IrrepsData":
-        list = [
-            jnp.zeros(self.shape + (mul, ir.dim)) if x is None else x
-            for (mul, ir), x in zip(self.irreps, self.list)
-        ]
+        list = [jnp.zeros(self.shape + (mul, ir.dim)) if x is None else x for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsData(irreps=self.irreps, contiguous=self.contiguous, list=list)
 
     def remove_nones(self) -> "IrrepsData":
@@ -823,10 +820,7 @@ class IrrepsData:
     def repeat_mul_by_last_axis(self) -> "IrrepsData":
         assert len(self.shape) >= 1
         irreps = Irreps([(self.shape[-1] * mul, ir) for mul, ir in self.irreps])
-        list = [
-            None if x is None else x.reshape(self.shape[:-1] + (mul, ir.dim))
-            for (mul, ir), x in zip(irreps, self.list)
-        ]
+        list = [None if x is None else x.reshape(self.shape[:-1] + (mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)]
         return IrrepsData.from_list(irreps, list, self.shape[:-1])
 
     def factor_irreps_to_last_axis(self) -> "IrrepsData":
@@ -841,8 +835,7 @@ class IrrepsData:
 
         irreps = Irreps([(mul // factor, ir) for mul, ir in self.irreps])
         list = [
-            None if x is None else x.reshape(self.shape + (factor, mul, ir.dim))
-            for (mul, ir), x in zip(irreps, self.list)
+            None if x is None else x.reshape(self.shape + (factor, mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)
         ]
         return IrrepsData.from_list(irreps, list, self.shape + (factor,))
 
@@ -861,8 +854,7 @@ class IrrepsData:
         # Optimization: we use only the list of arrays, not the contiguous data
         D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _, ir in self.irreps}}
         new_list = [
-            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape + (mul, ir.dim))
-            if x is not None else None
+            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape + (mul, ir.dim)) if x is not None else None
             for (mul, ir), x in zip(self.irreps, self.list)
         ]
         return IrrepsData.from_list(self.irreps, new_list, self.shape)
@@ -976,10 +968,7 @@ class IrrepsData:
 
         assert len(new_list) == len(irreps)
         assert all(x is None or isinstance(x, jnp.ndarray) for x in new_list)
-        assert all(
-            x is None or x.shape[-2:] == (mul, ir.dim)
-            for x, (mul, ir) in zip(new_list, irreps)
-        )
+        assert all(x is None or x.shape[-2:] == (mul, ir.dim) for x, (mul, ir) in zip(new_list, irreps))
 
         return IrrepsData(irreps=irreps, contiguous=self.contiguous, list=new_list)
 
@@ -1023,7 +1012,7 @@ class IrrepsData:
             return IrrepsData(
                 irreps=irreps,
                 contiguous=jnp.concatenate([x.contiguous for x in args], axis=-1),
-                list=sum([x.list for x in args], [])
+                list=sum([x.list for x in args], []),
             )
         elif axis == "mul":
             raise NotImplementedError
@@ -1036,14 +1025,18 @@ class IrrepsData:
         return IrrepsData(
             irreps=args[0].irreps,
             contiguous=jnp.concatenate([x.contiguous for x in args], axis=axis),
-            list=[jnp.concatenate(xs, axis=axis) for xs in zip(*[x.list for x in args])]
+            list=[jnp.concatenate(xs, axis=axis) for xs in zip(*[x.list for x in args])],
         )
 
     @staticmethod
-    def randn(irreps, key, size=(), *, normalization='component'):
+    def randn(irreps, key, size=(), *, normalization="component"):
         irreps = Irreps(irreps)
         x = irreps.randn(key, size + (-1,), normalization=normalization)
         return IrrepsData.from_contiguous(irreps, x)
 
 
-jax.tree_util.register_pytree_node(IrrepsData, lambda x: ((x.contiguous, x.list), x.irreps), lambda x, data: IrrepsData(irreps=x, contiguous=data[0], list=data[1]))
+jax.tree_util.register_pytree_node(
+    IrrepsData,
+    lambda x: ((x.contiguous, x.list), x.irreps),
+    lambda x, data: IrrepsData(irreps=x, contiguous=data[0], list=data[1]),
+)

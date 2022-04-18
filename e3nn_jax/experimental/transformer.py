@@ -1,7 +1,15 @@
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Linear, FullyConnectedTensorProduct, MultiLayerPerceptron
+from e3nn_jax import (
+    Irreps,
+    IrrepsData,
+    FunctionalTensorProduct,
+    index_add,
+    Linear,
+    FullyConnectedTensorProduct,
+    MultiLayerPerceptron,
+)
 
 
 class TensorProductMultiLayerPerceptron(hk.Module):
@@ -28,11 +36,12 @@ class TensorProductMultiLayerPerceptron(hk.Module):
             jnp.einsum(
                 "x...,x->...",
                 hk.get_parameter(
-                    f'w[{i.i_in1},{i.i_in2},{i.i_out}] {self.tp.irreps_in1[i.i_in1]},{self.tp.irreps_in2[i.i_in2]},{self.tp.irreps_out[i.i_out]}',
+                    f"w[{i.i_in1},{i.i_in2},{i.i_out}] {self.tp.irreps_in1[i.i_in1]},{self.tp.irreps_in2[i.i_in2]},{self.tp.irreps_out[i.i_out]}",
                     shape=(w.shape[0],) + i.path_shape,
-                    init=hk.initializers.RandomNormal()
-                ) / w.shape[0]**0.5,
-                w
+                    init=hk.initializers.RandomNormal(),
+                )
+                / w.shape[0] ** 0.5,
+                w,
             )
             for i in self.tp.instructions
         ]
@@ -52,14 +61,11 @@ def _instructions_uvu(irreps_in1, irreps_in2, out_ir_list):
                 if ir_out in out_ir_list:
                     k = len(irreps_out)
                     irreps_out.append((mul, ir_out))
-                    instructions.append((i1, i2, k, 'uvu', True))
+                    instructions.append((i1, i2, k, "uvu", True))
     irreps_out = Irreps(irreps_out)
 
     irreps_out, p, _ = irreps_out.sort()
-    instructions = [
-        (i_1, i_2, p[i_out], mode, has_weight)
-        for i_1, i_2, i_out, mode, has_weight in instructions
-    ]
+    instructions = [(i_1, i_2, p[i_out], mode, has_weight) for i_1, i_2, i_out, mode, has_weight in instructions]
 
     return irreps_out, instructions
 
@@ -83,7 +89,9 @@ class Transformer(hk.Module):
         self.act = act
         self.num_heads = num_heads
 
-    def __call__(self, edge_src, edge_dst, edge_scalar_attr, edge_weight_cutoff, edge_attr: IrrepsData, node_feat: IrrepsData) -> IrrepsData:
+    def __call__(
+        self, edge_src, edge_dst, edge_scalar_attr, edge_weight_cutoff, edge_attr: IrrepsData, node_feat: IrrepsData
+    ) -> IrrepsData:
         r"""
         Args:
             edge_src (array of int32): source index of the edges
@@ -100,10 +108,16 @@ class Transformer(hk.Module):
         edge_dst_feat = jax.tree_map(lambda x: x[edge_dst], node_feat)
 
         kw = dict(list_neurons=self.list_neurons, act=self.act)
-        edge_k = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, edge_dst_feat.irreps, **kw))(edge_scalar_attr, edge_src_feat, edge_attr)  # IrrepData[edge, irreps]
-        edge_v = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, self.irreps_node_output, **kw))(edge_scalar_attr, edge_src_feat, edge_attr)  # IrrepData[edge, irreps]
+        edge_k = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, edge_dst_feat.irreps, **kw))(
+            edge_scalar_attr, edge_src_feat, edge_attr
+        )  # IrrepData[edge, irreps]
+        edge_v = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, self.irreps_node_output, **kw))(
+            edge_scalar_attr, edge_src_feat, edge_attr
+        )  # IrrepData[edge, irreps]
 
-        edge_logit = jax.vmap(FullyConnectedTensorProduct(f"{self.num_heads}x0e"))(edge_dst_feat, edge_k).contiguous  # array[edge, head]
+        edge_logit = jax.vmap(FullyConnectedTensorProduct(f"{self.num_heads}x0e"))(
+            edge_dst_feat, edge_k
+        ).contiguous  # array[edge, head]
         node_logit_max = _index_max(edge_dst, edge_logit, node_feat.shape[0])  # array[node, head]
         exp = edge_weight_cutoff[:, None] * jnp.exp(edge_logit - node_logit_max[edge_dst])  # array[edge, head]
         z = index_add(edge_dst, exp, node_feat.shape[0])  # array[node, head]

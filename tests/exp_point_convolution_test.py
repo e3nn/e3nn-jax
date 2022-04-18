@@ -20,11 +20,13 @@ def test_point_convolution(keys):
 
     apply = jax.jit(model.apply)
 
-    pos = jnp.array([
-        [0.0, 0.0, 0.0],
-        [1.0, 0.0, 0.0],
-        [1.0, 1.0, 0.0],
-    ])
+    pos = jnp.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+        ]
+    )
     x = IrrepsData.randn("16x0e + 1o", next(keys), (pos.shape[0],))
     src, dst = radius_graph(pos, 2.0)
 

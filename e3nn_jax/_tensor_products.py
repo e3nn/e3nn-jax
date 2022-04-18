@@ -16,6 +16,7 @@ def naive_broadcast_decorator(func):
         for _ in range(len(shape)):
             f = jax.vmap(f)
         return f(*args)
+
     return wrapper
 
 
@@ -26,21 +27,23 @@ def FunctionalFullyConnectedTensorProduct(
     in1_var: Optional[List[float]] = None,
     in2_var: Optional[List[float]] = None,
     out_var: Optional[List[float]] = None,
-    irrep_normalization: str = 'component',
-    path_normalization: str = 'element',
+    irrep_normalization: str = "component",
+    path_normalization: str = "element",
 ):
     irreps_in1 = Irreps(irreps_in1)
     irreps_in2 = Irreps(irreps_in2)
     irreps_out = Irreps(irreps_out)
 
     instructions = [
-        (i_1, i_2, i_out, 'uvw', True)
+        (i_1, i_2, i_out, "uvw", True)
         for i_1, (_, ir_1) in enumerate(irreps_in1)
         for i_2, (_, ir_2) in enumerate(irreps_in2)
         for i_out, (_, ir_out) in enumerate(irreps_out)
         if ir_out in ir_1 * ir_2
     ]
-    return FunctionalTensorProduct(irreps_in1, irreps_in2, irreps_out, instructions, in1_var, in2_var, out_var, irrep_normalization, path_normalization)
+    return FunctionalTensorProduct(
+        irreps_in1, irreps_in2, irreps_out, instructions, in1_var, in2_var, out_var, irrep_normalization, path_normalization
+    )
 
 
 class FullyConnectedTensorProduct(hk.Module):
@@ -63,9 +66,9 @@ class FullyConnectedTensorProduct(hk.Module):
         tp = FunctionalFullyConnectedTensorProduct(x1.irreps, x2.irreps, self.irreps_out.simplify())
         ws = [
             hk.get_parameter(
-                f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
+                f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}",
                 shape=ins.path_shape,
-                init=hk.initializers.RandomNormal()
+                init=hk.initializers.RandomNormal(),
             )
             for ins in tp.instructions
         ]
@@ -79,7 +82,7 @@ def full_tensor_product(
     input1: IrrepsData,
     input2: IrrepsData,
     filter_ir_out=None,
-    irrep_normalization: str = 'component',
+    irrep_normalization: str = "component",
 ):
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -95,24 +98,15 @@ def full_tensor_product(
 
                 i_out = len(irreps_out)
                 irreps_out.append((mul_1 * mul_2, ir_out))
-                instructions += [
-                    (i_1, i_2, i_out, 'uvuv', False)
-                ]
+                instructions += [(i_1, i_2, i_out, "uvuv", False)]
 
     irreps_out = Irreps(irreps_out)
     irreps_out, p, _ = irreps_out.sort()
 
-    instructions = [
-        (i_1, i_2, p[i_out], mode, train)
-        for i_1, i_2, i_out, mode, train in instructions
-    ]
+    instructions = [(i_1, i_2, p[i_out], mode, train) for i_1, i_2, i_out, mode, train in instructions]
 
     tp = FunctionalTensorProduct(
-        input1.irreps,
-        input2.irreps,
-        irreps_out,
-        instructions,
-        irrep_normalization=irrep_normalization
+        input1.irreps, input2.irreps, irreps_out, instructions, irrep_normalization=irrep_normalization
     )
 
     return naive_broadcast_decorator(tp.left_right)(input1, input2)
@@ -123,8 +117,8 @@ def elementwise_tensor_product(
     input1: IrrepsData,
     input2: IrrepsData,
     filter_ir_out=None,
-    irrep_normalization: str = 'component',
-    path_normalization: str = 'element',
+    irrep_normalization: str = "component",
+    path_normalization: str = "element",
 ) -> IrrepsData:
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -162,9 +156,7 @@ def elementwise_tensor_product(
 
             i_out = len(irreps_out)
             irreps_out.append((mul, ir))
-            instructions += [
-                (i, i, i_out, 'uuu', False)
-            ]
+            instructions += [(i, i, i_out, "uuu", False)]
 
     tp = FunctionalTensorProduct(
         irreps_in1,
@@ -172,22 +164,17 @@ def elementwise_tensor_product(
         irreps_out,
         instructions,
         irrep_normalization=irrep_normalization,
-        path_normalization=path_normalization
+        path_normalization=path_normalization,
     )
 
     return naive_broadcast_decorator(tp.left_right)(input1, input2)
 
 
-def FunctionalTensorSquare(
-    irreps_in: Irreps,
-    irreps_out: Irreps,
-    irrep_normalization: str = None,
-    **kwargs
-):
+def FunctionalTensorSquare(irreps_in: Irreps, irreps_out: Irreps, irrep_normalization: str = None, **kwargs):
     if irrep_normalization is None:
-        irrep_normalization = 'component'
+        irrep_normalization = "component"
 
-    assert irrep_normalization in ['component', 'norm', 'none']
+    assert irrep_normalization in ["component", "norm", "none"]
 
     irreps_in = Irreps(irreps_in)
     irreps_out = Irreps(irreps_out)
@@ -198,45 +185,39 @@ def FunctionalTensorSquare(
             for i_out, (mul_out, ir_out) in enumerate(irreps_out):
                 if ir_out in ir_1 * ir_2:
 
-                    if irrep_normalization == 'component':
+                    if irrep_normalization == "component":
                         alpha = ir_out.dim
-                    elif irrep_normalization == 'norm':
+                    elif irrep_normalization == "norm":
                         alpha = ir_1.dim * ir_2.dim
-                    elif irrep_normalization == 'none':
+                    elif irrep_normalization == "none":
                         alpha = 1
                     else:
                         raise ValueError(f"irrep_normalization={irrep_normalization}")
 
                     if i_1 < i_2:
-                        instructions += [
-                            (i_1, i_2, i_out, 'uvw', True, alpha)
-                        ]
+                        instructions += [(i_1, i_2, i_out, "uvw", True, alpha)]
                     elif i_1 == i_2:
                         i = i_1
                         mul = mul_1
 
                         if mul > 1:
-                            instructions += [
-                                (i, i, i_out, 'u<vw', True, alpha)
-                            ]
+                            instructions += [(i, i, i_out, "u<vw", True, alpha)]
 
                         if ir_out.l % 2 == 0:
-                            if irrep_normalization == 'component':
+                            if irrep_normalization == "component":
                                 if ir_out.l == 0:
                                     alpha = ir_out.dim / (ir_1.dim + 2)
                                 else:
                                     alpha = ir_out.dim / 2
-                            if irrep_normalization == 'norm':
+                            if irrep_normalization == "norm":
                                 if ir_out.l == 0:
                                     alpha = ir_out.dim * ir_1.dim
                                 else:
                                     alpha = ir_1.dim * (ir_1.dim + 2) / 2
 
-                            instructions += [
-                                (i, i, i_out, 'uuw', True, alpha)
-                            ]
+                            instructions += [(i, i, i_out, "uuw", True, alpha)]
 
-    return FunctionalTensorProduct(irreps_in, irreps_in, irreps_out, instructions, irrep_normalization='none', **kwargs)
+    return FunctionalTensorProduct(irreps_in, irreps_in, irreps_out, instructions, irrep_normalization="none", **kwargs)
 
 
 class TensorSquare(hk.Module):
@@ -259,9 +240,9 @@ class TensorSquare(hk.Module):
         tp = FunctionalTensorSquare(input.irreps, self.irreps_out)
         ws = [
             hk.get_parameter(
-                f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
+                f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}",
                 shape=ins.path_shape,
-                init=self.init
+                init=self.init,
             )
             for ins in tp.instructions
         ]

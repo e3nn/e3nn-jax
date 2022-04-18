@@ -28,7 +28,9 @@ def _gate(input: IrrepsData, even_act, odd_act, even_gate_act, odd_gate_act) -> 
             break
 
     if gates is None:
-        raise ValueError(f"Gate: did not manage to split the input {input.irreps} into scalars, gates ({scalars.irreps}) and gated ({gated.irreps}).")
+        raise ValueError(
+            f"Gate: did not manage to split the input {input.irreps} into scalars, gates ({scalars.irreps}) and gated ({gated.irreps})."
+        )
 
     scalars = scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
     gates = scalar_activation(gates, [even_gate_act if ir.p == 1 else odd_gate_act for _, ir in gates.irreps])
@@ -72,7 +74,7 @@ def gate(input: IrrepsData, even_act=None, odd_act=None, even_gate_act=None, odd
     if even_act is None:
         even_act = jax.nn.gelu
     if odd_act is None:
-        odd_act = lambda x: (1 - jnp.exp(-x**2)) * x
+        odd_act = lambda x: (1 - jnp.exp(-(x ** 2))) * x
     if even_gate_act is None:
         even_gate_act = jax.nn.sigmoid
     if odd_gate_act is None:
