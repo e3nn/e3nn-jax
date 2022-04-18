@@ -83,9 +83,13 @@ def normalize_instruction_path_weights(
     """Returns instructions with normalized path weights."""
     # Precompute normalization factors.
     if path_normalization == "element":
-        path_normalization_factors = _compute_element_path_normalization_factors(instructions, first_input_variance, second_input_variance)
+        path_normalization_factors = _compute_element_path_normalization_factors(
+            instructions, first_input_variance, second_input_variance
+        )
     elif path_normalization == "path":
-        path_normalization_factors = _compute_standard_path_normalization_factors(instructions, first_input_variance, second_input_variance)
+        path_normalization_factors = _compute_standard_path_normalization_factors(
+            instructions, first_input_variance, second_input_variance
+        )
     else:
         raise ValueError(f"Unsupported path normalization: {path_normalization}.")
 
