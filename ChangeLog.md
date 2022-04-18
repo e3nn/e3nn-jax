@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add `loop` argument to `radius_graph`
 
 ## Changed
-- use `chex.dataclass` instead of custom `dataclass`
+- use `dataclasses.dataclass` instead of custom `dataclass`
 - Get Clebsch-Gordan coefficients from qutip and a change of basis
 
 ## [0.4.3] - 2022-03-26
