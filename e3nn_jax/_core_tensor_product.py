@@ -239,13 +239,13 @@ class FunctionalTensorProduct:
         ]
 
         if in1_var is None:
-            in1_var = [1.0 for _ in range(len(self.irreps_in1))]
+            in1_var = [1.0 for _ in self.irreps_in1]
 
         if in2_var is None:
-            in2_var = [1.0 for _ in range(len(self.irreps_in2))]
+            in2_var = [1.0 for _ in self.irreps_in2]
 
         if out_var is None:
-            out_var = [1.0 for _ in range(len(self.irreps_out))]
+            out_var = [1.0 for _ in self.irreps_out]
 
         self.instructions = normalize_instruction_path_weights(
             instructions,
