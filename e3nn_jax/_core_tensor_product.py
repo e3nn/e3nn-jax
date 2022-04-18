@@ -34,6 +34,7 @@ def _flat_concatenate(xs):
         return jnp.concatenate([x.flatten() for x in xs])
     return jnp.zeros((0,))
 
+
 def _compute_element_path_normalization_factors(instructions: List[Instruction], first_input_variance: List[float], second_input_variance: List[float], path_normalization: str) -> Dict[int, float]:
     """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'element' path normalization."""
     path_normalization_sums = collections.defaultdict(lambda: 0.)
@@ -45,16 +46,17 @@ def _compute_element_path_normalization_factors(instructions: List[Instruction],
         for instruction in instructions
     }
 
+
 def _compute_standard_path_normalization_factors(instructions: List[Instruction], first_input_variance: List[float], second_input_variance: List[float], path_normalization: str) -> Dict[int, float]:
     """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'path' path normalization."""
     path_normalization_counts = collections.defaultdict(lambda: 0.)
     for instruction in instructions:
         path_normalization_counts[instruction.i_out] += 1
 
-    return [
-        instruction: (first_input_variance[instruction.i_in1] * second_input_variance[instruction.i_in2] * instruction.num_elements) * path_normalization_counts[instruction.i_out]
+    return {
+        instruction: first_input_variance[instruction.i_in1] * second_input_variance[instruction.i_in2] * instruction.num_elements * path_normalization_counts[instruction.i_out]
         for instruction in instructions
-    ]
+    }
 
 
 def compute_path_normalization_factors(instructions: List[Instruction], first_input_variance: List[float], second_input_variance: List[float], path_normalization: str) -> Dict[int, float]:
@@ -66,6 +68,7 @@ def compute_path_normalization_factors(instructions: List[Instruction], first_in
         return _compute_standard_path_normalization_factors(instructions, first_input_variance, second_input_variance, path_normalization)
 
     raise ValueError(f'Unsupported path normalization: {path_normalization}.')
+
 
 def normalize_instruction_path_weights(instructions: List[Instruction], first_input_irreps: Irreps, second_input_irreps: Irreps, output_irreps: Irreps,
     first_input_variance: List[float], second_input_variance: List[float], output_variance: List[float], irrep_normalization: str, path_normalization: str) -> List[Instruction]:
@@ -84,6 +87,7 @@ def normalize_instruction_path_weights(instructions: List[Instruction], first_in
         instruction.replace(path_weight=compute_normalized_path_weight_fn(instruction))
         for instruction in instructions
     ]
+
 
 def compute_normalized_path_weight(instruction: Instruction, first_input_irreps: Irreps, second_input_irreps: Irreps, output_irreps: Irreps,
     output_variance: List[float], irrep_normalization: str, path_normalization: str, path_normalization_factors: Dict[int, float]) -> float:
