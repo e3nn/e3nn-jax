@@ -12,7 +12,8 @@ import jax.scipy
 from e3nn_jax import matrix_to_angles, perm, quaternion_to_angles, wigner_D
 
 
-class Irrep(tuple):
+@dataclasses.dataclass(init=False, frozen=True)
+class Irrep:
     r"""Irreducible representation of :math:`O(3)`
 
     This class does not contain any data, it is a structure that describe the representation.
@@ -47,8 +48,10 @@ class Irrep(tuple):
         >>> Irrep("1o") + Irrep("2o")
         1x1o+1x2o
     """
+    l: int
+    p: int
 
-    def __new__(cls, l, p=None):
+    def __init__(self, l, p=None):
         if p is None:
             if isinstance(l, Irrep):
                 return l
@@ -70,17 +73,8 @@ class Irrep(tuple):
 
         assert isinstance(l, int) and l >= 0, l
         assert p in [-1, 1], p
-        return super().__new__(cls, (l, p))
-
-    @property
-    def l(self) -> int:
-        r"""The degree of the representation, :math:`l = 0, 1, \dots`."""
-        return self[0]
-
-    @property
-    def p(self) -> int:
-        r"""The parity of the representation, :math:`p = \pm 1`."""
-        return self[1]
+        object.__setattr__(self, "l", l)
+        object.__setattr__(self, "p", p)
 
     def __repr__(self):
         p = {+1: "e", -1: "o"}[self.p]
@@ -187,12 +181,6 @@ class Irrep(tuple):
         for l in range(lmin, lmax + 1):
             yield Irrep(l, p)
 
-    def count(self, _value):
-        raise NotImplementedError
-
-    def index(self, _value):
-        raise NotImplementedError
-
     def __rmul__(self, other):
         r"""
         >>> 3 * Irrep('1e')
@@ -204,11 +192,9 @@ class Irrep(tuple):
     def __add__(self, other):
         return Irreps(self) + Irreps(other)
 
-    def __contains__(self, _object):
-        raise NotImplementedError
-
-    def __len__(self):
-        raise NotImplementedError
+    def __iter__(self):
+        yield self.l
+        yield self.p
 
 
 jax.tree_util.register_pytree_node(Irrep, lambda ir: ((), ir), lambda ir, _: ir)
