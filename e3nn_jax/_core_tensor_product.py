@@ -313,14 +313,7 @@ class FunctionalTensorProduct:
 
 
 @partial(
-    jax.jit,
-    static_argnums=(0,),
-    static_argnames=(
-        "specialized_code",
-        "optimize_einsums",
-        "custom_einsum_vjp",
-        "fuse_all",
-    ),
+    jax.jit, static_argnums=(0,), static_argnames=("specialized_code", "optimize_einsums", "custom_einsum_vjp", "fuse_all")
 )
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
@@ -612,11 +605,7 @@ def _left_right(
     return IrrepsData.from_list(self.irreps_out, out, ())
 
 
-@partial(
-    jax.jit,
-    static_argnums=(0,),
-    static_argnames=("optimize_einsums", "custom_einsum_vjp"),
-)
+@partial(jax.jit, static_argnums=(0,), static_argnames=("optimize_einsums", "custom_einsum_vjp"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.right")
 def _right(
     self: FunctionalTensorProduct,
