@@ -15,6 +15,7 @@ def naive_broadcast_decorator(func):
         for _ in range(len(shape)):
             f = jax.vmap(f)
         return f(*args)
+
     return wrapper
 
 
@@ -26,9 +27,9 @@ def change_basis_real_to_complex(l: int) -> np.ndarray:
         q[l + m, l - abs(m)] = -1j / np.sqrt(2)
     q[l, l] = 1
     for m in range(1, l + 1):
-        q[l + m, l + abs(m)] = (-1)**m / np.sqrt(2)
-        q[l + m, l - abs(m)] = 1j * (-1)**m / np.sqrt(2)
-    return (-1j)**l * q  # Added factor of 1j**l to make the Clebsch-Gordan coefficients real
+        q[l + m, l + abs(m)] = (-1) ** m / np.sqrt(2)
+        q[l + m, l - abs(m)] = 1j * (-1) ** m / np.sqrt(2)
+    return (-1j) ** l * q  # Added factor of 1j**l to make the Clebsch-Gordan coefficients real
 
 
 def clebsch_gordan(l1: int, l2: int, l3: int) -> np.ndarray:
@@ -36,7 +37,7 @@ def clebsch_gordan(l1: int, l2: int, l3: int) -> np.ndarray:
     Q1 = change_basis_real_to_complex(l1)
     Q2 = change_basis_real_to_complex(l2)
     Q3 = change_basis_real_to_complex(l3)
-    C = np.einsum('ij,kl,mn,ikn->jlm', Q1, Q2, np.conj(Q3.T), C)
+    C = np.einsum("ij,kl,mn,ikn->jlm", Q1, Q2, np.conj(Q3.T), C)
 
     assert np.all(np.abs(np.imag(C)) < 1e-5)
     return np.real(C)

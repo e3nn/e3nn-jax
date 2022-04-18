@@ -70,11 +70,7 @@ def germinate(subset: Set[TY_PERM]) -> Set[TY_PERM]:
     while True:
         n = len(subset)
         subset = subset.union([inverse(p) for p in subset])
-        subset = subset.union([
-            compose(p1, p2)
-            for p1 in subset
-            for p2 in subset
-        ])
+        subset = subset.union([compose(p1, p2) for p1 in subset for p2 in subset])
         if len(subset) == n:
             return subset
 

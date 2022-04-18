@@ -4,19 +4,19 @@ from e3nn_jax import spherical_harmonics, angles_to_xyz
 
 
 def get_cmap(x):
-    if x == 'bwr':
-        return [[0, 'rgb(0,50,255)'], [0.5, 'rgb(200,200,200)'], [1, 'rgb(255,50,0)']]
-    if x == 'plasma':
-        return [[0, '#9F1A9B'], [0.25, '#0D1286'], [0.5, '#000000'], [0.75, '#F58C45'], [1, '#F0F524']]
+    if x == "bwr":
+        return [[0, "rgb(0,50,255)"], [0.5, "rgb(200,200,200)"], [1, "rgb(255,50,0)"]]
+    if x == "plasma":
+        return [[0, "#9F1A9B"], [0.25, "#0D1286"], [0.5, "#000000"], [0.75, "#F58C45"], [1, "#F0F524"]]
 
 
 alpha = jnp.linspace(0, 2 * jnp.pi, 200)
 beta = jnp.linspace(0, jnp.pi, 200)
 
-alpha, beta = jnp.meshgrid(alpha, beta, indexing='ij')
+alpha, beta = jnp.meshgrid(alpha, beta, indexing="ij")
 vectors = angles_to_xyz(alpha, beta)
 
-signal = spherical_harmonics("8e", vectors, normalize=True, normalization='component').contiguous
+signal = spherical_harmonics("8e", vectors, normalize=True, normalization="component").contiguous
 signal = signal[:, :, 8]
 
 data = [
@@ -28,19 +28,11 @@ data = [
         showscale=False,
         cmin=-1.5,
         cmax=1.5,
-        colorscale=get_cmap('bwr'),
+        colorscale=get_cmap("bwr"),
     )
 ]
 
-axis = dict(
-    showbackground=False,
-    showticklabels=False,
-    showgrid=False,
-    zeroline=False,
-    title='',
-    nticks=3,
-    range=[-3, 3]
-)
+axis = dict(showbackground=False, showticklabels=False, showgrid=False, zeroline=False, title="", nticks=3, range=[-3, 3])
 
 layout = dict(
     width=512,
@@ -55,19 +47,19 @@ layout = dict(
         zaxis=dict(
             **axis,
         ),
-        aspectmode='manual',
+        aspectmode="manual",
         aspectratio=dict(x=4, y=4, z=4),
         camera=dict(
             up=dict(x=0, y=1, z=0),
             center=dict(x=0, y=0, z=0),
             eye=dict(x=0, y=0, z=5),
-            projection=dict(type='orthographic'),
+            projection=dict(type="orthographic"),
         ),
     ),
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    margin=dict(l=0, r=0, t=0, b=0)
+    margin=dict(l=0, r=0, t=0, b=0),
 )
 
 fig = go.Figure(data=data, layout=layout)
-fig.write_image('icon.png')
+fig.write_image("icon.png")

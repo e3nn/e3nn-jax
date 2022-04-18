@@ -16,6 +16,6 @@ class MultiLayerPerceptron(hk.Module):
 
         for h in self.list_neurons:
             d = hk.Linear(h, with_bias=False, w_init=hk.initializers.RandomNormal())
-            x = act(d(x) / x.shape[-1]**0.5)
+            x = act(d(x) / x.shape[-1] ** 0.5)
 
         return x

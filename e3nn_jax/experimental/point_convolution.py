@@ -3,7 +3,15 @@ from functools import partial
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, IrrepsData, FunctionalTensorProduct, index_add, Linear, FullyConnectedTensorProduct, MultiLayerPerceptron
+from e3nn_jax import (
+    Irreps,
+    IrrepsData,
+    FunctionalTensorProduct,
+    index_add,
+    Linear,
+    FullyConnectedTensorProduct,
+    MultiLayerPerceptron,
+)
 
 
 class Convolution(hk.Module):
@@ -20,6 +28,7 @@ class Convolution(hk.Module):
         num_neighbors : float
             typical number of nodes convolved over
     """
+
     def __init__(self, irreps_node_output, fc_neurons, num_neighbors, mixing_angle=jnp.pi / 8.0):
         super().__init__()
 
@@ -29,7 +38,9 @@ class Convolution(hk.Module):
         self.mixing_angle = mixing_angle
 
     @partial(jax.profiler.annotate_function, name="convolution")
-    def __call__(self, node_input: IrrepsData, edge_src, edge_dst, edge_attr: IrrepsData, node_attr=None, edge_scalar_attr=None) -> IrrepsData:
+    def __call__(
+        self, node_input: IrrepsData, edge_src, edge_dst, edge_attr: IrrepsData, node_attr=None, edge_scalar_attr=None
+    ) -> IrrepsData:
         assert isinstance(node_input, IrrepsData)
         assert isinstance(edge_attr, IrrepsData)
 
@@ -52,7 +63,7 @@ class Convolution(hk.Module):
                     if ir_out in self.irreps_node_output or ir_out.is_scalar():
                         k = len(irreps_mid)
                         irreps_mid.append((mul, ir_out))
-                        instructions.append((i, j, k, 'uvu', True))
+                        instructions.append((i, j, k, "uvu", True))
         irreps_mid = Irreps(irreps_mid)
 
         assert irreps_mid.dim > 0, (
@@ -62,10 +73,7 @@ class Convolution(hk.Module):
         )
 
         irreps_mid, p, _ = irreps_mid.sort()
-        instructions = [
-            (i_1, i_2, p[i_out], mode, train)
-            for i_1, i_2, i_out, mode, train in instructions
-        ]
+        instructions = [(i_1, i_2, p[i_out], mode, train) for i_1, i_2, i_out, mode, train in instructions]
 
         tp = FunctionalTensorProduct(
             node_input.irreps,
@@ -75,20 +83,18 @@ class Convolution(hk.Module):
         )
 
         if self.fc_neurons:
-            weight = MultiLayerPerceptron(
-                self.fc_neurons,
-                jax.nn.gelu
-            )(edge_scalar_attr)
+            weight = MultiLayerPerceptron(self.fc_neurons, jax.nn.gelu)(edge_scalar_attr)
 
             weight = [
                 jnp.einsum(
                     "x...,ex->e...",
                     hk.get_parameter(
-                        f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
+                        f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}",
                         shape=(weight.shape[1],) + ins.path_shape,
-                        init=hk.initializers.RandomNormal()
-                    ) / weight.shape[1]**0.5,
-                    weight
+                        init=hk.initializers.RandomNormal(),
+                    )
+                    / weight.shape[1] ** 0.5,
+                    weight,
                 )
                 for ins in tp.instructions
             ]
@@ -97,9 +103,9 @@ class Convolution(hk.Module):
         else:
             weight = [
                 hk.get_parameter(
-                    f'w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}',
+                    f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}",
                     shape=ins.path_shape,
-                    init=hk.initializers.RandomNormal()
+                    init=hk.initializers.RandomNormal(),
                 )
                 for ins in tp.instructions
             ]
@@ -109,7 +115,7 @@ class Convolution(hk.Module):
         ######################################################################################
 
         node_features = jax.tree_map(lambda x: index_add(edge_dst, x, out_dim=node_input.shape[0]), edge_features)
-        node_features = node_features / self.num_neighbors**0.5
+        node_features = node_features / self.num_neighbors ** 0.5
 
         ######################################################################################
 

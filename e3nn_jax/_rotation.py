@@ -134,12 +134,15 @@ def compose_quaternion(q1, q2):
         `jnp.ndarray`: array of shape :math:`(..., 4)`
     """
     q1, q2 = jnp.broadcast_arrays(q1, q2)
-    return jnp.stack([
-        q1[..., 0] * q2[..., 0] - q1[..., 1] * q2[..., 1] - q1[..., 2] * q2[..., 2] - q1[..., 3] * q2[..., 3],
-        q1[..., 1] * q2[..., 0] + q1[..., 0] * q2[..., 1] + q1[..., 2] * q2[..., 3] - q1[..., 3] * q2[..., 2],
-        q1[..., 0] * q2[..., 2] - q1[..., 1] * q2[..., 3] + q1[..., 2] * q2[..., 0] + q1[..., 3] * q2[..., 1],
-        q1[..., 0] * q2[..., 3] + q1[..., 1] * q2[..., 2] - q1[..., 2] * q2[..., 1] + q1[..., 3] * q2[..., 0],
-    ], axis=-1)
+    return jnp.stack(
+        [
+            q1[..., 0] * q2[..., 0] - q1[..., 1] * q2[..., 1] - q1[..., 2] * q2[..., 2] - q1[..., 3] * q2[..., 3],
+            q1[..., 1] * q2[..., 0] + q1[..., 0] * q2[..., 1] + q1[..., 2] * q2[..., 3] - q1[..., 3] * q2[..., 2],
+            q1[..., 0] * q2[..., 2] - q1[..., 1] * q2[..., 3] + q1[..., 2] * q2[..., 0] + q1[..., 3] * q2[..., 1],
+            q1[..., 0] * q2[..., 3] + q1[..., 1] * q2[..., 2] - q1[..., 2] * q2[..., 1] + q1[..., 3] * q2[..., 0],
+        ],
+        axis=-1,
+    )
 
 
 def inverse_quaternion(q):
@@ -186,7 +189,9 @@ def compose_axis_angle(axis1, angle1, axis2, angle2):
         axis (`jnp.ndarray`): array of shape :math:`(..., 3)`
         angle (`jnp.ndarray`): array of shape :math:`(...)`
     """
-    return quaternion_to_axis_angle(compose_quaternion(axis_angle_to_quaternion(axis1, angle1), axis_angle_to_quaternion(axis2, angle2)))
+    return quaternion_to_axis_angle(
+        compose_quaternion(axis_angle_to_quaternion(axis1, angle1), axis_angle_to_quaternion(axis2, angle2))
+    )
 
 
 # conversions
@@ -206,11 +211,14 @@ def matrix_x(angle):
     s = jnp.sin(angle)
     o = jnp.ones_like(angle)
     z = jnp.zeros_like(angle)
-    return jnp.stack([
-        jnp.stack([o, z, z], axis=-1),
-        jnp.stack([z, c, -s], axis=-1),
-        jnp.stack([z, s, c], axis=-1),
-    ], axis=-2)
+    return jnp.stack(
+        [
+            jnp.stack([o, z, z], axis=-1),
+            jnp.stack([z, c, -s], axis=-1),
+            jnp.stack([z, s, c], axis=-1),
+        ],
+        axis=-2,
+    )
 
 
 @partial(jax.jit, inline=True)
@@ -227,11 +235,14 @@ def matrix_y(angle):
     s = jnp.sin(angle)
     o = jnp.ones_like(angle)
     z = jnp.zeros_like(angle)
-    return jnp.stack([
-        jnp.stack([c, z, s], axis=-1),
-        jnp.stack([z, o, z], axis=-1),
-        jnp.stack([-s, z, c], axis=-1),
-    ], axis=-2)
+    return jnp.stack(
+        [
+            jnp.stack([c, z, s], axis=-1),
+            jnp.stack([z, o, z], axis=-1),
+            jnp.stack([-s, z, c], axis=-1),
+        ],
+        axis=-2,
+    )
 
 
 @partial(jax.jit, inline=True)
@@ -248,11 +259,7 @@ def matrix_z(angle):
     s = jnp.sin(angle)
     o = jnp.ones_like(angle)
     z = jnp.zeros_like(angle)
-    return jnp.stack([
-        jnp.stack([c, -s, z], axis=-1),
-        jnp.stack([s, c, z], axis=-1),
-        jnp.stack([z, z, o], axis=-1)
-    ], axis=-2)
+    return jnp.stack([jnp.stack([c, -s, z], axis=-1), jnp.stack([s, c, z], axis=-1), jnp.stack([z, z, o], axis=-1)], axis=-2)
 
 
 def angles_to_matrix(alpha, beta, gamma):
@@ -374,11 +381,14 @@ def matrix_to_axis_angle(R):
     # assert jnp.allclose(jnp.linalg.det(R), 1)
     tr = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]
     angle = jnp.arccos(jnp.clip((tr - 1) / 2, -1, 1))
-    axis = jnp.stack([
-        R[..., 2, 1] - R[..., 1, 2],
-        R[..., 0, 2] - R[..., 2, 0],
-        R[..., 1, 0] - R[..., 0, 1],
-    ], axis=-1)
+    axis = jnp.stack(
+        [
+            R[..., 2, 1] - R[..., 1, 2],
+            R[..., 0, 2] - R[..., 2, 0],
+            R[..., 1, 0] - R[..., 0, 1],
+        ],
+        axis=-1,
+    )
     axis = _normalize(axis)
     return axis, angle
 

@@ -11,7 +11,7 @@ def Q_to_sympy(x: float) -> sympy.Expr:
 
 def sqrtQ_to_sympy(x: float) -> sympy.Expr:
     sign = 1 if x >= 0 else -1
-    return sign * sympy.sqrt(Q_to_sympy(x**2))
+    return sign * sympy.sqrt(Q_to_sympy(x ** 2))
 
 
 def sqrtQarray_to_sympy(x: np.ndarray) -> sympy.Array:

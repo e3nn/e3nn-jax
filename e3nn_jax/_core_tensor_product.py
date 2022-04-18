@@ -44,15 +44,10 @@ def _compute_element_path_normalization_factors(
     path_normalization_sums = collections.defaultdict(lambda: 0.0)
     for instruction in instructions:
         path_normalization_sums[instruction.i_out] += (
-            first_input_variance[instruction.i_in1]
-            * second_input_variance[instruction.i_in2]
-            * instruction.num_elements
+            first_input_variance[instruction.i_in1] * second_input_variance[instruction.i_in2] * instruction.num_elements
         )
 
-    return {
-        instruction: path_normalization_sums[instruction.i_out]
-        for instruction in instructions
-    }
+    return {instruction: path_normalization_sums[instruction.i_out] for instruction in instructions}
 
 
 def _compute_standard_path_normalization_factors(
@@ -107,10 +102,7 @@ def normalize_instruction_path_weights(
             path_normalization_factors,
         )
 
-    return [
-        instruction.replace(path_weight=compute_normalized_path_weight_fn(instruction))
-        for instruction in instructions
-    ]
+    return [instruction.replace(path_weight=compute_normalized_path_weight_fn(instruction)) for instruction in instructions]
 
 
 def compute_normalized_path_weight(
@@ -132,11 +124,7 @@ def compute_normalized_path_weight(
     mul_ir_out = output_irreps[instruction.i_out]
 
     assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
-    assert (
-        abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l)
-        <= mul_ir_out.ir.l
-        <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
-    )
+    assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
 
     if irrep_normalization == "component":
         alpha = mul_ir_out.ir.dim
@@ -240,9 +228,7 @@ class FunctionalTensorProduct:
                     [
                         jnp.ones(mul_ir.dim)
                         if any(
-                            (ins.i_out == i_out)
-                            and (ins.path_weight != 0)
-                            and (0 not in ins.path_shape)
+                            (ins.i_out == i_out) and (ins.path_weight != 0) and (0 not in ins.path_shape)
                             for ins in self.instructions
                         )
                         else jnp.zeros(mul_ir.dim)
@@ -357,14 +343,13 @@ def _left_right(
         assert optimize_einsums
         einsum = opt_einsum
     else:
-        einsum = partial(
-            jnp.einsum, optimize="optimal" if optimize_einsums else "greedy"
-        )
+        einsum = partial(jnp.einsum, optimize="optimal" if optimize_einsums else "greedy")
 
     if isinstance(weights, list):
-        assert len(weights) == len(
-            [ins for ins in self.instructions if ins.has_weight]
-        ), (len(weights), len([ins for ins in self.instructions if ins.has_weight]))
+        assert len(weights) == len([ins for ins in self.instructions if ins.has_weight]), (
+            len(weights),
+            len([ins for ins in self.instructions if ins.has_weight]),
+        )
         weights_flat = _flat_concatenate(weights)
         weights_list = weights
     else:
@@ -385,9 +370,7 @@ def _left_right(
     if fuse_all:
         with jax.ensure_compile_time_eval():
             num_path = weights_flat.size
-            has_path_with_no_weights = any(
-                not ins.has_weight for ins in self.instructions
-            )
+            has_path_with_no_weights = any(not ins.has_weight for ins in self.instructions)
             i = 0
 
             if has_path_with_no_weights:
@@ -503,42 +486,36 @@ def _left_right(
 
         if ins.connection_mode == "uvw":
             assert ins.has_weight
-            if specialized_code and (
-                mul_ir_in1.ir.l,
-                mul_ir_in2.ir.l,
-                mul_ir_out.ir.l,
-            ) == (0, 0, 0):
-                out = ins.path_weight * einsum(
-                    "uvw,uv->w", w, xx.reshape(mul_ir_in1.dim, mul_ir_in2.dim)
+            if (
+                specialized_code
+                and (
+                    mul_ir_in1.ir.l,
+                    mul_ir_in2.ir.l,
+                    mul_ir_out.ir.l,
                 )
+                == (0, 0, 0)
+            ):
+                out = ins.path_weight * einsum("uvw,uv->w", w, xx.reshape(mul_ir_in1.dim, mul_ir_in2.dim))
             elif specialized_code and mul_ir_in1.ir.l == 0:
-                out = (
-                    ins.path_weight
-                    * einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2)
-                    / sqrt(mul_ir_out.ir.dim)
-                )
+                out = ins.path_weight * einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
             elif specialized_code and mul_ir_in2.ir.l == 0:
-                out = (
-                    ins.path_weight
-                    * einsum("uvw,ui,v->wi", w, x1, x2.reshape(mul_ir_in2.dim))
-                    / sqrt(mul_ir_out.ir.dim)
-                )
+                out = ins.path_weight * einsum("uvw,ui,v->wi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
             elif specialized_code and mul_ir_out.ir.l == 0:
-                out = (
-                    ins.path_weight
-                    * einsum("uvw,ui,vi->w", w, x1, x2)
-                    / sqrt(mul_ir_in1.ir.dim)
-                )
+                out = ins.path_weight * einsum("uvw,ui,vi->w", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
             else:
                 out = einsum("uvw,ijk,uvij->wk", w, w3j, xx)
         if ins.connection_mode == "uvu":
             assert mul_ir_in1.mul == mul_ir_out.mul
             if ins.has_weight:
-                if specialized_code and (
-                    mul_ir_in1.ir.l,
-                    mul_ir_in2.ir.l,
-                    mul_ir_out.ir.l,
-                ) == (0, 0, 0):
+                if (
+                    specialized_code
+                    and (
+                        mul_ir_in1.ir.l,
+                        mul_ir_in2.ir.l,
+                        mul_ir_out.ir.l,
+                    )
+                    == (0, 0, 0)
+                ):
                     out = ins.path_weight * einsum(
                         "uv,u,v->u",
                         w,
@@ -546,23 +523,11 @@ def _left_right(
                         x2.reshape(mul_ir_in2.dim),
                     )
                 elif specialized_code and mul_ir_in1.ir.l == 0:
-                    out = (
-                        ins.path_weight
-                        * einsum("uv,u,vj->uj", w, x1.reshape(mul_ir_in1.dim), x2)
-                        / sqrt(mul_ir_out.ir.dim)
-                    )
+                    out = ins.path_weight * einsum("uv,u,vj->uj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
                 elif specialized_code and mul_ir_in2.ir.l == 0:
-                    out = (
-                        ins.path_weight
-                        * einsum("uv,ui,v->ui", w, x1, x2.reshape(mul_ir_in2.dim))
-                        / sqrt(mul_ir_out.ir.dim)
-                    )
+                    out = ins.path_weight * einsum("uv,ui,v->ui", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
                 elif specialized_code and mul_ir_out.ir.l == 0:
-                    out = (
-                        ins.path_weight
-                        * einsum("uv,ui,vi->u", w, x1, x2)
-                        / sqrt(mul_ir_in1.ir.dim)
-                    )
+                    out = ins.path_weight * einsum("uv,ui,vi->u", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
                 else:
                     out = einsum("uv,ijk,uvij->uk", w, w3j, xx)
             else:
@@ -571,11 +536,15 @@ def _left_right(
         if ins.connection_mode == "uvv":
             assert mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                if specialized_code and (
-                    mul_ir_in1.ir.l,
-                    mul_ir_in2.ir.l,
-                    mul_ir_out.ir.l,
-                ) == (0, 0, 0):
+                if (
+                    specialized_code
+                    and (
+                        mul_ir_in1.ir.l,
+                        mul_ir_in2.ir.l,
+                        mul_ir_out.ir.l,
+                    )
+                    == (0, 0, 0)
+                ):
                     out = ins.path_weight * einsum(
                         "uv,u,v->v",
                         w,
@@ -583,23 +552,11 @@ def _left_right(
                         x2.reshape(mul_ir_in2.dim),
                     )
                 elif specialized_code and mul_ir_in1.ir.l == 0:
-                    out = (
-                        ins.path_weight
-                        * einsum("uv,u,vj->vj", w, x1.reshape(mul_ir_in1.dim), x2)
-                        / sqrt(mul_ir_out.ir.dim)
-                    )
+                    out = ins.path_weight * einsum("uv,u,vj->vj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
                 elif specialized_code and mul_ir_in2.ir.l == 0:
-                    out = (
-                        ins.path_weight
-                        * einsum("uv,ui,v->vi", w, x1, x2.reshape(mul_ir_in2.dim))
-                        / sqrt(mul_ir_out.ir.dim)
-                    )
+                    out = ins.path_weight * einsum("uv,ui,v->vi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
                 elif specialized_code and mul_ir_out.ir.l == 0:
-                    out = (
-                        ins.path_weight
-                        * einsum("uv,ui,vi->v", w, x1, x2)
-                        / sqrt(mul_ir_in1.ir.dim)
-                    )
+                    out = ins.path_weight * einsum("uv,ui,vi->v", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
                 else:
                     out = einsum("uv,ijk,uvij->vk", w, w3j, xx)
             else:
@@ -646,11 +603,7 @@ def _left_right(
 
     out = [
         _sum_tensors(
-            [
-                out
-                for ins, out in zip(self.instructions, out_list)
-                if ins.i_out == i_out
-            ],
+            [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
             shape=(mul_ir_out.mul, mul_ir_out.ir.dim),
             empty_return_none=True,
         )
@@ -686,9 +639,7 @@ def _right(
         assert optimize_einsums
         einsum = opt_einsum
     else:
-        einsum = partial(
-            jnp.einsum, optimize="optimal" if optimize_einsums else "greedy"
-        )
+        einsum = partial(jnp.einsum, optimize="optimal" if optimize_einsums else "greedy")
 
     weight_index = 0
 
@@ -766,11 +717,7 @@ def _right(
             jnp.concatenate(
                 [
                     _sum_tensors(
-                        [
-                            out
-                            for ins, out in zip(self.instructions, out_list)
-                            if (ins.i_in1, ins.i_out) == (i_in1, i_out)
-                        ],
+                        [out for ins, out in zip(self.instructions, out_list) if (ins.i_in1, ins.i_out) == (i_in1, i_out)],
                         shape=(mul_ir_in1.dim, mul_ir_out.dim),
                     )
                     for i_out, mul_ir_out in enumerate(self.irreps_out)

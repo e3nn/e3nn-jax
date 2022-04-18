@@ -31,11 +31,9 @@ class Instruction:
             "uvu<v",
             "u<vw",
         ]:
-            raise ValueError(
-                f"Unsupported connection_mode {self.connection_mode} for instruction."
-            )
+            raise ValueError(f"Unsupported connection_mode {self.connection_mode} for instruction.")
 
-        path_shape =  {
+        path_shape = {
             "uvw": (
                 self.first_input_multiplicity,
                 self.second_input_multiplicity,
@@ -46,19 +44,13 @@ class Instruction:
             "uuw": (self.first_input_multiplicity, self.output_multiplicity),
             "uuu": (self.first_input_multiplicity,),
             "uvuv": (self.first_input_multiplicity, self.second_input_multiplicity),
-            "uvu<v": (
-                self.first_input_multiplicity
-                * (self.second_input_multiplicity - 1)
-                // 2,
-            ),
+            "uvu<v": (self.first_input_multiplicity * (self.second_input_multiplicity - 1) // 2,),
             "u<vw": (
-                self.first_input_multiplicity
-                * (self.second_input_multiplicity - 1)
-                // 2,
+                self.first_input_multiplicity * (self.second_input_multiplicity - 1) // 2,
                 self.output_multiplicity,
             ),
         }[self.connection_mode]
-        super().__setattr__('path_shape', path_shape)
+        super().__setattr__("path_shape", path_shape)
 
         num_elements = {
             "uvw": (self.first_input_multiplicity * self.second_input_multiplicity),
@@ -68,11 +60,9 @@ class Instruction:
             "uuu": 1,
             "uvuv": 1,
             "uvu<v": 1,
-            "u<vw": self.first_input_multiplicity
-            * (self.second_input_multiplicity - 1)
-            // 2,
+            "u<vw": self.first_input_multiplicity * (self.second_input_multiplicity - 1) // 2,
         }[self.connection_mode]
-        super().__setattr__('num_elements', num_elements)
+        super().__setattr__("num_elements", num_elements)
 
-    def replace(self, **changes) -> 'Instruction':
+    def replace(self, **changes) -> "Instruction":
         return replace(self, **changes)

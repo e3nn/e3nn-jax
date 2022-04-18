@@ -26,16 +26,19 @@ def tetris():
             v[4 + x, 4 + y, 4 + z] = 1
 
     # Since chiral shapes are the mirror of one another we need an *odd* scalar to distinguish them
-    labels = np.array([
-        [+1, +1, -1, -1, -1, -1, -1, -1],  # chiral_shape_1
-        [-1, +1, -1, -1, -1, -1, -1, -1],  # chiral_shape_2
-        [+0, -1, +1, -1, -1, -1, -1, -1],  # square
-        [+0, -1, -1, +1, -1, -1, -1, -1],  # line
-        [+0, -1, -1, -1, +1, -1, -1, -1],  # corner
-        [+0, -1, -1, -1, -1, +1, -1, -1],  # L
-        [+0, -1, -1, -1, -1, -1, +1, -1],  # T
-        [+0, -1, -1, -1, -1, -1, -1, +1],  # zigzag
-    ], dtype=np.float32)
+    labels = np.array(
+        [
+            [+1, +1, -1, -1, -1, -1, -1, -1],  # chiral_shape_1
+            [-1, +1, -1, -1, -1, -1, -1, -1],  # chiral_shape_2
+            [+0, -1, +1, -1, -1, -1, -1, -1],  # square
+            [+0, -1, -1, +1, -1, -1, -1, -1],  # line
+            [+0, -1, -1, -1, +1, -1, -1, -1],  # corner
+            [+0, -1, -1, -1, -1, +1, -1, -1],  # L
+            [+0, -1, -1, -1, -1, -1, +1, -1],  # T
+            [+0, -1, -1, -1, -1, -1, -1, +1],  # zigzag
+        ],
+        dtype=np.float32,
+    )
 
     return voxels, labels
 
@@ -55,15 +58,15 @@ def main():
         # Shallower and wider convolutions also works
 
         # kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=5.5, num_radial_basis=3, steps=(1.0, 1.0, 1.0))
-        kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
+        kw = dict(irreps_sh=Irreps("0e + 1o"), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
 
-        x = IrrepsData.from_contiguous('0e', x[..., None])
+        x = IrrepsData.from_contiguous("0e", x[..., None])
 
         # for _ in range(2):
         for _ in range(5):
-            x = g(Convolution(f'{mul0}x0e + {mul0}x0o + {2 * mul1}x0e + {mul1}x1e + {mul1}x1o', **kw)(x))
+            x = g(Convolution(f"{mul0}x0e + {mul0}x0o + {2 * mul1}x0e + {mul1}x1e + {mul1}x1o", **kw)(x))
 
-        x = Convolution('0o + 7x0e', **kw)(x)
+        x = Convolution("0o + 7x0e", **kw)(x)
 
         x = x.contiguous
         x = jnp.sum(x, axis=(1, 2, 3))
@@ -112,5 +115,5 @@ def main():
     print(pred)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

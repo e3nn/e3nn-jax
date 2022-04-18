@@ -22,6 +22,7 @@ class Dropout(hk.Module):
     Returns:
         `Dropout`: the dropout module
     """
+
     def __init__(self, p, *, irreps=None):
         super().__init__()
         self.irreps = Irreps(irreps) if irreps is not None else None

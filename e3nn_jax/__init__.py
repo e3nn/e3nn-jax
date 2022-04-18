@@ -39,7 +39,14 @@ from ._spherical_harmonics import spherical_harmonics
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import FunctionalLinear, Linear
 from ._core_tensor_product import FunctionalTensorProduct
-from ._tensor_products import FunctionalFullyConnectedTensorProduct, FullyConnectedTensorProduct, full_tensor_product, elementwise_tensor_product, FunctionalTensorSquare, TensorSquare
+from ._tensor_products import (
+    FunctionalFullyConnectedTensorProduct,
+    FullyConnectedTensorProduct,
+    full_tensor_product,
+    elementwise_tensor_product,
+    FunctionalTensorSquare,
+    TensorSquare,
+)
 from ._activation import scalar_activation, normalize_function
 from ._gate import gate
 from ._batchnorm import BatchNorm
@@ -47,7 +54,8 @@ from ._dropout import Dropout
 from ._nn import MultiLayerPerceptron
 
 __all__ = [
-    "index_add", "radius_graph",
+    "index_add",
+    "radius_graph",
     "rand_matrix",
     "identity_angles",
     "rand_angles",
@@ -77,15 +85,28 @@ __all__ = [
     "axis_angle_to_angles",
     "angles_to_xyz",
     "xyz_to_angles",
-    "su2_clebsch_gordan", "su2_generators",
-    "clebsch_gordan", "wigner_D", "generators",
-    "Irrep", "Irreps", "IrrepsData",
+    "su2_clebsch_gordan",
+    "su2_generators",
+    "clebsch_gordan",
+    "wigner_D",
+    "generators",
+    "Irrep",
+    "Irreps",
+    "IrrepsData",
     "spherical_harmonics",
-    "sus", "soft_one_hot_linspace",
-    "FunctionalLinear", "Linear",
+    "sus",
+    "soft_one_hot_linspace",
+    "FunctionalLinear",
+    "Linear",
     "FunctionalTensorProduct",
-    "FunctionalFullyConnectedTensorProduct", "FullyConnectedTensorProduct", "full_tensor_product", "elementwise_tensor_product", "FunctionalTensorSquare", "TensorSquare",
-    "scalar_activation", "normalize_function",
+    "FunctionalFullyConnectedTensorProduct",
+    "FullyConnectedTensorProduct",
+    "full_tensor_product",
+    "elementwise_tensor_product",
+    "FunctionalTensorSquare",
+    "TensorSquare",
+    "scalar_activation",
+    "normalize_function",
     "gate",
     "BatchNorm",
     "Dropout",

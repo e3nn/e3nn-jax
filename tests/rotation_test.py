@@ -29,10 +29,12 @@ def test_conversions(keys):
                     return f(*x)
                 else:
                     return f(x)
+
             return g
 
         def identity(x):
             return x
+
         conv = [
             [identity, wrap(angles_to_matrix), wrap(angles_to_axis_angle), wrap(angles_to_quaternion)],
             [wrap(matrix_to_angles), identity, wrap(matrix_to_axis_angle), wrap(matrix_to_quaternion)],
@@ -109,11 +111,11 @@ def test_matrix_xyz(keys):
     x = jax.random.normal(keys[1], (100, 3))
     phi = jax.random.normal(keys[2], (100,))
 
-    y = jnp.einsum('zij,zj->zi', matrix_x(phi), x)
+    y = jnp.einsum("zij,zj->zi", matrix_x(phi), x)
     assert jnp.max(jnp.abs(x[:, 0] - y[:, 0])) < float_tolerance
 
-    y = jnp.einsum('zij,zj->zi', matrix_y(phi), x)
+    y = jnp.einsum("zij,zj->zi", matrix_y(phi), x)
     assert jnp.max(jnp.abs(x[:, 1] - y[:, 1])) < float_tolerance
 
-    y = jnp.einsum('zij,zj->zi', matrix_z(phi), x)
+    y = jnp.einsum("zij,zj->zi", matrix_z(phi), x)
     assert jnp.max(jnp.abs(x[:, 2] - y[:, 2])) < float_tolerance

@@ -51,7 +51,7 @@ def radius_graph(pos, r_max, *, batch=None, size=None, loop=False):
     """
     r = jax.vmap(jax.vmap(lambda x, y: jnp.linalg.norm(x - y), (None, 0), 0), (0, None), 0)(pos, pos)
     if loop:
-        mask = (r < r_max)
+        mask = r < r_max
     else:
         mask = (r < r_max) & (r > 0)
 

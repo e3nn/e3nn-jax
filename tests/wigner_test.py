@@ -3,8 +3,7 @@ import math
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import (Irrep, angles_to_matrix, clebsch_gordan, generators,
-                      rand_angles, wigner_D)
+from e3nn_jax import Irrep, angles_to_matrix, clebsch_gordan, generators, rand_angles, wigner_D
 
 
 def test_clebsch_gordan_symmetry():
@@ -23,7 +22,7 @@ def unique_triplets(lmax):
                     yield (l1, l2, l3)
 
 
-@pytest.mark.parametrize('l1,l2,l3', unique_triplets(5))
+@pytest.mark.parametrize("l1,l2,l3", unique_triplets(5))
 def test_clebsch_gordan(keys, l1, l2, l3):
     abc = rand_angles(keys[0], (10,))
 
@@ -43,21 +42,21 @@ def test_cartesian(keys):
     assert jnp.max(jnp.abs(R - D)) < 1e-4
 
 
-@pytest.mark.parametrize('l', range(1, 11 + 1))
+@pytest.mark.parametrize("l", range(1, 11 + 1))
 def test_generator_x(l):
     G1 = generators(l)[0]
     G2 = jax.jacobian(wigner_D, 2)(l, 0.0, 0.0, 0.0)
     assert jnp.abs(G2 - G1).max() < 1e-6
 
 
-@pytest.mark.parametrize('l', range(1, 11 + 1))
+@pytest.mark.parametrize("l", range(1, 11 + 1))
 def test_generator_y(l):
     G1 = generators(l)[1]
     G2 = jax.jacobian(wigner_D, 1)(l, 0.0, 0.0, 0.0)
     assert jnp.abs(G2 - G1).max() < 1e-6
 
 
-@pytest.mark.parametrize('l', range(1, 11 + 1))
+@pytest.mark.parametrize("l", range(1, 11 + 1))
 def test_generator_z(l):
     G1 = generators(l)[2]
     G2 = jax.jacobian(wigner_D, 2)(l, -math.pi / 2, 0.0, math.pi / 2)
@@ -68,7 +67,7 @@ def commutator(a, b):
     return a @ b - b @ a
 
 
-@pytest.mark.parametrize('l', range(1, 11 + 1))
+@pytest.mark.parametrize("l", range(1, 11 + 1))
 def test_commutation_generators(l):
     a, b, c = generators(l)
 

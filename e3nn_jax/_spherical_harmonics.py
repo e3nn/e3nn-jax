@@ -12,10 +12,7 @@ from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
 
 
 def spherical_harmonics(
-    irreps_out: Union[Irreps, int],
-    input: Union[IrrepsData, jnp.ndarray],
-    normalize: bool,
-    normalization: str = 'integral'
+    irreps_out: Union[Irreps, int], input: Union[IrrepsData, jnp.ndarray], normalize: bool, normalization: str = "integral"
 ) -> IrrepsData:
     r"""Spherical harmonics
 
@@ -57,13 +54,13 @@ def spherical_harmonics(
     Returns:
         `jnp.ndarray`: polynomials of the spherical harmonics
     """
-    assert normalization in ['integral', 'component', 'norm']
+    assert normalization in ["integral", "component", "norm"]
 
     if isinstance(irreps_out, int):
         l = irreps_out
         assert isinstance(input, IrrepsData)
         [(mul, ir)] = input.irreps
-        irreps_out = Irreps([(1, (l, ir.p**l))])
+        irreps_out = Irreps([(1, (l, ir.p ** l))])
 
     irreps_out = Irreps(irreps_out)
 
@@ -92,16 +89,10 @@ def _jited_spherical_harmonics(irreps_out, x, normalize, normalization):
     sh = [jnp.stack(next(sh), axis=-1) for _ in range(irreps_out.lmax + 1)]
     sh = [jnp.repeat(sh[ir.l][..., None, :], mul, -2) for mul, ir in irreps_out]
 
-    if normalization == 'integral':
-        sh = [
-            (math.sqrt(ir.dim) / math.sqrt(4 * math.pi)) * y
-            for (_, ir), y in zip(irreps_out, sh)
-        ]
-    elif normalization == 'component':
-        sh = [
-            math.sqrt(ir.dim) * y
-            for (_, ir), y in zip(irreps_out, sh)
-        ]
+    if normalization == "integral":
+        sh = [(math.sqrt(ir.dim) / math.sqrt(4 * math.pi)) * y for (_, ir), y in zip(irreps_out, sh)]
+    elif normalization == "component":
+        sh = [math.sqrt(ir.dim) * y for (_, ir), y in zip(irreps_out, sh)]
 
     return IrrepsData.from_list(irreps_out, sh, x.shape[:-1])
 
@@ -134,7 +125,7 @@ def _spherical_harmonics(x, y, z):
             yx = yx.subs(zip(sh_var, sph_x[l]))
 
         y1 = yx.subs(zip(xyz, (1, 0, 0))).subs(zip(sh_var, sph_1[l]))
-        norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x**2)))
+        norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x ** 2)))
         y1 = y1 / norm
         yx = yx / norm
         yx = sympy.simplify(yx)
@@ -180,7 +171,7 @@ def print_spherical_harmonics(lmax):  # pragma: no cover
             yx = yx.subs(zip(sh_var, sph_x[l]))
 
         y1 = yx.subs(zip(xyz, (1, 0, 0))).subs(zip(sh_var, sph_1[l]))
-        norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x**2)))
+        norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x ** 2)))
         y1 = y1 / norm
         yx = yx / norm
         yx = sympy.simplify(yx)

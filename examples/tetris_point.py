@@ -9,28 +9,34 @@ from e3nn_jax.experimental.point_convolution import Convolution
 
 
 def tetris():
-    pos = jnp.array([
-        [(0, 0, 0), (0, 0, 1), (1, 0, 0), (1, 1, 0)],  # chiral_shape_1
-        [(0, 0, 0), (0, 0, 1), (1, 0, 0), (1, -1, 0)],  # chiral_shape_2
-        [(0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0)],  # square
-        [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3)],  # line
-        [(0, 0, 0), (0, 0, 1), (0, 1, 0), (1, 0, 0)],  # corner
-        [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0)],  # L
-        [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 1)],  # T
-        [(0, 0, 0), (1, 0, 0), (1, 1, 0), (2, 1, 0)],  # zigzag
-    ], dtype=jnp.float32)
+    pos = jnp.array(
+        [
+            [(0, 0, 0), (0, 0, 1), (1, 0, 0), (1, 1, 0)],  # chiral_shape_1
+            [(0, 0, 0), (0, 0, 1), (1, 0, 0), (1, -1, 0)],  # chiral_shape_2
+            [(0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0)],  # square
+            [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3)],  # line
+            [(0, 0, 0), (0, 0, 1), (0, 1, 0), (1, 0, 0)],  # corner
+            [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0)],  # L
+            [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 1)],  # T
+            [(0, 0, 0), (1, 0, 0), (1, 1, 0), (2, 1, 0)],  # zigzag
+        ],
+        dtype=jnp.float32,
+    )
 
     # Since chiral shapes are the mirror of one another we need an *odd* scalar to distinguish them
-    labels = jnp.array([
-        [+1, 1, 0, 0, 0, 0, 0, 0],  # chiral_shape_1
-        [-1, 1, 0, 0, 0, 0, 0, 0],  # chiral_shape_2
-        [0, 0, 1, 0, 0, 0, 0, 0],  # square
-        [0, 0, 0, 1, 0, 0, 0, 0],  # line
-        [0, 0, 0, 0, 1, 0, 0, 0],  # corner
-        [0, 0, 0, 0, 0, 1, 0, 0],  # L
-        [0, 0, 0, 0, 0, 0, 1, 0],  # T
-        [0, 0, 0, 0, 0, 0, 0, 1],  # zigzag
-    ], dtype=jnp.float32)
+    labels = jnp.array(
+        [
+            [+1, 1, 0, 0, 0, 0, 0, 0],  # chiral_shape_1
+            [-1, 1, 0, 0, 0, 0, 0, 0],  # chiral_shape_2
+            [0, 0, 1, 0, 0, 0, 0, 0],  # square
+            [0, 0, 0, 1, 0, 0, 0, 0],  # line
+            [0, 0, 0, 0, 1, 0, 0, 0],  # corner
+            [0, 0, 0, 0, 0, 1, 0, 0],  # L
+            [0, 0, 0, 0, 0, 0, 1, 0],  # T
+            [0, 0, 0, 0, 0, 0, 0, 1],  # zigzag
+        ],
+        dtype=jnp.float32,
+    )
 
     pos = pos.reshape((8 * 4, 3))
     batch = jnp.arange(8 * 4) // 4
@@ -42,7 +48,7 @@ def tetris():
 @hk.transform
 def model(pos, edge_src, edge_dst):
     node_feat = e3nn.IrrepsData.ones("0e", (pos.shape[0],))
-    edge_attr = e3nn.spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True, normalization='component')
+    edge_attr = e3nn.spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True, normalization="component")
 
     kw = dict(
         fc_neurons=None,
@@ -50,9 +56,9 @@ def model(pos, edge_src, edge_dst):
     )
 
     for _ in range(4):
-        node_feat = Convolution('32x0e + 32x0o + 16x0e + 8x1e + 8x1o', **kw)(node_feat, edge_src, edge_dst, edge_attr)
+        node_feat = Convolution("32x0e + 32x0o + 16x0e + 8x1e + 8x1o", **kw)(node_feat, edge_src, edge_dst, edge_attr)
         node_feat = e3nn.gate(node_feat)
-    node_feat = Convolution('0o + 7x0e', **kw)(node_feat, edge_src, edge_dst, edge_attr)
+    node_feat = Convolution("0o + 7x0e", **kw)(node_feat, edge_src, edge_dst, edge_attr)
 
     return node_feat.contiguous
 
@@ -108,5 +114,5 @@ def main():
     print(pred)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

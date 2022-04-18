@@ -1,4 +1,5 @@
 import argparse
+
 # import logging
 import math
 import time
@@ -14,18 +15,16 @@ from e3nn_jax import FunctionalFullyConnectedTensorProduct, Irreps, IrrepsData
 # https://stackoverflow.com/a/15008806/1008938
 def t_or_f(arg):
     ua = str(arg).upper()
-    if 'TRUE'.startswith(ua):
+    if "TRUE".startswith(ua):
         return True
-    elif 'FALSE'.startswith(ua):
+    elif "FALSE".startswith(ua):
         return False
     else:
         raise ValueError(str(arg))
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        prog="tensor_product_benchmark"
-    )
+    parser = argparse.ArgumentParser(prog="tensor_product_benchmark")
     parser.add_argument("--jit", type=t_or_f, default=True)
     parser.add_argument("--irreps", type=str, default="8x0e + 8x1e + 8x2e + 8x3e")
     parser.add_argument("--irreps-in1", type=str, default=None)
@@ -51,7 +50,7 @@ def main():
     print("======= Benchmark with settings: ======")
     for key, val in vars(args).items():
         print(f"{key:>18} : {val}")
-    print("="*40)
+    print("=" * 40)
 
     irreps_in1 = Irreps(args.irreps_in1 if args.irreps_in1 else args.irreps)
     irreps_in2 = Irreps(args.irreps_in2 if args.irreps_in2 else args.irreps)
@@ -69,6 +68,7 @@ def main():
         #     args.backward = False
         pass
     elif args.extrachannels:
+
         def compose(f, g):
             return lambda *x: g(f(*x))
 
@@ -98,11 +98,8 @@ def main():
         f__ = f
 
         def f(w, x1, x2):
-            return f__(
-                w,
-                x1.reshape(c_in1, irreps_in1_red.dim),
-                x2.reshape(c_in2, irreps_in2_red.dim)
-            )
+            return f__(w, x1.reshape(c_in1, irreps_in1_red.dim), x2.reshape(c_in2, irreps_in2_red.dim))
+
         tp.left_right = f
 
         w_shape = (c_in1, c_in2, c_out)
@@ -137,6 +134,7 @@ def main():
     def k():
         k.key, x = jax.random.split(k.key)
         return x
+
     k.key = jax.random.PRNGKey(0)
 
     ws = [jax.random.normal(k(), w_shape + ins.path_shape) for ins in tp.instructions]
@@ -148,23 +146,24 @@ def main():
     print(f"{sum(x.size for x in jax.tree_leaves(ws))} parameters")
 
     if args.lists:
-        inputs = iter([
-            (
-                IrrepsData.from_contiguous(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
-                IrrepsData.from_contiguous(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list
-            )
-            for _ in range(args.n + warmup)
-        ])
+        inputs = iter(
+            [
+                (
+                    IrrepsData.from_contiguous(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
+                    IrrepsData.from_contiguous(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list,
+                )
+                for _ in range(args.n + warmup)
+            ]
+        )
         f_1 = f
         f = lambda w, x1, x2: f_1(w, x1, x2).list
     else:
-        inputs = iter([
-            (
-                irreps_in1.randn(k(), (args.batch, -1)),
-                irreps_in2.randn(k(), (args.batch, -1))
-            )
-            for _ in range(args.n + warmup)
-        ])
+        inputs = iter(
+            [
+                (irreps_in1.randn(k(), (args.batch, -1)), irreps_in2.randn(k(), (args.batch, -1)))
+                for _ in range(args.n + warmup)
+            ]
+        )
         f_1 = f
         f = lambda w, x1, x2: f_1(w, x1, x2).contiguous
 
@@ -202,14 +201,15 @@ def main():
     backend = jax.lib.xla_bridge.get_backend()
     e = backend.compile(c)
     import jaxlib.xla_extension as xla_ext
+
     option = xla_ext.HloPrintOptions.fingerprint()
     option.print_operand_shape = False
     option.print_result_shape = False
     option.print_program_shape = True
 
-    with open('xla.txt', 'wt') as f:
+    with open("xla.txt", "wt") as f:
         f.write(e.hlo_modules()[0].to_string(option))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

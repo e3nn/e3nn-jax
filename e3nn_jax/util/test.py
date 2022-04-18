@@ -33,16 +33,12 @@ def _get_io_irreps(func, irreps_in=None, irreps_out=None):
         elif hasattr(func, "irreps_in1"):
             irreps_in = [func.irreps_in1, func.irreps_in2]
         else:
-            raise ValueError(
-                "Cannot infer irreps_in for %r; provide them explicitly" % func
-            )
+            raise ValueError("Cannot infer irreps_in for %r; provide them explicitly" % func)
     if irreps_out is None:
         if hasattr(func, "irreps_out"):
             irreps_out = func.irreps_out  # gets checked for type later
         else:
-            raise ValueError(
-                "Cannot infer irreps_out for %r; provide them explicitly" % func
-            )
+            raise ValueError("Cannot infer irreps_out for %r; provide them explicitly" % func)
 
     if isinstance(irreps_in, Irreps) or irreps_in in SPECIAL_VALS:
         irreps_in = [irreps_in]
@@ -70,9 +66,7 @@ def _get_io_irreps(func, irreps_in=None, irreps_out=None):
 
 
 def _get_args_in(func, rng_key, args_in=None, irreps_in=None, irreps_out=None):
-    irreps_in, irreps_out = _get_io_irreps(
-        func, irreps_in=irreps_in, irreps_out=irreps_out
-    )
+    irreps_in, irreps_out = _get_io_irreps(func, irreps_in=irreps_in, irreps_out=irreps_out)
     if args_in is None:
         rng_key, sub_key = jax.random.split(rng_key)
         args_in = _rand_args(irreps_in, sub_key)
@@ -99,14 +93,7 @@ def _rand_args(irreps_in, rng_key, batch_size=None):
 
 
 def equivariance_error(
-    func,
-    rng_key,
-    args_in,
-    irreps_in=None,
-    irreps_out=None,
-    ntrials=1,
-    do_parity=True,
-    do_translation=True
+    func, rng_key, args_in, irreps_in=None, irreps_out=None, ntrials=1, do_parity=True, do_translation=True
 ):
     r"""Test equivariance of ``func``.
 
@@ -132,7 +119,7 @@ def equivariance_error(
     else:
         parity_ks = [0]
 
-    if 'cartesian_points' not in irreps_in:
+    if "cartesian_points" not in irreps_in:
         # There's nothing to translate
         do_translation = False
     if do_translation:
@@ -152,9 +139,9 @@ def equivariance_error(
             rng_key, *sub_keys = jax.random.split(rng_key, num=3)
             rot_mat = rand_matrix(shape=(1,), key=sub_keys[0])[0]
             # add parity
-            rot_mat *= (-1)**parity_k
+            rot_mat *= (-1) ** parity_k
             # build translation
-            translation = 10 * jax.random.normal(sub_keys[1], shape=(1, 3), dtype=rot_mat.dtype) if this_do_translate else 0.
+            translation = 10 * jax.random.normal(sub_keys[1], shape=(1, 3), dtype=rot_mat.dtype) if this_do_translate else 0.0
 
             # Evaluate the function on rotated arguments:
             rot_args = _transform(args_in, irreps_in, rot_mat, translation)
@@ -164,7 +151,9 @@ def equivariance_error(
             x2 = func(*args_in)
 
             # Deal with output shapes
-            assert type(x1) == type(x2), f"Inconsistant return types {type(x1)} and {type(x2)}"  # pylint: disable=unidiomatic-typecheck
+            assert type(x1) == type(
+                x2
+            ), f"Inconsistant return types {type(x1)} and {type(x2)}"  # pylint: disable=unidiomatic-typecheck
             if isinstance(x1, jnp.DeviceArray):
                 # Make sequences
                 x1 = [x1]
@@ -181,10 +170,7 @@ def equivariance_error(
             # apply the group action to x2
             x2 = _transform(x2, irreps_out, rot_mat, translation)
 
-            error = max(
-                jnp.max(jnp.abs(a - b))
-                for a, b in zip(x1, x2)
-            )
+            error = max(jnp.max(jnp.abs(a - b)) for a, b in zip(x1, x2))
 
             if error > biggest_errs.get(this_test, neg_inf):
                 biggest_errs[this_test] = error
@@ -211,24 +197,11 @@ def format_equivariance_error(errors: dict) -> str:
         A string.
     """
     return "; ".join(
-        "(parity_k={:d}, did_translate={}) -> error={:.3e}".format(
-            int(k[0]),
-            bool(k[1]),
-            float(v)
-        )
-        for k, v in errors.items()
+        "(parity_k={:d}, did_translate={}) -> error={:.3e}".format(int(k[0]), bool(k[1]), float(v)) for k, v in errors.items()
     )
 
 
-def assert_equivariant(
-    func,
-    rng_key,
-    args_in=None,
-    irreps_in=None,
-    irreps_out=None,
-    tolerance=None,
-    **kwargs
-) -> dict:
+def assert_equivariant(func, rng_key, args_in=None, irreps_in=None, irreps_out=None, tolerance=None, **kwargs) -> dict:
     r"""Assert that ``func`` is equivariant.
     Parameters
     ----------
@@ -252,22 +225,11 @@ def assert_equivariant(
     rng_key, sub_key = jax.random.split(rng_key)
 
     args_in, irreps_in, irreps_out = _get_args_in(
-        func,
-        rng_key=rng_key,
-        args_in=args_in,
-        irreps_in=irreps_in,
-        irreps_out=irreps_out
+        func, rng_key=rng_key, args_in=args_in, irreps_in=irreps_in, irreps_out=irreps_out
     )
 
     # Get error
-    errors = equivariance_error(
-        func,
-        sub_key,
-        args_in=args_in,
-        irreps_in=irreps_in,
-        irreps_out=irreps_out,
-        **kwargs
-    )
+    errors = equivariance_error(func, sub_key, args_in=args_in, irreps_in=irreps_in, irreps_out=irreps_out, **kwargs)
 
     logging.info(
         "Tested equivariance of `%s` -- max componentwise errors: %s",
