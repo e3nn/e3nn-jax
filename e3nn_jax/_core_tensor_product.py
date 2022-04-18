@@ -1,12 +1,15 @@
+"""Defines the functional tensor product."""
+
 import itertools
 from functools import lru_cache, partial
 from math import sqrt
-from typing import Any, List, NamedTuple, Optional
+import collections
+from typing import Any, List, Dict, Optional
 
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
+from e3nn_jax import Irreps, IrrepsData, clebsch_gordan, Instruction
 from e3nn_jax.util import prod
 
 from ._einsum import einsum as opt_einsum
@@ -32,14 +35,113 @@ def _flat_concatenate(xs):
     return jnp.zeros((0,))
 
 
-class Instruction(NamedTuple):
-    i_in1: int
-    i_in2: int
-    i_out: int
-    connection_mode: str
-    has_weight: bool
-    path_weight: float
-    path_shape: tuple
+def _compute_element_path_normalization_factors(
+    instructions: List[Instruction],
+    first_input_variance: List[float],
+    second_input_variance: List[float],
+) -> Dict[Instruction, float]:
+    """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'element' path normalization."""
+    path_normalization_sums = collections.defaultdict(lambda: 0.0)
+    for instruction in instructions:
+        path_normalization_sums[instruction.i_out] += (
+            first_input_variance[instruction.i_in1] * second_input_variance[instruction.i_in2] * instruction.num_elements
+        )
+
+    return {instruction: path_normalization_sums[instruction.i_out] for instruction in instructions}
+
+
+def _compute_standard_path_normalization_factors(
+    instructions: List[Instruction],
+    first_input_variance: List[float],
+    second_input_variance: List[float],
+) -> Dict[Instruction, float]:
+    """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'path' path normalization."""
+    path_normalization_counts = collections.defaultdict(lambda: 0.0)
+    for instruction in instructions:
+        path_normalization_counts[instruction.i_out] += 1
+
+    return {
+        instruction: first_input_variance[instruction.i_in1]
+        * second_input_variance[instruction.i_in2]
+        * instruction.num_elements
+        * path_normalization_counts[instruction.i_out]
+        for instruction in instructions
+    }
+
+
+def normalize_instruction_path_weights(
+    instructions: List[Instruction],
+    first_input_irreps: Irreps,
+    second_input_irreps: Irreps,
+    output_irreps: Irreps,
+    first_input_variance: List[float],
+    second_input_variance: List[float],
+    output_variance: List[float],
+    irrep_normalization: str,
+    path_normalization: str,
+) -> List[Instruction]:
+    """Returns instructions with normalized path weights."""
+    # Precompute normalization factors.
+    if path_normalization == "element":
+        path_normalization_factors = _compute_element_path_normalization_factors(
+            instructions, first_input_variance, second_input_variance
+        )
+    elif path_normalization == "path":
+        path_normalization_factors = _compute_standard_path_normalization_factors(
+            instructions, first_input_variance, second_input_variance
+        )
+    else:
+        raise ValueError(f"Unsupported path normalization: {path_normalization}.")
+
+    def compute_normalized_path_weight_fn(instruction: Instruction) -> float:
+        return compute_normalized_path_weight(
+            instruction,
+            first_input_irreps,
+            second_input_irreps,
+            output_irreps,
+            output_variance,
+            irrep_normalization,
+            path_normalization_factors,
+        )
+
+    return [instruction.replace(path_weight=compute_normalized_path_weight_fn(instruction)) for instruction in instructions]
+
+
+def compute_normalized_path_weight(
+    instruction: Instruction,
+    first_input_irreps: Irreps,
+    second_input_irreps: Irreps,
+    output_irreps: Irreps,
+    output_variance: List[float],
+    irrep_normalization: str,
+    path_normalization_factors: Dict[Instruction, float],
+) -> float:
+    """Computes normalized path weight for a single instructions, with precomputed path normalization factors."""
+
+    if irrep_normalization not in ["component", "norm", "none"]:
+        raise ValueError(f"Unsupported irrep normalization: {irrep_normalization}.")
+
+    mul_ir_in1 = first_input_irreps[instruction.i_in1]
+    mul_ir_in2 = second_input_irreps[instruction.i_in2]
+    mul_ir_out = output_irreps[instruction.i_out]
+
+    assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
+    assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
+
+    if irrep_normalization == "component":
+        alpha = mul_ir_out.ir.dim
+    if irrep_normalization == "norm":
+        alpha = mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
+    if irrep_normalization == "none":
+        alpha = 1
+
+    path_normalization_factor = path_normalization_factors[instruction]
+    if path_normalization_factor > 0.0:
+        alpha /= path_normalization_factor
+
+    alpha *= output_variance[instruction.i_out]
+    alpha *= instruction.path_weight
+    return sqrt(alpha)
 
 
 class FunctionalTensorProduct:
@@ -80,9 +182,6 @@ class FunctionalTensorProduct:
         irrep_normalization: str = "component",
         path_normalization: str = "element",
     ):
-        assert irrep_normalization in ["component", "norm", "none"]
-        assert path_normalization in ["element", "path"]
-
         self.irreps_in1 = Irreps(irreps_in1)
         self.irreps_in2 = Irreps(irreps_in2)
         self.irreps_out = Irreps(irreps_out)
@@ -97,78 +196,33 @@ class FunctionalTensorProduct:
                 connection_mode,
                 has_weight,
                 path_weight,
-                {
-                    "uvw": (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul, self.irreps_out[i_out].mul),
-                    "uvu": (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
-                    "uvv": (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
-                    "uuw": (self.irreps_in1[i_in1].mul, self.irreps_out[i_out].mul),
-                    "uuu": (self.irreps_in1[i_in1].mul,),
-                    "uvuv": (self.irreps_in1[i_in1].mul, self.irreps_in2[i_in2].mul),
-                    "uvu<v": (self.irreps_in1[i_in1].mul * (self.irreps_in2[i_in2].mul - 1) // 2,),
-                    "u<vw": (self.irreps_in1[i_in1].mul * (self.irreps_in2[i_in2].mul - 1) // 2, self.irreps_out[i_out].mul),
-                }[connection_mode],
+                self.irreps_in1[i_in1].mul,
+                self.irreps_in2[i_in2].mul,
+                self.irreps_out[i_out].mul,
             )
             for i_in1, i_in2, i_out, connection_mode, has_weight, path_weight in instructions
         ]
 
         if in1_var is None:
-            in1_var = [1.0 for _ in range(len(self.irreps_in1))]
+            in1_var = [1.0 for _ in self.irreps_in1]
 
         if in2_var is None:
-            in2_var = [1.0 for _ in range(len(self.irreps_in2))]
+            in2_var = [1.0 for _ in self.irreps_in2]
 
         if out_var is None:
-            out_var = [1.0 for _ in range(len(self.irreps_out))]
+            out_var = [1.0 for _ in self.irreps_out]
 
-        def num_elements(ins):
-            return {
-                "uvw": (self.irreps_in1[ins.i_in1].mul * self.irreps_in2[ins.i_in2].mul),
-                "uvu": self.irreps_in2[ins.i_in2].mul,
-                "uvv": self.irreps_in1[ins.i_in1].mul,
-                "uuw": self.irreps_in1[ins.i_in1].mul,
-                "uuu": 1,
-                "uvuv": 1,
-                "uvu<v": 1,
-                "u<vw": self.irreps_in1[ins.i_in1].mul * (self.irreps_in2[ins.i_in2].mul - 1) // 2,
-            }[ins.connection_mode]
-
-        normalization_coefficients = []
-        for ins in instructions:
-            mul_ir_in1 = self.irreps_in1[ins.i_in1]
-            mul_ir_in2 = self.irreps_in2[ins.i_in2]
-            mul_ir_out = self.irreps_out[ins.i_out]
-            assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
-            assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
-            assert ins.connection_mode in ["uvw", "uvu", "uvv", "uuw", "uuu", "uvuv", "uvu<v", "u<vw"]
-
-            alpha = None
-
-            if irrep_normalization == "component":
-                alpha = mul_ir_out.ir.dim
-            if irrep_normalization == "norm":
-                alpha = mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
-            if irrep_normalization == "none":
-                alpha = 1
-
-            x = None
-
-            if path_normalization == "element":
-                x = sum(in1_var[i.i_in1] * in2_var[i.i_in2] * num_elements(i) for i in instructions if i.i_out == ins.i_out)
-            if path_normalization == "path":
-                x = in1_var[ins.i_in1] * in2_var[ins.i_in2] * num_elements(ins)
-                x *= len([i for i in instructions if i.i_out == ins.i_out])
-
-            if x > 0.0:
-                alpha /= x
-            alpha *= out_var[ins.i_out]
-            alpha *= ins.path_weight
-
-            normalization_coefficients += [sqrt(alpha)]
-
-        self.instructions = [
-            Instruction(ins.i_in1, ins.i_in2, ins.i_out, ins.connection_mode, ins.has_weight, alpha, ins.path_shape)
-            for ins, alpha in zip(instructions, normalization_coefficients)
-        ]
+        self.instructions = normalize_instruction_path_weights(
+            instructions,
+            self.irreps_in1,
+            self.irreps_in2,
+            self.irreps_out,
+            in1_var,
+            in2_var,
+            out_var,
+            irrep_normalization,
+            path_normalization,
+        )
 
         with jax.ensure_compile_time_eval():
             if self.irreps_out.dim > 0:
@@ -231,13 +285,24 @@ class FunctionalTensorProduct:
         )
 
     def right(
-        self, weights: List[jnp.ndarray], input2: IrrepsData = None, *, optimize_einsums=False, custom_einsum_vjp=False
+        self,
+        weights: List[jnp.ndarray],
+        input2: IrrepsData = None,
+        *,
+        optimize_einsums=False,
+        custom_einsum_vjp=False,
     ) -> jnp.ndarray:
         if input2 is None:
             weights, input2 = [], weights
 
         input2 = IrrepsData.new(self.irreps_in2, input2)
-        return _right(self, weights, input2, optimize_einsums=optimize_einsums, custom_einsum_vjp=custom_einsum_vjp)
+        return _right(
+            self,
+            weights,
+            input2,
+            optimize_einsums=optimize_einsums,
+            custom_einsum_vjp=custom_einsum_vjp,
+        )
 
     def __repr__(self):
         npath = sum(prod(i.path_shape) for i in self.instructions)
@@ -307,7 +372,14 @@ def _left_right(
                 num_path += 1
                 i += 1
 
-            big_w3j = jnp.zeros((num_path, self.irreps_in1.dim, self.irreps_in2.dim, self.irreps_out.dim))
+            big_w3j = jnp.zeros(
+                (
+                    num_path,
+                    self.irreps_in1.dim,
+                    self.irreps_in2.dim,
+                    self.irreps_out.dim,
+                )
+            )
             for ins in self.instructions:
                 mul_ir_in1 = self.irreps_in1[ins.i_in1]
                 mul_ir_in2 = self.irreps_in2[ins.i_in2]
@@ -322,7 +394,10 @@ def _left_right(
 
                 def set_w3j(i, u, v, w):
                     return big_w3j.at[
-                        i, s1 + u * d1 : s1 + (u + 1) * d1, s2 + v * d2 : s2 + (v + 1) * d2, so + w * do : so + (w + 1) * do
+                        i,
+                        s1 + u * d1 : s1 + (u + 1) * d1,
+                        s2 + v * d2 : s2 + (v + 1) * d2,
+                        so + w * do : so + (w + 1) * do,
                     ].add(ins.path_weight * w3j)
 
                 if ins.connection_mode == "uvw":
@@ -357,7 +432,13 @@ def _left_right(
             if has_path_with_no_weights:
                 weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
 
-            out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1.contiguous, input2.contiguous)
+            out = einsum(
+                "p,pijk,i,j->k",
+                weights_flat,
+                big_w3j,
+                input1.contiguous,
+                input2.contiguous,
+            )
         return IrrepsData.from_contiguous(self.irreps_out, out)
 
     @lru_cache(maxsize=None)
@@ -400,7 +481,15 @@ def _left_right(
 
         if ins.connection_mode == "uvw":
             assert ins.has_weight
-            if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
+            if (
+                specialized_code
+                and (
+                    mul_ir_in1.ir.l,
+                    mul_ir_in2.ir.l,
+                    mul_ir_out.ir.l,
+                )
+                == (0, 0, 0)
+            ):
                 out = ins.path_weight * einsum("uvw,uv->w", w, xx.reshape(mul_ir_in1.dim, mul_ir_in2.dim))
             elif specialized_code and mul_ir_in1.ir.l == 0:
                 out = ins.path_weight * einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
@@ -413,8 +502,21 @@ def _left_right(
         if ins.connection_mode == "uvu":
             assert mul_ir_in1.mul == mul_ir_out.mul
             if ins.has_weight:
-                if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
-                    out = ins.path_weight * einsum("uv,u,v->u", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
+                if (
+                    specialized_code
+                    and (
+                        mul_ir_in1.ir.l,
+                        mul_ir_in2.ir.l,
+                        mul_ir_out.ir.l,
+                    )
+                    == (0, 0, 0)
+                ):
+                    out = ins.path_weight * einsum(
+                        "uv,u,v->u",
+                        w,
+                        x1.reshape(mul_ir_in1.dim),
+                        x2.reshape(mul_ir_in2.dim),
+                    )
                 elif specialized_code and mul_ir_in1.ir.l == 0:
                     out = ins.path_weight * einsum("uv,u,vj->uj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
                 elif specialized_code and mul_ir_in2.ir.l == 0:
@@ -429,8 +531,21 @@ def _left_right(
         if ins.connection_mode == "uvv":
             assert mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                if specialized_code and (mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l) == (0, 0, 0):
-                    out = ins.path_weight * einsum("uv,u,v->v", w, x1.reshape(mul_ir_in1.dim), x2.reshape(mul_ir_in2.dim))
+                if (
+                    specialized_code
+                    and (
+                        mul_ir_in1.ir.l,
+                        mul_ir_in2.ir.l,
+                        mul_ir_out.ir.l,
+                    )
+                    == (0, 0, 0)
+                ):
+                    out = ins.path_weight * einsum(
+                        "uv,u,v->v",
+                        w,
+                        x1.reshape(mul_ir_in1.dim),
+                        x2.reshape(mul_ir_in2.dim),
+                    )
                 elif specialized_code and mul_ir_in1.ir.l == 0:
                     out = ins.path_weight * einsum("uv,u,vj->vj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
                 elif specialized_code and mul_ir_in2.ir.l == 0:
@@ -494,7 +609,14 @@ def _left_right(
 
 @partial(jax.jit, static_argnums=(0,), static_argnames=("optimize_einsums", "custom_einsum_vjp"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.right")
-def _right(self: FunctionalTensorProduct, weights, input2, *, optimize_einsums=False, custom_einsum_vjp=False):
+def _right(
+    self: FunctionalTensorProduct,
+    weights,
+    input2,
+    *,
+    optimize_einsums=False,
+    custom_einsum_vjp=False,
+):
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
         return jnp.zeros(
@@ -523,7 +645,12 @@ def _right(self: FunctionalTensorProduct, weights, input2, *, optimize_einsums=F
 
         if ins.has_weight:
             w = weights[weight_index]
-            assert w.shape == ins.path_shape, (w.shape, ins.path_shape, weight_index, ins)
+            assert w.shape == ins.path_shape, (
+                w.shape,
+                ins.path_shape,
+                weight_index,
+                ins,
+            )
             weight_index += 1
 
         if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
