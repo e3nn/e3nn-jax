@@ -292,6 +292,17 @@ class FunctionalTensorProduct:
         optimize_einsums=False,
         custom_einsum_vjp=False,
     ) -> jnp.ndarray:
+        r"""Compute the right contraction of the tensor product.
+
+        Args:
+            weights (array or list of arrays): The weights of the tensor product.
+            input2 (IrrepsData): The second input tensor.
+            optimize_einsums (bool): If True, optimize the einsum code.
+            custom_einsum_vjp (bool): If True, use the custom vjp for the einsum code.
+
+        Returns:
+            A matrix of shape ``(irreps_in1.dim, irreps_out.dim)``.
+        """
         if input2 is None:
             weights, input2 = [], weights
 
