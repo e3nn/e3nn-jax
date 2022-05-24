@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Changed
 - use `dataclasses.dataclass` instead of custom `dataclass`
 - Get Clebsch-Gordan coefficients from qutip and a change of basis
+- Add `start_zero` and `end_zero` arguments to function `soft_one_hot_linspace`
 
 ## [0.4.3] - 2022-03-26
 ### Added
