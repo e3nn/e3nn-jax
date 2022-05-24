@@ -126,6 +126,27 @@ class FunctionalLinear:
         ]
         return self.aggregate_paths(paths, input.shape)
 
+    def matrix(self, ws: List[jnp.ndarray]) -> jnp.ndarray:
+        r"""
+        Compute the matrix representation of the linear operator.
+
+        Args:
+            ws: List of weights.
+
+        Returns:
+            The matrix representation of the linear operator. The matrix is shape ``(irreps_in.dim, irreps_out.dim)``.
+        """
+        output = jnp.zeros((self.irreps_in.dim, self.irreps_out.dim))
+        for ins, w in zip(self.instructions, ws):
+            assert ins.i_in != -1
+            mul_in, ir_in = self.irreps_in[ins.i_in]
+            mul_out, ir_out = self.irreps_out[ins.i_out]
+            output = output.at[self.irreps_in.slices()[ins.i_in], self.irreps_out.slices()[ins.i_out]].add(
+                ins.path_weight
+                * jnp.einsum("uw,ij->uiwj", w, jnp.eye(ir_in.dim)).reshape((mul_in * ir_in.dim, mul_out * ir_out.dim))
+            )
+        return output
+
 
 class Linear(hk.Module):
     def __init__(self, irreps_out, *, irreps_in=None):

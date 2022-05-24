@@ -52,3 +52,17 @@ def test_linear_like_tp(keys, irreps_in, irreps_out):
     ws_tp = [w[:, None, :] for w in ws]
     x = m.irreps_in.randn(next(keys), (-1,))
     assert jnp.allclose(m(ws, x).contiguous, m_tp(ws_tp, x).contiguous)
+
+
+@pytest.mark.parametrize("irreps_in", ["5x0e", "1e + 2e + 4x1e + 3x3o", "2x1o + 0x3e", "0x0e"])
+@pytest.mark.parametrize("irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"])
+def test_linear_matrix(keys, irreps_in, irreps_out):
+    m = FunctionalLinear(irreps_in, irreps_out)
+
+    ws = [jax.random.normal(next(keys), i.path_shape) for i in m.instructions]
+    x = m.irreps_in.randn(next(keys), (-1,))
+
+    A = m.matrix(ws)
+    y1 = x @ A
+    y2 = m(ws, x).contiguous
+    assert jnp.allclose(y1, y2)
