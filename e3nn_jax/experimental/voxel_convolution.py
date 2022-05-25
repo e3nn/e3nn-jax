@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 from e3nn_jax import (
     FunctionalFullyConnectedTensorProduct,
-    Linear,
+    FunctionalLinear,
     Irreps,
     IrrepsData,
     soft_one_hot_linspace,
@@ -24,6 +24,7 @@ class Convolution(hk.Module):
         num_radial_basis: int,
         steps: Tuple[float, float, float],
         *,
+        padding="SAME",
         irreps_in=None,
     ):
         super().__init__()
@@ -34,6 +35,7 @@ class Convolution(hk.Module):
         self.diameter = diameter
         self.num_radial_basis = num_radial_basis
         self.steps = steps
+        self.padding = padding
 
         with jax.ensure_compile_time_eval():
             r = self.diameter / 2
@@ -55,40 +57,17 @@ class Convolution(hk.Module):
                 end=self.diameter / 2,
                 number=self.num_radial_basis,
                 basis="smooth_finite",
-                cutoff=True,
+                start_zero=True,
+                end_zero=True,
             )  # [x, y, z, num_radial_basis]
 
             self.sh = spherical_harmonics(
                 irreps_out=self.irreps_sh, input=lattice, normalize=True, normalization="component"
             )  # [x, y, z, irreps_sh.dim]
 
-    def __call__(self, x: IrrepsData) -> IrrepsData:
-        """
-        x: [batch, x, y, z, irreps_in.dim]
-        """
-        if self.irreps_in is not None:
-            x = IrrepsData.new(self.irreps_in, x)
-        if not isinstance(x, IrrepsData):
-            raise ValueError("Convolution: input should be of type IrrepsData")
-
-        x = x.remove_nones().simplify()
-
-        # self-connection
-        lin = Linear(self.irreps_out)
-        for _ in range(1 + 3):
-            lin = jax.vmap(lin)
-        sc = lin(x)
-
-        irreps_out = Irreps(
-            [
-                (mul, ir)
-                for (mul, ir) in self.irreps_out
-                if any(ir in ir_in * ir_sh for _, ir_in in x.irreps for _, ir_sh in self.irreps_sh)
-            ]
-        )
-
+    def kernel(self, irreps_in, irreps_out) -> jnp.ndarray:
         # convolution
-        tp = FunctionalFullyConnectedTensorProduct(x.irreps, self.irreps_sh, irreps_out)
+        tp = FunctionalFullyConnectedTensorProduct(irreps_in, self.irreps_sh, irreps_out)
 
         w = [
             hk.get_parameter(
@@ -109,13 +88,46 @@ class Convolution(hk.Module):
             tp_right = jax.vmap(tp_right, (0, 0), 0)
         k = tp_right(w, self.sh)  # [x,y,z, irreps_in.dim, irreps_out.dim]
 
-        x = IrrepsData.from_contiguous(
+        # self-connection
+        lin = FunctionalLinear(irreps_in, irreps_out)
+        w = [
+            hk.get_parameter(
+                f"self-connection[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+                shape=ins.path_shape,
+                init=hk.initializers.RandomNormal(),
+            )
+            for ins in lin.instructions
+        ]
+        # note that lattice[center] is always displacement zero
+        k = k.at[k.shape[0] // 2, k.shape[1] // 2, k.shape[2] // 2].set(lin.matrix(w))
+        return k
+
+    def __call__(self, input: IrrepsData) -> IrrepsData:
+        """
+        input: [batch, x, y, z, irreps_in.dim]
+        """
+        if self.irreps_in is not None:
+            input = IrrepsData.new(self.irreps_in, input)
+        if not isinstance(input, IrrepsData):
+            raise ValueError("Convolution: input should be of type IrrepsData")
+
+        input = input.remove_nones().simplify()
+
+        irreps_out = Irreps(
+            [
+                (mul, ir)
+                for (mul, ir) in self.irreps_out
+                if any(ir in ir_in * ir_sh for _, ir_in in input.irreps for _, ir_sh in self.irreps_sh)
+            ]
+        )
+
+        output = IrrepsData.from_contiguous(
             irreps_out,
             lax.conv_general_dilated(
-                lhs=x.contiguous,
-                rhs=k,
+                lhs=input.contiguous,
+                rhs=self.kernel(input.irreps, irreps_out),
                 window_strides=(1, 1, 1),
-                padding="SAME",
+                padding=self.padding,
                 dimension_numbers=("NXYZC", "XYZIO", "NXYZC"),
             ),
         )
@@ -125,10 +137,10 @@ class Convolution(hk.Module):
             i = 0
             for mul_ir in self.irreps_out:
                 if i < len(irreps_out) and irreps_out[i] == mul_ir:
-                    list.append(x.list[i])
+                    list.append(output.list[i])
                     i += 1
                 else:
                     list.append(None)
-            x = IrrepsData.from_list(self.irreps_out, list, x.shape)
+            output = IrrepsData.from_list(self.irreps_out, list, output.shape)
 
-        return sc + x
+        return output
