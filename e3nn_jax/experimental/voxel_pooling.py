@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -72,8 +73,7 @@ def lowpass_filter(input, scale, strides, transposed=False, steps=(1, 1, 1)):
     return output
 
 
-@jax.jit
-def interpolate_bilinear(input, x, y, z):
+def interpolate_bilinear(input: jnp.ndarray, x: float, y: float, z: float) -> jnp.ndarray:
     r"""interpolate voxels in coordinate (x, y, z).
 
     Args:
@@ -123,36 +123,58 @@ def interpolate_bilinear(input, x, y, z):
 
 
 @partial(jax.jit, static_argnums=(1,))
-def zoom(input, resize_rate):
-    r"""Rescale the input by a factor of `resize_rate`.
-
-    Args:
-        input: [..., x, y, z]
-        resize_rate (float): typically 2.0 or 0.5
-
-    Returns:
-        resize_rate times larger field
-    """
+def _zoom(
+    input: jnp.ndarray,
+    output_size: Tuple[int, int, int],
+) -> jnp.ndarray:
     nx, ny, nz = input.shape[-3:]
 
-    if isinstance(resize_rate, (float, int)):
-        resize_rate = (resize_rate,) * 3
-
     def f(n_src, n_dst):
+        # new pixel positions in source coordinate
         a = n_src / n_dst * jnp.arange(n_dst)
         delta = 0.5 * (n_src / n_dst - 1)
         return delta + a
 
-    xi = f(nx, round(nx * resize_rate[0]))
-    yi = f(ny, round(ny * resize_rate[1]))
-    zi = f(nz, round(nz * resize_rate[2]))
+    xi = f(nx, output_size[0])
+    yi = f(ny, output_size[1])
+    zi = f(nz, output_size[2])
 
     xg, yg, zg = jnp.meshgrid(xi, yi, zi, indexing="ij")
 
     output = jax.vmap(interpolate_bilinear, (None, 0, 0, 0), -1)(input, xg.flatten(), yg.flatten(), zg.flatten())
-    output = output.reshape(*input.shape[:-3], len(xi), len(yi), len(zi))
-
+    output = output.reshape(*input.shape[:-3], *output_size)
     return output
+
+
+def zoom(
+    input: jnp.ndarray,
+    *,
+    resize_rate: Optional[Tuple[float, float, float]] = None,
+    output_size: Optional[Tuple[int, int, int]] = None,
+) -> jnp.ndarray:
+    r"""Rescale a 3D image by bilinear interpolation.
+
+    Args:
+        input: array of shape ``[..., x, y, z]``
+        resize_rate: tuple of 3 floats
+        output_size: tuple of 3 ints
+
+    Returns:
+        3D image of size output_size
+    """
+    nx, ny, nz = input.shape[-3:]
+
+    if resize_rate is not None:
+        assert output_size is None
+
+        if isinstance(resize_rate, (float, int)):
+            resize_rate = (resize_rate,) * 3
+
+        output_size = (round(nx * resize_rate[0]), round(ny * resize_rate[1]), round(nz * resize_rate[2]))
+
+    assert isinstance(output_size, tuple)
+
+    return _zoom(input, output_size)
 
 
 def _index_max_norm(input, strides):
