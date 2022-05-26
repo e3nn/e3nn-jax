@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Function `matrix` to `FunctionalLinear`
 - `experimental.voxel_convolution`: `padding` and add self-connection into the convolution kernel
 - `experimental.voxel_pooling`: add `output_size` argument to the `zoom` function
+- `IrrepsData`: `list` attribute is now lazily initialized
 
 ## [0.5.0] - 2022-05-24
 ### Added

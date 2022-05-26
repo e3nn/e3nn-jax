@@ -657,13 +657,32 @@ class Irreps(tuple):
 jax.tree_util.register_pytree_node(Irreps, lambda irreps: ((), irreps), lambda irreps, _: irreps)
 
 
-@dataclasses.dataclass(frozen=True)
 class IrrepsData:
     r"""Class storing data and its irreps"""
 
     irreps: Irreps
-    contiguous: jnp.ndarray
-    list: List[Optional[jnp.ndarray]]
+    contiguous: jnp.ndarray  # this field is mendatory because it contains the shape
+    _list: List[Optional[jnp.ndarray]]  # this field is lazy, it is computed only when needed
+
+    def __init__(self, irreps: Irreps, contiguous: jnp.ndarray, list: List[Optional[jnp.ndarray]] = None):
+        self.irreps = Irreps(irreps)
+        self.contiguous = contiguous
+        self._list = list
+
+    @property
+    def list(self) -> List[Optional[jnp.ndarray]]:
+        if self._list is None:
+            shape = self.contiguous.shape[:-1]
+            if len(self.irreps) == 1:
+                mul, ir = self.irreps[0]
+                list = [jnp.reshape(self.contiguous, shape + (mul, ir.dim))]
+            else:
+                list = [
+                    jnp.reshape(self.contiguous[..., i], shape + (mul, ir.dim))
+                    for i, (mul, ir) in zip(self.irreps.slices(), self.irreps)
+                ]
+            self._list = list
+        return self._list
 
     @staticmethod
     def zeros(irreps: Irreps, shape) -> "IrrepsData":
@@ -744,16 +763,8 @@ class IrrepsData:
         Returns:
             IrrepsData
         """
-        irreps = Irreps(irreps)
-        assert contiguous.shape[-1] == irreps.dim
-
-        shape = contiguous.shape[:-1]
-        if len(irreps) == 1:
-            mul, ir = irreps[0]
-            list = [jnp.reshape(contiguous, shape + (mul, ir.dim))]
-        else:
-            list = [jnp.reshape(contiguous[..., i], shape + (mul, ir.dim)) for i, (mul, ir) in zip(irreps.slices(), irreps)]
-        return IrrepsData(irreps=irreps, contiguous=contiguous, list=list)
+        assert contiguous.shape[-1] == Irreps(irreps).dim
+        return IrrepsData(irreps=irreps, contiguous=contiguous, list=None)
 
     def __repr__(self):
         return f"IrrepsData({self.irreps}, {self.contiguous}, {self.list})"
