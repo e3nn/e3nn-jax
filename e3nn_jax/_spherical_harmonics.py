@@ -41,7 +41,8 @@ def spherical_harmonics(
     .. note::
 
         This function match with this table of standard real spherical harmonics from Wikipedia_
-        when ``normalize=True``, ``normalization='integral'`` and is called with the argument in the order ``y,z,x`` (instead of ``x,y,z``).
+        when ``normalize=True``, ``normalization='integral'`` and is called with the argument in the order ``y,z,x``
+        (instead of ``x,y,z``).
 
     .. _Wikipedia: https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics
 

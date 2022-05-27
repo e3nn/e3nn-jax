@@ -66,7 +66,10 @@ class FullyConnectedTensorProduct(hk.Module):
         tp = FunctionalFullyConnectedTensorProduct(x1.irreps, x2.irreps, self.irreps_out.simplify())
         ws = [
             hk.get_parameter(
-                f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}",
+                (
+                    f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] "
+                    f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
+                ),
                 shape=ins.path_shape,
                 init=hk.initializers.RandomNormal(),
             )
@@ -240,7 +243,10 @@ class TensorSquare(hk.Module):
         tp = FunctionalTensorSquare(input.irreps, self.irreps_out)
         ws = [
             hk.get_parameter(
-                f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] {tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}",
+                (
+                    f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] "
+                    f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
+                ),
                 shape=ins.path_shape,
                 init=self.init,
             )

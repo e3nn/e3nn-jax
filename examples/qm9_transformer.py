@@ -198,10 +198,12 @@ def execute(config):
     sampler = Sampler(dataset, config["num_graphs"] - 1, config["num_nodes"] - 1, config["num_edges"])
 
     print(
-        f"nodes: min={sampler.num_nodes.min()} med={sampler.num_nodes.median()} max={sampler.num_nodes.max()} tot={sampler.num_nodes.sum()}"
+        f"nodes: min={sampler.num_nodes.min()} med={sampler.num_nodes.median()} max={sampler.num_nodes.max()} "
+        f"tot={sampler.num_nodes.sum()}"
     )
     print(
-        f"edges: min={sampler.num_edges.min()} med={sampler.num_edges.median()} max={sampler.num_edges.max()} tot={sampler.num_edges.sum()}"
+        f"edges: min={sampler.num_edges.min()} med={sampler.num_edges.median()} max={sampler.num_edges.max()} "
+        f"tot={sampler.num_edges.sum()}"
     )
 
     loader = pyg.loader.DataLoader(dataset, batch_sampler=sampler, num_workers=1)

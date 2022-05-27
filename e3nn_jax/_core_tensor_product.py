@@ -40,7 +40,8 @@ def _compute_element_path_normalization_factors(
     first_input_variance: List[float],
     second_input_variance: List[float],
 ) -> Dict[Instruction, float]:
-    """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'element' path normalization."""
+    """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor
+    for 'element' path normalization."""
     path_normalization_sums = collections.defaultdict(lambda: 0.0)
     for instruction in instructions:
         path_normalization_sums[instruction.i_out] += (
@@ -55,7 +56,8 @@ def _compute_standard_path_normalization_factors(
     first_input_variance: List[float],
     second_input_variance: List[float],
 ) -> Dict[Instruction, float]:
-    """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor for 'path' path normalization."""
+    """Returns a dictionary with keys as the Instructions and values as the corresponding path normalization factor
+    for 'path' path normalization."""
     path_normalization_counts = collections.defaultdict(lambda: 0.0)
     for instruction in instructions:
         path_normalization_counts[instruction.i_out] += 1

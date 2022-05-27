@@ -47,7 +47,9 @@ def _get_io_irreps(func, irreps_in=None, irreps_out=None):
     else:
         if isinstance(irreps_in, tuple) and not isinstance(irreps_in, Irreps):
             warnings.warn(
-                f"Module {func} had irreps_in of type tuple but not Irreps; ambiguous whether the tuple should be interpreted as a tuple representing a single Irreps or a tuple of objects each to be converted to Irreps. Assuming the former. If the latter, use a list."
+                f"Module {func} had irreps_in of type tuple but not Irreps; ambiguous whether the tuple should be interpreted"
+                f" as a tuple representing a single Irreps or a tuple of objects each to be converted to Irreps. Assuming the"
+                f" former. If the latter, use a list."
             )
         irreps_in = [Irreps(irreps_in)]
 
@@ -58,7 +60,9 @@ def _get_io_irreps(func, irreps_in=None, irreps_out=None):
     else:
         if isinstance(irreps_in, tuple) and not isinstance(irreps_in, Irreps):
             warnings.warn(
-                f"Module {func} had irreps_out of type tuple but not Irreps; ambiguous whether the tuple should be interpreted as a tuple representing a single Irreps or a tuple of objects each to be converted to Irreps. Assuming the former. If the latter, use a list."
+                f"Module {func} had irreps_out of type tuple but not Irreps; ambiguous whether the tuple should be interpreted"
+                f" as a tuple representing a single Irreps or a tuple of objects each to be converted to Irreps. Assuming the "
+                f"former. If the latter, use a list."
             )
         irreps_out = [Irreps(irreps_out)]
 
@@ -78,7 +82,8 @@ def _rand_args(irreps_in, rng_key, batch_size=None):
     rng_key, *sub_keys = jax.random.split(rng_key, num=1 + len(irreps_in))
     if not all((isinstance(i, Irreps) or i == "cartesian_points") for i in irreps_in):
         raise ValueError(
-            "Random arguments cannot be generated when argument types besides Irreps and `'cartesian_points'` are specified; provide explicit ``args_in``"
+            "Random arguments cannot be generated when argument types besides Irreps and `'cartesian_points'` are specified; "
+            "provide explicit ``args_in``"
         )
     if batch_size is None:
         # Generate random args with random size batch dim between 1 and 4:
@@ -206,7 +211,8 @@ def assert_equivariant(func, rng_key, args_in=None, irreps_in=None, irreps_out=N
     Parameters
     ----------
         args_in : list or None
-            the original input arguments for the function. If ``None`` and the function has ``irreps_in`` consisting only of ``o3.Irreps`` and ``'cartesian'``, random test inputs will be generated.
+            the original input arguments for the function. If ``None`` and the function has ``irreps_in`` consisting only of
+            ``o3.Irreps`` and ``'cartesian'``, random test inputs will be generated.
         irreps_in : object
             see ``equivariance_error``
         irreps_out : object

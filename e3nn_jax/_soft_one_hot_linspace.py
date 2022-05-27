@@ -58,7 +58,8 @@ def soft_one_hot_linspace(
         number of basis functions :math:`N`
 
     basis : {'gaussian', 'cosine', 'smooth_finite', 'fourier', 'bessel'}
-        choice of basis family; note that due to the :math:`1/x` term, ``bessel`` basis does not satisfy the normalization of other basis choices
+        choice of basis family; note that due to the :math:`1/x` term, ``bessel`` basis does not satisfy the normalization of
+        other basis choices
 
     start_zero : bool
         if ``True``, the first basis function is forced to be zero (or close) at ``start``

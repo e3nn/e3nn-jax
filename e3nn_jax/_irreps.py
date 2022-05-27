@@ -17,7 +17,8 @@ class Irrep:
     r"""Irreducible representation of :math:`O(3)`
 
     This class does not contain any data, it is a structure that describe the representation.
-    It is typically used as argument of other classes of the library to define the input and output representations of functions.
+    It is typically used as argument of other classes of the library to define the input and output
+    representations of functions.
 
     Args:
         l: non-negative integer, the degree of the representation, :math:`l = 0, 1, \dots`
@@ -238,7 +239,8 @@ class Irreps(tuple):
     r"""Direct sum of irreducible representations of :math:`O(3)`
 
     This class does not contain any data, it is a structure that describe the representation.
-    It is typically used as argument of other classes of the library to define the input and output representations of functions.
+    It is typically used as argument of other classes of the library to define the input and output
+    representations of functions.
 
     Attributes:
         dim (int): the total dimension of the representation

@@ -29,7 +29,8 @@ def _gate(input: IrrepsData, even_act, odd_act, even_gate_act, odd_gate_act) -> 
 
     if gates is None:
         raise ValueError(
-            f"Gate: did not manage to split the input {input.irreps} into scalars, gates ({scalars.irreps}) and gated ({gated.irreps})."
+            f"Gate: did not manage to split the input {input.irreps} into scalars, gates ({scalars.irreps}) and gated "
+            f"({gated.irreps})."
         )
 
     scalars = scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
@@ -42,7 +43,8 @@ def _gate(input: IrrepsData, even_act, odd_act, even_gate_act, odd_gate_act) -> 
 def gate(input: IrrepsData, even_act=None, odd_act=None, even_gate_act=None, odd_gate_act=None) -> IrrepsData:
     r"""Gate activation function.
 
-    The input is split into scalars that are activated separately, scalars that are used as gates, and non-scalars that are multiplied by the gates.
+    The input is split into scalars that are activated separately, scalars that are used as gates, and non-scalars that are
+    multiplied by the gates.
 
     List of assumptions:
 
