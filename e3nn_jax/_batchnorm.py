@@ -94,7 +94,7 @@ def _batch_norm(
             else:
                 field_norm = running_var[i_wei : i_wei + mul]
 
-            field_norm = jax.lax.rsqrt(field_norm + epsilon)  # [(batch,) mul]
+            field_norm = jax.lax.rsqrt((1 - epsilon) * field_norm + epsilon)  # [(batch,) mul]
 
             if has_affine:
                 sub_weight = weight[i_wei : i_wei + mul]  # [mul]
@@ -124,8 +124,10 @@ class BatchNorm(hk.Module):
     Irreducible representations `wigner_D` are orthonormal.
 
     Args:
-        irreps: Irreducible representations
-        eps (float): small number to avoid division by zero
+        irreps: Irreducible representations of the input and output (unchanged)
+        eps (float): epsilon for numerical stability, has to be between 0 and 1.
+            the field norm is transformed to ``(1 - eps) * norm + eps``
+            leading to a slower convergence toward norm 1.
         momentum: momentum for moving average
         affine: whether to include learnable biases
         reduce: reduce mode, either 'mean' or 'max'
@@ -134,7 +136,15 @@ class BatchNorm(hk.Module):
     """
 
     def __init__(
-        self, *, irreps=None, eps=1e-4, momentum=0.1, affine=True, reduce="mean", instance=False, normalization="component"
+        self,
+        *,
+        irreps: Irreps = None,
+        eps: float = 1e-4,
+        momentum: float = 0.1,
+        affine: bool = True,
+        reduce: str = "mean",
+        instance: bool = False,
+        normalization: str = "component",
     ):
         super().__init__()
 

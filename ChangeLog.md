@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `experimental.voxel_pooling`: add `output_size` argument to the `zoom` function
 - `IrrepsData`: `list` attribute is now lazily initialized
 
+### Changed
+- Behavior of `eps` in `BatchNorm`. Now `input / sqrt((1 - eps) * norm^2 + eps)` instead of `input / sqrt(norm^2 + eps)`
+
 ## [0.5.0] - 2022-05-24
 ### Added
 - add `loop` argument to `radius_graph`
