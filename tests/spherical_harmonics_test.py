@@ -31,3 +31,57 @@ def test_closure(keys):
                 assert jnp.abs(m - i).max() < 0.01
             else:
                 assert jnp.abs(m).max() < 0.01
+
+
+@pytest.mark.parametrize("l", range(8 + 1))
+def test_normalization(keys, l):
+    irreps = e3nn.Irreps([l])
+
+    n = jnp.mean(
+        e3nn.spherical_harmonics(
+            irreps, jax.random.normal(next(keys), (3,)), normalize=True, normalization="integral"
+        ).contiguous
+        ** 2
+    )
+    assert abs(n - 1 / (4 * jnp.pi)) < 1e-6
+
+    n = jnp.sum(
+        e3nn.spherical_harmonics(irreps, jax.random.normal(next(keys), (3,)), normalize=True, normalization="norm").contiguous
+        ** 2
+    )
+    assert abs(n - 1) < 1e-6
+
+    n = jnp.mean(
+        e3nn.spherical_harmonics(
+            irreps, jax.random.normal(next(keys), (3,)), normalize=True, normalization="component"
+        ).contiguous
+        ** 2
+    )
+    assert abs(n - 1) < 1e-6
+
+
+@pytest.mark.parametrize("l", range(8 + 1))
+def test_parity(keys, l):
+    irreps = e3nn.Irreps([l])
+    x = jax.random.normal(next(keys), (3,))
+
+    y1 = (-1) ** l * e3nn.spherical_harmonics(irreps, x, normalize=True, normalization="integral")
+    y2 = e3nn.spherical_harmonics(irreps, -x, normalize=True, normalization="integral")
+    assert jnp.allclose(y1.contiguous, y2.contiguous)
+
+
+@pytest.mark.parametrize("l", range(7 + 1))
+def test_recurrence_relation(keys, l):
+    x = jax.random.normal(next(keys), (3,))
+
+    y1 = e3nn.spherical_harmonics(e3nn.Irreps([l + 1]), x, normalize=True, normalization="integral").contiguous
+    y2 = jnp.einsum(
+        "ijk,i,j->k",
+        e3nn.clebsch_gordan(1, l, l + 1),
+        x,
+        e3nn.spherical_harmonics(e3nn.Irreps([l]), x, normalize=True, normalization="integral").contiguous,
+    )
+
+    y1 = y1 / jnp.linalg.norm(y1)
+    y2 = y2 / jnp.linalg.norm(y2)
+    assert jnp.allclose(y1, y2)

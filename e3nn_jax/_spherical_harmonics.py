@@ -98,6 +98,10 @@ def _jited_spherical_harmonics(irreps_out, x, normalize, normalization):
     return IrrepsData.from_list(irreps_out, sh, x.shape[:-1])
 
 
+def biggest_power_of_two(n):
+    return 2 ** (n.bit_length() - 1)
+
+
 def _spherical_harmonics(x, y, z):
     import sympy
 
@@ -105,44 +109,50 @@ def _spherical_harmonics(x, y, z):
 
     jax_context = dict(x=x, y=y, z=z, sqrt=jnp.sqrt)
     jax_context["sh0_0"] = jnp.ones_like(x)
+    jax_context["sh1_0"] = x
+    jax_context["sh1_1"] = y
+    jax_context["sh1_2"] = z
     yield [jax_context["sh0_0"]]
-
-    xyz = sympy.symbols("x, y, z")
+    yield [x, y, z]
 
     sph_x = {
         0: sympy.Array([1]),
+        1: sympy.Array(sympy.symbols("x, y, z")),
     }
     sph_1 = {
         0: sympy.Array([1]),
+        1: sympy.Array([1, 0, 0]),
     }
 
-    for l in itertools.count(0):
-        d = 2 * l + 1
-        sh_var = [sympy.symbols(f"sh{l}_{m}") for m in range(d)]
-        w = sqrtQarray_to_sympy(clebsch_gordan(1, l, l + 1))
-        yx = sympy.Array([sum(xyz[i] * sh_var[n] * w[i, n, m] for i in range(3) for n in range(d)) for m in range(d + 2)])
+    def sh_var(l):
+        return [sympy.symbols(f"sh{l}_{m}") for m in range(2 * l + 1)]
 
-        if l <= 1:
-            yx = yx.subs(zip(sh_var, sph_x[l]))
+    for l in itertools.count(2):
+        l2 = biggest_power_of_two(l - 1)
+        l1 = l - l2
 
-        y1 = yx.subs(zip(xyz, (1, 0, 0))).subs(zip(sh_var, sph_1[l]))
+        w = sqrtQarray_to_sympy(clebsch_gordan(l1, l2, l))
+        yx = sympy.Array(
+            [
+                sum(sh_var(l1)[i] * sh_var(l2)[j] * w[i, j, k] for i in range(2 * l1 + 1) for j in range(2 * l2 + 1))
+                for k in range(2 * l + 1)
+            ]
+        )
+
+        y1 = yx.subs(zip(sh_var(l1), sph_1[l1])).subs(zip(sh_var(l2), sph_1[l2]))
         norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x ** 2)))
         y1 = y1 / norm
         yx = yx / norm
         yx = sympy.simplify(yx)
 
-        l = l + 1
-        d = d + 2
-
         sph_x[l] = yx
         sph_1[l] = y1
 
-        # print code
-        values = [eval(f"{p}", jax_context) for m, p in enumerate(yx)]
+        values = [eval(f"{sympy.N(p)}", jax_context) for p in yx]
         yield values
 
-        for m in range(d):
-            jax_context[f"sh{l}_{m}"] = values[m]
+        for k in range(2 * l + 1):
+            jax_context[f"sh{l}_{k}"] = values[k]
 
 
 def print_spherical_harmonics(lmax):  # pragma: no cover
