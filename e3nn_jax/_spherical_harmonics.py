@@ -1,6 +1,5 @@
 r"""Spherical Harmonics as polynomials of x, y, z
 """
-import itertools
 import math
 from functools import partial
 from typing import Union
@@ -86,9 +85,14 @@ def _jited_spherical_harmonics(irreps_out, x, normalize, normalization):
         r = jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True)
         x = x / jnp.where(r == 0.0, 1.0, r)
 
-    sh = _spherical_harmonics(x[..., 0], x[..., 1], x[..., 2])
-    sh = [jnp.stack(next(sh), axis=-1) for _ in range(irreps_out.lmax + 1)]
-    sh = [jnp.repeat(sh[ir.l][..., None, :], mul, -2) for mul, ir in irreps_out]
+    context = dict()
+    for _, ir in irreps_out:
+        _spherical_harmonics(ir.l, context, x[..., 0], x[..., 1], x[..., 2])
+
+    sh = [
+        jnp.repeat(jnp.stack([context[f"sh{ir.l}_{k}"] for k in range(ir.dim)], axis=-1)[..., None, :], mul, -2)
+        for mul, ir in irreps_out
+    ]
 
     if normalization == "integral":
         sh = [(math.sqrt(ir.dim) / math.sqrt(4 * math.pi)) * y for (_, ir), y in zip(irreps_out, sh)]
@@ -102,96 +106,48 @@ def biggest_power_of_two(n):
     return 2 ** (n.bit_length() - 1)
 
 
-def _spherical_harmonics(x, y, z):
+def _spherical_harmonics(l, jax_context, x, y, z):
     import sympy
 
     from e3nn_jax.util.sympy import sqrtQarray_to_sympy
 
-    jax_context = dict(x=x, y=y, z=z, sqrt=jnp.sqrt)
+    jax_context.update(dict(x=x, y=y, z=z, sqrt=jnp.sqrt))
     jax_context["sh0_0"] = jnp.ones_like(x)
     jax_context["sh1_0"] = x
     jax_context["sh1_1"] = y
     jax_context["sh1_2"] = z
-    yield [jax_context["sh0_0"]]
-    yield [x, y, z]
 
-    sph_x = {
-        0: sympy.Array([1]),
-        1: sympy.Array(sympy.symbols("x, y, z")),
-    }
-    sph_1 = {
-        0: sympy.Array([1]),
-        1: sympy.Array([1, 0, 0]),
-    }
+    if l == 0:
+        return sympy.Array([1])
+
+    if l == 1:
+        return sympy.Array([1, 0, 0])
 
     def sh_var(l):
         return [sympy.symbols(f"sh{l}_{m}") for m in range(2 * l + 1)]
 
-    for l in itertools.count(2):
-        l2 = biggest_power_of_two(l - 1)
-        l1 = l - l2
+    l2 = biggest_power_of_two(l - 1)
+    l1 = l - l2
 
-        w = sqrtQarray_to_sympy(clebsch_gordan(l1, l2, l))
-        yx = sympy.Array(
-            [
-                sum(sh_var(l1)[i] * sh_var(l2)[j] * w[i, j, k] for i in range(2 * l1 + 1) for j in range(2 * l2 + 1))
-                for k in range(2 * l + 1)
-            ]
-        )
+    w = sqrtQarray_to_sympy(clebsch_gordan(l1, l2, l))
+    yx = sympy.Array(
+        [
+            sum(sh_var(l1)[i] * sh_var(l2)[j] * w[i, j, k] for i in range(2 * l1 + 1) for j in range(2 * l2 + 1))
+            for k in range(2 * l + 1)
+        ]
+    )
 
-        y1 = yx.subs(zip(sh_var(l1), sph_1[l1])).subs(zip(sh_var(l2), sph_1[l2]))
-        norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x ** 2)))
-        y1 = y1 / norm
-        yx = yx / norm
-        yx = sympy.simplify(yx)
+    sph_1_l1 = _spherical_harmonics(l1, jax_context, x, y, z)
+    sph_1_l2 = _spherical_harmonics(l2, jax_context, x, y, z)
 
-        sph_x[l] = yx
-        sph_1[l] = y1
+    y1 = yx.subs(zip(sh_var(l1), sph_1_l1)).subs(zip(sh_var(l2), sph_1_l2))
+    norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x ** 2)))
+    y1 = y1 / norm
+    yx = yx / norm
+    yx = sympy.simplify(yx)
 
-        values = [eval(f"{sympy.N(p)}", jax_context) for p in yx]
-        yield values
+    for k in range(2 * l + 1):
+        if f"sh{l}_{k}" not in jax_context:
+            jax_context[f"sh{l}_{k}"] = eval(f"{sympy.N(yx[k])}", jax_context)
 
-        for k in range(2 * l + 1):
-            jax_context[f"sh{l}_{k}"] = values[k]
-
-
-def print_spherical_harmonics(lmax):  # pragma: no cover
-    import sympy
-
-    from e3nn_jax.util.sympy import sqrtQarray_to_sympy
-
-    xyz = sympy.symbols("x, y, z")
-
-    print("sh0_0 = 1")
-    print("yield [sh0_0]\n")
-
-    sph_x = {
-        0: sympy.Array([1]),
-    }
-    sph_1 = {
-        0: sympy.Array([1]),
-    }
-
-    for l in range(lmax):
-        d = 2 * l + 1
-        sh_var = [sympy.symbols(f"sh{l}_{m}") for m in range(d)]
-        w = sqrtQarray_to_sympy(clebsch_gordan(1, l, l + 1))
-        yx = sympy.Array([sum(xyz[i] * sh_var[n] * w[i, n, m] for i in range(3) for n in range(d)) for m in range(d + 2)])
-
-        if l <= 1:
-            yx = yx.subs(zip(sh_var, sph_x[l]))
-
-        y1 = yx.subs(zip(xyz, (1, 0, 0))).subs(zip(sh_var, sph_1[l]))
-        norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x ** 2)))
-        y1 = y1 / norm
-        yx = yx / norm
-        yx = sympy.simplify(yx)
-
-        sph_x[l + 1] = yx
-        sph_1[l + 1] = y1
-
-        # print code
-        for m, p in enumerate(yx):
-            print(f"sh{l+1}_{m} = {p}")
-
-        print(f"yield [{', '.join([f'sh{l+1}_{m}' for m in range(d + 2)])}]\n")
+    return y1
