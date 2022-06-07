@@ -7,6 +7,7 @@ import jax.numpy as jnp
 from e3nn_jax import (
     FunctionalFullyConnectedTensorProduct,
     FunctionalLinear,
+    Irrep,
     Irreps,
     IrrepsData,
     MulIrrep,
@@ -58,11 +59,11 @@ class Convolution(hk.Module):
 
     def tp_weight(
         self,
-        i_in1: int,
-        i_in2: int,
+        i_in: int,
+        i_sh: int,
         i_out: int,
-        mul_ir_in1: MulIrrep,
-        mul_ir_in2: MulIrrep,
+        mul_ir_in: MulIrrep,
+        ir_sh: Irrep,
         mul_ir_out: MulIrrep,
         path_shape: Tuple[int, ...],
     ) -> jnp.ndarray:
@@ -80,7 +81,7 @@ class Convolution(hk.Module):
             )  # [x, y, z, number]
 
         w = hk.get_parameter(
-            f"w[{i_in1},{i_in2},{i_out}] {mul_ir_in1},{mul_ir_in2},{mul_ir_out}",
+            f"w[{i_in},{i_sh},{i_out}] {mul_ir_in},{ir_sh},{mul_ir_out}",
             (number,) + path_shape,
             init=hk.initializers.RandomNormal(),
         )
@@ -98,7 +99,7 @@ class Convolution(hk.Module):
                 i.i_in2,
                 i.i_out,
                 tp.irreps_in1[i.i_in1],
-                tp.irreps_in2[i.i_in2],
+                tp.irreps_in2[i.i_in2].ir,
                 tp.irreps_out[i.i_out],
                 i.path_shape,
             )
