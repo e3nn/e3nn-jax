@@ -9,6 +9,7 @@ from e3nn_jax import (
     FunctionalLinear,
     Irreps,
     IrrepsData,
+    MulIrrep,
     soft_one_hot_linspace,
     spherical_harmonics,
 )
@@ -49,44 +50,65 @@ class Convolution(hk.Module):
             s = math.floor(r / self.steps[2])
             z = jnp.arange(-s, s + 1.0) * self.steps[2]
 
-            lattice = jnp.stack(jnp.meshgrid(x, y, z, indexing="ij"), axis=-1)  # [x, y, z, R^3]
+            self.lattice = jnp.stack(jnp.meshgrid(x, y, z, indexing="ij"), axis=-1)  # [x, y, z, R^3]
 
-            self.emb = soft_one_hot_linspace(
-                jnp.linalg.norm(lattice, ord=2, axis=-1),
+            self.sh = spherical_harmonics(
+                irreps_out=self.irreps_sh, input=self.lattice, normalize=True, normalization="component"
+            )  # [x, y, z, irreps_sh.dim]
+
+    def tp_weight(
+        self,
+        i_in1: int,
+        i_in2: int,
+        i_out: int,
+        mul_ir_in1: MulIrrep,
+        mul_ir_in2: MulIrrep,
+        mul_ir_out: MulIrrep,
+        path_shape: Tuple[int, ...],
+    ) -> jnp.ndarray:
+        number = self.num_radial_basis
+
+        with jax.ensure_compile_time_eval():
+            embedding = soft_one_hot_linspace(
+                jnp.linalg.norm(self.lattice, ord=2, axis=-1),
                 start=0.0,
                 end=self.diameter / 2,
-                number=self.num_radial_basis,
+                number=number,
                 basis="smooth_finite",
                 start_zero=True,
                 end_zero=True,
-            )  # [x, y, z, num_radial_basis]
+            )  # [x, y, z, number]
 
-            self.sh = spherical_harmonics(
-                irreps_out=self.irreps_sh, input=lattice, normalize=True, normalization="component"
-            )  # [x, y, z, irreps_sh.dim]
+        w = hk.get_parameter(
+            f"w[{i_in1},{i_in2},{i_out}] {mul_ir_in1},{mul_ir_in2},{mul_ir_out}",
+            (number,) + path_shape,
+            init=hk.initializers.RandomNormal(),
+        )
+        return jnp.einsum("xyzk,k...->xyz...", embedding, w) / (
+            self.lattice.shape[0] * self.lattice.shape[1] * self.lattice.shape[2]
+        )  # [x, y, z, tp_w]
 
-    def kernel(self, irreps_in, irreps_out) -> jnp.ndarray:
+    def kernel(self, irreps_in: Irreps, irreps_out: Irreps) -> jnp.ndarray:
         # convolution
         tp = FunctionalFullyConnectedTensorProduct(irreps_in, self.irreps_sh, irreps_out)
 
-        w = [
-            hk.get_parameter(
-                f"w[{i.i_in1},{i.i_in2},{i.i_out}] {tp.irreps_in1[i.i_in1]},{tp.irreps_in2[i.i_in2]},{tp.irreps_out[i.i_out]}",
-                (self.num_radial_basis,) + i.path_shape,
-                init=hk.initializers.RandomNormal(),
+        ws = [
+            self.tp_weight(
+                i.i_in1,
+                i.i_in2,
+                i.i_out,
+                tp.irreps_in1[i.i_in1],
+                tp.irreps_in2[i.i_in2],
+                tp.irreps_out[i.i_out],
+                i.path_shape,
             )
             for i in tp.instructions
-        ]
-        w = [
-            jnp.einsum("xyzk,k...->xyz...", self.emb, x)
-            / (self.sh.shape[0] * self.sh.shape[1] * self.sh.shape[2])  # [x,y,z, tp_w]
-            for x in w
         ]
 
         tp_right = tp.right
         for _ in range(3):
             tp_right = jax.vmap(tp_right, (0, 0), 0)
-        k = tp_right(w, self.sh)  # [x,y,z, irreps_in.dim, irreps_out.dim]
+        k = tp_right(ws, self.sh)  # [x, y, z, irreps_in.dim, irreps_out.dim]
 
         # self-connection
         lin = FunctionalLinear(irreps_in, irreps_out)
