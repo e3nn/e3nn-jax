@@ -33,31 +33,41 @@ def test_closure(keys):
                 assert jnp.abs(m).max() < 0.01
 
 
-@pytest.mark.parametrize("l", range(8 + 1))
-def test_normalization(keys, l):
+@pytest.mark.parametrize("l", range(13 + 1))
+def test_normalization_integral(keys, l):
     irreps = e3nn.Irreps([l])
 
     n = jnp.mean(
         e3nn.spherical_harmonics(
-            irreps, jax.random.normal(next(keys), (3,)), normalize=True, normalization="integral"
+            irreps, jax.random.normal(keys[l + 0], (3,)), normalize=True, normalization="integral"
         ).contiguous
         ** 2
     )
-    assert abs(n - 1 / (4 * jnp.pi)) < 1e-6
+    assert abs((4 * jnp.pi) * n - 1) < 6e-7 * max((l / 4) ** 8, 1)
+
+
+@pytest.mark.parametrize("l", range(13 + 1))
+def test_normalization_norm(keys, l):
+    irreps = e3nn.Irreps([l])
 
     n = jnp.sum(
-        e3nn.spherical_harmonics(irreps, jax.random.normal(next(keys), (3,)), normalize=True, normalization="norm").contiguous
+        e3nn.spherical_harmonics(irreps, jax.random.normal(keys[l + 1], (3,)), normalize=True, normalization="norm").contiguous
         ** 2
     )
-    assert abs(n - 1) < 1e-6
+    assert abs(n - 1) < 6e-7 * max((l / 4) ** 8, 1)
+
+
+@pytest.mark.parametrize("l", range(13 + 1))
+def test_normalization_component(keys, l):
+    irreps = e3nn.Irreps([l])
 
     n = jnp.mean(
         e3nn.spherical_harmonics(
-            irreps, jax.random.normal(next(keys), (3,)), normalize=True, normalization="component"
+            irreps, jax.random.normal(keys[l + 2], (3,)), normalize=True, normalization="component"
         ).contiguous
         ** 2
     )
-    assert abs(n - 1) < 1e-6
+    assert abs(n - 1) < 6e-7 * max((l / 4) ** 8, 1)
 
 
 @pytest.mark.parametrize("l", range(8 + 1))
