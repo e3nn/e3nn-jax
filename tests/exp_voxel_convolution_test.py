@@ -56,6 +56,7 @@ def test_convolution_defaults(keys):
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,
             diameter=3.9,
+            num_radial_basis=3,
             steps=(1.0, 1.0, 1.0),
         )(x)
         return x.contiguous
