@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `experimental.voxel_convolution`: `padding` and add self-connection into the convolution kernel
 - `experimental.voxel_pooling`: add `output_size` argument to the `zoom` function
 - `IrrepsData`: `list` attribute is now lazily initialized
+- `experimental.voxel_convolution`: add possibility to have different radial functions depenfing on the spherical harmonic degree
 
 ### Changed
 - Behavior of `eps` in `BatchNorm`. Now `input / sqrt((1 - eps) * norm^2 + eps)` instead of `input / sqrt(norm^2 + eps)`

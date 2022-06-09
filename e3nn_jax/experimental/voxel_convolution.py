@@ -1,6 +1,7 @@
 import math
-from typing import Tuple
+from typing import Tuple, Dict, Union
 
+from collections import defaultdict
 import haiku as hk
 import jax
 import jax.numpy as jnp
@@ -20,22 +21,42 @@ from jax import lax
 class Convolution(hk.Module):
     def __init__(
         self,
-        irreps_out,
-        irreps_sh,
+        irreps_out: Irreps,
+        irreps_sh: Irreps,
         diameter: float,
-        num_radial_basis: int,
+        num_radial_basis: Union[int, Dict[int, int]],
         steps: Tuple[float, float, float],
         *,
+        relative_starts: Union[float, Dict[int, float]] = 0.0,
         padding="SAME",
         irreps_in=None,
     ):
+        r"""3D Voxel Convolution.
+
+        Args:
+            irreps_out: Irreps of the output.
+            irreps_sh: Irreps of the spherical harmonics.
+            diameter: Diameter of convolution kernel expressed in any physical unit, let say millimeter.
+            num_radial_basis: Number of radial basis functions, optionally for each spherical harmonic order.
+            steps: Steps of the pixel grid in millimeter. For instance 1mm by 1mm by 3mm.
+            relative_starts: Relative start of the radial basis functions, optionally for each spherical harmonic order.
+            padding: Padding mode, see `lax.conv_general_dilated`.
+            irreps_in: Irreps of the input. If None, it is inferred from the input data.
+        """
         super().__init__()
+
+        if isinstance(num_radial_basis, int):
+            num_radial_basis = defaultdict(lambda: num_radial_basis)
+
+        if isinstance(relative_starts, (float, int)):
+            relative_starts = defaultdict(lambda: relative_starts)
 
         self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None
         self.irreps_out = Irreps(irreps_out)
         self.irreps_sh = Irreps(irreps_sh)
         self.diameter = diameter
         self.num_radial_basis = num_radial_basis
+        self.relative_starts = relative_starts
         self.steps = steps
         self.padding = padding
 
@@ -67,12 +88,13 @@ class Convolution(hk.Module):
         mul_ir_out: MulIrrep,
         path_shape: Tuple[int, ...],
     ) -> jnp.ndarray:
-        number = self.num_radial_basis
+        number = self.num_radial_basis[ir_sh.l]
+        start = self.relative_starts[ir_sh.l]
 
         with jax.ensure_compile_time_eval():
             embedding = soft_one_hot_linspace(
                 jnp.linalg.norm(self.lattice, ord=2, axis=-1),
-                start=0.0,
+                start=start * self.diameter / 2,
                 end=self.diameter / 2,
                 number=number,
                 basis="smooth_finite",
@@ -126,8 +148,12 @@ class Convolution(hk.Module):
         return k
 
     def __call__(self, input: IrrepsData) -> IrrepsData:
-        """
-        input: [batch, x, y, z, irreps_in.dim]
+        r"""
+        Args:
+            input: Input data of shape ``[batch, x, y, z, irreps_in.dim]``
+
+        Returns:
+            Output data of shape ``[batch, x, y, z, irreps_out.dim]``
         """
         if self.irreps_in is not None:
             input = IrrepsData.new(self.irreps_in, input)
