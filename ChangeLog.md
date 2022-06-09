@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2022-06-09
+### Changed
+- fix a bug in `experimental.voxel_convolution` constructor
+
 ## [0.6.0] - 2022-06-09
 ### Added
 - Function `matrix` to `FunctionalLinear`
