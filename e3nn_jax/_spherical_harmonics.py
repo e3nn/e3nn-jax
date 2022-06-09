@@ -83,6 +83,8 @@ def spherical_harmonics(
 
 @partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
 def _jited_spherical_harmonics(irreps_out, x, normalize, normalization):
+    assert x.shape[-1] == 3
+
     if normalize:
         r = jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True)
         x = x / jnp.where(r == 0.0, 1.0, r)
