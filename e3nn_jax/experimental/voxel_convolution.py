@@ -46,17 +46,19 @@ class Convolution(hk.Module):
         super().__init__()
 
         if isinstance(num_radial_basis, int):
-            num_radial_basis = defaultdict(lambda: num_radial_basis)
+            self.num_radial_basis = defaultdict(lambda: num_radial_basis)
+        else:
+            self.num_radial_basis = num_radial_basis
 
         if isinstance(relative_starts, (float, int)):
-            relative_starts = defaultdict(lambda: relative_starts)
+            self.relative_starts = defaultdict(lambda: relative_starts)
+        else:
+            self.relative_starts = relative_starts
 
         self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None
         self.irreps_out = Irreps(irreps_out)
         self.irreps_sh = Irreps(irreps_sh)
         self.diameter = diameter
-        self.num_radial_basis = num_radial_basis
-        self.relative_starts = relative_starts
         self.steps = steps
         self.padding = padding
 
