@@ -1,15 +1,15 @@
 import collections
+import dataclasses
 import itertools
 import math
 from functools import partial
 from typing import List, Optional, Tuple
 
-import dataclasses
 import jax
 import jax.numpy as jnp
 import jax.scipy
 
-from e3nn_jax import matrix_to_angles, perm, quaternion_to_angles, wigner_D
+from e3nn_jax import axis_angle_to_angles, matrix_to_angles, perm, quaternion_to_angles, wigner_D
 
 
 @dataclasses.dataclass(init=False, frozen=True)
@@ -597,6 +597,21 @@ class Irreps(tuple):
         return self.transform_by_angles(contiguous, *quaternion_to_angles(q), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
+    def transform_by_axis_angle(self, contiguous, axis, angle, k=0):
+        r"""Rotate data by an axis and an angle
+
+        Args:
+            contiguous (`jnp.ndarray`): data compatible with the irreps.
+            axis (`jnp.ndarray`): axis
+            angle (float): angle (in radians)
+            k (int): parity operation
+
+        Returns:
+            `jnp.ndarray`
+        """
+        return self.transform_by_angles(contiguous, *axis_angle_to_angles(axis, angle), k)
+
+    @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_matrix(self, contiguous, R):
         r"""Rotate data by a rotation given by a matrix
 
@@ -872,6 +887,19 @@ class IrrepsData:
             IrrepsData
         """
         return self.transform_by_angles(*quaternion_to_angles(q), k)
+
+    def transform_by_axis_angle(self, axis: jnp.ndarray, angle: float, k: int = 0) -> "IrrepsData":
+        r"""Rotate data by a rotation given by an axis and an angle
+
+        Args:
+            axis (`jnp.ndarray`): axis
+            angle (float): angle (in radians)
+            k (int): parity operation
+
+        Returns:
+            IrrepsData
+        """
+        return self.transform_by_angles(*axis_angle_to_angles(axis, angle), k)
 
     def transform_by_matrix(self, R: jnp.ndarray) -> "IrrepsData":
         r"""Rotate data by a rotation given by a matrix
