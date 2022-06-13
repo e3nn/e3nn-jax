@@ -2,13 +2,13 @@ r"""Spherical Harmonics as polynomials of x, y, z
 """
 import math
 from functools import partial
-from typing import Dict, Union
+from typing import Dict, List, Tuple, Union
 
 import jax
 import jax.numpy as jnp
 import sympy
 
-from e3nn_jax import Irrep, Irreps, IrrepsData, clebsch_gordan
+from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
 from e3nn_jax.util.sympy import sqrtQarray_to_sympy
 
 
@@ -78,39 +78,39 @@ def spherical_harmonics(
     else:
         x = input
 
-    return _jited_spherical_harmonics(irreps_out, x, normalize, normalization)
-
-
-@partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
-def _jited_spherical_harmonics(irreps_out, x, normalize, normalization):
     assert x.shape[-1] == 3
-
     if normalize:
         r = jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True)
         x = x / jnp.where(r == 0.0, 1.0, r)
 
-    sh = _custom_vjp_spherical_harmonics(irreps_out, x, normalization)
+    sh = _jited_spherical_harmonics(tuple(ir.l for _, ir in irreps_out), x, normalization)
+    sh = [jnp.repeat(y[..., None, :], mul, -2) for (mul, ir), y in zip(irreps_out, sh)]
     return IrrepsData.from_list(irreps_out, sh, x.shape[:-1])
 
 
+@partial(jax.jit, static_argnums=(0, 2), inline=True)
+def _jited_spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str) -> List[jnp.ndarray]:
+    return _custom_vjp_spherical_harmonics(ls, x, normalization)
+
+
 @partial(jax.custom_vjp, nondiff_argnums=(0, 2))
-def _custom_vjp_spherical_harmonics(irreps_out, x, normalization):
+def _custom_vjp_spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str) -> List[jnp.ndarray]:
     context = dict()
-    for _, ir in irreps_out:
-        _recursive_spherical_harmonics(ir.l, context, x, normalization)
-        # results are stored in context[ir.l]
+    for l in ls:
+        _recursive_spherical_harmonics(l, context, x, normalization)
+        # results are stored in context[l]
 
-    return [jnp.repeat(context[ir.l][..., None, :], mul, -2) for mul, ir in irreps_out]
-
-
-def _fwd(irreps_out, x, normalization):
-    irreps_grad = Irreps([(mul, Irrep(l=max(0, ir.l - 1), p=1)) for mul, ir in irreps_out])
-    output = _custom_vjp_spherical_harmonics(irreps_out + irreps_grad, x, normalization)
-
-    return output[: len(irreps_out)], output[len(irreps_out) :]
+    return [context[l] for l in ls]
 
 
-def _bwd(irreps_out, normalization, res, grad):
+def _fwd(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str) -> Tuple[List[jnp.ndarray], List[jnp.ndarray]]:
+    js = tuple(max(0, l - 1) for l in ls)
+    output = _custom_vjp_spherical_harmonics(ls + js, x, normalization)
+
+    return output[: len(ls)], output[len(ls) :]
+
+
+def _bwd(ls: Tuple[int, ...], normalization: str, res: List[jnp.ndarray], grad: List[jnp.ndarray]) -> jnp.ndarray:
     def h(l):
         if normalization == "norm":
             return ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
@@ -119,10 +119,10 @@ def _bwd(irreps_out, normalization, res, grad):
     return (
         sum(
             [
-                jnp.einsum("ijk,...ui,...uj->...k", h(ir.l) * clebsch_gordan(ir.l - 1, ir.l, 1), r, g)
-                if ir.l > 0
-                else jnp.zeros_like(r, shape=r.shape[:-2] + (3,))
-                for (mul, ir), r, g in zip(irreps_out, res, grad)
+                jnp.einsum("ijk,...i,...j->...k", h(l) * clebsch_gordan(l - 1, l, 1), r, g)
+                if l > 0
+                else jnp.zeros_like(r, shape=r.shape[:-1] + (3,))
+                for l, r, g in zip(ls, res, grad)
             ]
         ),
     )
@@ -131,7 +131,9 @@ def _bwd(irreps_out, normalization, res, grad):
 _custom_vjp_spherical_harmonics.defvjp(_fwd, _bwd)
 
 
-def _recursive_spherical_harmonics(l: int, context: Dict, input: jnp.ndarray, normalization: str) -> sympy.Array:
+def _recursive_spherical_harmonics(
+    l: int, context: Dict[int, jnp.ndarray], input: jnp.ndarray, normalization: str
+) -> sympy.Array:
     context.update(dict(jnp=jnp, clebsch_gordan=clebsch_gordan))
 
     if 0 not in context:
