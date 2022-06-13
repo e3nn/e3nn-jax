@@ -89,12 +89,50 @@ def _jited_spherical_harmonics(irreps_out, x, normalize, normalization):
         r = jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True)
         x = x / jnp.where(r == 0.0, 1.0, r)
 
+    sh = _custom_vjp_spherical_harmonics(irreps_out, x, normalization)
+    return IrrepsData.from_list(irreps_out, sh, x.shape[:-1])
+
+
+@partial(jax.custom_vjp, nondiff_argnums=(0, 2))
+def _custom_vjp_spherical_harmonics(irreps_out, x, normalization):
     context = dict()
     for _, ir in irreps_out:
         _spherical_harmonics(ir.l, context, x, normalization)
 
-    sh = [jnp.repeat(context[ir.l][..., None, :], mul, -2) for mul, ir in irreps_out]
-    return IrrepsData.from_list(irreps_out, sh, x.shape[:-1])
+    return [jnp.repeat(context[ir.l][..., None, :], mul, -2) for mul, ir in irreps_out]
+
+
+def _fwd(irreps_out, x, normalization):
+    context = dict()
+    for _, ir in irreps_out:
+        _spherical_harmonics(ir.l, context, x, normalization)
+        if ir.l > 0:
+            _spherical_harmonics(ir.l - 1, context, x, normalization)
+
+    out = [jnp.repeat(context[ir.l][..., None, :], mul, -2) for mul, ir in irreps_out]
+    res = [jnp.repeat(context[ir.l - 1][..., None, :], mul, -2) if ir.l > 0 else x for mul, ir in irreps_out]
+    return out, res
+
+
+def _bwd(irreps_out, normalization, res, grad):
+    def h(l):
+        if normalization == "norm":
+            return ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
+        return l ** 0.5 * (2 * l + 1)
+
+    return (
+        sum(
+            [
+                jnp.einsum("ijk,...ui,...uj->...k", h(ir.l) * clebsch_gordan(ir.l - 1, ir.l, 1), r, g)
+                if ir.l > 0
+                else jnp.zeros_like(r)
+                for (mul, ir), r, g in zip(irreps_out, res, grad)
+            ]
+        ),
+    )
+
+
+_custom_vjp_spherical_harmonics.defvjp(_fwd, _bwd)
 
 
 def biggest_power_of_two(n):

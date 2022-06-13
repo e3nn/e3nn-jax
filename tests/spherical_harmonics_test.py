@@ -1,7 +1,8 @@
-import pytest
+import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
-import e3nn_jax as e3nn
+import pytest
+from jax.test_util import check_grads
 
 
 @pytest.mark.parametrize("l", [0, 1, 2, 3, 4, 5, 6, 7])
@@ -95,3 +96,12 @@ def test_recurrence_relation(keys, l):
     y1 = y1 / jnp.linalg.norm(y1)
     y2 = y2 / jnp.linalg.norm(y2)
     assert jnp.allclose(y1, y2)
+
+
+def test_check_grads(keys):
+    check_grads(
+        lambda x: e3nn.spherical_harmonics("3x1o+2e+2x4e", x, normalize=True, normalization="component").contiguous,
+        (jax.random.normal(keys[0], (10, 3)),),
+        1,
+        modes=["rev"],
+    )
