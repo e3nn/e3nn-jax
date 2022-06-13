@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 import sympy
 
-from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
+from e3nn_jax import Irrep, Irreps, IrrepsData, clebsch_gordan
 from e3nn_jax.util.sympy import sqrtQarray_to_sympy
 
 
@@ -97,21 +97,17 @@ def _jited_spherical_harmonics(irreps_out, x, normalize, normalization):
 def _custom_vjp_spherical_harmonics(irreps_out, x, normalization):
     context = dict()
     for _, ir in irreps_out:
-        _spherical_harmonics(ir.l, context, x, normalization)
+        _recursive_spherical_harmonics(ir.l, context, x, normalization)
+        # results are stored in context[ir.l]
 
     return [jnp.repeat(context[ir.l][..., None, :], mul, -2) for mul, ir in irreps_out]
 
 
 def _fwd(irreps_out, x, normalization):
-    context = dict()
-    for _, ir in irreps_out:
-        _spherical_harmonics(ir.l, context, x, normalization)
-        if ir.l > 0:
-            _spherical_harmonics(ir.l - 1, context, x, normalization)
+    irreps_grad = Irreps([(mul, Irrep(l=max(0, ir.l - 1), p=1)) for mul, ir in irreps_out])
+    output = _custom_vjp_spherical_harmonics(irreps_out + irreps_grad, x, normalization)
 
-    out = [jnp.repeat(context[ir.l][..., None, :], mul, -2) for mul, ir in irreps_out]
-    res = [jnp.repeat(context[ir.l - 1][..., None, :], mul, -2) if ir.l > 0 else x for mul, ir in irreps_out]
-    return out, res
+    return output[: len(irreps_out)], output[len(irreps_out) :]
 
 
 def _bwd(irreps_out, normalization, res, grad):
@@ -125,7 +121,7 @@ def _bwd(irreps_out, normalization, res, grad):
             [
                 jnp.einsum("ijk,...ui,...uj->...k", h(ir.l) * clebsch_gordan(ir.l - 1, ir.l, 1), r, g)
                 if ir.l > 0
-                else jnp.zeros_like(r)
+                else jnp.zeros_like(r, shape=r.shape[:-2] + (3,))
                 for (mul, ir), r, g in zip(irreps_out, res, grad)
             ]
         ),
@@ -135,23 +131,19 @@ def _bwd(irreps_out, normalization, res, grad):
 _custom_vjp_spherical_harmonics.defvjp(_fwd, _bwd)
 
 
-def biggest_power_of_two(n):
-    return 2 ** (n.bit_length() - 1)
+def _recursive_spherical_harmonics(l: int, context: Dict, input: jnp.ndarray, normalization: str) -> sympy.Array:
+    context.update(dict(jnp=jnp, clebsch_gordan=clebsch_gordan))
 
-
-def _spherical_harmonics(l: int, jax_context: Dict, input: jnp.ndarray, normalization: str) -> sympy.Array:
-    jax_context.update(dict(jnp=jnp, clebsch_gordan=clebsch_gordan))
-
-    if 0 not in jax_context:
+    if 0 not in context:
         if normalization == "integral":
-            jax_context[0] = math.sqrt(1 / (4 * math.pi)) * jnp.ones_like(input[..., :1])
-            jax_context[1] = math.sqrt(3 / (4 * math.pi)) * input
+            context[0] = math.sqrt(1 / (4 * math.pi)) * jnp.ones_like(input[..., :1])
+            context[1] = math.sqrt(3 / (4 * math.pi)) * input
         elif normalization == "component":
-            jax_context[0] = jnp.ones_like(input[..., :1])
-            jax_context[1] = math.sqrt(3) * input
+            context[0] = jnp.ones_like(input[..., :1])
+            context[1] = math.sqrt(3) * input
         else:
-            jax_context[0] = jnp.ones_like(input[..., :1])
-            jax_context[1] = input
+            context[0] = jnp.ones_like(input[..., :1])
+            context[1] = input
 
     if l == 0:
         return sympy.Array([1])
@@ -173,14 +165,14 @@ def _spherical_harmonics(l: int, jax_context: Dict, input: jnp.ndarray, normaliz
         ]
     )
 
-    sph_1_l1 = _spherical_harmonics(l1, jax_context, input, normalization)
-    sph_1_l2 = _spherical_harmonics(l2, jax_context, input, normalization)
+    sph_1_l1 = _recursive_spherical_harmonics(l1, context, input, normalization)
+    sph_1_l2 = _recursive_spherical_harmonics(l2, context, input, normalization)
 
     y1 = yx.subs(zip(sh_var(l1), sph_1_l1)).subs(zip(sh_var(l2), sph_1_l2))
     norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x ** 2)))
     y1 = y1 / norm
 
-    if l not in jax_context:
+    if l not in context:
         if normalization == "integral":
             x = math.sqrt((2 * l + 1) / (4 * math.pi)) / (
                 math.sqrt((2 * l1 + 1) / (4 * math.pi)) * math.sqrt((2 * l2 + 1) / (4 * math.pi))
@@ -191,6 +183,10 @@ def _spherical_harmonics(l: int, jax_context: Dict, input: jnp.ndarray, normaliz
             x = 1
 
         w = (x / float(norm)) * clebsch_gordan(l1, l2, l)
-        jax_context[l] = jnp.einsum("...i,...j,ijk->...k", jax_context[l1], jax_context[l2], w)
+        context[l] = jnp.einsum("...i,...j,ijk->...k", context[l1], context[l2], w)
 
     return y1
+
+
+def biggest_power_of_two(n):
+    return 2 ** (n.bit_length() - 1)
