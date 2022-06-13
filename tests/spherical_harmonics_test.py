@@ -98,10 +98,14 @@ def test_recurrence_relation(keys, l):
     assert jnp.allclose(y1, y2)
 
 
-def test_check_grads(keys):
+@pytest.mark.parametrize("normalization", ["integral", "norm", "component"])
+@pytest.mark.parametrize("irreps", ["3x1o+2e+2x4e", "2x0e", "10e"])
+def test_check_grads(keys, irreps, normalization):
     check_grads(
-        lambda x: e3nn.spherical_harmonics("3x1o+2e+2x4e", x, normalize=True, normalization="component").contiguous,
+        lambda x: e3nn.spherical_harmonics(irreps, x, normalize=False, normalization=normalization).contiguous,
         (jax.random.normal(keys[0], (10, 3)),),
         1,
         modes=["rev"],
+        atol=3e-3,
+        rtol=3e-3,
     )
