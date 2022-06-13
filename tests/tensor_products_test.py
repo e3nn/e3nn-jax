@@ -8,7 +8,7 @@ def test_full_tensor_product():
     x2 = IrrepsData.from_contiguous("1o", jnp.array([0.0, 1.0, 0.0]))
     x3 = full_tensor_product(x1, x2, filter_ir_out=("1e",))
     assert x3.irreps == Irreps("1e")
-    assert jnp.allclose(x3.contiguous, jnp.array([0.0, 0.0, 1 / 2 ** 0.5]))
+    assert jnp.allclose(x3.contiguous, jnp.array([0.0, 0.0, 1 / 2**0.5]))
 
 
 def test_full_tensor_product_irreps():

@@ -168,7 +168,7 @@ def solve_symmetric(candidates):
     tensors = [
         tensors.subs(x, 1).subs(zip(variables, [0] * len(variables))) for x in variables
     ]  # [0, 0, 0], [-1, 1, 0], [0, 0, 0]
-    norms = [sympy.sqrt(sum(sympy.flatten(s.applyfunc(lambda x: x ** 2)))) for s in tensors]  # [0, sqrt(2), 0]
+    norms = [sympy.sqrt(sum(sympy.flatten(s.applyfunc(lambda x: x**2)))) for s in tensors]  # [0, sqrt(2), 0]
     solutions = [s / n for s, n in zip(tensors, norms) if not n.is_zero]  # [-1, 1, 0] / sqrt(2)
 
     # assert all(is_symmetric(x) for sol in solutions for x in sol)

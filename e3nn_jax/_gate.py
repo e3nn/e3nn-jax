@@ -76,7 +76,7 @@ def gate(input: IrrepsData, even_act=None, odd_act=None, even_gate_act=None, odd
     if even_act is None:
         even_act = jax.nn.gelu
     if odd_act is None:
-        odd_act = lambda x: (1 - jnp.exp(-(x ** 2))) * x
+        odd_act = lambda x: (1 - jnp.exp(-(x**2))) * x
     if even_gate_act is None:
         even_gate_act = jax.nn.sigmoid
     if odd_gate_act is None:

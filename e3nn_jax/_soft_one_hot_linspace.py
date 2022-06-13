@@ -159,7 +159,7 @@ def soft_one_hot_linspace(
     diff = (input[..., None] - values) / step
 
     if basis == "gaussian":
-        return jnp.exp(-(diff ** 2)) / 1.12
+        return jnp.exp(-(diff**2)) / 1.12
 
     if basis == "cosine":
         return jnp.where((-1.0 < diff) & (diff < 1.0), jnp.cos(jnp.pi / 2 * diff), 0.0)

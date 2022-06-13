@@ -103,7 +103,7 @@ def test_fuse_all_mix_weight(keys):
             (0, 0, 0, "uvw", True),
         ],
     )
-    w = jax.random.normal(keys[1], (5 ** 3,))
+    w = jax.random.normal(keys[1], (5**3,))
     x = jax.random.normal(keys[2], (5,))
     y = jax.random.normal(keys[3], (5,))
 
@@ -145,11 +145,11 @@ def test_normalization(keys, irrep_normalization, path_normalization):
 
     v, s = tp.left_right(ws, x1, x2).list
 
-    assert jnp.exp(jnp.abs(jnp.log(jnp.mean(s ** 2)))) < 2.0
+    assert jnp.exp(jnp.abs(jnp.log(jnp.mean(s**2)))) < 2.0
     if irrep_normalization == "component":
-        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(v ** 2)))) < 2.0
+        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(v**2)))) < 2.0
     if irrep_normalization == "norm":
-        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(jnp.sum(v ** 2, axis=1))))) < 2.0
+        assert jnp.exp(jnp.abs(jnp.log(jnp.mean(jnp.sum(v**2, axis=1))))) < 2.0
 
 
 def test_square_normalization(keys):
@@ -165,4 +165,4 @@ def test_square_normalization(keys):
     w = jax.random.normal(keys[0], (k, n))
     x = irreps.randn(keys[1], (k, -1), normalization="component")
     y = f(w, x)
-    assert jnp.all(jnp.exp(jnp.abs(jnp.log(jnp.mean(y ** 2, 0)))) < 1.1)
+    assert jnp.all(jnp.exp(jnp.abs(jnp.log(jnp.mean(y**2, 0)))) < 1.1)

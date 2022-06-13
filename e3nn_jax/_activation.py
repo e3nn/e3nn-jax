@@ -109,7 +109,7 @@ def key_value_activation(phi, key, value):
     assert value.ndim == 1
 
     d = value.shape[0]
-    key = key / jnp.sqrt(1 / 16 + jnp.sum(key ** 2))  # 1/16 is arbitrary small... but not too small...
+    key = key / jnp.sqrt(1 / 16 + jnp.sum(key**2))  # 1/16 is arbitrary small... but not too small...
     scalar = jnp.sum(key * value)
     scalar = normalize_function(phi)(scalar)
-    return d ** 0.5 * scalar * key  # component normalized
+    return d**0.5 * scalar * key  # component normalized

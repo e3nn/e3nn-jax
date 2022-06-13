@@ -121,7 +121,7 @@ class Convolution(hk.Module):
         ######################################################################################
 
         node_features = jax.tree_map(lambda x: index_add(edge_dst, x, out_dim=node_input.shape[0]), edge_features)
-        node_features = node_features / self.num_neighbors ** 0.5
+        node_features = node_features / self.num_neighbors**0.5
 
         ######################################################################################
 

@@ -494,15 +494,11 @@ def _left_right(
 
         if ins.connection_mode == "uvw":
             assert ins.has_weight
-            if (
-                specialized_code
-                and (
-                    mul_ir_in1.ir.l,
-                    mul_ir_in2.ir.l,
-                    mul_ir_out.ir.l,
-                )
-                == (0, 0, 0)
-            ):
+            if specialized_code and (
+                mul_ir_in1.ir.l,
+                mul_ir_in2.ir.l,
+                mul_ir_out.ir.l,
+            ) == (0, 0, 0):
                 out = ins.path_weight * einsum("uvw,uv->w", w, xx.reshape(mul_ir_in1.dim, mul_ir_in2.dim))
             elif specialized_code and mul_ir_in1.ir.l == 0:
                 out = ins.path_weight * einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
@@ -515,15 +511,11 @@ def _left_right(
         if ins.connection_mode == "uvu":
             assert mul_ir_in1.mul == mul_ir_out.mul
             if ins.has_weight:
-                if (
-                    specialized_code
-                    and (
-                        mul_ir_in1.ir.l,
-                        mul_ir_in2.ir.l,
-                        mul_ir_out.ir.l,
-                    )
-                    == (0, 0, 0)
-                ):
+                if specialized_code and (
+                    mul_ir_in1.ir.l,
+                    mul_ir_in2.ir.l,
+                    mul_ir_out.ir.l,
+                ) == (0, 0, 0):
                     out = ins.path_weight * einsum(
                         "uv,u,v->u",
                         w,
@@ -544,15 +536,11 @@ def _left_right(
         if ins.connection_mode == "uvv":
             assert mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                if (
-                    specialized_code
-                    and (
-                        mul_ir_in1.ir.l,
-                        mul_ir_in2.ir.l,
-                        mul_ir_out.ir.l,
-                    )
-                    == (0, 0, 0)
-                ):
+                if specialized_code and (
+                    mul_ir_in1.ir.l,
+                    mul_ir_in2.ir.l,
+                    mul_ir_out.ir.l,
+                ) == (0, 0, 0):
                     out = ins.path_weight * einsum(
                         "uv,u,v->v",
                         w,

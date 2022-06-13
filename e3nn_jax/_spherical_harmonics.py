@@ -62,7 +62,7 @@ def spherical_harmonics(
         l = irreps_out
         assert isinstance(input, IrrepsData)
         [(mul, ir)] = input.irreps
-        irreps_out = Irreps([(1, (l, ir.p ** l))])
+        irreps_out = Irreps([(1, (l, ir.p**l))])
 
     irreps_out = Irreps(irreps_out)
 
@@ -114,7 +114,7 @@ def _bwd(irreps_out, normalization, res, grad):
     def h(l):
         if normalization == "norm":
             return ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
-        return l ** 0.5 * (2 * l + 1)
+        return l**0.5 * (2 * l + 1)
 
     return (
         sum(
@@ -169,7 +169,7 @@ def _recursive_spherical_harmonics(l: int, context: Dict, input: jnp.ndarray, no
     sph_1_l2 = _recursive_spherical_harmonics(l2, context, input, normalization)
 
     y1 = yx.subs(zip(sh_var(l1), sph_1_l1)).subs(zip(sh_var(l2), sph_1_l2))
-    norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x ** 2)))
+    norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x**2)))
     y1 = y1 / norm
 
     if l not in context:

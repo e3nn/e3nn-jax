@@ -10,7 +10,7 @@ def test_gate(keys):
     x = IrrepsData.randn("16x0o + 32x0o + 16x1e + 16x1o", next(keys), (10,))
     y = f(x)
 
-    assert jnp.abs(jnp.log(jnp.mean(y.contiguous ** 2))) < 0.2
+    assert jnp.abs(jnp.log(jnp.mean(y.contiguous**2))) < 0.2
 
     R = -rand_matrix(next(keys), ())
     y1 = y.transform_by_matrix(R)

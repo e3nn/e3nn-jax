@@ -108,7 +108,7 @@ def create_model(config):
     @hk.transform
     def f(a):
         irreps_node_attr = Irreps("5x0e")
-        node_attr = a["x"][:, :5] * 5 ** 0.5
+        node_attr = a["x"][:, :5] * 5**0.5
         pos = a["pos"]
         edge_src, edge_dst = a["edge_index"]
 

@@ -11,7 +11,7 @@ def test_errors(keys):
 
 def test_zero_in_zero():
     x = IrrepsData.new("0e + 0o + 0o + 0e", [jnp.ones((1, 1)), None, None, None])
-    y = scalar_activation(x, [jnp.tanh, jnp.tanh, lambda x: x ** 2, jnp.cos])
+    y = scalar_activation(x, [jnp.tanh, jnp.tanh, lambda x: x**2, jnp.cos])
 
     assert y.irreps == Irreps("0e + 0o + 0e + 0e")
     assert y.list[1] is None
@@ -20,6 +20,6 @@ def test_zero_in_zero():
 
 
 def test_irreps_argument():
-    assert scalar_activation("0e + 0o + 0o + 0e", [jnp.tanh, jnp.tanh, lambda x: x ** 2, jnp.cos]) == Irreps(
+    assert scalar_activation("0e + 0o + 0o + 0e", [jnp.tanh, jnp.tanh, lambda x: x**2, jnp.cos]) == Irreps(
         "0e + 0o + 0e + 0e"
     )

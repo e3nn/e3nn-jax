@@ -28,7 +28,7 @@ def lowpass_filter(input, scale, strides, transposed=False, steps=(1, 1, 1)):
         strides = (strides,) * 3
 
     with jax.ensure_compile_time_eval():
-        sigma = 0.5 * (scale ** 2 - 1) ** 0.5
+        sigma = 0.5 * (scale**2 - 1) ** 0.5
 
         size = int(1 + 2 * 2.5 * sigma)
         if size % 2 == 0:
@@ -44,7 +44,7 @@ def lowpass_filter(input, scale, strides, transposed=False, steps=(1, 1, 1)):
         lattice = jnp.stack(jnp.meshgrid(x, y, z, indexing="ij"), axis=-1)  # [x, y, z, R^3]
         lattice = (size // 2) * lattice
 
-        kernel = jnp.exp(-jnp.sum(lattice ** 2, axis=-1) / (2 * sigma ** 2))
+        kernel = jnp.exp(-jnp.sum(lattice**2, axis=-1) / (2 * sigma**2))
         kernel = kernel / jnp.sum(kernel)
 
         if transposed:
@@ -178,7 +178,7 @@ def zoom(
 
 
 def _index_max_norm(input, strides):
-    norms = jnp.sum(input ** 2, axis=-1)
+    norms = jnp.sum(input**2, axis=-1)
     shape = input.shape[:-1]
     assert len(shape) == len(strides)
     idxs = jnp.arange(prod(shape)).reshape(shape)
