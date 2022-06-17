@@ -1,6 +1,7 @@
 import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
+import numpy as np
 import pytest
 from jax.test_util import check_grads
 
@@ -13,7 +14,7 @@ def test_equivariance(keys, l):
     output1 = e3nn.spherical_harmonics(l, input.transform_by_angles(*abc), False)
     output2 = e3nn.spherical_harmonics(l, input, False).transform_by_angles(*abc)
 
-    assert jnp.abs(output1.contiguous - output2.contiguous).max() < 0.01
+    np.testing.assert_allclose(output1.contiguous, output2.contiguous, atol=1e-2, rtol=1e-2)
 
 
 def test_closure(keys):
@@ -78,7 +79,7 @@ def test_parity(keys, l):
 
     y1 = (-1) ** l * e3nn.spherical_harmonics(irreps, x, normalize=True, normalization="integral")
     y2 = e3nn.spherical_harmonics(irreps, -x, normalize=True, normalization="integral")
-    assert jnp.allclose(y1.contiguous, y2.contiguous)
+    np.testing.assert_allclose(y1.contiguous, y2.contiguous, atol=1e-6, rtol=1e-6)
 
 
 @pytest.mark.parametrize("l", range(7 + 1))
@@ -95,7 +96,7 @@ def test_recurrence_relation(keys, l):
 
     y1 = y1 / jnp.linalg.norm(y1)
     y2 = y2 / jnp.linalg.norm(y2)
-    assert jnp.allclose(y1, y2)
+    np.testing.assert_allclose(y1, y2, atol=1e-6, rtol=1e-6)
 
 
 @pytest.mark.parametrize("normalization", ["integral", "norm", "component"])
@@ -109,3 +110,11 @@ def test_check_grads(keys, irreps, normalization):
         atol=3e-3,
         rtol=3e-3,
     )
+
+
+@pytest.mark.parametrize("l", range(7 + 1))
+def test_normalize(keys, l):
+    x = jax.random.normal(keys[0], (10, 3))
+    y1 = e3nn.spherical_harmonics([l], x, normalize=True).contiguous * jnp.linalg.norm(x, axis=1, keepdims=True) ** l
+    y2 = e3nn.spherical_harmonics([l], x, normalize=False).contiguous
+    np.testing.assert_allclose(y1, y2, atol=1e-6, rtol=1e-5)
