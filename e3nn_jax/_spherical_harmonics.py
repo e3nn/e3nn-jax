@@ -11,10 +11,10 @@ import sympy
 from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
 from e3nn_jax.util.sympy import sqrtQarray_to_sympy
 
-DEFAULT_SPHERICAL_HARMONICS_ALGORITHM = "legendre"
+DEFAULT_SPHERICAL_HARMONICS_ALGORITHM = ("legendre", "dense", "custom_vjp")
 
 
-def set_default_spherical_harmonics_algorithm(algorithm: str):
+def set_default_spherical_harmonics_algorithm(algorithm: Tuple[str]):
     global DEFAULT_SPHERICAL_HARMONICS_ALGORITHM
     DEFAULT_SPHERICAL_HARMONICS_ALGORITHM = algorithm
 
@@ -25,7 +25,7 @@ def spherical_harmonics(
     normalize: bool,
     normalization: str = "integral",
     *,
-    algorithm: str = None,
+    algorithm: Tuple[str] = None,
 ) -> IrrepsData:
     r"""Spherical harmonics
 
@@ -64,8 +64,7 @@ def spherical_harmonics(
         input (`IrrepsData` or `jnp.ndarray`): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
-        algorithm (str): algorithm to use for the computation.
-            Default is 'legendre' others are 'dense_tensor_product' and 'sparse_tensor_product'
+        algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_vjp])
 
     Returns:
         `jnp.ndarray`: polynomials of the spherical harmonics
@@ -74,7 +73,7 @@ def spherical_harmonics(
 
     if algorithm is None:
         algorithm = DEFAULT_SPHERICAL_HARMONICS_ALGORITHM
-    assert algorithm in ["legendre", "dense_tensor_product", "sparse_tensor_product"]
+    assert all(keyword in ["legendre", "recursive", "dense", "sparse", "custom_vjp"] for keyword in algorithm)
 
     if isinstance(irreps_out, int):
         l = irreps_out
@@ -107,27 +106,37 @@ def spherical_harmonics(
 
 
 @partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
-def _jited_spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: str) -> List[jnp.ndarray]:
-    return _custom_vjp_spherical_harmonics(ls, x, normalization, algorithm)
-
-
-@partial(jax.custom_vjp, nondiff_argnums=(0, 2, 3))
-def _custom_vjp_spherical_harmonics(
-    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: str
+def _jited_spherical_harmonics(
+    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
 ) -> List[jnp.ndarray]:
-    if algorithm == "legendre":
+    if "custom_vjp" in algorithm:
+        return _custom_vjp_spherical_harmonics(ls, x, normalization, algorithm)
+    else:
+        return _spherical_harmonics(ls, x, normalization, algorithm)
+
+
+def _spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]) -> List[jnp.ndarray]:
+    if "legendre" in algorithm:
         js = sorted(set(ls))
-        out = _legendre_spherical_harmonics(js, x, False, normalization)
+        out = _legendre_spherical_harmonics(js, x, False, normalization, algorithm)
         return [out[js.index(l)] for l in ls]
-    if algorithm == "dense_tensor_product" or algorithm == "sparse_tensor_product":
+    if "recursive" in algorithm:
         context = dict()
         for l in ls:
             _recursive_spherical_harmonics(l, context, x, normalization, algorithm)
         return [context[l] for l in ls]
+    raise ValueError("Unknown algorithm: must be 'legendre' or 'recursive'")
+
+
+@partial(jax.custom_vjp, nondiff_argnums=(0, 2, 3))
+def _custom_vjp_spherical_harmonics(
+    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
+) -> List[jnp.ndarray]:
+    return _spherical_harmonics(ls, x, normalization, algorithm)
 
 
 def _fwd(
-    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: str
+    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
 ) -> Tuple[List[jnp.ndarray], List[jnp.ndarray]]:
     js = tuple(max(0, l - 1) for l in ls)
     output = _custom_vjp_spherical_harmonics(ls + js, x, normalization, algorithm)
@@ -136,7 +145,7 @@ def _fwd(
 
 
 def _bwd(
-    ls: Tuple[int, ...], normalization: str, algorithm: str, res: List[jnp.ndarray], grad: List[jnp.ndarray]
+    ls: Tuple[int, ...], normalization: str, algorithm: Tuple[str], res: List[jnp.ndarray], grad: List[jnp.ndarray]
 ) -> jnp.ndarray:
     def h(l, r, g):
         w = clebsch_gordan(l - 1, l, 1)
@@ -145,9 +154,9 @@ def _bwd(
         else:
             w *= l**0.5 * (2 * l + 1)
 
-        if algorithm == "legendre" or algorithm == "dense_tensor_product":
+        if "dense" in algorithm:
             return jnp.einsum("...i,...j,ijk->...k", r, g, w)
-        if algorithm == "sparse_tensor_product":
+        if "sparse" in algorithm:
             return jnp.stack(
                 [
                     sum(
@@ -162,6 +171,7 @@ def _bwd(
                 ],
                 axis=-1,
             )
+        raise ValueError("Unknown algorithm: must be 'dense' or 'sparse'")
 
     return (sum([h(l, r, g) if l > 0 else jnp.zeros_like(r, shape=r.shape[:-1] + (3,)) for l, r, g in zip(ls, res, grad)]),)
 
@@ -170,7 +180,7 @@ _custom_vjp_spherical_harmonics.defvjp(_fwd, _bwd)
 
 
 def _recursive_spherical_harmonics(
-    l: int, context: Dict[int, jnp.ndarray], input: jnp.ndarray, normalization: str, algorithm: str
+    l: int, context: Dict[int, jnp.ndarray], input: jnp.ndarray, normalization: str, algorithm: Tuple[str]
 ) -> sympy.Array:
     context.update(dict(jnp=jnp, clebsch_gordan=clebsch_gordan))
 
@@ -224,9 +234,9 @@ def _recursive_spherical_harmonics(
 
         w = (x / float(norm)) * clebsch_gordan(l1, l2, l)
 
-        if algorithm == "dense_tensor_product":
+        if "dense" in algorithm:
             context[l] = jnp.einsum("...i,...j,ijk->...k", context[l1], context[l2], w)
-        elif algorithm == "sparse_tensor_product":
+        elif "sparse" in algorithm:
             context[l] = jnp.stack(
                 [
                     sum(
@@ -241,6 +251,8 @@ def _recursive_spherical_harmonics(
                 ],
                 axis=-1,
             )
+        else:
+            raise ValueError("Unknown algorithm: must be 'dense' or 'sparse'")
 
     return y1
 
@@ -272,7 +284,7 @@ def _legendre(ls: List[int], x: jnp.ndarray) -> jnp.ndarray:
             xx = sympy.symbols("x", real=True)
             ex = 1 / (2**l * sympy.factorial(l)) * (1 - xx**2) ** (m / 2) * sympy.diff((xx**2 - 1) ** l, xx, l + m)
             ex *= sympy.sqrt((2 * l + 1) / (4 * sympy.pi) * sympy.factorial(l - m) / sympy.factorial(l + m))
-            out += [eval(str(sympy.N(ex)), {str(xx): x})]
+            out += [eval(str(sympy.N(ex)), {str(xx): x}, {})]
         yield jnp.stack([out[abs(m)] for m in range(-l, l + 1)], axis=-1)
 
 
@@ -294,7 +306,9 @@ def _sh_alpha(l, alpha):
     )
 
 
-def _legendre_spherical_harmonics(ls: List[int], x: jnp.ndarray, normalize: bool, normalization: str) -> jnp.ndarray:
+def _legendre_spherical_harmonics(
+    ls: List[int], x: jnp.ndarray, normalize: bool, normalization: str, algorithm: Tuple[str]
+) -> jnp.ndarray:
     alpha = jnp.arctan2(x[..., 0], x[..., 2])
     sh_alpha = _sh_alpha(max(ls), alpha)
 
