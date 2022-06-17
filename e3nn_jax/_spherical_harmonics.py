@@ -95,12 +95,13 @@ def _jited_spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalizatio
 
 @partial(jax.custom_vjp, nondiff_argnums=(0, 2))
 def _custom_vjp_spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str) -> List[jnp.ndarray]:
-    context = dict()
-    for l in ls:
-        _recursive_spherical_harmonics(l, context, x, normalization)
-        # results are stored in context[l]
+    return _legendre_spherical_harmonics(ls, x, False, normalization)
+    # context = dict()
+    # for l in ls:
+    #     _recursive_spherical_harmonics(l, context, x, normalization)
+    #     # results are stored in context[l]
 
-    return [context[l] for l in ls]
+    # return [context[l] for l in ls]
 
 
 def _fwd(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str) -> Tuple[List[jnp.ndarray], List[jnp.ndarray]]:
@@ -192,3 +193,61 @@ def _recursive_spherical_harmonics(
 
 def biggest_power_of_two(n):
     return 2 ** (n.bit_length() - 1)
+
+
+def _legendre(ls, z, y2):
+    r"""
+    en.wikipedia.org/wiki/Associated_Legendre_polynomials
+    - remove two times (-1)^m
+    - use another normalization such that P(l, -m) = P(l, m)
+    - remove (-1)^l
+
+    y = sqrt(1 - z^2)
+    y2 = y^2
+    """
+    for l in ls:
+        l = sympy.Integer(l)
+        out = []
+        for m in range(l + 1):
+            m = sympy.Integer(abs(m))
+            zz, yy2 = sympy.symbols("z y2", real=True)
+            ex = 1 / (2**l * sympy.factorial(l)) * yy2 ** (m / 2) * sympy.diff((zz**2 - 1) ** l, zz, l + m)
+            ex *= sympy.sqrt((2 * l + 1) / (4 * sympy.pi) * sympy.factorial(l - m) / sympy.factorial(l + m))
+            out += [eval(str(sympy.N(ex)), {str(zz): z, str(yy2): y2})]
+        yield jnp.stack([out[abs(m)] for m in range(-l, l + 1)], axis=-1)
+
+
+def _sh_alpha(l, alpha):
+    alpha = alpha[..., None]  # [..., 1]
+    m = jnp.arange(1, l + 1)  # [1, 2, 3, ..., l]
+    cos = jnp.cos(m * alpha)  # [..., m]
+
+    m = jnp.arange(l, 0, -1)  # [l, l-1, l-2, ..., 1]
+    sin = jnp.sin(m * alpha)  # [..., m]
+
+    return jnp.concatenate(
+        [
+            jnp.sqrt(2) * sin,
+            jnp.ones_like(alpha),
+            jnp.sqrt(2) * cos,
+        ],
+        axis=-1,
+    )
+
+
+def _legendre_spherical_harmonics(ls: List[int], x: jnp.ndarray, normalize: bool, normalization: str) -> jnp.ndarray:
+    alpha = jnp.arctan2(x[..., 0], x[..., 2])
+    sh_alpha = _sh_alpha(max(ls), alpha)
+
+    n = jnp.linalg.norm(x, axis=-1, keepdims=True)
+    x = x / jnp.where(n > 0, n, 1.0)
+
+    sh_y = _legendre(ls, x[..., 1], x[..., 0] ** 2 + x[..., 2] ** 2)
+    out = [(1 if normalize else n**l) * sh_alpha[..., max(ls) - l : max(ls) + l + 1] * y for l, y in zip(ls, sh_y)]
+
+    if normalization == "norm":
+        out = [(jnp.sqrt(4 * jnp.pi) / jnp.sqrt(2 * l + 1)) * y for l, y in zip(ls, out)]
+    elif normalization == "component":
+        out = [jnp.sqrt(4 * jnp.pi) * y for y in out]
+
+    return out
