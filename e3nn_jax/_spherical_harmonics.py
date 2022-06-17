@@ -247,7 +247,7 @@ def biggest_power_of_two(n):
     return 2 ** (n.bit_length() - 1)
 
 
-def _legendre(ls: List[int], z: jnp.ndarray, y2: jnp.ndarray) -> jnp.ndarray:
+def _legendre(ls: List[int], x: jnp.ndarray) -> jnp.ndarray:
     r"""Associated Legendre polynomials
 
     en.wikipedia.org/wiki/Associated_Legendre_polynomials
@@ -257,8 +257,7 @@ def _legendre(ls: List[int], z: jnp.ndarray, y2: jnp.ndarray) -> jnp.ndarray:
 
     Args:
         ls: list of l values
-        z: input array
-        y2: ``y2 = 1 - z^2``
+        x: input array
 
     Returns:
         Associated Legendre polynomials
@@ -268,10 +267,10 @@ def _legendre(ls: List[int], z: jnp.ndarray, y2: jnp.ndarray) -> jnp.ndarray:
         out = []
         for m in range(l + 1):
             m = sympy.Integer(abs(m))
-            zz, yy2 = sympy.symbols("z y2", real=True)
-            ex = 1 / (2**l * sympy.factorial(l)) * yy2 ** (m / 2) * sympy.diff((zz**2 - 1) ** l, zz, l + m)
+            xx = sympy.symbols("x", real=True)
+            ex = 1 / (2**l * sympy.factorial(l)) * (1 - xx**2) ** (m / 2) * sympy.diff((xx**2 - 1) ** l, xx, l + m)
             ex *= sympy.sqrt((2 * l + 1) / (4 * sympy.pi) * sympy.factorial(l - m) / sympy.factorial(l + m))
-            out += [eval(str(sympy.N(ex)), {str(zz): z, str(yy2): y2})]
+            out += [eval(str(sympy.N(ex)), {str(xx): x})]
         yield jnp.stack([out[abs(m)] for m in range(-l, l + 1)], axis=-1)
 
 
@@ -300,7 +299,7 @@ def _legendre_spherical_harmonics(ls: List[int], x: jnp.ndarray, normalize: bool
     n = jnp.linalg.norm(x, axis=-1, keepdims=True)
     x = x / jnp.where(n > 0, n, 1.0)
 
-    sh_y = _legendre(ls, x[..., 1], x[..., 0] ** 2 + x[..., 2] ** 2)
+    sh_y = _legendre(ls, x[..., 1])
     out = [(1 if normalize else n**l) * sh_alpha[..., max(ls) - l : max(ls) + l + 1] * y for l, y in zip(ls, sh_y)]
 
     if normalization == "norm":
