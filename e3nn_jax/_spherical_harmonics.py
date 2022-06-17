@@ -11,9 +11,21 @@ import sympy
 from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
 from e3nn_jax.util.sympy import sqrtQarray_to_sympy
 
+DEFAULT_SPHERICAL_HARMONICS_ALGORITHM = "legendre"
+
+
+def set_default_spherical_harmonics_algorithm(algorithm: str):
+    global DEFAULT_SPHERICAL_HARMONICS_ALGORITHM
+    DEFAULT_SPHERICAL_HARMONICS_ALGORITHM = algorithm
+
 
 def spherical_harmonics(
-    irreps_out: Union[Irreps, int], input: Union[IrrepsData, jnp.ndarray], normalize: bool, normalization: str = "integral"
+    irreps_out: Union[Irreps, int],
+    input: Union[IrrepsData, jnp.ndarray],
+    normalize: bool,
+    normalization: str = "integral",
+    *,
+    algorithm: str = None,
 ) -> IrrepsData:
     r"""Spherical harmonics
 
@@ -52,11 +64,17 @@ def spherical_harmonics(
         input (`IrrepsData` or `jnp.ndarray`): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
+        algorithm (str): algorithm to use for the computation.
+            Default is 'legendre' others are 'dense_tensor_product' and 'sparse_tensor_product'
 
     Returns:
         `jnp.ndarray`: polynomials of the spherical harmonics
     """
     assert normalization in ["integral", "component", "norm"]
+
+    if algorithm is None:
+        algorithm = DEFAULT_SPHERICAL_HARMONICS_ALGORITHM
+    assert algorithm in ["legendre", "dense_tensor_product", "sparse_tensor_product"]
 
     if isinstance(irreps_out, int):
         l = irreps_out
@@ -83,57 +101,74 @@ def spherical_harmonics(
         r = jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True)
         x = x / jnp.where(r == 0.0, 1.0, r)
 
-    sh = _jited_spherical_harmonics(tuple(ir.l for _, ir in irreps_out), x, normalization)
+    sh = _jited_spherical_harmonics(tuple(ir.l for _, ir in irreps_out), x, normalization, algorithm)
     sh = [jnp.repeat(y[..., None, :], mul, -2) for (mul, ir), y in zip(irreps_out, sh)]
     return IrrepsData.from_list(irreps_out, sh, x.shape[:-1])
 
 
-@partial(jax.jit, static_argnums=(0, 2), inline=True)
-def _jited_spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str) -> List[jnp.ndarray]:
-    return _custom_vjp_spherical_harmonics(ls, x, normalization)
+@partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
+def _jited_spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: str) -> List[jnp.ndarray]:
+    return _custom_vjp_spherical_harmonics(ls, x, normalization, algorithm)
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(0, 2))
-def _custom_vjp_spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str) -> List[jnp.ndarray]:
-    return _legendre_spherical_harmonics(ls, x, False, normalization)
-    # context = dict()
-    # for l in ls:
-    #     _recursive_spherical_harmonics(l, context, x, normalization)
-    #     # results are stored in context[l]
+@partial(jax.custom_vjp, nondiff_argnums=(0, 2, 3))
+def _custom_vjp_spherical_harmonics(
+    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: str
+) -> List[jnp.ndarray]:
+    if algorithm == "legendre":
+        return _legendre_spherical_harmonics(ls, x, False, normalization)
+    if algorithm == "dense_tensor_product" or algorithm == "sparse_tensor_product":
+        context = dict()
+        for l in ls:
+            _recursive_spherical_harmonics(l, context, x, normalization, algorithm)
+        return [context[l] for l in ls]
 
-    # return [context[l] for l in ls]
 
-
-def _fwd(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str) -> Tuple[List[jnp.ndarray], List[jnp.ndarray]]:
+def _fwd(
+    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: str
+) -> Tuple[List[jnp.ndarray], List[jnp.ndarray]]:
     js = tuple(max(0, l - 1) for l in ls)
-    output = _custom_vjp_spherical_harmonics(ls + js, x, normalization)
+    output = _custom_vjp_spherical_harmonics(ls + js, x, normalization, algorithm)
 
     return output[: len(ls)], output[len(ls) :]
 
 
-def _bwd(ls: Tuple[int, ...], normalization: str, res: List[jnp.ndarray], grad: List[jnp.ndarray]) -> jnp.ndarray:
-    def h(l):
+def _bwd(
+    ls: Tuple[int, ...], normalization: str, algorithm: str, res: List[jnp.ndarray], grad: List[jnp.ndarray]
+) -> jnp.ndarray:
+    def h(l, r, g):
+        w = clebsch_gordan(l - 1, l, 1)
         if normalization == "norm":
-            return ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
-        return l**0.5 * (2 * l + 1)
+            w *= ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
+        else:
+            w *= l**0.5 * (2 * l + 1)
 
-    return (
-        sum(
-            [
-                jnp.einsum("ijk,...i,...j->...k", h(l) * clebsch_gordan(l - 1, l, 1), r, g)
-                if l > 0
-                else jnp.zeros_like(r, shape=r.shape[:-1] + (3,))
-                for l, r, g in zip(ls, res, grad)
-            ]
-        ),
-    )
+        if algorithm == "legendre" or algorithm == "dense_tensor_product":
+            return jnp.einsum("...i,...j,ijk->...k", r, g, w)
+        if algorithm == "sparse_tensor_product":
+            return jnp.stack(
+                [
+                    sum(
+                        [
+                            w[i, j, k] * r[..., i] * g[..., j]
+                            for i in range(2 * l - 1)
+                            for j in range(2 * l + 1)
+                            if w[i, j, k] != 0
+                        ]
+                    )
+                    for k in range(3)
+                ],
+                axis=-1,
+            )
+
+    return (sum([h(l, r, g) if l > 0 else jnp.zeros_like(r, shape=r.shape[:-1] + (3,)) for l, r, g in zip(ls, res, grad)]),)
 
 
 _custom_vjp_spherical_harmonics.defvjp(_fwd, _bwd)
 
 
 def _recursive_spherical_harmonics(
-    l: int, context: Dict[int, jnp.ndarray], input: jnp.ndarray, normalization: str
+    l: int, context: Dict[int, jnp.ndarray], input: jnp.ndarray, normalization: str, algorithm: str
 ) -> sympy.Array:
     context.update(dict(jnp=jnp, clebsch_gordan=clebsch_gordan))
 
@@ -168,8 +203,8 @@ def _recursive_spherical_harmonics(
         ]
     )
 
-    sph_1_l1 = _recursive_spherical_harmonics(l1, context, input, normalization)
-    sph_1_l2 = _recursive_spherical_harmonics(l2, context, input, normalization)
+    sph_1_l1 = _recursive_spherical_harmonics(l1, context, input, normalization, algorithm)
+    sph_1_l2 = _recursive_spherical_harmonics(l2, context, input, normalization, algorithm)
 
     y1 = yx.subs(zip(sh_var(l1), sph_1_l1)).subs(zip(sh_var(l2), sph_1_l2))
     norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x**2)))
@@ -186,7 +221,24 @@ def _recursive_spherical_harmonics(
             x = 1
 
         w = (x / float(norm)) * clebsch_gordan(l1, l2, l)
-        context[l] = jnp.einsum("...i,...j,ijk->...k", context[l1], context[l2], w)
+
+        if algorithm == "dense_tensor_product":
+            context[l] = jnp.einsum("...i,...j,ijk->...k", context[l1], context[l2], w)
+        elif algorithm == "sparse_tensor_product":
+            context[l] = jnp.stack(
+                [
+                    sum(
+                        [
+                            w[i, j, k] * context[l1][..., i] * context[l2][..., j]
+                            for i in range(2 * l1 + 1)
+                            for j in range(2 * l2 + 1)
+                            if w[i, j, k] != 0
+                        ]
+                    )
+                    for k in range(2 * l + 1)
+                ],
+                axis=-1,
+            )
 
     return y1
 
@@ -195,15 +247,21 @@ def biggest_power_of_two(n):
     return 2 ** (n.bit_length() - 1)
 
 
-def _legendre(ls, z, y2):
-    r"""
+def _legendre(ls: List[int], z: jnp.ndarray, y2: jnp.ndarray) -> jnp.ndarray:
+    r"""Associated Legendre polynomials
+
     en.wikipedia.org/wiki/Associated_Legendre_polynomials
     - remove two times (-1)^m
     - use another normalization such that P(l, -m) = P(l, m)
     - remove (-1)^l
 
-    y = sqrt(1 - z^2)
-    y2 = y^2
+    Args:
+        ls: list of l values
+        z: input array
+        y2: ``y2 = 1 - z^2``
+
+    Returns:
+        Associated Legendre polynomials
     """
     for l in ls:
         l = sympy.Integer(l)

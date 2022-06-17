@@ -6,6 +6,11 @@ import pytest
 from jax.test_util import check_grads
 
 
+@pytest.fixture(scope="module", autouse=True, params=["legendre", "dense_tensor_product", "sparse_tensor_product"])
+def algorithm(request):
+    e3nn.set_default_spherical_harmonics_algorithm(request.param)
+
+
 @pytest.mark.parametrize("l", [0, 1, 2, 3, 4, 5, 6, 7])
 def test_equivariance(keys, l):
     input = e3nn.IrrepsData.randn("1o", keys[0], (10,))
