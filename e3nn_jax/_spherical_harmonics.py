@@ -116,7 +116,9 @@ def _custom_vjp_spherical_harmonics(
     ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: str
 ) -> List[jnp.ndarray]:
     if algorithm == "legendre":
-        return _legendre_spherical_harmonics(ls, x, False, normalization)
+        js = sorted(set(ls))
+        out = _legendre_spherical_harmonics(js, x, False, normalization)
+        return [out[js.index(l)] for l in ls]
     if algorithm == "dense_tensor_product" or algorithm == "sparse_tensor_product":
         context = dict()
         for l in ls:
