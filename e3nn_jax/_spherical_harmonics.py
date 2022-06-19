@@ -11,7 +11,7 @@ import sympy
 from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
 from e3nn_jax.util.sympy import sqrtQarray_to_sympy
 
-DEFAULT_SPHERICAL_HARMONICS_ALGORITHM = ("legendre", "dense", "custom_vjp")
+DEFAULT_SPHERICAL_HARMONICS_ALGORITHM = ("recursive", "sparse", "custom_vjp")
 
 
 def set_default_spherical_harmonics_algorithm(algorithm: Tuple[str]):
