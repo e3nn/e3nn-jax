@@ -9,7 +9,12 @@ from jax.test_util import check_grads
 @pytest.fixture(
     scope="module",
     autouse=True,
-    params=["legendre,sparse", "recursive,dense", "recursive,sparse,custom_vjp", "legendre,dense,custom_vjp"],
+    params=[
+        "recursive,dense",
+        "recursive,sparse,custom_vjp",
+        "legendre,dense,custom_vjp",
+        "legendre,sparse,custom_vjp",
+    ],
 )
 def algorithm(request):
     e3nn.set_default_spherical_harmonics_algorithm(tuple(request.param.split(",")))
@@ -54,7 +59,7 @@ def test_normalization_integral(keys, l):
         ).contiguous
         ** 2
     )
-    assert abs((4 * jnp.pi) * n - 1) < 6e-7 * max((l / 4) ** 8, 1)
+    assert abs((4 * jnp.pi) * n - 1) < 7e-7 * max((l / 4) ** 8, 1)
 
 
 @pytest.mark.parametrize("l", range(13 + 1))

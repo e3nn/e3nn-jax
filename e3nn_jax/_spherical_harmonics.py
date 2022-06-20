@@ -1,11 +1,13 @@
 r"""Spherical Harmonics as polynomials of x, y, z
 """
+import fractions
 import math
 from functools import partial
 from typing import Dict, List, Tuple, Union
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import sympy
 
 from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
@@ -117,9 +119,8 @@ def _jited_spherical_harmonics(
 
 def _spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]) -> List[jnp.ndarray]:
     if "legendre" in algorithm:
-        js = sorted(set(ls))
-        out = _legendre_spherical_harmonics(js, x, False, normalization, algorithm)
-        return [out[js.index(l)] for l in ls]
+        out = _legendre_spherical_harmonics(max(ls), x, False, normalization)
+        return [out[..., l**2 : (l + 1) ** 2] for l in ls]
     if "recursive" in algorithm:
         context = dict()
         for l in ls:
@@ -261,34 +262,104 @@ def biggest_power_of_two(n):
     return 2 ** (n.bit_length() - 1)
 
 
-def _legendre(ls: List[int], x: jnp.ndarray) -> jnp.ndarray:
+@partial(jax.jit, static_argnums=(0,))
+def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
     r"""Associated Legendre polynomials
 
     en.wikipedia.org/wiki/Associated_Legendre_polynomials
-    - remove two times (-1)^m
-    - use another normalization such that P(l, -m) = P(l, m)
-    - remove (-1)^l
+
+    code inspired by: https://github.com/SHTOOLS/SHTOOLS/blob/master/src/PlmBar.f95
 
     Args:
-        ls: list of l values
-        x: input array
+        lmax: maximum l value
+        x: input array of shape ``(...)``
+        phase: -1 or 1, multiplies by :math:`(-1)^m`
 
     Returns:
-        Associated Legendre polynomials
+        Associated Legendre polynomials ``P(l,m)``
+        In an array of shape ``((lmax + 1) * (lmax + 2) // 2, ...)``
+        ``(0,0), (1,0), (1,1), (2,0), (2,1), (2,2), ...``
     """
-    for l in ls:
-        l = sympy.Integer(l)
-        out = []
-        for m in range(l + 1):
-            m = sympy.Integer(abs(m))
-            xx = sympy.symbols("x", real=True)
-            ex = 1 / (2**l * sympy.factorial(l)) * (1 - xx**2) ** (m / 2) * sympy.diff((xx**2 - 1) ** l, xx, l + m)
-            ex *= sympy.sqrt((2 * l + 1) / (4 * sympy.pi) * sympy.factorial(l - m) / sympy.factorial(l + m))
-            out += [eval(str(sympy.N(ex)), {str(xx): x}, {})]
-        yield jnp.stack([out[abs(m)] for m in range(-l, l + 1)], axis=-1)
+    x = jnp.asarray(x)
+
+    p = jnp.zeros(((lmax + 1) * (lmax + 2) // 2,) + x.shape)
+
+    scalef = {
+        jnp.dtype("float32"): 1e-35,
+        jnp.dtype("float64"): 1e-280,
+    }[x.dtype]
+
+    def k(l, m):
+        return l * (l + 1) // 2 + m
+
+    def f1(l, m):
+        return (2 * l - 1) / (l - m)
+
+    def f2(l, m):
+        return (l + m - 1) / (l - m)
+
+    # Calculate P(l,0). These are not scaled.
+    u = jnp.sqrt((1.0 - x) * (1.0 + x))  # sin(theta)
+
+    p = p.at[k(0, 0)].set(1.0)
+    if lmax == 0:
+        return p
+
+    p = p.at[k(1, 0)].set(x)
+
+    p = jax.lax.fori_loop(
+        2,
+        lmax + 1,
+        lambda l, p: p.at[k(l, 0)].set(f1(l, 0) * x * p[k(l - 1, 0)] - f2(l, 0) * p[k(l - 2, 0)]),
+        p,
+    )
+
+    # Calculate P(m,m), P(m+1,m), and P(l,m)
+    def g(m, vals):
+        p, pmm, rescalem = vals
+        rescalem = rescalem * u
+
+        # Calculate P(m,m)
+        pmm = phase * (2 * m - 1) * pmm
+        p = p.at[k(m, m)].set(pmm)
+
+        # Calculate P(m+1,m)
+        p = p.at[k(m + 1, m)].set(x * (2 * m + 1) * pmm)
+
+        # Calculate P(l,m)
+        def f(l, p):
+            p = p.at[k(l, m)].set(f1(l, m) * x * p[k(l - 1, m)] - f2(l, m) * p[k(l - 2, m)])
+            p = p.at[k(l - 2, m)].multiply(rescalem)
+            return p
+
+        p = jax.lax.fori_loop(m + 2, lmax + 1, f, p)
+
+        p = p.at[k(lmax - 1, m)].multiply(rescalem)
+        p = p.at[k(lmax, m)].multiply(rescalem)
+
+        return p, pmm, rescalem
+
+    pmm = scalef  # P(0,0) * scalef
+    rescalem = jnp.ones_like(x) / scalef
+    p, pmm, rescalem = jax.lax.fori_loop(1, lmax, g, (p, pmm, rescalem))
+
+    # Calculate P(lmax,lmax)
+    rescalem = rescalem * u
+    p = p.at[k(lmax, lmax)].set(phase * (2 * lmax - 1) * pmm * rescalem)
+
+    return p
 
 
-def _sh_alpha(l, alpha):
+def _sh_alpha(l: int, alpha: jnp.ndarray) -> jnp.ndarray:
+    r"""
+
+    Args:
+        l: l value
+        alpha: input array of shape ``(...)``
+
+    Returns:
+        Array of shape ``(..., 2 * l + 1)``
+    """
     alpha = alpha[..., None]  # [..., 1]
     m = jnp.arange(1, l + 1)  # [1, 2, 3, ..., l]
     cos = jnp.cos(m * alpha)  # [..., m]
@@ -306,21 +377,39 @@ def _sh_alpha(l, alpha):
     )
 
 
-def _legendre_spherical_harmonics(
-    ls: List[int], x: jnp.ndarray, normalize: bool, normalization: str, algorithm: Tuple[str]
-) -> jnp.ndarray:
+def _legendre_spherical_harmonics(lmax: int, x: jnp.ndarray, normalize: bool, normalization: str) -> jnp.ndarray:
     alpha = jnp.arctan2(x[..., 0], x[..., 2])
-    sh_alpha = _sh_alpha(max(ls), alpha)
+    sh_alpha = _sh_alpha(lmax, alpha)  # [..., 2 * l + 1]
 
     n = jnp.linalg.norm(x, axis=-1, keepdims=True)
     x = x / jnp.where(n > 0, n, 1.0)
 
-    sh_y = _legendre(ls, x[..., 1])
-    out = [(1 if normalize else n**l) * sh_alpha[..., max(ls) - l : max(ls) + l + 1] * y for l, y in zip(ls, sh_y)]
+    sh_y = legendre(lmax, x[..., 1], 1.0)  # [(lmax + 1) * (lmax + 2) // 2, ...]
+    sh_y = jnp.moveaxis(sh_y, 0, -1)  # [..., (lmax + 1) * (lmax + 2) // 2]
 
-    if normalization == "norm":
-        out = [(jnp.sqrt(4 * jnp.pi) / jnp.sqrt(2 * l + 1)) * y for l, y in zip(ls, out)]
-    elif normalization == "component":
-        out = [jnp.sqrt(4 * jnp.pi) * y for y in out]
+    f = np.array(
+        [
+            math.sqrt(fractions.Fraction((2 * l + 1) * math.factorial(l - m), 4 * math.factorial(l + m)) / math.pi)
+            for l in range(lmax + 1)
+            for m in range(l + 1)
+        ]
+    )
+    sh_y = f * sh_y
 
-    return out
+    def f(l, sh):
+        def g(m, sh):
+            y = sh_y[..., l * (l + 1) // 2 + jnp.abs(m)]
+            if not normalize:
+                y = y * n[..., 0] ** l
+            if normalization == "norm":
+                y = y * (jnp.sqrt(4 * jnp.pi) / jnp.sqrt(2 * l + 1))
+            elif normalization == "component":
+                y = y * jnp.sqrt(4 * jnp.pi)
+
+            a = sh_alpha[..., lmax + m]
+            return sh.at[..., l**2 + l + m].set(y * a)
+
+        return jax.lax.fori_loop(-l, l + 1, g, sh)
+
+    sh = jnp.zeros(x.shape[:-1] + ((lmax + 1) ** 2,))
+    return jax.lax.fori_loop(0, lmax + 1, f, sh)
