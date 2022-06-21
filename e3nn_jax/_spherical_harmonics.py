@@ -148,6 +148,10 @@ def _fwd(
 def _bwd(
     ls: Tuple[int, ...], normalization: str, algorithm: Tuple[str], res: List[jnp.ndarray], grad: List[jnp.ndarray]
 ) -> jnp.ndarray:
+    # algo in list with different code per L is faster to execute but very slow to compile!
+    # TODO implement a dense version of this. No list per l. Can use jax.lax.fori_loop
+    # TODO it could be max(ls) dependant. for max(ls) > 10, use a dense algorithm!
+
     def h(l, r, g):
         w = clebsch_gordan(l - 1, l, 1)
         if normalization == "norm":
