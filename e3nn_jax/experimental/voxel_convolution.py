@@ -25,7 +25,7 @@ class Convolution(hk.Module):
         irreps_sh: Irreps,
         diameter: float,
         num_radial_basis: Union[int, Dict[int, int]],
-        steps: Tuple[float, float, float],
+        steps: Union[Tuple[float, float, float], Tuple[Tuple[float, float, float], jnp.ndarray]],
         *,
         relative_starts: Union[float, Dict[int, float]] = 0.0,
         padding="SAME",
@@ -59,26 +59,31 @@ class Convolution(hk.Module):
         self.irreps_out = Irreps(irreps_out)
         self.irreps_sh = Irreps(irreps_sh)
         self.diameter = diameter
-        self.steps = steps
         self.padding = padding
 
-        with jax.ensure_compile_time_eval():
+        def f(steps1, steps2):
             r = self.diameter / 2
 
-            s = math.floor(r / self.steps[0])
-            x = jnp.arange(-s, s + 1.0) * self.steps[0]
+            s = math.floor(r / steps1[0])
+            x = jnp.arange(-s, s + 1.0) * steps2[0]
 
-            s = math.floor(r / self.steps[1])
-            y = jnp.arange(-s, s + 1.0) * self.steps[1]
+            s = math.floor(r / steps1[1])
+            y = jnp.arange(-s, s + 1.0) * steps2[1]
 
-            s = math.floor(r / self.steps[2])
-            z = jnp.arange(-s, s + 1.0) * self.steps[2]
+            s = math.floor(r / steps1[2])
+            z = jnp.arange(-s, s + 1.0) * steps2[2]
 
             self.lattice = jnp.stack(jnp.meshgrid(x, y, z, indexing="ij"), axis=-1)  # [x, y, z, R^3]
 
             self.sh = spherical_harmonics(
                 irreps_out=self.irreps_sh, input=self.lattice, normalize=True, normalization="component"
             )  # [x, y, z, irreps_sh.dim]
+
+        if isinstance(steps[0], tuple):
+            f(steps[0], steps[1])
+        else:
+            with jax.ensure_compile_time_eval():
+                f(steps, steps)
 
     def tp_weight(
         self,

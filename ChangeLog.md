@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `legendre` algorithm to compute spherical harmonics
 - add flag `algorithm` to specify the algorithm to use for computing spherical harmonics
+- `experimental.voxel_convolution`: add optional dynamic steps (not static for jit)
 
 ## [0.6.1] - 2022-06-09
 ### Changed
