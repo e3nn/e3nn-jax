@@ -35,7 +35,7 @@ from ._su2 import su2_clebsch_gordan, su2_generators
 from ._so3 import clebsch_gordan, wigner_D, generators
 from ._instruction import Instruction
 from ._irreps import Irrep, MulIrrep, Irreps, IrrepsData
-from ._spherical_harmonics import spherical_harmonics, set_default_spherical_harmonics_algorithm
+from ._spherical_harmonics import spherical_harmonics, sh, set_default_spherical_harmonics_algorithm, legendre
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import FunctionalLinear, Linear
 from ._core_tensor_product import FunctionalTensorProduct
@@ -95,7 +95,9 @@ __all__ = [
     "Irreps",
     "IrrepsData",
     "spherical_harmonics",
+    "sh",
     "set_default_spherical_harmonics_algorithm",
+    "legendre",
     "sus",
     "soft_one_hot_linspace",
     "FunctionalLinear",

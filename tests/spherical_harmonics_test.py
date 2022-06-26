@@ -129,6 +129,9 @@ def test_check_grads(keys, irreps, normalization):
 @pytest.mark.parametrize("l", range(7 + 1))
 def test_normalize(keys, l):
     x = jax.random.normal(keys[0], (10, 3))
-    y1 = e3nn.spherical_harmonics([l], x, normalize=True).contiguous * jnp.linalg.norm(x, axis=1, keepdims=True) ** l
-    y2 = e3nn.spherical_harmonics([l], x, normalize=False).contiguous
+    y1 = (
+        e3nn.spherical_harmonics(e3nn.Irreps([l]), x, normalize=True).contiguous
+        * jnp.linalg.norm(x, axis=1, keepdims=True) ** l
+    )
+    y2 = e3nn.spherical_harmonics(e3nn.Irreps([l]), x, normalize=False).contiguous
     np.testing.assert_allclose(y1, y2, atol=1e-6, rtol=1e-5)

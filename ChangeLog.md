@@ -6,8 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- add the `sh` function that does not `IrrepsData` as input/output
 - `legendre` algorithm to compute spherical harmonics
-- add flag `algorithm` to specify the algorithm to use for computing spherical harmonics
+- add flag `algorithm` to specify the algorithm to use for computing spherical harmonics, use `legendre` for large L.
 - `experimental.voxel_convolution`: add optional dynamic steps (not static for jit)
 
 ## [0.6.1] - 2022-06-09
