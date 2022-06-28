@@ -37,6 +37,7 @@ setup(
         "dm-haiku",
         "optax",
         "sympy",
+        "numpy",
     ],
     include_package_data=True,
     classifiers=[

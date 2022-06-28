@@ -1,4 +1,4 @@
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 
 from ._graph_util import index_add, radius_graph
 from ._rotation import (
