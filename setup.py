@@ -47,10 +47,9 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "License :: OSI Approved :: MIT License",
-        "Operating System :: POSIX",
-        "Operating System :: MacOS",
+        "Operating System :: OS Independent",
     ],
     python_requires=">=3.7",
     license="MIT",
-    license_files="LICENSE",
+    license_files=["LICENSE"],
 )
