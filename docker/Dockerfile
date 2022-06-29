@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.6.0-devel-ubuntu20.04
+FROM nvidia/cuda:11.6.2-cudnn8-devel-ubuntu20.04
 ENV LD_LIBRARY_PATH=/usr/local/cuda-11.6/lib64 LIBRARY_PATH=/usr/local/cuda-11.6/lib64
 
 RUN apt-get update && apt-get install -y \
@@ -11,5 +11,7 @@ RUN git clone https://github.com/e3nn/e3nn-jax.git && cd e3nn-jax && git checkou
 
 RUN pip3 install --upgrade nibabel wandb optax dm-haiku
 
-# docker build -t mariogeiger/e3nn-jax:0.6.3-jax0.3.14-cuda11.6.0 .
+# docker build -t mariogeiger/e3nn-jax:0.6.3-jax0.3.14-cuda11.6.2 .
 
+# Test:
+# docker run --gpus all -e CUDA_VISIBLE_DEVICES=7 --rm -v $(pwd):/home mariogeiger/e3nn-jax:0.6.3-jax0.3.14-cuda11.6.2 python3 /home/test.py
