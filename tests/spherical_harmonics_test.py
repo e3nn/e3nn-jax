@@ -37,7 +37,7 @@ def test_closure(keys):
     integral of 1 over the unit sphere = 4 pi
     """
     x = jax.random.normal(keys[0], (1_000_000, 3))
-    Ys = [e3nn.spherical_harmonics(e3nn.Irreps([l]), x, True).contiguous for l in range(0, 3 + 1)]
+    Ys = [e3nn.sh(l, x, True, "integral") for l in range(0, 3 + 1)]
     for l1, Y1 in enumerate(Ys):
         for l2, Y2 in enumerate(Ys):
             m = Y1[:, :, None] * Y2[:, None, :]

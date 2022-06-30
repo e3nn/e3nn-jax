@@ -1,5 +1,6 @@
 import pytest
 import jax
+import e3nn_jax as e3nn
 
 
 class _PRNGKey:
@@ -17,3 +18,12 @@ class _PRNGKey:
 @pytest.fixture
 def keys():
     return _PRNGKey(jax.random.PRNGKey(24))
+
+
+@pytest.fixture(autouse=True)
+def e3nn_config():
+    e3nn.config("irrep_normalization", "component")
+    e3nn.config("path_normalization", "element")
+    e3nn.config("gradient_normalization", "path")
+    e3nn.config("spherical_harmonics_algorithm", "automatic")
+    e3nn.config("spherical_harmonics_normalization", "component")
