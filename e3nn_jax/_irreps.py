@@ -9,7 +9,7 @@ import jax
 import jax.numpy as jnp
 import jax.scipy
 
-from e3nn_jax import axis_angle_to_angles, matrix_to_angles, perm, quaternion_to_angles, wigner_D
+from e3nn_jax import axis_angle_to_angles, config, matrix_to_angles, perm, quaternion_to_angles, wigner_D
 
 
 @dataclasses.dataclass(init=False, frozen=True)
@@ -357,7 +357,7 @@ class Irreps(tuple):
             i += mul_ir.dim
         return s
 
-    def randn(self, key, size, *, normalization="component"):
+    def randn(self, key, size, *, normalization=None):
         r"""Random tensor.
 
         Args:
@@ -379,6 +379,9 @@ class Irreps(tuple):
         di = size.index(-1)
         lsize = size[:di]
         rsize = size[di + 1 :]
+
+        if normalization is None:
+            normalization = config("irrep_normalization")
 
         if normalization == "component":
             return jax.random.normal(key, lsize + (self.dim,) + rsize)
@@ -828,6 +831,13 @@ class IrrepsData:
             for (i, j), contiguous in zip(zip([0] + indices, indices + [len(self.irreps)]), contiguous_parts)
         ]
 
+    def __getitem__(self, index) -> "IrrepsData":
+        return IrrepsData(
+            self.irreps,
+            contiguous=self.contiguous[index],
+            list=[None if x is None else x[index] for x in self.list],
+        )
+
     def repeat_irreps_by_last_axis(self) -> "IrrepsData":
         assert len(self.shape) >= 1
         irreps = (self.shape[-1] * self.irreps).simplify()
@@ -1059,7 +1069,7 @@ class IrrepsData:
         )
 
     @staticmethod
-    def randn(irreps, key, size=(), *, normalization="component"):
+    def randn(irreps, key, size=(), *, normalization=None):
         irreps = Irreps(irreps)
         x = irreps.randn(key, size + (-1,), normalization=normalization)
         return IrrepsData.from_contiguous(irreps, x)

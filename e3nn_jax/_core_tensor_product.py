@@ -9,95 +9,10 @@ from typing import Any, List, Optional, Union
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Instruction, Irreps, IrrepsData, clebsch_gordan
+from e3nn_jax import Instruction, Irreps, IrrepsData, clebsch_gordan, config
 from e3nn_jax.util import prod
 
 from ._einsum import einsum as opt_einsum
-
-
-def _sum_tensors(xs, shape, empty_return_none=False):
-    xs = [x for x in xs if x is not None]
-    if len(xs) > 0:
-        out = xs[0].reshape(shape)
-        for x in xs[1:]:
-            out = out + x.reshape(shape)
-        return out
-    if empty_return_none:
-        return None
-    return jnp.zeros(shape)
-
-
-def _flat_concatenate(xs):
-    if any(x is None for x in xs):
-        return None
-    if len(xs) > 0:
-        return jnp.concatenate([x.flatten() for x in xs])
-    return jnp.zeros((0,))
-
-
-def normalize_instruction_path_weights(
-    instructions: List[Instruction],
-    first_input_irreps: Irreps,
-    second_input_irreps: Irreps,
-    output_irreps: Irreps,
-    first_input_variance: List[float],
-    second_input_variance: List[float],
-    output_variance: List[float],
-    irrep_normalization: str,
-    path_normalization_exponent: float,
-    gradient_normalization_exponent: float,
-) -> List[Instruction]:
-    """Returns instructions with normalized path weights."""
-
-    def var(instruction):
-        return first_input_variance[instruction.i_in1] * second_input_variance[instruction.i_in2] * instruction.num_elements
-
-    # Precompute normalization factors.
-    path_normalization_sums = collections.defaultdict(lambda: 0.0)
-    for instruction in instructions:
-        path_normalization_sums[instruction.i_out] += var(instruction) ** (1.0 - path_normalization_exponent)
-
-    path_normalization_factors = {
-        instruction: var(instruction) ** path_normalization_exponent * path_normalization_sums[instruction.i_out]
-        for instruction in instructions
-    }
-
-    def update(instruction: Instruction) -> float:
-        """Computes normalized path weight for a single instructions, with precomputed path normalization factors."""
-
-        if irrep_normalization not in ["component", "norm", "none"]:
-            raise ValueError(f"Unsupported irrep normalization: {irrep_normalization}.")
-
-        mul_ir_in1 = first_input_irreps[instruction.i_in1]
-        mul_ir_in2 = second_input_irreps[instruction.i_in2]
-        mul_ir_out = output_irreps[instruction.i_out]
-
-        assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
-        assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
-
-        if irrep_normalization == "component":
-            alpha = mul_ir_out.ir.dim
-        if irrep_normalization == "norm":
-            alpha = mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
-        if irrep_normalization == "none":
-            alpha = 1
-
-        x = path_normalization_factors[instruction]
-        if x > 0.0:
-            alpha /= x
-
-        alpha *= output_variance[instruction.i_out]
-        alpha *= instruction.path_weight
-
-        if instruction.has_weight:
-            return instruction.replace(
-                path_weight=sqrt(alpha) ** gradient_normalization_exponent,
-                weight_std=sqrt(alpha) ** (1.0 - gradient_normalization_exponent),
-            )
-        else:
-            return instruction.replace(path_weight=sqrt(alpha))
-
-    return [update(instruction) for instruction in instructions]
 
 
 class FunctionalTensorProduct:
@@ -138,9 +53,9 @@ class FunctionalTensorProduct:
         in1_var: Optional[List[float]] = None,
         in2_var: Optional[List[float]] = None,
         out_var: Optional[List[float]] = None,
-        irrep_normalization: str = "component",
-        path_normalization: Union[str, float] = "element",
-        gradient_normalization: Union[str, float] = "path",
+        irrep_normalization: str = None,
+        path_normalization: Union[str, float] = None,
+        gradient_normalization: Union[str, float] = None,
     ):
         self.irreps_in1 = Irreps(irreps_in1)
         self.irreps_in2 = Irreps(irreps_in2)
@@ -173,13 +88,20 @@ class FunctionalTensorProduct:
         if out_var is None:
             out_var = [1.0 for _ in self.irreps_out]
 
+        if irrep_normalization is None:
+            irrep_normalization = config("irrep_normalization")
+
+        if path_normalization is None:
+            path_normalization = config("path_normalization")
         if isinstance(path_normalization, str):
             path_normalization = {"element": 0.0, "path": 1.0}[path_normalization]
 
+        if gradient_normalization is None:
+            gradient_normalization = config("gradient_normalization")
         if isinstance(gradient_normalization, str):
             gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
 
-        self.instructions = normalize_instruction_path_weights(
+        self.instructions = _normalize_instruction_path_weights(
             instructions,
             self.irreps_in1,
             self.irreps_in2,
@@ -291,6 +213,91 @@ class FunctionalTensorProduct:
             f"({self.irreps_in1.simplify()} x {self.irreps_in2.simplify()} "
             f"-> {self.irreps_out.simplify()} | {npath} paths | {nweight} weights)"
         )
+
+
+def _sum_tensors(xs, shape, empty_return_none=False):
+    xs = [x for x in xs if x is not None]
+    if len(xs) > 0:
+        out = xs[0].reshape(shape)
+        for x in xs[1:]:
+            out = out + x.reshape(shape)
+        return out
+    if empty_return_none:
+        return None
+    return jnp.zeros(shape)
+
+
+def _flat_concatenate(xs):
+    if any(x is None for x in xs):
+        return None
+    if len(xs) > 0:
+        return jnp.concatenate([x.flatten() for x in xs])
+    return jnp.zeros((0,))
+
+
+def _normalize_instruction_path_weights(
+    instructions: List[Instruction],
+    first_input_irreps: Irreps,
+    second_input_irreps: Irreps,
+    output_irreps: Irreps,
+    first_input_variance: List[float],
+    second_input_variance: List[float],
+    output_variance: List[float],
+    irrep_normalization: str,
+    path_normalization_exponent: float,
+    gradient_normalization_exponent: float,
+) -> List[Instruction]:
+    """Returns instructions with normalized path weights."""
+
+    def var(instruction):
+        return first_input_variance[instruction.i_in1] * second_input_variance[instruction.i_in2] * instruction.num_elements
+
+    # Precompute normalization factors.
+    path_normalization_sums = collections.defaultdict(lambda: 0.0)
+    for instruction in instructions:
+        path_normalization_sums[instruction.i_out] += var(instruction) ** (1.0 - path_normalization_exponent)
+
+    path_normalization_factors = {
+        instruction: var(instruction) ** path_normalization_exponent * path_normalization_sums[instruction.i_out]
+        for instruction in instructions
+    }
+
+    def update(instruction: Instruction) -> float:
+        """Computes normalized path weight for a single instructions, with precomputed path normalization factors."""
+
+        if irrep_normalization not in ["component", "norm", "none"]:
+            raise ValueError(f"Unsupported irrep normalization: {irrep_normalization}.")
+
+        mul_ir_in1 = first_input_irreps[instruction.i_in1]
+        mul_ir_in2 = second_input_irreps[instruction.i_in2]
+        mul_ir_out = output_irreps[instruction.i_out]
+
+        assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
+        assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
+
+        if irrep_normalization == "component":
+            alpha = mul_ir_out.ir.dim
+        if irrep_normalization == "norm":
+            alpha = mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
+        if irrep_normalization == "none":
+            alpha = 1
+
+        x = path_normalization_factors[instruction]
+        if x > 0.0:
+            alpha /= x
+
+        alpha *= output_variance[instruction.i_out]
+        alpha *= instruction.path_weight
+
+        if instruction.has_weight:
+            return instruction.replace(
+                path_weight=sqrt(alpha) ** gradient_normalization_exponent,
+                weight_std=sqrt(alpha) ** (1.0 - gradient_normalization_exponent),
+            )
+        else:
+            return instruction.replace(path_weight=sqrt(alpha))
+
+    return [update(instruction) for instruction in instructions]
 
 
 @partial(

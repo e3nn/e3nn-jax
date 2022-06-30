@@ -6,8 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- add `e3nn.config` to set global defaults parameters
+- `__getindex__` to `IrrepsData`
 - `gradient_normalization` argument that can be `element` or `path`
 - `path_normalization` can be a number between 0 and 1
+
+### Changed
+- `spherical_harmonics` normalization is now set to `component` like everything else.
 
 ## [0.6.3] - 2022-06-29
 ### Added

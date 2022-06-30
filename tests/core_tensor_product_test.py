@@ -128,8 +128,8 @@ def test_fuse(keys):
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), (a, b)
 
 
-@pytest.mark.parametrize("gradient_normalization", ["element", "path"])
-@pytest.mark.parametrize("path_normalization", ["element", "path"])
+@pytest.mark.parametrize("gradient_normalization", ["element", "path", 0.5])
+@pytest.mark.parametrize("path_normalization", ["element", "path", 0.5])
 @pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
 def test_normalization(keys, irrep_normalization, path_normalization, gradient_normalization):
     tp = FunctionalFullyConnectedTensorProduct(

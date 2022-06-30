@@ -10,22 +10,15 @@ import jax.numpy as jnp
 import numpy as np
 import sympy
 
-from e3nn_jax import Irreps, IrrepsData, clebsch_gordan
+from e3nn_jax import Irreps, IrrepsData, clebsch_gordan, config
 from e3nn_jax.util.sympy import sqrtQarray_to_sympy
-
-DEFAULT_SPHERICAL_HARMONICS_ALGORITHM = None
-
-
-def set_default_spherical_harmonics_algorithm(algorithm: Tuple[str]):
-    global DEFAULT_SPHERICAL_HARMONICS_ALGORITHM
-    DEFAULT_SPHERICAL_HARMONICS_ALGORITHM = algorithm
 
 
 def sh(
     irreps_out: Union[Irreps, int, Sequence[int]],
     input: jnp.ndarray,
     normalize: bool,
-    normalization: str = "integral",
+    normalization: str = None,
     *,
     algorithm: Tuple[str] = None,
 ) -> jnp.ndarray:
@@ -79,7 +72,7 @@ def spherical_harmonics(
     irreps_out: Union[Irreps, int, Sequence[int]],
     input: Union[IrrepsData, jnp.ndarray],
     normalize: bool,
-    normalization: str = "integral",
+    normalization: str = None,
     *,
     algorithm: Tuple[str] = None,
 ) -> IrrepsData:
@@ -125,6 +118,8 @@ def spherical_harmonics(
     Returns:
         `IrrepsData`: polynomials of the spherical harmonics
     """
+    if normalization is None:
+        normalization = config("spherical_harmonics_normalization")
     assert normalization in ["integral", "component", "norm"]
 
     if isinstance(irreps_out, int):
@@ -144,13 +139,13 @@ def spherical_harmonics(
     assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) <= 1
 
     if algorithm is None:
-        if DEFAULT_SPHERICAL_HARMONICS_ALGORITHM is None:
+        if config("spherical_harmonics_algorithm") == "automatic":
             if irreps_out.lmax <= 8:
                 algorithm = ("recursive", "sparse", "custom_vjp")
             else:
                 algorithm = ("legendre", "sparse", "custom_vjp")
         else:
-            algorithm = DEFAULT_SPHERICAL_HARMONICS_ALGORITHM
+            algorithm = config("spherical_harmonics_algorithm")
 
     assert all(keyword in ["legendre", "recursive", "dense", "sparse", "custom_vjp"] for keyword in algorithm)
 

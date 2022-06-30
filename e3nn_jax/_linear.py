@@ -4,7 +4,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, IrrepsData
+from e3nn_jax import Irreps, IrrepsData, config
 from math import sqrt
 
 from ._core_tensor_product import _sum_tensors
@@ -30,12 +30,16 @@ class FunctionalLinear:
         irreps_out: Any,
         instructions: Optional[List[Tuple[int, int]]] = None,
         biases: Optional[Union[List[bool], bool]] = None,
-        path_normalization: Union[str, float] = "element",
-        gradient_normalization: Union[str, float] = "path",
+        path_normalization: Union[str, float] = None,
+        gradient_normalization: Union[str, float] = None,
     ):
+        if path_normalization is None:
+            path_normalization = config("path_normalization")
         if isinstance(path_normalization, str):
             path_normalization = {"element": 0.0, "path": 1.0}[path_normalization]
 
+        if gradient_normalization is None:
+            gradient_normalization = config("gradient_normalization")
         if isinstance(gradient_normalization, str):
             gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
 

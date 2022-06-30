@@ -4,7 +4,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsData
+from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsData, config
 from e3nn_jax.util.decorators import overload_for_irreps_without_data
 
 
@@ -27,9 +27,9 @@ def FunctionalFullyConnectedTensorProduct(
     in1_var: Optional[List[float]] = None,
     in2_var: Optional[List[float]] = None,
     out_var: Optional[List[float]] = None,
-    irrep_normalization: str = "component",
-    path_normalization: str = "element",
-    gradient_normalization: str = "path",
+    irrep_normalization: str = None,
+    path_normalization: str = None,
+    gradient_normalization: str = None,
 ):
     irreps_in1 = Irreps(irreps_in1)
     irreps_in2 = Irreps(irreps_in2)
@@ -95,7 +95,7 @@ def full_tensor_product(
     input1: IrrepsData,
     input2: IrrepsData,
     filter_ir_out=None,
-    irrep_normalization: str = "component",
+    irrep_normalization: str = None,
 ):
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -130,8 +130,8 @@ def elementwise_tensor_product(
     input1: IrrepsData,
     input2: IrrepsData,
     filter_ir_out=None,
-    irrep_normalization: str = "component",
-    path_normalization: str = "element",
+    irrep_normalization: str = None,
+    path_normalization: str = None,
 ) -> IrrepsData:
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -185,7 +185,7 @@ def elementwise_tensor_product(
 
 def FunctionalTensorSquare(irreps_in: Irreps, irreps_out: Irreps, irrep_normalization: str = None, **kwargs):
     if irrep_normalization is None:
-        irrep_normalization = "component"
+        irrep_normalization = config("irrep_normalization")
 
     assert irrep_normalization in ["component", "norm", "none"]
 

@@ -17,7 +17,7 @@ from jax.test_util import check_grads
     ],
 )
 def algorithm(request):
-    e3nn.set_default_spherical_harmonics_algorithm(tuple(request.param.split(",")))
+    e3nn.config("spherical_harmonics_algorithm", tuple(request.param.split(",")))
 
 
 @pytest.mark.parametrize("l", [0, 1, 2, 3, 4, 5, 6, 7])

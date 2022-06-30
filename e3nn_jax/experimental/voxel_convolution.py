@@ -76,7 +76,7 @@ class Convolution(hk.Module):
             self.lattice = jnp.stack(jnp.meshgrid(x, y, z, indexing="ij"), axis=-1)  # [x, y, z, R^3]
 
             self.sh = spherical_harmonics(
-                irreps_out=self.irreps_sh, input=self.lattice, normalize=True, normalization="component"
+                irreps_out=self.irreps_sh, input=self.lattice, normalize=True
             )  # [x, y, z, irreps_sh.dim]
 
         if isinstance(steps[0], tuple):

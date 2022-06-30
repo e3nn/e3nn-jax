@@ -4,7 +4,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, IrrepsData
+from e3nn_jax import Irreps, IrrepsData, config
 from e3nn_jax.util import prod
 
 
@@ -144,7 +144,7 @@ class BatchNorm(hk.Module):
         affine: bool = True,
         reduce: str = "mean",
         instance: bool = False,
-        normalization: str = "component",
+        normalization: str = None,
     ):
         super().__init__()
 
@@ -160,6 +160,8 @@ class BatchNorm(hk.Module):
         assert reduce in ["mean", "max"], "reduce needs to be 'mean' or 'max'"
         self.reduce = reduce
 
+        if normalization is None:
+            normalization = config("irrep_normalization")
         assert normalization in ["norm", "component"], "normalization needs to be 'norm' or 'component'"
         self.normalization = normalization
 

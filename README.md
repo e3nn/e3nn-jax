@@ -1,6 +1,9 @@
 # e3nn-jax
 [![Coverage Status](https://coveralls.io/repos/github/e3nn/e3nn-jax/badge.svg?branch=main)](https://coveralls.io/github/e3nn/e3nn-jax?branch=main)
 
+## Warning
+Please always check the ChangeLog for breaking changes.
+
 ## Installation
 
 To install the latest released version:
