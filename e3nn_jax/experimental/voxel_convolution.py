@@ -94,6 +94,7 @@ class Convolution(hk.Module):
         ir_sh: Irrep,
         mul_ir_out: MulIrrep,
         path_shape: Tuple[int, ...],
+        weight_std: float,
     ) -> jnp.ndarray:
         number = self.num_radial_basis[ir_sh.l]
         start = self.relative_starts[ir_sh.l]
@@ -112,7 +113,7 @@ class Convolution(hk.Module):
         w = hk.get_parameter(
             f"w[{i_in},{i_sh},{i_out}] {mul_ir_in},{ir_sh},{mul_ir_out}",
             (number,) + path_shape,
-            init=hk.initializers.RandomNormal(),
+            init=hk.initializers.RandomNormal(weight_std),
         )
         return jnp.einsum("xyzk,k...->xyz...", embedding, w) / (
             self.lattice.shape[0] * self.lattice.shape[1] * self.lattice.shape[2]
@@ -131,6 +132,7 @@ class Convolution(hk.Module):
                 tp.irreps_in2[i.i_in2].ir,
                 tp.irreps_out[i.i_out],
                 i.path_shape,
+                i.weight_std,
             )
             for i in tp.instructions
         ]
@@ -146,7 +148,7 @@ class Convolution(hk.Module):
             hk.get_parameter(
                 f"self-connection[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
                 shape=ins.path_shape,
-                init=hk.initializers.RandomNormal(),
+                init=hk.initializers.RandomNormal(ins.weight_std),
             )
             for ins in lin.instructions
         ]

@@ -94,7 +94,7 @@ class Convolution(hk.Module):
                             f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
                         ),
                         shape=(weight.shape[1],) + ins.path_shape,
-                        init=hk.initializers.RandomNormal(),
+                        init=hk.initializers.RandomNormal(ins.weight_std),
                     )
                     / weight.shape[1] ** 0.5,
                     weight,
@@ -111,7 +111,7 @@ class Convolution(hk.Module):
                         f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
                     ),
                     shape=ins.path_shape,
-                    init=hk.initializers.RandomNormal(),
+                    init=hk.initializers.RandomNormal(ins.weight_std),
                 )
                 for ins in tp.instructions
             ]

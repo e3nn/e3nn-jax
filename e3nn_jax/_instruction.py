@@ -14,6 +14,7 @@ class Instruction:
     connection_mode: str
     has_weight: bool
     path_weight: float
+    weight_std: float
     first_input_multiplicity: int
     second_input_multiplicity: int
     output_multiplicity: int

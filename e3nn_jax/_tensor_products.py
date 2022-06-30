@@ -29,6 +29,7 @@ def FunctionalFullyConnectedTensorProduct(
     out_var: Optional[List[float]] = None,
     irrep_normalization: str = "component",
     path_normalization: str = "element",
+    gradient_normalization: str = "path",
 ):
     irreps_in1 = Irreps(irreps_in1)
     irreps_in2 = Irreps(irreps_in2)
@@ -42,7 +43,16 @@ def FunctionalFullyConnectedTensorProduct(
         if ir_out in ir_1 * ir_2
     ]
     return FunctionalTensorProduct(
-        irreps_in1, irreps_in2, irreps_out, instructions, in1_var, in2_var, out_var, irrep_normalization, path_normalization
+        irreps_in1,
+        irreps_in2,
+        irreps_out,
+        instructions,
+        in1_var,
+        in2_var,
+        out_var,
+        irrep_normalization,
+        path_normalization,
+        gradient_normalization,
     )
 
 
@@ -71,7 +81,7 @@ class FullyConnectedTensorProduct(hk.Module):
                     f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
                 ),
                 shape=ins.path_shape,
-                init=hk.initializers.RandomNormal(),
+                init=hk.initializers.RandomNormal(stddev=ins.weight_std),
             )
             for ins in tp.instructions
         ]
@@ -231,7 +241,7 @@ class TensorSquare(hk.Module):
         self.irreps_out = Irreps(irreps_out)
 
         if init is None:
-            init = hk.initializers.RandomNormal()
+            init = hk.initializers.RandomNormal
         self.init = init
 
     def __call__(self, input: IrrepsData) -> IrrepsData:
@@ -248,7 +258,7 @@ class TensorSquare(hk.Module):
                     f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
                 ),
                 shape=ins.path_shape,
-                init=self.init,
+                init=self.init(ins.weight_std),
             )
             for ins in tp.instructions
         ]

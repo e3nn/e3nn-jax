@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Irreps, IrrepsData
+from math import sqrt
 
 from ._core_tensor_product import _sum_tensors
 
@@ -14,6 +15,7 @@ class Instruction(NamedTuple):
     i_out: int
     path_shape: tuple
     path_weight: float
+    weight_std: float
 
 
 class FunctionalLinear:
@@ -28,9 +30,14 @@ class FunctionalLinear:
         irreps_out: Any,
         instructions: Optional[List[Tuple[int, int]]] = None,
         biases: Optional[Union[List[bool], bool]] = None,
-        path_normalization: str = "element",
+        path_normalization: Union[str, float] = "element",
+        gradient_normalization: Union[str, float] = "path",
     ):
-        assert path_normalization in ["element", "path"]
+        if isinstance(path_normalization, str):
+            path_normalization = {"element": 0.0, "path": 1.0}[path_normalization]
+
+        if isinstance(gradient_normalization, str):
+            gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
 
         irreps_in = Irreps(irreps_in)
         irreps_out = Irreps(irreps_out)
@@ -50,20 +57,25 @@ class FunctionalLinear:
                 i_out=i_out,
                 path_shape=(irreps_in[i_in].mul, irreps_out[i_out].mul),
                 path_weight=1,
+                weight_std=1,
             )
             for i_in, i_out in instructions
         ]
 
-        def alpha(ins):
-            x = sum(
-                irreps_in[i.i_in if path_normalization == "element" else ins.i_in].mul
-                for i in instructions
-                if i.i_out == ins.i_out
+        def alpha(this):
+            x = irreps_in[this.i_in].mul ** path_normalization * sum(
+                irreps_in[other.i_in].mul ** (1.0 - path_normalization) for other in instructions if other.i_out == this.i_out
             )
-            return 1.0 if x == 0 else x
+            return 1 / x if x > 0 else 1.0
 
         instructions = [
-            Instruction(i_in=ins.i_in, i_out=ins.i_out, path_shape=ins.path_shape, path_weight=alpha(ins) ** (-0.5))
+            Instruction(
+                i_in=ins.i_in,
+                i_out=ins.i_out,
+                path_shape=ins.path_shape,
+                path_weight=sqrt(alpha(ins)) ** gradient_normalization,
+                weight_std=sqrt(alpha(ins)) ** (1.0 - gradient_normalization),
+            )
             for ins in instructions
         ]
 
@@ -76,7 +88,7 @@ class FunctionalLinear:
         assert all(ir.is_scalar() or (not b) for b, (_, ir) in zip(biases, irreps_out))
 
         instructions += [
-            Instruction(i_in=-1, i_out=i_out, path_shape=(mul_ir.dim,), path_weight=1.0)
+            Instruction(i_in=-1, i_out=i_out, path_shape=(mul_ir.dim,), path_weight=1.0, weight_std=0.0)
             for i_out, (bias, mul_ir) in enumerate(zip(biases, irreps_out))
             if bias
         ]
@@ -149,7 +161,12 @@ class FunctionalLinear:
 
 
 class Linear(hk.Module):
-    def __init__(self, irreps_out, *, irreps_in=None):
+    def __init__(self, irreps_out, *, irreps_in=None, biases=False, path_normalization="element"):
+        r"""Equivariant Linear Haiku Module
+
+        Args:
+            irreps_out: output representations
+        """
         super().__init__()
 
         self.irreps_out = Irreps(irreps_out)
@@ -167,13 +184,15 @@ class Linear(hk.Module):
         lin = FunctionalLinear(input.irreps, self.irreps_out, self.instructions, biases=self.biases)
         w = [
             hk.get_parameter(
-                f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", shape=ins.path_shape, init=hk.initializers.Constant(0.0)
+                f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}",
+                shape=ins.path_shape,
+                init=hk.initializers.RandomNormal(stddev=ins.weight_std),
             )
             if ins.i_in == -1
             else hk.get_parameter(
                 f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
                 shape=ins.path_shape,
-                init=hk.initializers.RandomNormal(),
+                init=hk.initializers.RandomNormal(stddev=ins.weight_std),
             )
             for ins in lin.instructions
         ]

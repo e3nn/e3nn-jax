@@ -41,7 +41,7 @@ class TensorProductMultiLayerPerceptron(hk.Module):
                         f"{self.tp.irreps_in1[i.i_in1]},{self.tp.irreps_in2[i.i_in2]},{self.tp.irreps_out[i.i_out]}"
                     ),
                     shape=(w.shape[0],) + i.path_shape,
-                    init=hk.initializers.RandomNormal(),
+                    init=hk.initializers.RandomNormal(i.weight_std),
                 )
                 / w.shape[0] ** 0.5,
                 w,

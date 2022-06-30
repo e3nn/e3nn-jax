@@ -128,18 +128,20 @@ def test_fuse(keys):
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), (a, b)
 
 
+@pytest.mark.parametrize("gradient_normalization", ["element", "path"])
 @pytest.mark.parametrize("path_normalization", ["element", "path"])
 @pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
-def test_normalization(keys, irrep_normalization, path_normalization):
+def test_normalization(keys, irrep_normalization, path_normalization, gradient_normalization):
     tp = FunctionalFullyConnectedTensorProduct(
         "5x0e+1x0e+10x1e",
         "2x0e+2x1e+10x1e",
         "1000x1e+1000x0e",
         irrep_normalization=irrep_normalization,
         path_normalization=path_normalization,
+        gradient_normalization=gradient_normalization,
     )
 
-    ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
+    ws = [ins.weight_std * jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
     x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=irrep_normalization)
     x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=irrep_normalization)
 
