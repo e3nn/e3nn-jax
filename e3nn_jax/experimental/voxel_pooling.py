@@ -73,7 +73,7 @@ def lowpass_filter(input, scale, strides, transposed=False, steps=(1, 1, 1)):
     return output
 
 
-def interpolate_bilinear(input: jnp.ndarray, x: float, y: float, z: float) -> jnp.ndarray:
+def interpolate_trilinear(input: jnp.ndarray, x: float, y: float, z: float) -> jnp.ndarray:
     r"""interpolate voxels in coordinate (x, y, z).
 
     Args:
@@ -122,10 +122,38 @@ def interpolate_bilinear(input: jnp.ndarray, x: float, y: float, z: float) -> jn
     return wa * Ia + wb * Ib + wc * Ic + wd * Id + we * Ie + wf * If + wg * Ig + wh * Ih
 
 
-@partial(jax.jit, static_argnums=(1,))
+def interpolate_nearest(input: jnp.ndarray, x: float, y: float, z: float) -> jnp.ndarray:
+    r"""interpolate voxels in coordinate (x, y, z).
+
+    Args:
+        input: [..., x, y, z]
+        x: x coordinate
+        y: y coordinate
+        z: z coordinate
+    """
+    x = jnp.round(x).astype(int)
+    y = jnp.round(y).astype(int)
+    z = jnp.round(z).astype(int)
+
+    nx, ny, nz = input.shape[-3:]
+
+    def xclip(x):
+        return jnp.clip(x, 0, nx - 1)
+
+    def yclip(y):
+        return jnp.clip(y, 0, ny - 1)
+
+    def zclip(z):
+        return jnp.clip(z, 0, nz - 1)
+
+    return input[..., xclip(x), yclip(y), zclip(z)]
+
+
+@partial(jax.jit, static_argnums=(1, 2))
 def _zoom(
     input: jnp.ndarray,
     output_size: Tuple[int, int, int],
+    interpolation="linear",
 ) -> jnp.ndarray:
     nx, ny, nz = input.shape[-3:]
 
@@ -141,7 +169,12 @@ def _zoom(
 
     xg, yg, zg = jnp.meshgrid(xi, yi, zi, indexing="ij")
 
-    output = jax.vmap(interpolate_bilinear, (None, 0, 0, 0), -1)(input, xg.flatten(), yg.flatten(), zg.flatten())
+    if interpolation == "linear":
+        interp = interpolate_trilinear
+    if interpolation == "nearest":
+        interp = interpolate_nearest
+
+    output = jax.vmap(interp, (None, 0, 0, 0), -1)(input, xg.flatten(), yg.flatten(), zg.flatten())
     output = output.reshape(*input.shape[:-3], *output_size)
     return output
 
@@ -151,6 +184,7 @@ def zoom(
     *,
     resize_rate: Optional[Tuple[float, float, float]] = None,
     output_size: Optional[Tuple[int, int, int]] = None,
+    interpolation: str = "linear",
 ) -> jnp.ndarray:
     r"""Rescale a 3D image by bilinear interpolation.
 
@@ -174,7 +208,7 @@ def zoom(
 
     assert isinstance(output_size, tuple)
 
-    return _zoom(input, output_size)
+    return _zoom(input, output_size, interpolation)
 
 
 def _index_max_norm(input, strides):
