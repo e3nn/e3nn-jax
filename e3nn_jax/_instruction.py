@@ -67,3 +67,21 @@ class Instruction:
 
     def replace(self, **changes) -> "Instruction":
         return replace(self, **changes)
+
+    def __repr__(self) -> str:
+        return (
+            "Instruction("
+            + ", ".join(
+                [
+                    f"i={self.i_in1},{self.i_in2},{self.i_out}",
+                    f"mode={self.connection_mode}",
+                    f"has_weight={self.has_weight}",
+                    f"path_weight={self.path_weight}",
+                    f"weight_std={self.weight_std}",
+                    f"mul={self.first_input_multiplicity},{self.second_input_multiplicity},{self.output_multiplicity}",
+                    f"path_shape={self.path_shape}",
+                    f"num_elements={self.num_elements}",
+                ]
+            )
+            + ")"
+        )
