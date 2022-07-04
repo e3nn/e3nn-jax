@@ -250,16 +250,8 @@ class TensorSquare(hk.Module):
 
         input = input.remove_nones().simplify()
 
-        tp = FunctionalTensorSquare(input.irreps, self.irreps_out)
-        ws = [
-            hk.get_parameter(
-                (
-                    f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] "
-                    f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
-                ),
-                shape=ins.path_shape,
-                init=self.init(ins.weight_std),
-            )
-            for ins in tp.instructions
-        ]
-        return tp.left_right(ws, input, input)
+        tp = FunctionalTensorSquare(input.irreps, self.irreps_out.simplify())
+        ws = [hk.get_parameter(str(ins), shape=ins.path_shape, init=self.init(ins.weight_std)) for ins in tp.instructions]
+        f = naive_broadcast_decorator(lambda x: tp.left_right(ws, x, x))
+        output = f(input)
+        return output.convert(self.irreps_out)
