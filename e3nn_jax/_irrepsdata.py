@@ -4,8 +4,9 @@ from typing import List, Optional, Tuple
 import jax
 import jax.numpy as jnp
 import jax.scipy
+import numpy as np
 
-from e3nn_jax import axis_angle_to_angles, Irreps, matrix_to_angles, quaternion_to_angles
+from e3nn_jax import Irreps, axis_angle_to_angles, matrix_to_angles, quaternion_to_angles
 
 
 class IrrepsData:
@@ -338,7 +339,7 @@ class IrrepsData:
         assert current_array == 0
 
         assert len(new_list) == len(irreps)
-        assert all(x is None or isinstance(x, jnp.ndarray) for x in new_list)
+        assert all(x is None or isinstance(x, (jnp.ndarray, np.ndarray)) for x in new_list), [type(x) for x in new_list]
         assert all(x is None or x.shape[-2:] == (mul, ir.dim) for x, (mul, ir) in zip(new_list, irreps))
 
         return IrrepsData(irreps=irreps, contiguous=self.contiguous, list=new_list)
