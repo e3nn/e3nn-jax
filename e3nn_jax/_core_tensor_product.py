@@ -345,8 +345,8 @@ def _left_right(
         assert i == weights.size
     del weights
 
-    assert len(input1.shape) == 0
-    assert len(input2.shape) == 0
+    assert len(input1.shape) == 0, "Use jax.vmap to map over input1"
+    assert len(input2.shape) == 0, "Use jax.vmap to map over input2"
 
     if fuse_all:
         with jax.ensure_compile_time_eval():
