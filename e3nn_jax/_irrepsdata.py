@@ -119,7 +119,9 @@ class IrrepsData:
         return IrrepsData(irreps=irreps, contiguous=contiguous, list=None)
 
     def __repr__(self):
-        return f"IrrepsData({self.irreps}, {self.contiguous}, {self.list})"
+        if self.contiguous.size < 20:
+            return f"IrrepsData(irreps={self.irreps}, contiguous={self.contiguous})"
+        return f"IrrepsData(irreps={self.irreps}, shape={self.shape} + ({self.irreps.dim},))"
 
     @property
     def shape(self):
