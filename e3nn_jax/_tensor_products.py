@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import haiku as hk
 import jax
@@ -21,9 +21,9 @@ def naive_broadcast_decorator(func):
 
 
 def FunctionalFullyConnectedTensorProduct(
-    irreps_in1: Any,
-    irreps_in2: Any,
-    irreps_out: Any,
+    irreps_in1: Irreps,
+    irreps_in2: Irreps,
+    irreps_out: Irreps,
     in1_var: Optional[List[float]] = None,
     in2_var: Optional[List[float]] = None,
     out_var: Optional[List[float]] = None,
