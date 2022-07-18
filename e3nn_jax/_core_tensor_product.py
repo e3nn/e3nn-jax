@@ -136,10 +136,10 @@ class FunctionalTensorProduct:
         input1: IrrepsData,
         input2: IrrepsData = None,
         *,
-        specialized_code=False,
-        optimize_einsums=True,
-        custom_einsum_vjp=False,
-        fuse_all=False,
+        specialized_code=None,
+        optimize_einsums=None,
+        custom_einsum_vjp=None,
+        fuse_all=None,
     ) -> IrrepsData:
         r"""Compute the tensor product of two input tensors.
 
@@ -157,6 +157,15 @@ class FunctionalTensorProduct:
         Returns:
             `IrrepsData`: The output tensor.
         """
+        if specialized_code is None:
+            specialized_code = config("specialized_code")
+        if optimize_einsums is None:
+            optimize_einsums = config("optimize_einsums")
+        if custom_einsum_vjp is None:
+            custom_einsum_vjp = config("custom_einsum_vjp")
+        if fuse_all is None:
+            fuse_all = config("fuse_all")
+
         if input2 is None:
             weights, input1, input2 = [], weights, input1
 
@@ -179,8 +188,10 @@ class FunctionalTensorProduct:
         weights: List[jnp.ndarray],
         input2: IrrepsData = None,
         *,
-        optimize_einsums=False,
-        custom_einsum_vjp=False,
+        specialized_code=None,
+        optimize_einsums=None,
+        custom_einsum_vjp=None,
+        fuse_all=None,
     ) -> jnp.ndarray:
         r"""Compute the right contraction of the tensor product.
 
@@ -193,6 +204,15 @@ class FunctionalTensorProduct:
         Returns:
             A matrix of shape ``(irreps_in1.dim, irreps_out.dim)``.
         """
+        if specialized_code is None:
+            specialized_code = config("specialized_code")
+        if optimize_einsums is None:
+            optimize_einsums = config("optimize_einsums")
+        if custom_einsum_vjp is None:
+            custom_einsum_vjp = config("custom_einsum_vjp")
+        if fuse_all is None:
+            fuse_all = config("fuse_all")
+
         if input2 is None:
             weights, input2 = [], weights
 
