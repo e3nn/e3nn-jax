@@ -117,7 +117,7 @@ It can for instance get rid of the dead code:
 
     print(jit_code(f, 1.0))
 
-It will reuse the same expression instead of computing it again.
+It will reuse the same expression instead of computing it again. The following code calls twice the exponential function, but it will only compute it once.
 
 .. jupyter-execute::
 
@@ -126,21 +126,24 @@ It will reuse the same expression instead of computing it again.
 
     print(jit_code(f, 1.0))
 
-Even if the variable has been stacked in an array and passed to different functions.
+This mechanism is quite robust.
 
 .. jupyter-execute::
 
     def f(x):
         x = jnp.stack([x, x])
-        return jnp.array([g(x[0]), h(x[1])]).sum()
+        y1 = g(x[0])
+        y2 = h(x[1])
+        x = jnp.array([y1, y2])
+        return jnp.sum(x)
 
     @jax.jit
     def g(x):
-        return jnp.exp(x)
+        return jnp.exp(2 * x / 2)
 
     @jax.jit
     def h(x):
-        return jnp.exp(x)
+        return jnp.exp((x + 1) - 1)
 
     print(jit_code(f, 1.0))
 
