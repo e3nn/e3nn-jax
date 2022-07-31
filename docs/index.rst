@@ -2,7 +2,7 @@ Euclidean neural networks
 =========================
 
 What is ``e3nn-jax``?
------------------
+---------------------
 
 ``e3nn-jax`` is a python library based on jax_ to create equivariant neural networks for the group :math:`O(3)`.
 

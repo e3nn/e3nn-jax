@@ -54,7 +54,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "ase": ("https://wiki.fysik.dtu.dk/ase/", None),
-    "jax": ("https://jax.readthedocs.io/", None),
+    "jax": ("https://jax.readthedocs.io/en/latest/", None),
 }
 
 autodoc_default_options = {
