@@ -139,11 +139,11 @@ This mechanism is quite robust.
 
     @jax.jit
     def g(x):
-        return jnp.exp(2 * x / 2)
+        return jnp.exp((x + 1) - 1)
 
     @jax.jit
     def h(x):
-        return jnp.exp((x + 1) - 1)
+        return jnp.exp(jnp.cos(0) * x)
 
     print(jit_code(f, 1.0))
 

@@ -56,13 +56,13 @@ def sh(
 
     Args:
         irreps_out (`Irreps` or int or Sequence[int]): the output irreps
-        input (`jax.numpy.ndarray`): cartesian coordinates
+        input (``jnp.ndarray``): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_vjp])
 
     Returns:
-        `jax.numpy.ndarray`: polynomials of the spherical harmonics
+        ``jnp.ndarray``: polynomials of the spherical harmonics
     """
     input = IrrepsData.from_contiguous("1e", input)
     return spherical_harmonics(irreps_out, input, normalize, normalization, algorithm=algorithm).contiguous
@@ -110,7 +110,7 @@ def spherical_harmonics(
 
     Args:
         irreps_out (`Irreps` or int): output irreps
-        input (`IrrepsData` or `jax.numpy.ndarray`): cartesian coordinates
+        input (`IrrepsData` or ``jnp.ndarray``): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_vjp])

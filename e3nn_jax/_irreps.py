@@ -103,17 +103,17 @@ class Irrep:
         (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`, see `wigner_D`.
 
         Args:
-            alpha (`jax.numpy.ndarray`): of shape :math:`(...)`
+            alpha (``jnp.ndarray``): of shape :math:`(...)`
                 Rotation :math:`\alpha` around Y axis, applied third.
-            beta (`jax.numpy.ndarray`): of shape :math:`(...)`
+            beta (``jnp.ndarray``): of shape :math:`(...)`
                 Rotation :math:`\beta` around X axis, applied second.
-            gamma (`jax.numpy.ndarray`): of shape :math:`(...)`
+            gamma (``jnp.ndarray``): of shape :math:`(...)`
                 Rotation :math:`\gamma` around Y axis, applied first.
-            k (optional `jax.numpy.ndarray`): of shape :math:`(...)`
+            k (optional ``jnp.ndarray``): of shape :math:`(...)`
                 How many times the parity is applied.
 
         Returns:
-            `jax.numpy.ndarray`: of shape :math:`(..., 2l+1, 2l+1)`
+            ``jnp.ndarray``: of shape :math:`(..., 2l+1, 2l+1)`
 
         See Also:
             o3.wigner_D
@@ -127,11 +127,11 @@ class Irrep:
         r"""Matrix of the representation, see `Irrep.D_from_angles`
 
         Args:
-            q (`jax.numpy.ndarray`): shape :math:`(..., 4)`
-            k (optional `jax.numpy.ndarray`): shape :math:`(...)`
+            q (``jnp.ndarray``): shape :math:`(..., 4)`
+            k (optional ``jnp.ndarray``): shape :math:`(...)`
 
         Returns:
-            `jax.numpy.ndarray`: shape :math:`(..., 2l+1, 2l+1)`
+            ``jnp.ndarray``: shape :math:`(..., 2l+1, 2l+1)`
         """
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
@@ -139,11 +139,11 @@ class Irrep:
         r"""Matrix of the representation
 
         Args:
-            R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
-            k (`jax.numpy.ndarray`, optional): array of shape :math:`(...)`
+            R (``jnp.ndarray``): array of shape :math:`(..., 3, 3)`
+            k (``jnp.ndarray``, optional): array of shape :math:`(...)`
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(..., 2l+1, 2l+1)`
+            ``jnp.ndarray``: array of shape :math:`(..., 2l+1, 2l+1)`
 
         Examples:
             >>> m = Irrep(1, -1).D_from_matrix(-jnp.eye(3))
@@ -364,7 +364,7 @@ class Irreps(tuple):
             normalization : {'component', 'norm'}
 
         Returns:
-            `jax.numpy.ndarray`: array of shape ``size`` where ``-1`` is replaced by ``self.dim``
+            ``jnp.ndarray``: array of shape ``size`` where ``-1`` is replaced by ``self.dim``
 
         Examples:
             >>> key = jax.random.PRNGKey(0)
@@ -563,14 +563,14 @@ class Irreps(tuple):
         r"""Rotate the data by angles according to the irreps
 
         Args:
-            contiguous (`jax.numpy.ndarray`): data compatible with the irreps.
+            contiguous (``jnp.ndarray``): data compatible with the irreps.
             alpha (float): third rotation angle around the second axis (in radians)
             beta (float): second rotation angle around the first axis (in radians)
             gamma (float): first rotation angle around the second axis (in radians)
             k (int): parity operation
 
         Returns:
-            `jax.numpy.ndarray`
+            ``jnp.ndarray``
         """
         assert contiguous.shape[-1] == self.dim
         D = self.D_from_angles(alpha, beta, gamma, k)
@@ -581,12 +581,12 @@ class Irreps(tuple):
         r"""Rotate data by a rotation given by a quaternion
 
         Args:
-            contiguous (`jax.numpy.ndarray`): data compatible with the irreps.
-            q (`jax.numpy.ndarray`): quaternion
+            contiguous (``jnp.ndarray``): data compatible with the irreps.
+            q (``jnp.ndarray``): quaternion
             k (int): parity operation
 
         Returns:
-            `jax.numpy.ndarray`
+            ``jnp.ndarray``
 
         Examples:
             >>> irreps = Irreps("0e + 1o + 2e")
@@ -604,13 +604,13 @@ class Irreps(tuple):
         r"""Rotate data by an axis and an angle
 
         Args:
-            contiguous (`jax.numpy.ndarray`): data compatible with the irreps.
-            axis (`jax.numpy.ndarray`): axis
+            contiguous (``jnp.ndarray``): data compatible with the irreps.
+            axis (``jnp.ndarray``): axis
             angle (float): angle (in radians)
             k (int): parity operation
 
         Returns:
-            `jax.numpy.ndarray`
+            ``jnp.ndarray``
         """
         return self.transform_by_angles(contiguous, *axis_angle_to_angles(axis, angle), k)
 
@@ -619,11 +619,11 @@ class Irreps(tuple):
         r"""Rotate data by a rotation given by a matrix
 
         Args:
-            contiguous (`jax.numpy.ndarray`): data compatible with the irreps.
-            R (`jax.numpy.ndarray`): rotation matrix
+            contiguous (``jnp.ndarray``): data compatible with the irreps.
+            R (``jnp.ndarray``): rotation matrix
 
         Returns:
-            `jax.numpy.ndarray`
+            ``jnp.ndarray``
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
@@ -641,7 +641,7 @@ class Irreps(tuple):
             k (int): parity operation
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            ``jnp.ndarray``: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return jax.scipy.linalg.block_diag(*[ir.D_from_angles(alpha, beta, gamma, k) for mul, ir in self for _ in range(mul)])
 
@@ -650,11 +650,11 @@ class Irreps(tuple):
         r"""Matrix of the representation
 
         Args:
-            q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
-            k (`jax.numpy.ndarray`, optional): array of shape :math:`(...)`
+            q (``jnp.ndarray``): array of shape :math:`(..., 4)`
+            k (``jnp.ndarray``, optional): array of shape :math:`(...)`
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            ``jnp.ndarray``: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
@@ -663,10 +663,10 @@ class Irreps(tuple):
         r"""Matrix of the representation
 
         Args:
-            R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
+            R (``jnp.ndarray``): array of shape :math:`(..., 3, 3)`
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            ``jnp.ndarray``: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R

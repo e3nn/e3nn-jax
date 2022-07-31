@@ -33,6 +33,16 @@ def change_basis_real_to_complex(l: int) -> np.ndarray:
 
 
 def clebsch_gordan(l1: int, l2: int, l3: int) -> np.ndarray:
+    r"""The Clebsch-Gordan coefficients of the real irreducible representations of :math:`SO(3)`.
+
+    Args:
+        l1 (int): the representation order of the first irrep
+        l2 (int): the representation order of the second irrep
+        l3 (int): the representation order of the third irrep
+
+    Returns:
+        np.ndarray: the Clebsch-Gordan coefficients
+    """
     C = su2_clebsch_gordan(l1, l2, l3)
     Q1 = change_basis_real_to_complex(l1)
     Q2 = change_basis_real_to_complex(l2)
@@ -44,6 +54,14 @@ def clebsch_gordan(l1: int, l2: int, l3: int) -> np.ndarray:
 
 
 def generators(l: int) -> np.ndarray:
+    r"""The generators of the real irreducible representations of :math:`SO(3)`.
+
+    Args:
+        l (int): the representation order of the irrep
+
+    Returns:
+        np.ndarray: the generators
+    """
     X = su2_generators(l)
     Q = change_basis_real_to_complex(l)
     X = np.conj(Q.T) @ X @ Q
@@ -53,6 +71,17 @@ def generators(l: int) -> np.ndarray:
 
 
 def wigner_D(l: int, alpha: jnp.ndarray, beta: jnp.ndarray, gamma: jnp.ndarray) -> jnp.ndarray:
+    r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
+
+    Args:
+        l (int): the representation order of the irrep
+        alpha (jnp.ndarray): the first Euler angle
+        beta (jnp.ndarray): the second Euler angle
+        gamma (jnp.ndarray): the third Euler angle
+
+    Returns:
+        jnp.ndarray: the Wigner-D matrix
+    """
     alpha = alpha % (2 * jnp.pi)
     beta = beta % (2 * jnp.pi)
     gamma = gamma % (2 * jnp.pi)

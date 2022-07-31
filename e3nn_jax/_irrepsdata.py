@@ -79,7 +79,7 @@ class IrrepsData:
 
         Args:
             irreps (Irreps): irreps
-            list (list of optional `jax.numpy.ndarray`): list of arrays
+            list (list of optional ``jnp.ndarray``): list of arrays
 
         Returns:
             IrrepsData
@@ -110,7 +110,7 @@ class IrrepsData:
 
         Args:
             irreps (Irreps): irreps
-            contiguous (`jax.numpy.ndarray`): contiguous array
+            contiguous (``jnp.ndarray``): contiguous array
 
         Returns:
             IrrepsData
@@ -224,7 +224,7 @@ class IrrepsData:
         r"""Rotate data by a rotation given by a quaternion
 
         Args:
-            q (`jax.numpy.ndarray`): quaternion
+            q (``jnp.ndarray``): quaternion
             k (int): parity operation
 
         Returns:
@@ -236,7 +236,7 @@ class IrrepsData:
         r"""Rotate data by a rotation given by an axis and an angle
 
         Args:
-            axis (`jax.numpy.ndarray`): axis
+            axis (``jnp.ndarray``): axis
             angle (float): angle (in radians)
             k (int): parity operation
 
@@ -249,7 +249,7 @@ class IrrepsData:
         r"""Rotate data by a rotation given by a matrix
 
         Args:
-            R (`jax.numpy.ndarray`): rotation matrix
+            R (``jnp.ndarray``): rotation matrix
 
         Returns:
             IrrepsData

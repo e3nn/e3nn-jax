@@ -14,7 +14,7 @@ def rand_matrix(key, shape):
         shape: a tuple of nonnegative integers representing the result shape.
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 3, 3)`
+        ``jnp.ndarray``: array of shape :math:`(..., 3, 3)`
     """
     return angles_to_matrix(*rand_angles(key, shape))
 
@@ -29,9 +29,9 @@ def identity_angles(shape):
         shape: a tuple of nonnegative integers representing the result shape.
 
     Returns:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
     """
     return jnp.zeros(shape), jnp.zeros(shape), jnp.zeros(shape)
 
@@ -45,9 +45,9 @@ def rand_angles(key, shape):
         shape: a tuple of nonnegative integers representing the result shape.
 
     Returns:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
     """
     x, y, z = jax.random.uniform(key, (3,) + shape)
     return 2 * jnp.pi * x, jnp.arccos(2 * z - 1), 2 * jnp.pi * y
@@ -59,17 +59,17 @@ def compose_angles(a1, b1, c1, a2, b2, c2):
     Computes :math:`(a, b, c)` such that :math:`R(a, b, c) = R(a_1, b_1, c_1) \circ R(a_2, b_2, c_2)`
 
     Args:
-        alpha1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        alpha2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha1 (``jnp.ndarray``): array of shape :math:`(...)`
+        beta1 (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma1 (``jnp.ndarray``): array of shape :math:`(...)`
+        alpha2 (``jnp.ndarray``): array of shape :math:`(...)`
+        beta2 (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma2 (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
 
     """
     a1, b1, c1, a2, b2, c2 = jnp.broadcast_arrays(a1, b1, c1, a2, b2, c2)
@@ -80,14 +80,14 @@ def inverse_angles(a, b, c):
     r"""angles of the inverse rotation
 
     Args:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
     """
     return -c, -b, -a
 
@@ -102,7 +102,7 @@ def identity_quaternion(shape):
         shape: a tuple of nonnegative integers representing the result shape.
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 4)`
+        ``jnp.ndarray``: array of shape :math:`(..., 4)`
     """
     q = jnp.zeros(shape, 4)
     return q.at[..., 0].set(1)  # or -1...
@@ -117,7 +117,7 @@ def rand_quaternion(key, shape):
         shape: a tuple of nonnegative integers representing the result shape.
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 4)`
+        ``jnp.ndarray``: array of shape :math:`(..., 4)`
     """
     return angles_to_quaternion(*rand_angles(key, shape))
 
@@ -127,11 +127,11 @@ def compose_quaternion(q1, q2):
     r"""compose two quaternions: :math:`q_1 \circ q_2`
 
     Args:
-        q1 (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
-        q2 (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+        q1 (``jnp.ndarray``): array of shape :math:`(..., 4)`
+        q2 (``jnp.ndarray``): array of shape :math:`(..., 4)`
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 4)`
+        ``jnp.ndarray``: array of shape :math:`(..., 4)`
     """
     q1, q2 = jnp.broadcast_arrays(q1, q2)
     return jnp.stack(
@@ -151,10 +151,10 @@ def inverse_quaternion(q):
     Works only for unit quaternions.
 
     Args:
-        q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+        q (``jnp.ndarray``): array of shape :math:`(..., 4)`
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 4)`
+        ``jnp.ndarray``: array of shape :math:`(..., 4)`
     """
     return q.at[..., 1:].multiply(-1)
 
@@ -170,8 +170,8 @@ def rand_axis_angle(key, shape):
         shape: a tuple of nonnegative integers representing the result shape.
 
     Returns:
-        axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
     """
     return angles_to_axis_angle(*rand_angles(key, shape))
 
@@ -180,14 +180,14 @@ def compose_axis_angle(axis1, angle1, axis2, angle2):
     r"""compose :math:`(\vec x_1, \alpha_1)` with :math:`(\vec x_2, \alpha_2)`
 
     Args:
-        axis1 (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        axis2 (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis1 (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle1 (``jnp.ndarray``): array of shape :math:`(...)`
+        axis2 (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle2 (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
     """
     return quaternion_to_axis_angle(
         compose_quaternion(axis_angle_to_quaternion(axis1, angle1), axis_angle_to_quaternion(axis2, angle2))
@@ -202,10 +202,10 @@ def matrix_x(angle):
     r"""matrix of rotation around X axis
 
     Args:
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 3, 3)`
+        ``jnp.ndarray``: array of shape :math:`(..., 3, 3)`
     """
     c = jnp.cos(angle)
     s = jnp.sin(angle)
@@ -226,10 +226,10 @@ def matrix_y(angle):
     r"""matrix of rotation around Y axis
 
     Args:
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 3, 3)`
+        ``jnp.ndarray``: array of shape :math:`(..., 3, 3)`
     """
     c = jnp.cos(angle)
     s = jnp.sin(angle)
@@ -250,10 +250,10 @@ def matrix_z(angle):
     r"""matrix of rotation around Z axis
 
     Args:
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 3, 3)`
+        ``jnp.ndarray``: array of shape :math:`(..., 3, 3)`
     """
     c = jnp.cos(angle)
     s = jnp.sin(angle)
@@ -266,12 +266,12 @@ def angles_to_matrix(alpha, beta, gamma):
     r"""conversion from angles to matrix
 
     Args:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 3, 3)`
+        ``jnp.ndarray``: array of shape :math:`(..., 3, 3)`
     """
     alpha, beta, gamma = jnp.broadcast_arrays(alpha, beta, gamma)
     return matrix_y(alpha) @ matrix_x(beta) @ matrix_y(gamma)
@@ -282,12 +282,12 @@ def matrix_to_angles(R):
     r"""conversion from matrix to angles
 
     Args:
-        R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
+        R (``jnp.ndarray``): array of shape :math:`(..., 3, 3)`
 
     Returns:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
     """
     # assert jnp.allclose(jnp.linalg.det(R), 1)
     x = R @ jnp.array([0.0, 1.0, 0.0])
@@ -302,12 +302,12 @@ def angles_to_quaternion(alpha, beta, gamma):
     r"""conversion from angles to quaternion
 
     Args:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+        q (``jnp.ndarray``): array of shape :math:`(..., 4)`
     """
     alpha, beta, gamma = jnp.broadcast_arrays(alpha, beta, gamma)
     qa = axis_angle_to_quaternion(jnp.array([0.0, 1.0, 0.0]), alpha)
@@ -320,10 +320,10 @@ def matrix_to_quaternion(R):
     r"""conversion from matrix :math:`R` to quaternion :math:`q`
 
     Args:
-        R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
+        R (``jnp.ndarray``): array of shape :math:`(..., 3, 3)`
 
     Returns:
-        q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+        q (``jnp.ndarray``): array of shape :math:`(..., 4)`
     """
     return axis_angle_to_quaternion(*matrix_to_axis_angle(R))
 
@@ -333,11 +333,11 @@ def axis_angle_to_quaternion(xyz, angle):
     r"""convertion from axis-angle to quaternion
 
     Args:
-        axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+        q (``jnp.ndarray``): array of shape :math:`(..., 4)`
     """
     xyz, angle = jnp.broadcast_arrays(xyz, angle[..., None])
     xyz = _normalize(xyz)
@@ -351,11 +351,11 @@ def quaternion_to_axis_angle(q):
     r"""convertion from quaternion to axis-angle
 
     Args:
-        q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+        q (``jnp.ndarray``): array of shape :math:`(..., 4)`
 
     Returns:
-        axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
     """
     angle = 2 * jnp.arccos(jnp.clip(q[..., 0], -1, 1))
     axis = _normalize(q[..., 1:])
@@ -372,11 +372,11 @@ def matrix_to_axis_angle(R):
     r"""conversion from matrix to axis-angle
 
     Args:
-        R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
+        R (``jnp.ndarray``): array of shape :math:`(..., 3, 3)`
 
     Returns:
-        axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
     """
     # assert jnp.allclose(jnp.linalg.det(R), 1)
     tr = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]
@@ -397,13 +397,13 @@ def angles_to_axis_angle(alpha, beta, gamma):
     r"""conversion from angles to axis-angle
 
     Args:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
     """
     return matrix_to_axis_angle(angles_to_matrix(alpha, beta, gamma))
 
@@ -413,11 +413,11 @@ def axis_angle_to_matrix(axis, angle):
     r"""conversion from axis-angle to matrix
 
     Args:
-        axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 3, 3)`
+        ``jnp.ndarray``: array of shape :math:`(..., 3, 3)`
     """
     axis, angle = jnp.broadcast_arrays(axis, angle[..., None])
     alpha, beta = xyz_to_angles(axis)
@@ -430,10 +430,10 @@ def quaternion_to_matrix(q):
     r"""convertion from quaternion to matrix
 
     Args:
-        q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+        q (``jnp.ndarray``): array of shape :math:`(..., 4)`
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 3, 3)`
+        ``jnp.ndarray``: array of shape :math:`(..., 3, 3)`
     """
     return axis_angle_to_matrix(*quaternion_to_axis_angle(q))
 
@@ -442,12 +442,12 @@ def quaternion_to_angles(q):
     r"""convertion from quaternion to angles
 
     Args:
-        q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+        q (``jnp.ndarray``): array of shape :math:`(..., 4)`
 
     Returns:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
     """
     return matrix_to_angles(quaternion_to_matrix(q))
 
@@ -456,13 +456,13 @@ def axis_angle_to_angles(axis, angle):
     r"""convertion from axis-angle to angles
 
     Args:
-        axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-        angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis (``jnp.ndarray``): array of shape :math:`(..., 3)`
+        angle (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
+        gamma (``jnp.ndarray``): array of shape :math:`(...)`
     """
     return matrix_to_angles(axis_angle_to_matrix(axis, angle))
 
@@ -475,11 +475,11 @@ def angles_to_xyz(alpha, beta):
     r"""convert :math:`(\alpha, \beta)` into a point :math:`(x, y, z)` on the sphere
 
     Args:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
 
     Returns:
-        `jax.numpy.ndarray`: array of shape :math:`(..., 3)`
+        ``jnp.ndarray``: array of shape :math:`(..., 3)`
 
     Examples:
         >>> angles_to_xyz(1.7, 0.0) + 0.0
@@ -505,11 +505,11 @@ def xyz_to_angles(xyz):
         \beta = \arccos(y)
 
     Args:
-        xyz (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
+        xyz (``jnp.ndarray``): array of shape :math:`(..., 3)`
 
     Returns:
-        alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
-        beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha (``jnp.ndarray``): array of shape :math:`(...)`
+        beta (``jnp.ndarray``): array of shape :math:`(...)`
     """
     xyz = _normalize(xyz)
     xyz = jnp.clip(xyz, -1, 1)
