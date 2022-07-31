@@ -1,0 +1,13 @@
+autodocsumm
+myst-parser
+sphinx
+sphinx-rtd-theme
+sympy
+
+ipykernel
+plotly
+jupyter-sphinx
+
+jax
+
+.

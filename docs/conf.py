@@ -11,7 +11,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 import os
 import sys
-from e3nn import __version__, __file__
+from e3nn_jax import __version__, __file__
 
 sys.path.insert(0, os.path.abspath("../"))
 
