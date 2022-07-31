@@ -190,6 +190,7 @@ def _spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str
     raise ValueError("Unknown algorithm: must be 'legendre' or 'recursive'")
 
 
+@partial(jax.custom_jvp, nondiff_argnums=(0, 2, 3))
 @partial(jax.custom_vjp, nondiff_argnums=(0, 2, 3))
 def _custom_vjp_spherical_harmonics(
     ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
@@ -242,7 +243,42 @@ def _bwd(
     return (sum([h(l, r, g) if l > 0 else jnp.zeros_like(r, shape=r.shape[:-1] + (3,)) for l, r, g in zip(ls, res, grad)]),)
 
 
+def _jvp(
+    ls: Tuple[int, ...], normalization: str, algorithm: Tuple[str], primals: Tuple[jnp.ndarray], tangents: Tuple[jnp.ndarray]
+) -> List[jnp.ndarray]:
+    (x,) = primals
+    (x_dot,) = tangents
+
+    js = tuple(max(0, l - 1) for l in ls)
+    output = _custom_vjp_spherical_harmonics(ls + js, x, normalization, algorithm)
+    out, res = output[: len(ls)], output[len(ls) :]
+
+    def h(l: int, r: jnp.ndarray) -> jnp.ndarray:
+        w = clebsch_gordan(l - 1, l, 1)
+        if normalization == "norm":
+            w *= ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
+        else:
+            w *= l**0.5 * (2 * l + 1)
+
+        if "dense" in algorithm:
+            return jnp.einsum("...i,...k,ijk->...j", r, x_dot, w)
+        if "sparse" in algorithm:
+            return jnp.stack(
+                [
+                    sum(
+                        [w[i, j, k] * r[..., i] * x_dot[..., k] for i in range(2 * l - 1) for k in range(3) if w[i, j, k] != 0]
+                    )
+                    for j in range(2 * l + 1)
+                ],
+                axis=-1,
+            )
+        raise ValueError("Unknown algorithm: must be 'dense' or 'sparse'")
+
+    return out, [h(l, r) if l > 0 else jnp.zeros_like(r) for l, r in zip(ls, res)]
+
+
 _custom_vjp_spherical_harmonics.defvjp(_fwd, _bwd)
+_custom_vjp_spherical_harmonics.defjvp(_jvp)
 
 
 def _recursive_spherical_harmonics(

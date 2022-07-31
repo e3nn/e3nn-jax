@@ -120,7 +120,7 @@ def test_check_grads(keys, irreps, normalization):
         lambda x: e3nn.spherical_harmonics(irreps, x, normalize=False, normalization=normalization).contiguous,
         (jax.random.normal(keys[0], (10, 3)),),
         1,
-        modes=["rev"],
+        modes=["fwd", "rev"],
         atol=3e-3,
         rtol=3e-3,
     )

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `gradient_normalization` argument that can be `element` or `path`
 - `path_normalization` can be a number between 0 and 1
 - add nearest interpolation for `zoom`, default is linear
+- implement `custom_jvp` for spherical harmonics
 
 ### Changed
 - `spherical_harmonics` normalization is now set to `component` like everything else.
