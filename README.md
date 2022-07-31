@@ -1,4 +1,5 @@
 # e3nn-jax
+[Documentation](https://e3nn-jax.readthedocs.io/en/latest)
 [![Coverage Status](https://coveralls.io/repos/github/e3nn/e3nn-jax/badge.svg?branch=main)](https://coveralls.io/github/e3nn/e3nn-jax?branch=main)
 
 ## Warning

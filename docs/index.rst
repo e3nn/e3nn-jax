@@ -84,3 +84,27 @@ As a sanity check, we can verify that the representation of the tensor prodcut i
 
 .. _jax: https://github.com/google/jax
 
+
+.. autoclass:: e3nn_jax.Irreps
+    :members:
+    :show-inheritance:
+
+
+.. autoclass:: e3nn_jax.IrrepsData
+    :members:
+    :show-inheritance:
+
+
+.. autoclass:: e3nn_jax.full_tensor_product
+    :members:
+    :show-inheritance:
+
+
+.. autoclass:: e3nn_jax.FunctionalTensorProduct
+    :members:
+    :show-inheritance:
+
+
+.. autoclass:: e3nn_jax.spherical_harmonics
+    :members:
+    :show-inheritance:
