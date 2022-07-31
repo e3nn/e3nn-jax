@@ -85,6 +85,10 @@ As a sanity check, we can verify that the representation of the tensor prodcut i
 .. _jax: https://github.com/google/jax
 
 
+.. autoclass:: e3nn_jax.Irrep
+    :members:
+
+
 .. autoclass:: e3nn_jax.Irreps
     :members:
 

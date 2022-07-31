@@ -11,12 +11,12 @@ def index_add(i, x, out_dim):
     ```
 
     Args:
-        i (`jnp.ndarray`): array of indices
-        x (`jnp.ndarray`): array of data
+        i (`jax.numpy.ndarray`): array of indices
+        x (`jax.numpy.ndarray`): array of data
         out_dim (int): size of the output
 
     Returns:
-        `jnp.ndarray`: ``out``
+        `jax.numpy.ndarray`: ``out``
 
     Example:
        >>> i = jnp.array([0, 2, 2, 0])
@@ -32,15 +32,15 @@ def radius_graph(pos, r_max, *, batch=None, size=None, loop=False):
     r"""naive and inefficient version of ``torch_cluster.radius_graph``
 
     Args:
-        pos (`jnp.ndarray`): array of shape ``(n, 3)``
+        pos (`jax.numpy.ndarray`): array of shape ``(n, 3)``
         r_max (float):
-        batch (`jnp.ndarray`): indices
+        batch (`jax.numpy.ndarray`): indices
         size (int): size of the output
         loop (bool): whether to include self-loops
 
     Returns:
-        `jnp.ndarray`: src
-        `jnp.ndarray`: dst
+        `jax.numpy.ndarray`: src
+        `jax.numpy.ndarray`: dst
 
     Example:
         >>> key = jax.random.PRNGKey(0)

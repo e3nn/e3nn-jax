@@ -32,10 +32,10 @@ class FunctionalTensorProduct:
         in1_var: Variance of the first tensor.
         in2_var: Variance of the second tensor.
         out_var: Variance of the output tensor.
-        irrep_normalization: Normalization of the tensors. `component` or `norm`.
-        path_normalization (str or float): Normalization of the paths, `element` or `path`.
+        irrep_normalization: Normalization of the tensors. ``component`` or ``norm``.
+        path_normalization (str or float): Normalization of the paths, ``element`` or ``path``.
             0/1 corresponds to a normalization where each element/path has an equal contribution to the forward propagation.
-        gradient_normalization (str or float): Normalization of the gradients, `element` or `path`.
+        gradient_normalization (str or float): Normalization of the gradients, ``element`` or ``path``.
             0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
     """
     irreps_in1: Irreps
