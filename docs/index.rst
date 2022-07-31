@@ -21,6 +21,7 @@ If two tensors :math:`x` and :math:`y` transforms as :math:`D_x = 2 \times 1_o` 
 .. jupyter-execute::
 
     import jax
+    import jax.numpy as jnp
     import e3nn_jax as e3nn
 
     irreps_x = e3nn.Irreps("2x1o")
@@ -36,7 +37,7 @@ their outer product is a :math:`6 \times 4` matrix of two indices :math:`A_{ij} 
 
 .. jupyter-execute::
 
-    A = jax.numpy.einsum("i,j", x, y)
+    A = jnp.einsum("i,j", x, y)
     A
 
 
