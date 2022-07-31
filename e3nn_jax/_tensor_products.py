@@ -94,9 +94,20 @@ class FullyConnectedTensorProduct(hk.Module):
 def full_tensor_product(
     input1: IrrepsData,
     input2: IrrepsData,
-    filter_ir_out=None,
-    irrep_normalization: str = None,
+    filter_ir_out: Optional[Irrep] = None,
+    irrep_normalization: Optional[str] = None,
 ):
+    r"""Full tensor product of two irreps.
+
+    Args:
+        input1 (IrrepsData): First input.
+        input2 (IrrepsData): Second input.
+        filter_ir_out (Optional[List[Irrep]]): List of irreps to keep in the output.
+        irrep_normalization (Optional[str]): How to normalize the output. See :func:`e3nn_jax.FunctionalTensorProduct`.
+
+    Returns:
+        IrrepsData: Output.
+    """
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
