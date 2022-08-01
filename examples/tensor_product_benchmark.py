@@ -180,13 +180,13 @@ def main():
 
     for _ in range(warmup):
         z = f(ws, *next(inputs))
-        jax.tree_map(lambda x: x.block_until_ready(), z)
+        jax.tree_util.tree_map(lambda x: x.block_until_ready(), z)
 
     t = time.perf_counter()
 
     for _ in range(args.n):
         z = f(ws, *next(inputs))
-        jax.tree_map(lambda x: x.block_until_ready(), z)
+        jax.tree_util.tree_map(lambda x: x.block_until_ready(), z)
 
     perloop = (time.perf_counter() - t) / args.n
 

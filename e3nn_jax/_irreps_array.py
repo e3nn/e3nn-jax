@@ -273,7 +273,7 @@ class IrrepsArray:
 
         Example:
         >>> id = IrrepsData.new("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
-        >>> jax.tree_map(lambda x: x.shape, id.convert("20x0e")).list
+        >>> jax.tree_util.tree_map(lambda x: x.shape, id.convert("20x0e")).list
         [(1, 20, 1)]
         """
         # Optimization: we use only the list of arrays, not the contiguous data
