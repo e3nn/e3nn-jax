@@ -29,7 +29,7 @@ def _batch_norm(
     batch, *size = input.shape[:-1]
     # TODO add test case for when prod(size) == 0
 
-    input = input.reshape((batch, prod(size)))
+    input = input.reshape((batch, prod(size), -1))
 
     new_means = []
     new_vars = []

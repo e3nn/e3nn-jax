@@ -136,4 +136,4 @@ class Convolution(hk.Module):
             c = jnp.cos(self.mixing_angle)
             s = jnp.sin(self.mixing_angle)
 
-        return c * node_self_out + s * node_conv_out
+        return node_self_out * c + node_conv_out * s

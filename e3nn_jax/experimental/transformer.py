@@ -128,7 +128,7 @@ class Transformer(hk.Module):
         alpha = exp / z[edge_dst]  # array[edge, head]
 
         edge_v = edge_v.factor_mul_to_last_axis(self.num_heads)  # IrrepsArray[edge, head, irreps_out]
-        edge_v = edge_v * jnp.sqrt(jax.nn.relu(alpha))  # IrrepsArray[edge, head, irreps_out]
+        edge_v = edge_v * jnp.sqrt(jax.nn.relu(alpha))[:, :, None]  # IrrepsArray[edge, head, irreps_out]
         edge_v = edge_v.repeat_mul_by_last_axis()  # IrrepsArray[edge, irreps_out]
 
         node_out = jax.tree_util.tree_map(

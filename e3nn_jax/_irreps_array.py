@@ -36,6 +36,11 @@ class IrrepsArray:
             self._list = list
         return self._list
 
+    def __jax_array__(self):
+        if self.irreps.lmax > 0:
+            raise ValueError("trying to convert IrrepsArray to jnp.ndarray, but lmax > 0")
+        return self.contiguous
+
     @staticmethod
     def zeros(irreps: Irreps, leading_shape) -> "IrrepsArray":
         irreps = Irreps(irreps)
@@ -120,7 +125,7 @@ class IrrepsArray:
         return IrrepsArray(irreps=irreps, contiguous=contiguous, list=None)
 
     def __repr__(self):
-        return f"{self.irreps} {self.contiguous}"
+        return f"{self.irreps}\n{self.contiguous}"
 
     @property
     def shape(self):
@@ -361,19 +366,28 @@ class IrrepsArray:
         return IrrepsArray(irreps=irreps, contiguous=self.contiguous, list=new_list)
 
     def __add__(self, other: "IrrepsArray") -> "IrrepsArray":
+        if not isinstance(other, IrrepsArray):
+            return NotImplemented
         assert self.irreps == other.irreps
         list = [x if y is None else (y if x is None else x + y) for x, y in zip(self.list, other.list)]
         return IrrepsArray(irreps=self.irreps, contiguous=self.contiguous + other.contiguous, list=list)
 
     def __sub__(self, other: "IrrepsArray") -> "IrrepsArray":
+        if not isinstance(other, IrrepsArray):
+            return NotImplemented
         assert self.irreps == other.irreps
         list = [x if y is None else (-y if x is None else x - y) for x, y in zip(self.list, other.list)]
         return IrrepsArray(irreps=self.irreps, contiguous=self.contiguous - other.contiguous, list=list)
 
     def __mul__(self, other) -> "IrrepsArray":
         other = jnp.array(other)
-        list = [None if x is None else x * other[..., None, None] for x in self.list]
-        return IrrepsArray(irreps=self.irreps, contiguous=self.contiguous * other[..., None], list=list)
+        if self.irreps.lmax > 0 and other.ndim > 0 and other.shape[-1] != 1:
+            raise ValueError(
+                f"Tying to multiply an IrrepArray of shape {self.shape} ({self.shape[-1]}=dim({self.irreps}))"
+                f" with an array of shape {other.shape}"
+            )
+        list = [None if x is None else x * other[..., None] for x in self.list]
+        return IrrepsArray(irreps=self.irreps, contiguous=self.contiguous * other, list=list)
 
     def __rmul__(self, other) -> "IrrepsArray":
         return self * other
