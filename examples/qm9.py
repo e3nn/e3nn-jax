@@ -150,7 +150,7 @@ def create_model(config):
         x = node_attr
 
         # def stat(text, z):
-        #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
+        #     print(f"{text} = {jax.tree_util.tree_map(lambda x: float(jnp.mean(jnp.mean(x**2, axis=1))), z)}")
 
         # stat('input', x)
         # stat('edge_attr', edge_attr)
@@ -213,7 +213,7 @@ def execute(config):
     def batch_gen():
         for a in loader:
             a = dummy_fill(a, config["num_graphs"], config["num_nodes"], config["num_edges"])
-            a = jax.tree_map(lambda x: np.array(x), a)
+            a = jax.tree_util.tree_map(lambda x: np.array(x), a)
             yield a
 
     ##############
@@ -255,7 +255,7 @@ def execute(config):
         for a in batch_gen():
             t_update.start()
             params, opt_state, loss, pred = update(params, opt_state, a)
-            loss, pred = jax.tree_map(np.array, (loss, pred))
+            loss, pred = jax.tree_util.tree_map(np.array, (loss, pred))
             t_update.stop()
 
             mae += [np.abs(pred - a["y"][:, 7:11])[: a["num_graphs"]]]

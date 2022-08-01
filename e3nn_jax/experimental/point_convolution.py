@@ -51,7 +51,7 @@ class Convolution(hk.Module):
 
         node_features, node_self_out = tmp.split([len(node_input.irreps)])
 
-        edge_features = jax.tree_map(lambda x: x[edge_src], node_features)
+        edge_features = jax.tree_util.tree_map(lambda x: x[edge_src], node_features)
         del node_features
 
         ######################################################################################
@@ -120,7 +120,7 @@ class Convolution(hk.Module):
         edge_features = edge_features.remove_nones().simplify()
         ######################################################################################
 
-        node_features = jax.tree_map(lambda x: index_add(edge_dst, x, out_dim=node_input.shape[0]), edge_features)
+        node_features = jax.tree_util.tree_map(lambda x: index_add(edge_dst, x, out_dim=node_input.shape[0]), edge_features)
         node_features = node_features / self.num_neighbors**0.5
 
         ######################################################################################

@@ -86,7 +86,7 @@ def main():
         return params, opt_state, accuracy, pred
 
     pos, labels, batch = tetris()
-    edge_src, edge_dst = e3nn.radius_graph(pos, 1.1, batch)
+    edge_src, edge_dst = e3nn.radius_graph(pos, 1.1, batch=batch)
 
     params = model.init(jax.random.PRNGKey(3), pos, edge_src, edge_dst)
     opt_state = opt.init(params)

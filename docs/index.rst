@@ -181,7 +181,7 @@ The list contains the data split into different arrays.
 
 .. jupyter-execute::
 
-    jax.tree_map(lambda x: x.shape, x.list)
+    jax.tree_util.tree_map(lambda x: x.shape, x.list)
 
 
 Spherical Harmonics

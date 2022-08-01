@@ -155,7 +155,7 @@ def create_model(config):
         )
 
         # def stat(text, z):
-        #     print(f"{text} = {jax.tree_map(lambda x: float(jnp.sqrt(jnp.mean(x**2))), z)}")
+        #     print(f"{text} = {jax.tree_util.tree_map(lambda x: float(jnp.sqrt(jnp.mean(x**2))), z)}")
 
         # stat('node_attr', node_attr)
         # stat('edge_scalars', edge_scalars)
@@ -211,7 +211,7 @@ def execute(config):
     def batch_gen():
         for a in loader:
             a = dummy_fill(a, config["num_graphs"], config["num_nodes"], config["num_edges"])
-            a = jax.tree_map(lambda x: np.array(x), a)
+            a = jax.tree_util.tree_map(lambda x: np.array(x), a)
             yield a
 
     ##############
@@ -254,7 +254,7 @@ def execute(config):
 
             t_update.start()
             params, opt_state, loss, pred = update(params, opt_state, a)
-            loss, pred = jax.tree_map(np.array, (loss, pred))
+            loss, pred = jax.tree_util.tree_map(np.array, (loss, pred))
             t_update.stop()
 
             # if i == 50:
@@ -267,7 +267,7 @@ def execute(config):
                 raise ValueError("nan prediction")
 
             if not all(jnp.isfinite(w).all() for w in jax.tree_leaves(params)):
-                raise ValueError(f"{jax.tree_map(lambda w: bool(jnp.isfinite(w).all()), params)}")
+                raise ValueError(f"{jax.tree_util.tree_map(lambda w: bool(jnp.isfinite(w).all()), params)}")
 
             mae += [np.abs(pred - a["y"][:, 7:11])[: a["num_graphs"]]]
 

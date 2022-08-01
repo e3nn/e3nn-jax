@@ -107,8 +107,8 @@ class Transformer(hk.Module):
         Returns:
             IrrepsData: output features of the nodes
         """
-        edge_src_feat = jax.tree_map(lambda x: x[edge_src], node_feat)
-        edge_dst_feat = jax.tree_map(lambda x: x[edge_dst], node_feat)
+        edge_src_feat = jax.tree_util.tree_map(lambda x: x[edge_src], node_feat)
+        edge_dst_feat = jax.tree_util.tree_map(lambda x: x[edge_dst], node_feat)
 
         kw = dict(list_neurons=self.list_neurons, act=self.act)
         edge_k = jax.vmap(lambda w, x, y: _tp_mlp_uvu(w, x, y, edge_dst_feat.irreps, **kw))(
@@ -131,5 +131,7 @@ class Transformer(hk.Module):
         edge_v = edge_v * jnp.sqrt(jax.nn.relu(alpha))  # IrrepsData[edge, head, irreps_out]
         edge_v = edge_v.repeat_mul_by_last_axis()  # IrrepsData[edge, irreps_out]
 
-        node_out = jax.tree_map(lambda x: index_add(edge_dst, x, node_feat.shape[0]), edge_v)  # IrrepsData[node, irreps_out]
+        node_out = jax.tree_util.tree_map(
+            lambda x: index_add(edge_dst, x, node_feat.shape[0]), edge_v
+        )  # IrrepsData[node, irreps_out]
         return jax.vmap(Linear(self.irreps_node_output))(node_out)  # IrrepsData[edge, head, irreps_out]
