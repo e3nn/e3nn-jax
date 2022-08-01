@@ -23,7 +23,7 @@ def test_elementwise_tensor_product(keys):
 
     x3 = elementwise_tensor_product(x1, x2)
     assert x3.irreps == Irreps("1o + 1e")
-    assert x3.shape == (20, 10)
+    assert x3.shape == (20, 10, 6)
 
 
 def test_fully_connected_tensor_product(keys):
@@ -38,4 +38,4 @@ def test_fully_connected_tensor_product(keys):
     w = f.init(next(keys), x1, x2)
     x3 = f.apply(w, x1, x2)
     assert x3.irreps == Irreps("10x0e + 1e")
-    assert x3.shape == (20, 10)
+    assert x3.shape[:-1] == (20, 10)

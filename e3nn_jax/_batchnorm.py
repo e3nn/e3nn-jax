@@ -26,7 +26,7 @@ def _batch_norm(
     def _roll_avg(curr, update):
         return (1 - momentum) * curr + momentum * jax.lax.stop_gradient(update)
 
-    batch, *size = input.shape
+    batch, *size = input.shape[:-1]
     # TODO add test case for when prod(size) == 0
 
     input = input.reshape((batch, prod(size)))
@@ -113,7 +113,7 @@ def _batch_norm(
         i_wei += mul
 
     output = IrrepsArray.from_list(input.irreps, fields, (batch, prod(size)))
-    output = output.reshape((batch,) + tuple(size))
+    output = output.reshape((batch,) + tuple(size) + (-1,))
     return output, new_means, new_vars
 
 
