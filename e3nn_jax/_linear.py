@@ -4,7 +4,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, IrrepsData, config
+from e3nn_jax import Irreps, IrrepsArray, config
 from math import sqrt
 
 from ._core_tensor_product import _sum_tensors
@@ -115,7 +115,7 @@ class FunctionalLinear:
         self.instructions = instructions
         self.output_mask = output_mask
 
-    def aggregate_paths(self, paths, output_shape) -> IrrepsData:
+    def aggregate_paths(self, paths, output_shape) -> IrrepsArray:
         output = [
             _sum_tensors(
                 [out for ins, out in zip(self.instructions, paths) if ins.i_out == i_out],
@@ -128,10 +128,10 @@ class FunctionalLinear:
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]
-        return IrrepsData.from_list(self.irreps_out, output, output_shape)
+        return IrrepsArray.from_list(self.irreps_out, output, output_shape)
 
-    def __call__(self, ws: List[jnp.ndarray], input: IrrepsData) -> IrrepsData:
-        input = IrrepsData.new(self.irreps_in, input)
+    def __call__(self, ws: List[jnp.ndarray], input: IrrepsArray) -> IrrepsArray:
+        input = IrrepsArray.new(self.irreps_in, input)
         assert len(input.shape) == 0
 
         paths = [
@@ -179,10 +179,10 @@ class Linear(hk.Module):
         self.biases = False
 
     def __call__(self, input):
-        if self.irreps_in is None and not isinstance(input, IrrepsData):
+        if self.irreps_in is None and not isinstance(input, IrrepsArray):
             raise ValueError("the input of Linear must be an IrrepsData, or `irreps_in` must be specified")
         if self.irreps_in is not None:
-            input = IrrepsData.new(self.irreps_in, input)
+            input = IrrepsArray.new(self.irreps_in, input)
 
         input = input.remove_nones().simplify()
         lin = FunctionalLinear(input.irreps, self.irreps_out, self.instructions, biases=self.biases)

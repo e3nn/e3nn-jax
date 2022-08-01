@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import Irrep, Irreps, IrrepsData, MulIrrep
+from e3nn_jax import Irrep, Irreps, IrrepsArray, MulIrrep
 
 
 def test_creation():
@@ -98,12 +98,12 @@ def test_fail1():
 
 
 def test_irreps_data_convert():
-    id = IrrepsData.new("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
+    id = IrrepsArray.new("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
     assert jax.tree_map(lambda x: x.shape, id.convert("0x0e + 20x0e + 0x0e")).list == [None, (1, 20, 1), None]
     assert jax.tree_map(lambda x: x.shape, id.convert("7x0e + 4x0e + 9x0e")).list == [None, (1, 4, 1), (1, 9, 1)]
 
-    id = IrrepsData.new("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))])
+    id = IrrepsArray.new("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))])
     assert jax.tree_map(lambda x: x.shape, id.convert("5x0e + 5x0e + 5x1e + 5x1e")).list == [None, None, (1, 5, 3), (1, 5, 3)]
 
-    id = IrrepsData.zeros("10x0e + 10x1e", ())
+    id = IrrepsArray.zeros("10x0e + 10x1e", ())
     id = id.convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")

@@ -22,7 +22,7 @@ def algorithm(request):
 
 @pytest.mark.parametrize("l", [0, 1, 2, 3, 4, 5, 6, 7])
 def test_equivariance(keys, l):
-    input = e3nn.IrrepsData.randn("1o", keys[0], (10,))
+    input = e3nn.IrrepsArray.randn("1o", keys[0], (10,))
 
     abc = e3nn.rand_angles(keys[1], ())
     output1 = e3nn.spherical_harmonics(l, input.transform_by_angles(*abc), False)

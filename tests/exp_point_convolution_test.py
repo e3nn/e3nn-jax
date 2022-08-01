@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import haiku as hk
 
-from e3nn_jax import Irreps, IrrepsData, radius_graph, spherical_harmonics
+from e3nn_jax import Irreps, IrrepsArray, radius_graph, spherical_harmonics
 from e3nn_jax.experimental.point_convolution import Convolution
 
 
@@ -27,7 +27,7 @@ def test_point_convolution(keys):
             [1.0, 1.0, 0.0],
         ]
     )
-    x = IrrepsData.randn("16x0e + 1o", next(keys), (pos.shape[0],))
+    x = IrrepsArray.randn("16x0e + 1o", next(keys), (pos.shape[0],))
     src, dst = radius_graph(pos, 2.0)
 
     w = model.init(next(keys), pos, src, dst, x)

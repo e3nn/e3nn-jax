@@ -1,7 +1,7 @@
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import Irreps, IrrepsData
+from e3nn_jax import Irreps, IrrepsArray
 from e3nn_jax.experimental.voxel_convolution import Convolution
 
 
@@ -13,7 +13,7 @@ irreps_sh = Irreps("0e + 1e + 2e")
 @hk.without_apply_rng
 @hk.transform
 def c(x, z):
-    x = IrrepsData.from_contiguous(irreps_in, x)
+    x = IrrepsArray.from_contiguous(irreps_in, x)
     x = Convolution(
         irreps_out=irreps_out,
         irreps_sh=irreps_sh,

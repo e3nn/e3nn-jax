@@ -7,7 +7,7 @@ from functools import partial, reduce
 
 import jax
 import jax.numpy as jnp
-from e3nn_jax import FunctionalFullyConnectedTensorProduct, Irreps, IrrepsData
+from e3nn_jax import FunctionalFullyConnectedTensorProduct, Irreps, IrrepsArray
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -149,8 +149,8 @@ def main():
         inputs = iter(
             [
                 (
-                    IrrepsData.from_contiguous(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
-                    IrrepsData.from_contiguous(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list,
+                    IrrepsArray.from_contiguous(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
+                    IrrepsArray.from_contiguous(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list,
                 )
                 for _ in range(args.n + warmup)
             ]

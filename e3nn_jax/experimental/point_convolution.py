@@ -5,7 +5,7 @@ import jax
 import jax.numpy as jnp
 from e3nn_jax import (
     Irreps,
-    IrrepsData,
+    IrrepsArray,
     FunctionalTensorProduct,
     index_add,
     Linear,
@@ -39,10 +39,10 @@ class Convolution(hk.Module):
 
     @partial(jax.profiler.annotate_function, name="convolution")
     def __call__(
-        self, node_input: IrrepsData, edge_src, edge_dst, edge_attr: IrrepsData, node_attr=None, edge_scalar_attr=None
-    ) -> IrrepsData:
-        assert isinstance(node_input, IrrepsData)
-        assert isinstance(edge_attr, IrrepsData)
+        self, node_input: IrrepsArray, edge_src, edge_dst, edge_attr: IrrepsArray, node_attr=None, edge_scalar_attr=None
+    ) -> IrrepsArray:
+        assert isinstance(node_input, IrrepsArray)
+        assert isinstance(edge_attr, IrrepsArray)
 
         if node_attr is not None:
             tmp = jax.vmap(FullyConnectedTensorProduct(node_input.irreps + self.irreps_node_output))(node_input, node_attr)
@@ -102,7 +102,7 @@ class Convolution(hk.Module):
                 for ins in tp.instructions
             ]
 
-            edge_features: IrrepsData = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr)
+            edge_features: IrrepsArray = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr)
         else:
             weight = [
                 hk.get_parameter(
@@ -115,7 +115,7 @@ class Convolution(hk.Module):
                 )
                 for ins in tp.instructions
             ]
-            edge_features: IrrepsData = jax.vmap(tp.left_right, (None, 0, 0), 0)(weight, edge_features, edge_attr)
+            edge_features: IrrepsArray = jax.vmap(tp.left_right, (None, 0, 0), 0)(weight, edge_features, edge_attr)
 
         edge_features = edge_features.remove_nones().simplify()
         ######################################################################################

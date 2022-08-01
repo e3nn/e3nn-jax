@@ -4,7 +4,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsData, config
+from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsArray, config
 from e3nn_jax.util.decorators import overload_for_irreps_without_data
 
 
@@ -64,11 +64,11 @@ class FullyConnectedTensorProduct(hk.Module):
         self.irreps_in1 = Irreps(irreps_in1) if irreps_in1 is not None else None
         self.irreps_in2 = Irreps(irreps_in2) if irreps_in2 is not None else None
 
-    def __call__(self, x1: IrrepsData, x2: IrrepsData) -> IrrepsData:
+    def __call__(self, x1: IrrepsArray, x2: IrrepsArray) -> IrrepsArray:
         if self.irreps_in1 is not None:
-            x1 = IrrepsData.new(self.irreps_in1, x1)
+            x1 = IrrepsArray.new(self.irreps_in1, x1)
         if self.irreps_in2 is not None:
-            x2 = IrrepsData.new(self.irreps_in2, x2)
+            x2 = IrrepsArray.new(self.irreps_in2, x2)
 
         x1 = x1.remove_nones().simplify()
         x2 = x2.remove_nones().simplify()
@@ -92,8 +92,8 @@ class FullyConnectedTensorProduct(hk.Module):
 
 @overload_for_irreps_without_data((0, 1))
 def full_tensor_product(
-    input1: IrrepsData,
-    input2: IrrepsData,
+    input1: IrrepsArray,
+    input2: IrrepsArray,
     filter_ir_out: Optional[Irrep] = None,
     irrep_normalization: Optional[str] = None,
 ):
@@ -138,12 +138,12 @@ def full_tensor_product(
 
 @overload_for_irreps_without_data((0, 1))
 def elementwise_tensor_product(
-    input1: IrrepsData,
-    input2: IrrepsData,
+    input1: IrrepsArray,
+    input2: IrrepsArray,
     filter_ir_out=None,
     irrep_normalization: str = None,
     path_normalization: str = None,
-) -> IrrepsData:
+) -> IrrepsArray:
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
@@ -255,9 +255,9 @@ class TensorSquare(hk.Module):
             init = hk.initializers.RandomNormal
         self.init = init
 
-    def __call__(self, input: IrrepsData) -> IrrepsData:
+    def __call__(self, input: IrrepsArray) -> IrrepsArray:
         if self.irreps_in is not None:
-            input = IrrepsData.new(self.irreps_in, input)
+            input = IrrepsArray.new(self.irreps_in, input)
 
         input = input.remove_nones().simplify()
 

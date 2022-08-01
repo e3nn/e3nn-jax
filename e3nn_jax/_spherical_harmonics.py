@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import numpy as np
 import sympy
 
-from e3nn_jax import Irreps, IrrepsData, clebsch_gordan, config
+from e3nn_jax import Irreps, IrrepsArray, clebsch_gordan, config
 from e3nn_jax.util.sympy import sqrtQarray_to_sympy
 
 
@@ -64,18 +64,18 @@ def sh(
     Returns:
         ``jnp.ndarray``: polynomials of the spherical harmonics
     """
-    input = IrrepsData.from_contiguous("1e", input)
+    input = IrrepsArray.from_contiguous("1e", input)
     return spherical_harmonics(irreps_out, input, normalize, normalization, algorithm=algorithm).contiguous
 
 
 def spherical_harmonics(
     irreps_out: Union[Irreps, int, Sequence[int]],
-    input: Union[IrrepsData, jnp.ndarray],
+    input: Union[IrrepsArray, jnp.ndarray],
     normalize: bool,
     normalization: str = None,
     *,
     algorithm: Tuple[str] = None,
-) -> IrrepsData:
+) -> IrrepsArray:
     r"""Spherical harmonics
 
     .. image:: https://user-images.githubusercontent.com/333780/79220728-dbe82c00-7e54-11ea-82c7-b3acbd9b2246.gif
@@ -124,12 +124,12 @@ def spherical_harmonics(
 
     if isinstance(irreps_out, int):
         l = irreps_out
-        assert isinstance(input, IrrepsData)
+        assert isinstance(input, IrrepsArray)
         [(mul, ir)] = input.irreps
         irreps_out = Irreps([(1, (l, ir.p**l))])
 
     if all(isinstance(l, int) for l in irreps_out):
-        assert isinstance(input, IrrepsData)
+        assert isinstance(input, IrrepsArray)
         [(mul, ir)] = input.irreps
         irreps_out = Irreps([(1, (l, ir.p**l)) for l in irreps_out])
 
@@ -149,7 +149,7 @@ def spherical_harmonics(
 
     assert all(keyword in ["legendre", "recursive", "dense", "sparse", "custom_vjp"] for keyword in algorithm)
 
-    if isinstance(input, IrrepsData):
+    if isinstance(input, IrrepsArray):
         [(mul, ir)] = input.irreps
         assert mul == 1
         assert ir.l == 1
@@ -165,7 +165,7 @@ def spherical_harmonics(
 
     sh = _jited_spherical_harmonics(tuple(ir.l for _, ir in irreps_out), x, normalization, algorithm)
     sh = [jnp.repeat(y[..., None, :], mul, -2) for (mul, ir), y in zip(irreps_out, sh)]
-    return IrrepsData.from_list(irreps_out, sh, x.shape[:-1])
+    return IrrepsArray.from_list(irreps_out, sh, x.shape[:-1])
 
 
 @partial(jax.jit, static_argnums=(0, 2, 3), inline=True)

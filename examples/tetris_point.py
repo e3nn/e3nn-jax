@@ -47,7 +47,7 @@ def tetris():
 @hk.without_apply_rng
 @hk.transform
 def model(pos, edge_src, edge_dst):
-    node_feat = e3nn.IrrepsData.ones("0e", (pos.shape[0],))
+    node_feat = e3nn.IrrepsArray.ones("0e", (pos.shape[0],))
     edge_attr = e3nn.spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True, normalization="component")
 
     kw = dict(

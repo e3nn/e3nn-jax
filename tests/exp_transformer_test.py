@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import haiku as hk
 
-from e3nn_jax import IrrepsData, radius_graph, spherical_harmonics, sus, soft_one_hot_linspace
+from e3nn_jax import IrrepsArray, radius_graph, spherical_harmonics, sus, soft_one_hot_linspace
 from e3nn_jax.experimental.transformer import Transformer
 
 
@@ -33,7 +33,7 @@ def test_transformer(keys):
         ]
     )
     src, dst = radius_graph(pos, 2.0)
-    node_feat = IrrepsData.randn("2x0e + 2x1e + 2x2e", next(keys), (pos.shape[0],))
+    node_feat = IrrepsArray.randn("2x0e + 2x1e + 2x2e", next(keys), (pos.shape[0],))
 
     w = model.init(next(keys), pos, src, dst, node_feat)
     apply(w, pos, src, dst, node_feat)

@@ -4,7 +4,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, IrrepsData, config
+from e3nn_jax import Irreps, IrrepsArray, config
 from e3nn_jax.util import prod
 
 
@@ -112,7 +112,7 @@ def _batch_norm(
             fields.append(field)  # [batch, sample, mul, repr]
         i_wei += mul
 
-    output = IrrepsData.from_list(input.irreps, fields, (batch, prod(size)))
+    output = IrrepsArray.from_list(input.irreps, fields, (batch, prod(size)))
     output = output.reshape((batch,) + tuple(size))
     return output, new_means, new_vars
 
@@ -179,8 +179,8 @@ class BatchNorm(hk.Module):
             output: normalized tensor of shape ``(batch, [spatial], irreps.dim)``
         """
         if self.irreps is not None:
-            input = IrrepsData.new(self.irreps, input)
-        if not isinstance(input, IrrepsData):
+            input = IrrepsArray.new(self.irreps, input)
+        if not isinstance(input, IrrepsArray):
             raise ValueError("input should be of type IrrepsData")
 
         num_scalar = sum(mul for mul, ir in input.irreps if ir.is_scalar())

@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 
 import jax
 import jax.numpy as jnp
-from e3nn_jax import IrrepsData, index_add
+from e3nn_jax import IrrepsArray, index_add
 from e3nn_jax.util import prod
 from jax import lax
 
@@ -257,7 +257,7 @@ def norm_maxpool_bwd(residuals, grad):
 norm_maxpool.defvjp(norm_maxpool_fwd, norm_maxpool_bwd)
 
 
-def maxpool(input: IrrepsData, strides) -> IrrepsData:
+def maxpool(input: IrrepsArray, strides) -> IrrepsArray:
     r"""
     Args:
         input: IrrepsData of shape [x, y, z]
@@ -266,11 +266,11 @@ def maxpool(input: IrrepsData, strides) -> IrrepsData:
     Returns:
         IrrepsData
     """
-    assert isinstance(input, IrrepsData)
+    assert isinstance(input, IrrepsArray)
     assert len(input.shape) == len(strides)
 
     list = [None if x is None else jax.vmap(lambda x: norm_maxpool(x, strides), -2, -2)(x) for x in input.list]
 
     shape = tuple(a // s for a, s in zip(input.shape, strides))
 
-    return IrrepsData.from_list(input.irreps, list, shape)
+    return IrrepsArray.from_list(input.irreps, list, shape)

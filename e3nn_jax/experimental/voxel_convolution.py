@@ -10,7 +10,7 @@ from e3nn_jax import (
     FunctionalLinear,
     Irrep,
     Irreps,
-    IrrepsData,
+    IrrepsArray,
     MulIrrep,
     soft_one_hot_linspace,
     spherical_harmonics,
@@ -156,7 +156,7 @@ class Convolution(hk.Module):
         k = k.at[k.shape[0] // 2, k.shape[1] // 2, k.shape[2] // 2].set(lin.matrix(w))
         return k
 
-    def __call__(self, input: IrrepsData) -> IrrepsData:
+    def __call__(self, input: IrrepsArray) -> IrrepsArray:
         r"""
         Args:
             input: Input data of shape ``[batch, x, y, z, irreps_in.dim]``
@@ -165,8 +165,8 @@ class Convolution(hk.Module):
             Output data of shape ``[batch, x, y, z, irreps_out.dim]``
         """
         if self.irreps_in is not None:
-            input = IrrepsData.new(self.irreps_in, input)
-        if not isinstance(input, IrrepsData):
+            input = IrrepsArray.new(self.irreps_in, input)
+        if not isinstance(input, IrrepsArray):
             raise ValueError("Convolution: input should be of type IrrepsData")
 
         input = input.remove_nones().simplify()
@@ -179,7 +179,7 @@ class Convolution(hk.Module):
             ]
         )
 
-        output = IrrepsData.from_contiguous(
+        output = IrrepsArray.from_contiguous(
             irreps_out,
             lax.conv_general_dilated(
                 lhs=input.contiguous,
@@ -199,6 +199,6 @@ class Convolution(hk.Module):
                     i += 1
                 else:
                     list.append(None)
-            output = IrrepsData.from_list(self.irreps_out, list, output.shape)
+            output = IrrepsArray.from_list(self.irreps_out, list, output.shape)
 
         return output

@@ -106,7 +106,7 @@ def dummy_fill(a, num_graphs, num_nodes, num_edges):
 def create_model(config):
     @hk.transform
     def f(a):
-        node_attr = e3nn.IrrepsData.from_contiguous("5x0e", a["x"][:, :5] * 5**0.5)
+        node_attr = e3nn.IrrepsArray.from_contiguous("5x0e", a["x"][:, :5] * 5**0.5)
         pos = a["pos"]
         edge_src, edge_dst = a["edge_index"]
 
@@ -140,7 +140,7 @@ def create_model(config):
 
         irreps_features = e3nn.Irreps(f"{mul0}x0e + {mul0}x0o + {mul1}x1e + {mul1}x1o + {mul2}x2e + {mul2}x2o").simplify()
 
-        def act(x: e3nn.IrrepsData) -> e3nn.IrrepsData:
+        def act(x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
             x = e3nn.scalar_activation(x, [jax.nn.gelu, jnp.tanh] + [None] * (len(x.irreps) - 2))
             tp = e3nn.TensorSquare(irreps_features, init=hk.initializers.Constant(0.0))
             y = jax.vmap(tp)(x)

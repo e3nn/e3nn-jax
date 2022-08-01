@@ -1,7 +1,7 @@
 import inspect
 from functools import wraps
 
-from e3nn_jax import Irreps, IrrepsData
+from e3nn_jax import Irreps, IrrepsArray
 
 
 def overload_for_irreps_without_data(irrepsdata_argnums=None, irrepsdata_argnames=None, shape=()):
@@ -18,13 +18,13 @@ def overload_for_irreps_without_data(irrepsdata_argnums=None, irrepsdata_argname
             if any(isinstance(arg, (Irreps, str)) for arg in concerned_args):
                 # assume arguments are Irreps (not IrrepsData)
 
-                args = [IrrepsData.ones(a, shape) if i in argnums else a for i, a in enumerate(args)]
-                kwargs = {k: IrrepsData.ones(v, shape) if k in argnames else v for k, v in kwargs.items()}
+                args = [IrrepsArray.ones(a, shape) if i in argnums else a for i, a in enumerate(args)]
+                kwargs = {k: IrrepsArray.ones(v, shape) if k in argnames else v for k, v in kwargs.items()}
                 output = func(*args, **kwargs)
-                if isinstance(output, IrrepsData):
+                if isinstance(output, IrrepsArray):
                     return output.irreps
                 if isinstance(output, tuple):
-                    return tuple(o.irreps if isinstance(o, IrrepsData) else o for o in output)
+                    return tuple(o.irreps if isinstance(o, IrrepsArray) else o for o in output)
                 raise TypeError(f"{func.__name__} returned {type(output)} which is not supported by `overload_irrep_no_data`.")
 
             # otherwise, assume arguments are IrrepsData

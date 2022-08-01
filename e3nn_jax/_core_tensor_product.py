@@ -9,7 +9,7 @@ from typing import Any, List, Optional, Union
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Instruction, Irreps, IrrepsData, clebsch_gordan, config
+from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
 from e3nn_jax.util import prod
 
 from ._einsum import einsum as opt_einsum
@@ -133,14 +133,14 @@ class FunctionalTensorProduct:
     def left_right(
         self,
         weights: List[jnp.ndarray],
-        input1: IrrepsData,
-        input2: IrrepsData = None,
+        input1: IrrepsArray,
+        input2: IrrepsArray = None,
         *,
         specialized_code=None,
         optimize_einsums=None,
         custom_einsum_vjp=None,
         fuse_all=None,
-    ) -> IrrepsData:
+    ) -> IrrepsArray:
         r"""Compute the tensor product of two input tensors.
 
         Args:
@@ -169,8 +169,8 @@ class FunctionalTensorProduct:
         if input2 is None:
             weights, input1, input2 = [], weights, input1
 
-        input1 = IrrepsData.new(self.irreps_in1, input1)
-        input2 = IrrepsData.new(self.irreps_in2, input2)
+        input1 = IrrepsArray.new(self.irreps_in1, input1)
+        input2 = IrrepsArray.new(self.irreps_in2, input2)
 
         return _left_right(
             self,
@@ -186,7 +186,7 @@ class FunctionalTensorProduct:
     def right(
         self,
         weights: List[jnp.ndarray],
-        input2: IrrepsData = None,
+        input2: IrrepsArray = None,
         *,
         specialized_code=None,
         optimize_einsums=None,
@@ -216,7 +216,7 @@ class FunctionalTensorProduct:
         if input2 is None:
             weights, input2 = [], weights
 
-        input2 = IrrepsData.new(self.irreps_in2, input2)
+        input2 = IrrepsArray.new(self.irreps_in2, input2)
         return _right(
             self,
             weights,
@@ -338,7 +338,7 @@ def _left_right(
 
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
-        return IrrepsData.zeros(self.irreps_out, ())
+        return IrrepsArray.zeros(self.irreps_out, ())
 
     if custom_einsum_vjp:
         assert optimize_einsums
@@ -445,7 +445,7 @@ def _left_right(
                 input1.contiguous,
                 input2.contiguous,
             )
-        return IrrepsData.from_contiguous(self.irreps_out, out)
+        return IrrepsArray.from_contiguous(self.irreps_out, out)
 
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):
@@ -598,7 +598,7 @@ def _left_right(
         )
         for i_out, mul_ir_out in enumerate(self.irreps_out)
     ]
-    return IrrepsData.from_list(self.irreps_out, out, ())
+    return IrrepsArray.from_list(self.irreps_out, out, ())
 
 
 @partial(jax.jit, static_argnums=(0,), static_argnames=("optimize_einsums", "custom_einsum_vjp"))
