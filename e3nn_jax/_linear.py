@@ -132,7 +132,7 @@ class FunctionalLinear:
 
     def __call__(self, ws: List[jnp.ndarray], input: IrrepsArray) -> IrrepsArray:
         input = IrrepsArray.new(self.irreps_in, input)
-        assert len(input.shape) == 0
+        assert input.ndim == 1
 
         paths = [
             ins.path_weight * w
@@ -140,7 +140,7 @@ class FunctionalLinear:
             else (None if input.list[ins.i_in] is None else ins.path_weight * jnp.einsum("uw,ui->wi", w, input.list[ins.i_in]))
             for ins, w in zip(self.instructions, ws)
         ]
-        return self.aggregate_paths(paths, input.shape)
+        return self.aggregate_paths(paths, input.shape[:-1])
 
     def matrix(self, ws: List[jnp.ndarray]) -> jnp.ndarray:
         r"""
@@ -180,7 +180,7 @@ class Linear(hk.Module):
 
     def __call__(self, input):
         if self.irreps_in is None and not isinstance(input, IrrepsArray):
-            raise ValueError("the input of Linear must be an IrrepsData, or `irreps_in` must be specified")
+            raise ValueError("the input of Linear must be an IrrepsArray, or `irreps_in` must be specified")
         if self.irreps_in is not None:
             input = IrrepsArray.new(self.irreps_in, input)
 

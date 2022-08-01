@@ -5,15 +5,15 @@ import jax
 import jax.numpy as jnp
 
 from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsArray, config
-from e3nn_jax.util.decorators import overload_for_irreps_without_data
+from e3nn_jax.util.decorators import overload_for_irreps_without_array
 
 
 def naive_broadcast_decorator(func):
     def wrapper(*args):
-        shape = jnp.broadcast_shapes(*(arg.shape for arg in args))
-        args = [arg.broadcast_to(shape) for arg in args]
+        leading_shape = jnp.broadcast_shapes(*(arg.shape[:-1] for arg in args))
+        args = [arg.broadcast_to(leading_shape + (-1,)) for arg in args]
         f = func
-        for _ in range(len(shape)):
+        for _ in range(len(leading_shape)):
             f = jax.vmap(f)
         return f(*args)
 
@@ -90,7 +90,7 @@ class FullyConnectedTensorProduct(hk.Module):
         return output.convert(self.irreps_out)
 
 
-@overload_for_irreps_without_data((0, 1))
+@overload_for_irreps_without_array((0, 1))
 def full_tensor_product(
     input1: IrrepsArray,
     input2: IrrepsArray,
@@ -100,13 +100,13 @@ def full_tensor_product(
     r"""Full tensor product of two irreps.
 
     Args:
-        input1 (IrrepsData): First input.
-        input2 (IrrepsData): Second input.
+        input1 (IrrepsArray): First input.
+        input2 (IrrepsArray): Second input.
         filter_ir_out (Optional[List[Irrep]]): List of irreps to keep in the output.
         irrep_normalization (Optional[str]): How to normalize the output. See :func:`e3nn_jax.FunctionalTensorProduct`.
 
     Returns:
-        IrrepsData: Output.
+        IrrepsArray: Output.
     """
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -136,7 +136,7 @@ def full_tensor_product(
     return naive_broadcast_decorator(tp.left_right)(input1, input2)
 
 
-@overload_for_irreps_without_data((0, 1))
+@overload_for_irreps_without_array((0, 1))
 def elementwise_tensor_product(
     input1: IrrepsArray,
     input2: IrrepsArray,

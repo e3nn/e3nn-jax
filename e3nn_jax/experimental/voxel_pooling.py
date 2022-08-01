@@ -260,11 +260,11 @@ norm_maxpool.defvjp(norm_maxpool_fwd, norm_maxpool_bwd)
 def maxpool(input: IrrepsArray, strides) -> IrrepsArray:
     r"""
     Args:
-        input: IrrepsData of shape [x, y, z]
+        input: IrrepsArray of shape [x, y, z]
         strides: tuple of ints
 
     Returns:
-        IrrepsData
+        IrrepsArray
     """
     assert isinstance(input, IrrepsArray)
     assert len(input.shape) == len(strides)

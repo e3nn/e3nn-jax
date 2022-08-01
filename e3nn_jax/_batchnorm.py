@@ -181,7 +181,7 @@ class BatchNorm(hk.Module):
         if self.irreps is not None:
             input = IrrepsArray.new(self.irreps, input)
         if not isinstance(input, IrrepsArray):
-            raise ValueError("input should be of type IrrepsData")
+            raise ValueError("input should be of type IrrepsArray")
 
         num_scalar = sum(mul for mul, ir in input.irreps if ir.is_scalar())
         num_features = input.irreps.num_irreps

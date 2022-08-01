@@ -36,11 +36,11 @@ class Dropout(hk.Module):
 
         Args:
             rng (`jax.random.PRNGKey`): the random number generator
-            x (IrrepsData): the input
+            x (IrrepsArray): the input
             is_training (bool): whether to perform dropout
 
         Returns:
-            IrrepsData: the output
+            IrrepsArray: the output
         """
         if not is_training:
             return x
@@ -48,7 +48,7 @@ class Dropout(hk.Module):
         if self.irreps is not None:
             x = IrrepsArray.new(self.irreps, x)
         if not isinstance(x, IrrepsArray):
-            raise TypeError(f"{self.__class__.__name__} only supports IrrepsData")
+            raise TypeError(f"{self.__class__.__name__} only supports IrrepsArray")
 
         noises = []
         out_list = []

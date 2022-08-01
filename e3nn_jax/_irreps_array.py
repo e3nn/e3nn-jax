@@ -24,134 +24,138 @@ class IrrepsArray:
     @property
     def list(self) -> List[Optional[jnp.ndarray]]:
         if self._list is None:
-            shape = self.contiguous.shape[:-1]
+            leading_shape = self.contiguous.shape[:-1]
             if len(self.irreps) == 1:
                 mul, ir = self.irreps[0]
-                list = [jnp.reshape(self.contiguous, shape + (mul, ir.dim))]
+                list = [jnp.reshape(self.contiguous, leading_shape + (mul, ir.dim))]
             else:
                 list = [
-                    jnp.reshape(self.contiguous[..., i], shape + (mul, ir.dim))
+                    jnp.reshape(self.contiguous[..., i], leading_shape + (mul, ir.dim))
                     for i, (mul, ir) in zip(self.irreps.slices(), self.irreps)
                 ]
             self._list = list
         return self._list
 
     @staticmethod
-    def zeros(irreps: Irreps, shape) -> "IrrepsArray":
+    def zeros(irreps: Irreps, leading_shape) -> "IrrepsArray":
         irreps = Irreps(irreps)
-        return IrrepsArray(irreps=irreps, contiguous=jnp.zeros(shape + (irreps.dim,)), list=[None] * len(irreps))
+        return IrrepsArray(irreps=irreps, contiguous=jnp.zeros(leading_shape + (irreps.dim,)), list=[None] * len(irreps))
 
     @staticmethod
-    def ones(irreps: Irreps, shape) -> "IrrepsArray":
+    def ones(irreps: Irreps, leading_shape) -> "IrrepsArray":
         irreps = Irreps(irreps)
         return IrrepsArray(
             irreps=irreps,
-            contiguous=jnp.ones(shape + (irreps.dim,)),
-            list=[jnp.ones(shape + (mul, ir.dim)) for mul, ir in irreps],
+            contiguous=jnp.ones(leading_shape + (irreps.dim,)),
+            list=[jnp.ones(leading_shape + (mul, ir.dim)) for mul, ir in irreps],
         )
 
     @staticmethod
     def new(irreps: Irreps, any) -> "IrrepsArray":
-        r"""Create a new IrrepsData
+        r"""Create a new IrrepsArray
 
         Args:
             irreps (`Irreps`): the irreps of the data
             any: the data
 
         Returns:
-            `IrrepsData`
+            `IrrepsArray`
         """
         if isinstance(any, IrrepsArray):
             return any.convert(irreps)
         if isinstance(any, list):
-            shape = None
+            leading_shape = None
             for x in any:
                 if x is not None:
-                    shape = x.shape[:-2]
-            if shape is None:
-                raise ValueError("IrrepsData.new cannot infer shape from list of arrays")
-            return IrrepsArray.from_list(irreps, any, shape)
+                    leading_shape = x.shape[:-2]
+            if leading_shape is None:
+                raise ValueError("IrrepsArray.new cannot infer shape from list of arrays")
+            return IrrepsArray.from_list(irreps, any, leading_shape)
         return IrrepsArray.from_contiguous(irreps, any)
 
     @staticmethod
-    def from_list(irreps: Irreps, list, shape: Tuple[int]) -> "IrrepsArray":
-        r"""Create an IrrepsData from a list of arrays
+    def from_list(irreps: Irreps, list, leading_shape: Tuple[int]) -> "IrrepsArray":
+        r"""Create an IrrepsArray from a list of arrays
 
         Args:
             irreps (Irreps): irreps
             list (list of optional ``jnp.ndarray``): list of arrays
+            leading_shape (tuple of int): leading shape of the arrays (without the irreps)
 
         Returns:
-            IrrepsData
+            IrrepsArray
         """
         irreps = Irreps(irreps)
         assert len(irreps) == len(list), f"irreps has {len(irreps)} elements and list has {len(list)}"
         assert all(x is None or isinstance(x, jnp.ndarray) for x in list)
-        assert all(x is None or x.shape == shape + (mul, ir.dim) for x, (mul, ir) in zip(list, irreps)), (
+        assert all(x is None or x.shape == leading_shape + (mul, ir.dim) for x, (mul, ir) in zip(list, irreps)), (
             [x.shape for x in list if x is not None],
-            shape,
+            leading_shape,
         )
 
         if irreps.dim > 0:
             contiguous = jnp.concatenate(
                 [
-                    jnp.zeros(shape + (mul_ir.dim,)) if x is None else x.reshape(shape + (mul_ir.dim,))
+                    jnp.zeros(leading_shape + (mul_ir.dim,)) if x is None else x.reshape(leading_shape + (mul_ir.dim,))
                     for mul_ir, x in zip(irreps, list)
                 ],
                 axis=-1,
             )
         else:
-            contiguous = jnp.zeros(shape + (0,))
+            contiguous = jnp.zeros(leading_shape + (0,))
         return IrrepsArray(irreps=irreps, contiguous=contiguous, list=list)
 
     @staticmethod
     def from_contiguous(irreps: Irreps, contiguous) -> "IrrepsArray":
-        r"""Create an IrrepsData from a contiguous array
+        r"""Create an IrrepsArray from a contiguous array
 
         Args:
             irreps (Irreps): irreps
             contiguous (``jnp.ndarray``): contiguous array
 
         Returns:
-            IrrepsData
+            IrrepsArray
         """
         assert contiguous.shape[-1] == Irreps(irreps).dim
         return IrrepsArray(irreps=irreps, contiguous=contiguous, list=None)
 
     def __repr__(self):
-        if self.contiguous.size < 20:
-            return f"IrrepsData(irreps={self.irreps}, contiguous={self.contiguous})"
-        return f"IrrepsData(irreps={self.irreps}, shape={self.shape} + ({self.irreps.dim},))"
+        return f"{self.irreps} {self.contiguous}"
 
     @property
     def shape(self):
-        return self.contiguous.shape[:-1]
+        return self.contiguous.shape
 
     @property
     def ndim(self):
         return len(self.shape)
 
     def reshape(self, shape) -> "IrrepsArray":
+        assert shape[-1] == self.irreps.dim or shape[-1] == -1
+        shape = shape[:-1]
         list = [None if x is None else x.reshape(shape + (mul, ir.dim)) for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsArray(irreps=self.irreps, contiguous=self.contiguous.reshape(shape + (self.irreps.dim,)), list=list)
 
     def broadcast_to(self, shape) -> "IrrepsArray":
         assert isinstance(shape, tuple)
-        contiguous = jnp.broadcast_to(self.contiguous, shape + (self.irreps.dim,))
+        assert shape[-1] == self.irreps.dim or shape[-1] == -1
+        leading_shape = shape[:-1]
+        contiguous = jnp.broadcast_to(self.contiguous, leading_shape + (self.irreps.dim,))
         list = [
-            None if x is None else jnp.broadcast_to(x, shape + (mul, ir.dim)) for (mul, ir), x in zip(self.irreps, self.list)
+            None if x is None else jnp.broadcast_to(x, leading_shape + (mul, ir.dim))
+            for (mul, ir), x in zip(self.irreps, self.list)
         ]
         return IrrepsArray(irreps=self.irreps, contiguous=contiguous, list=list)
 
     def replace_none_with_zeros(self) -> "IrrepsArray":
-        list = [jnp.zeros(self.shape + (mul, ir.dim)) if x is None else x for (mul, ir), x in zip(self.irreps, self.list)]
+        list = [jnp.zeros(self.shape[:-1] + (mul, ir.dim)) if x is None else x for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsArray(irreps=self.irreps, contiguous=self.contiguous, list=list)
 
     def remove_nones(self) -> "IrrepsArray":
         if any(x is None for x in self.list):
             irreps = [mul_ir for mul_ir, x in zip(self.irreps, self.list) if x is not None]
             list = [x for x in self.list if x is not None]
-            return IrrepsArray.from_list(irreps, list, self.shape)
+            return IrrepsArray.from_list(irreps, list, self.shape[:-1])
         return self
 
     def simplify(self) -> "IrrepsArray":
@@ -166,6 +170,11 @@ class IrrepsArray:
         ]
 
     def __getitem__(self, index) -> "IrrepsArray":
+        if not isinstance(index, tuple):
+            index = (index,)
+        if len(index) == self.ndim or Ellipsis in index:
+            if not (index[-1] == Ellipsis or index[-1] == slice(None)):
+                raise IndexError("IrrepsArray does not support indexing of the last dimension (irreps dimension)")
         return IrrepsArray(
             self.irreps,
             contiguous=self.contiguous[index],
@@ -173,16 +182,16 @@ class IrrepsArray:
         )
 
     def repeat_irreps_by_last_axis(self) -> "IrrepsArray":
-        assert len(self.shape) >= 1
-        irreps = (self.shape[-1] * self.irreps).simplify()
-        contiguous = self.contiguous.reshape(self.shape[:-1] + (irreps.dim,))
+        assert len(self.shape) >= 2
+        irreps = (self.shape[-2] * self.irreps).simplify()
+        contiguous = self.contiguous.reshape(self.shape[:-2] + (irreps.dim,))
         return IrrepsArray.from_contiguous(irreps, contiguous)
 
     def repeat_mul_by_last_axis(self) -> "IrrepsArray":
-        assert len(self.shape) >= 1
-        irreps = Irreps([(self.shape[-1] * mul, ir) for mul, ir in self.irreps])
-        list = [None if x is None else x.reshape(self.shape[:-1] + (mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)]
-        return IrrepsArray.from_list(irreps, list, self.shape[:-1])
+        assert len(self.shape) >= 2
+        irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
+        list = [None if x is None else x.reshape(self.shape[:-2] + (mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)]
+        return IrrepsArray.from_list(irreps, list, self.shape[:-2])
 
     def factor_irreps_to_last_axis(self) -> "IrrepsArray":
         raise NotImplementedError
@@ -196,9 +205,10 @@ class IrrepsArray:
 
         irreps = Irreps([(mul // factor, ir) for mul, ir in self.irreps])
         list = [
-            None if x is None else x.reshape(self.shape + (factor, mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)
+            None if x is None else x.reshape(self.shape[:-1] + (factor, mul, ir.dim))
+            for (mul, ir), x in zip(irreps, self.list)
         ]
-        return IrrepsArray.from_list(irreps, list, self.shape + (factor,))
+        return IrrepsArray.from_list(irreps, list, self.shape[:-1] + (factor,))
 
     def transform_by_angles(self, alpha: float, beta: float, gamma: float, k: int = 0) -> "IrrepsArray":
         r"""Rotate the data by angles according to the irreps
@@ -210,15 +220,15 @@ class IrrepsArray:
             k (int): parity operation
 
         Returns:
-            IrrepsData
+            IrrepsArray
         """
         # Optimization: we use only the list of arrays, not the contiguous data
         D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _, ir in self.irreps}}
         new_list = [
-            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape + (mul, ir.dim)) if x is not None else None
+            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
             for (mul, ir), x in zip(self.irreps, self.list)
         ]
-        return IrrepsArray.from_list(self.irreps, new_list, self.shape)
+        return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1])
 
     def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a quaternion
@@ -228,7 +238,7 @@ class IrrepsArray:
             k (int): parity operation
 
         Returns:
-            IrrepsData
+            IrrepsArray
         """
         return self.transform_by_angles(*quaternion_to_angles(q), k)
 
@@ -241,7 +251,7 @@ class IrrepsArray:
             k (int): parity operation
 
         Returns:
-            IrrepsData
+            IrrepsArray
         """
         return self.transform_by_angles(*axis_angle_to_angles(axis, angle), k)
 
@@ -252,7 +262,7 @@ class IrrepsArray:
             R (``jnp.ndarray``): rotation matrix
 
         Returns:
-            IrrepsData
+            IrrepsArray
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
@@ -266,13 +276,13 @@ class IrrepsArray:
             irreps (Irreps): new irreps
 
         Returns:
-            `IrrepsData`: data with the new irreps
+            `IrrepsArray`: data with the new irreps
 
         Raises:
             ValueError: if the irreps are not compatible
 
         Example:
-        >>> id = IrrepsData.new("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
+        >>> id = IrrepsArray.new("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
         >>> jax.tree_util.tree_map(lambda x: x.shape, id.convert("20x0e")).list
         [(1, 20, 1)]
         """
@@ -281,7 +291,7 @@ class IrrepsArray:
         assert self.irreps.simplify() == irreps.simplify(), (self.irreps, irreps)
         # TODO test cases with mul == 0
 
-        shape = self.shape
+        leading_shape = self.shape[:-1]
 
         new_list = []
         current_array = 0
@@ -316,13 +326,17 @@ class IrrepsArray:
                     if isinstance(current_array, int):
                         current_array += m
                     else:
-                        current_array = jnp.concatenate([current_array, jnp.zeros(shape + (m, mul_ir.ir.dim))], axis=-2)
+                        current_array = jnp.concatenate(
+                            [current_array, jnp.zeros(leading_shape + (m, mul_ir.ir.dim))], axis=-2
+                        )
                 else:
                     if isinstance(current_array, int):
                         if current_array == 0:
                             current_array = x
                         else:
-                            current_array = jnp.concatenate([jnp.zeros(shape + (current_array, mul_ir.ir.dim)), x], axis=-2)
+                            current_array = jnp.concatenate(
+                                [jnp.zeros(leading_shape + (current_array, mul_ir.ir.dim)), x], axis=-2
+                            )
                     else:
                         current_array = jnp.concatenate([current_array, x], axis=-2)
 
@@ -370,31 +384,31 @@ class IrrepsArray:
         return IrrepsArray(irreps=self.irreps, contiguous=self.contiguous / other[..., None], list=list)
 
     @staticmethod
-    def cat(args, axis="irreps"):
-        r"""Concatenate IrrepsData
+    def cat(args, axis=-1) -> "IrrepsArray":
+        r"""Concatenate IrrepsArray
 
         Args:
-            args (list of `IrrepsData`): list of data to concatenate
-            axis (str or int): axis to concatenate on
+            args (list of `IrrepsArray`): list of data to concatenate
+            axis (int): axis to concatenate on
 
         Returns:
-            `IrrepsData`: concatenated data
+            `IrrepsArray`: concatenated data
         """
         assert len(args) >= 1
-        if axis == "irreps":
+        assert isinstance(axis, int)
+
+        while axis < 0:
+            axis += args[0].ndim
+
+        if axis == args[0].ndim - 1:
             irreps = Irreps(sum([x.irreps for x in args], Irreps("")))
             return IrrepsArray(
                 irreps=irreps,
                 contiguous=jnp.concatenate([x.contiguous for x in args], axis=-1),
                 list=sum([x.list for x in args], []),
             )
-        elif axis == "mul":
-            raise NotImplementedError
 
-        assert isinstance(axis, int)
         assert {x.irreps for x in args} == {args[0].irreps}
-        while axis < 0:
-            axis += len(args[0].shape)
         args = [x.replace_none_with_zeros() for x in args]  # TODO this could be optimized
         return IrrepsArray(
             irreps=args[0].irreps,
@@ -403,9 +417,9 @@ class IrrepsArray:
         )
 
     @staticmethod
-    def randn(irreps, key, size=(), *, normalization=None):
+    def randn(irreps, key, leading_shape=(), *, normalization=None):
         irreps = Irreps(irreps)
-        x = irreps.randn(key, size + (-1,), normalization=normalization)
+        x = irreps.randn(key, leading_shape + (-1,), normalization=normalization)
         return IrrepsArray.from_contiguous(irreps, x)
 
 

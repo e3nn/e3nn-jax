@@ -1,4 +1,4 @@
-# TODO update this code to the new API (IrrepsData)
+# TODO update this code to the new API (IrrepsArray)
 import argparse
 import random
 import time

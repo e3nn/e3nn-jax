@@ -167,7 +167,7 @@ class Convolution(hk.Module):
         if self.irreps_in is not None:
             input = IrrepsArray.new(self.irreps_in, input)
         if not isinstance(input, IrrepsArray):
-            raise ValueError("Convolution: input should be of type IrrepsData")
+            raise ValueError("Convolution: input should be of type IrrepsArray")
 
         input = input.remove_nones().simplify()
 

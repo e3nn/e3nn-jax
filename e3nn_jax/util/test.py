@@ -1,4 +1,4 @@
-# TODO make all of this IrrepsData compatible
+# TODO make all of this IrrepsArray compatible
 import inspect
 import itertools
 import logging

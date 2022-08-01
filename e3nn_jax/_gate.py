@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 
 from e3nn_jax import IrrepsArray, elementwise_tensor_product, scalar_activation
-from e3nn_jax.util.decorators import overload_for_irreps_without_data
+from e3nn_jax.util.decorators import overload_for_irreps_without_array
 
 
 @partial(jax.jit, static_argnums=(1, 2, 3, 4))
@@ -39,7 +39,7 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
     return IrrepsArray.cat([scalars, elementwise_tensor_product(gates, gated)])
 
 
-@overload_for_irreps_without_data((0,))
+@overload_for_irreps_without_array((0,))
 def gate(input: IrrepsArray, even_act=None, odd_act=None, even_gate_act=None, odd_gate_act=None) -> IrrepsArray:
     r"""Gate activation function.
 
@@ -52,11 +52,11 @@ def gate(input: IrrepsArray, even_act=None, odd_act=None, even_gate_act=None, od
     - The gate scalars are on the right side of the scalars.
 
     Args:
-        input (IrrepsData): Input data.
+        input (IrrepsArray): Input data.
         acts: The list of activation functions. Its length must be equal to the number of scalar blocks in the input.
 
     Returns:
-        IrrepsData: Output data.
+        IrrepsArray: Output data.
 
     Examples:
         The 3 even scalars are used as gates.

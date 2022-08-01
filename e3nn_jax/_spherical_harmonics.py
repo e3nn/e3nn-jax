@@ -110,13 +110,13 @@ def spherical_harmonics(
 
     Args:
         irreps_out (`Irreps` or int): output irreps
-        input (`IrrepsData` or ``jnp.ndarray``): cartesian coordinates
+        input (`IrrepsArray` or ``jnp.ndarray``): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_vjp])
 
     Returns:
-        `IrrepsData`: polynomials of the spherical harmonics
+        `IrrepsArray`: polynomials of the spherical harmonics
     """
     if normalization is None:
         normalization = config("spherical_harmonics_normalization")

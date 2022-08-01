@@ -145,8 +145,8 @@ class FunctionalTensorProduct:
 
         Args:
             weights (array or list of arrays): The weights of the tensor product.
-            input1 (IrrepsData): The first input tensor.
-            input2 (IrrepsData): The second input tensor.
+            input1 (IrrepsArray): The first input tensor.
+            input2 (IrrepsArray): The second input tensor.
             specialized_code (bool): If True, use the specialized code for the
                 tensor product.
             optimize_einsums (bool): If True, optimize the einsum code.
@@ -155,7 +155,7 @@ class FunctionalTensorProduct:
             fuse_all (bool): If True, fuse all the einsums.
 
         Returns:
-            `IrrepsData`: The output tensor.
+            `IrrepsArray`: The output tensor.
         """
         if specialized_code is None:
             specialized_code = config("specialized_code")
@@ -197,7 +197,7 @@ class FunctionalTensorProduct:
 
         Args:
             weights (array or list of arrays): The weights of the tensor product.
-            input2 (IrrepsData): The second input tensor.
+            input2 (IrrepsArray): The second input tensor.
             optimize_einsums (bool): If True, optimize the einsum code.
             custom_einsum_vjp (bool): If True, use the custom vjp for the einsum code.
 
@@ -365,8 +365,8 @@ def _left_right(
         assert i == weights.size
     del weights
 
-    assert len(input1.shape) == 0, "Use jax.vmap to map over input1"
-    assert len(input2.shape) == 0, "Use jax.vmap to map over input2"
+    assert input1.ndim == 1, f"input1 is shape {input1.shape}. Execting ndim to be 1. Use jax.vmap to map over input1"
+    assert input2.ndim == 1, f"input2 is shape {input2.shape}. Execting ndim to be 1. Use jax.vmap to map over input2"
 
     if fuse_all:
         with jax.ensure_compile_time_eval():
