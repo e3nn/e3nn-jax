@@ -3,12 +3,12 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import IrrepsData, elementwise_tensor_product, scalar_activation
-from e3nn_jax.util.decorators import overload_for_irreps_without_data
+from e3nn_jax import IrrepsArray, elementwise_tensor_product, scalar_activation
+from e3nn_jax.util.decorators import overload_for_irreps_without_array
 
 
 @partial(jax.jit, static_argnums=(1, 2, 3, 4))
-def _gate(input: IrrepsData, even_act, odd_act, even_gate_act, odd_gate_act) -> IrrepsData:
+def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) -> IrrepsArray:
     scalars, gated = input, None
     for j, (_, ir) in enumerate(input.irreps):
         if ir.l > 0:
@@ -36,11 +36,11 @@ def _gate(input: IrrepsData, even_act, odd_act, even_gate_act, odd_gate_act) -> 
     scalars = scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
     gates = scalar_activation(gates, [even_gate_act if ir.p == 1 else odd_gate_act for _, ir in gates.irreps])
 
-    return IrrepsData.cat([scalars, elementwise_tensor_product(gates, gated)])
+    return IrrepsArray.cat([scalars, elementwise_tensor_product(gates, gated)])
 
 
-@overload_for_irreps_without_data((0,))
-def gate(input: IrrepsData, even_act=None, odd_act=None, even_gate_act=None, odd_gate_act=None) -> IrrepsData:
+@overload_for_irreps_without_array((0,))
+def gate(input: IrrepsArray, even_act=None, odd_act=None, even_gate_act=None, odd_gate_act=None) -> IrrepsArray:
     r"""Gate activation function.
 
     The input is split into scalars that are activated separately, scalars that are used as gates, and non-scalars that are
@@ -52,11 +52,11 @@ def gate(input: IrrepsData, even_act=None, odd_act=None, even_gate_act=None, odd
     - The gate scalars are on the right side of the scalars.
 
     Args:
-        input (IrrepsData): Input data.
+        input (IrrepsArray): Input data.
         acts: The list of activation functions. Its length must be equal to the number of scalar blocks in the input.
 
     Returns:
-        IrrepsData: Output data.
+        IrrepsArray: Output data.
 
     Examples:
         The 3 even scalars are used as gates.
@@ -71,7 +71,7 @@ def gate(input: IrrepsData, even_act=None, odd_act=None, even_gate_act=None, odd
         >>> gate("12x0e + 3x0o")
         12x0e+3x0o
     """
-    assert isinstance(input, IrrepsData)
+    assert isinstance(input, IrrepsArray)
 
     if even_act is None:
         even_act = jax.nn.gelu

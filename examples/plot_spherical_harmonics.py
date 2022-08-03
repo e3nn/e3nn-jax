@@ -16,7 +16,7 @@ beta = jnp.linspace(0, jnp.pi, 200)
 alpha, beta = jnp.meshgrid(alpha, beta, indexing="ij")
 vectors = angles_to_xyz(alpha, beta)
 
-signal = spherical_harmonics("8e", vectors, normalize=True, normalization="component").contiguous
+signal = spherical_harmonics("8e", vectors, normalize=True, normalization="component").array
 signal = signal[:, :, 8]
 
 data = [

@@ -9,7 +9,7 @@ from typing import Any, List, Optional, Union
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Instruction, Irreps, IrrepsData, clebsch_gordan, config
+from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
 from e3nn_jax.util import prod
 
 from ._einsum import einsum as opt_einsum
@@ -133,20 +133,20 @@ class FunctionalTensorProduct:
     def left_right(
         self,
         weights: List[jnp.ndarray],
-        input1: IrrepsData,
-        input2: IrrepsData = None,
+        input1: IrrepsArray,
+        input2: IrrepsArray = None,
         *,
         specialized_code=None,
         optimize_einsums=None,
         custom_einsum_vjp=None,
         fuse_all=None,
-    ) -> IrrepsData:
+    ) -> IrrepsArray:
         r"""Compute the tensor product of two input tensors.
 
         Args:
             weights (array or list of arrays): The weights of the tensor product.
-            input1 (IrrepsData): The first input tensor.
-            input2 (IrrepsData): The second input tensor.
+            input1 (IrrepsArray): The first input tensor.
+            input2 (IrrepsArray): The second input tensor.
             specialized_code (bool): If True, use the specialized code for the
                 tensor product.
             optimize_einsums (bool): If True, optimize the einsum code.
@@ -155,7 +155,7 @@ class FunctionalTensorProduct:
             fuse_all (bool): If True, fuse all the einsums.
 
         Returns:
-            `IrrepsData`: The output tensor.
+            `IrrepsArray`: The output tensor.
         """
         if specialized_code is None:
             specialized_code = config("specialized_code")
@@ -169,8 +169,8 @@ class FunctionalTensorProduct:
         if input2 is None:
             weights, input1, input2 = [], weights, input1
 
-        input1 = IrrepsData.new(self.irreps_in1, input1)
-        input2 = IrrepsData.new(self.irreps_in2, input2)
+        input1 = IrrepsArray.from_any(self.irreps_in1, input1)
+        input2 = IrrepsArray.from_any(self.irreps_in2, input2)
 
         return _left_right(
             self,
@@ -186,7 +186,7 @@ class FunctionalTensorProduct:
     def right(
         self,
         weights: List[jnp.ndarray],
-        input2: IrrepsData = None,
+        input2: IrrepsArray = None,
         *,
         specialized_code=None,
         optimize_einsums=None,
@@ -197,7 +197,7 @@ class FunctionalTensorProduct:
 
         Args:
             weights (array or list of arrays): The weights of the tensor product.
-            input2 (IrrepsData): The second input tensor.
+            input2 (IrrepsArray): The second input tensor.
             optimize_einsums (bool): If True, optimize the einsum code.
             custom_einsum_vjp (bool): If True, use the custom vjp for the einsum code.
 
@@ -216,7 +216,7 @@ class FunctionalTensorProduct:
         if input2 is None:
             weights, input2 = [], weights
 
-        input2 = IrrepsData.new(self.irreps_in2, input2)
+        input2 = IrrepsArray.from_any(self.irreps_in2, input2)
         return _right(
             self,
             weights,
@@ -338,7 +338,7 @@ def _left_right(
 
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
-        return IrrepsData.zeros(self.irreps_out, ())
+        return IrrepsArray.zeros(self.irreps_out, ())
 
     if custom_einsum_vjp:
         assert optimize_einsums
@@ -365,8 +365,8 @@ def _left_right(
         assert i == weights.size
     del weights
 
-    assert len(input1.shape) == 0, "Use jax.vmap to map over input1"
-    assert len(input2.shape) == 0, "Use jax.vmap to map over input2"
+    assert input1.ndim == 1, f"input1 is shape {input1.shape}. Execting ndim to be 1. Use jax.vmap to map over input1"
+    assert input2.ndim == 1, f"input2 is shape {input2.shape}. Execting ndim to be 1. Use jax.vmap to map over input2"
 
     if fuse_all:
         with jax.ensure_compile_time_eval():
@@ -433,7 +433,7 @@ def _left_right(
 
         if has_path_with_no_weights and big_w3j.shape[0] == 1:
             big_w3j = big_w3j.reshape(big_w3j.shape[1:])
-            out = einsum("ijk,i,j->k", big_w3j, input1.contiguous, input2.contiguous)
+            out = einsum("ijk,i,j->k", big_w3j, input1.array, input2.array)
         else:
             if has_path_with_no_weights:
                 weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
@@ -442,10 +442,10 @@ def _left_right(
                 "p,pijk,i,j->k",
                 weights_flat,
                 big_w3j,
-                input1.contiguous,
-                input2.contiguous,
+                input1.array,
+                input2.array,
             )
-        return IrrepsData.from_contiguous(self.irreps_out, out)
+        return IrrepsArray(self.irreps_out, out)
 
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):
@@ -598,7 +598,7 @@ def _left_right(
         )
         for i_out, mul_ir_out in enumerate(self.irreps_out)
     ]
-    return IrrepsData.from_list(self.irreps_out, out, ())
+    return IrrepsArray.from_list(self.irreps_out, out, ())
 
 
 @partial(jax.jit, static_argnums=(0,), static_argnames=("optimize_einsums", "custom_einsum_vjp"))

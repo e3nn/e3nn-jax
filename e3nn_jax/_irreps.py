@@ -559,11 +559,11 @@ class Irreps(tuple):
         return "+".join(f"{mul_ir}" for mul_ir in self)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_angles(self, contiguous, alpha, beta, gamma, k=0):
+    def transform_by_angles(self, array, alpha, beta, gamma, k=0):
         r"""Rotate the data by angles according to the irreps
 
         Args:
-            contiguous (``jnp.ndarray``): data compatible with the irreps.
+            array (``jnp.ndarray``): data compatible with the irreps.
             alpha (float): third rotation angle around the second axis (in radians)
             beta (float): second rotation angle around the first axis (in radians)
             gamma (float): first rotation angle around the second axis (in radians)
@@ -572,16 +572,16 @@ class Irreps(tuple):
         Returns:
             ``jnp.ndarray``
         """
-        assert contiguous.shape[-1] == self.dim
+        assert array.shape[-1] == self.dim
         D = self.D_from_angles(alpha, beta, gamma, k)
-        return jnp.einsum("ij,...j", D, contiguous)
+        return jnp.einsum("ij,...j", D, array)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_quaternion(self, contiguous, q, k=0):
+    def transform_by_quaternion(self, array, q, k=0):
         r"""Rotate data by a rotation given by a quaternion
 
         Args:
-            contiguous (``jnp.ndarray``): data compatible with the irreps.
+            array (``jnp.ndarray``): data compatible with the irreps.
             q (``jnp.ndarray``): quaternion
             k (int): parity operation
 
@@ -597,14 +597,14 @@ class Irreps(tuple):
             ... ) + 0.0
             DeviceArray([ 1.,  0., -1.,  0.,  0.,  0.,  1.,  0.,  0.], dtype=float32)
         """
-        return self.transform_by_angles(contiguous, *quaternion_to_angles(q), k)
+        return self.transform_by_angles(array, *quaternion_to_angles(q), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_axis_angle(self, contiguous, axis, angle, k=0):
+    def transform_by_axis_angle(self, array, axis, angle, k=0):
         r"""Rotate data by an axis and an angle
 
         Args:
-            contiguous (``jnp.ndarray``): data compatible with the irreps.
+            array (``jnp.ndarray``): data compatible with the irreps.
             axis (``jnp.ndarray``): axis
             angle (float): angle (in radians)
             k (int): parity operation
@@ -612,14 +612,14 @@ class Irreps(tuple):
         Returns:
             ``jnp.ndarray``
         """
-        return self.transform_by_angles(contiguous, *axis_angle_to_angles(axis, angle), k)
+        return self.transform_by_angles(array, *axis_angle_to_angles(axis, angle), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_matrix(self, contiguous, R):
+    def transform_by_matrix(self, array, R):
         r"""Rotate data by a rotation given by a matrix
 
         Args:
-            contiguous (``jnp.ndarray``): data compatible with the irreps.
+            array (``jnp.ndarray``): data compatible with the irreps.
             R (``jnp.ndarray``): rotation matrix
 
         Returns:
@@ -628,7 +628,7 @@ class Irreps(tuple):
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
         k = (1 - d) / 2
-        return self.transform_by_angles(contiguous, *matrix_to_angles(R), k)
+        return self.transform_by_angles(array, *matrix_to_angles(R), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_angles(self, alpha, beta, gamma, k=0):

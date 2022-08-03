@@ -1,4 +1,4 @@
-# TODO update this code to the new API (IrrepsData)
+# TODO update this code to the new API (IrrepsArray)
 import argparse
 import random
 import time
@@ -13,7 +13,7 @@ import torch
 import torch.multiprocessing
 import torch_geometric as pyg
 import wandb
-from e3nn_jax import Gate, Irreps, IrrepsData, index_add, soft_one_hot_linspace, spherical_harmonics
+from e3nn_jax import Gate, Irreps, IrrepsArray, index_add, soft_one_hot_linspace, spherical_harmonics
 from e3nn_jax.experimental.point_convolution import Convolution
 from torch_geometric.datasets import QM9
 from torch_geometric.datasets.qm9 import atomrefs
@@ -113,7 +113,7 @@ def create_model(config):
         edge_src, edge_dst = a["edge_index"]
 
         irreps_sh = Irreps.spherical_harmonics(config["shlmax"])
-        edge_attr = IrrepsData.from_contiguous(
+        edge_attr = IrrepsArray(
             irreps_sh, spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization="component")
         ).list
 
@@ -183,7 +183,7 @@ def create_model(config):
 
         # stat('x', x)
 
-        out = x.contiguous
+        out = x.array
 
         M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
 

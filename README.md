@@ -33,7 +33,7 @@ pytest tests/tensor_products_test.py
 ## What is different from the PyTorch version?
 
 - no more `shared_weights` and `internal_weights` in `TensorProduct`. Extensive use of `jax.vmap` instead (see example below)
-- support of python structure `IrrepsData` that contains a contiguous version of the data and a list of `jnp.ndarray` for the data. This allows to avoid unnecessary `jnp.concatenante` followed by indexing to reverse the concatenation
+- support of python structure `IrrepsArray` that contains a contiguous version of the data and a list of `jnp.ndarray` for the data. This allows to avoid unnecessary `jnp.concatenante` followed by indexing to reverse the concatenation
 - support of `None` in the list of `jnp.ndarray` to avoid unnecessary computation with zeros
 
 ## Example
@@ -58,19 +58,19 @@ irreps.D_from_angles(alpha=0.0, beta=0.0, gamma=0.0, k=1)  # the matrix that app
 #              [ 0., -1.]], dtype=float32)
 ```
 
-`IrrepsData` contains both the irreps and the data.
+`IrrepsArray` contains both the irreps and the data.
 Here is the example of the tensor product of the two vectors.
 ```python
 out = e3nn.full_tensor_product(
-    e3nn.IrrepsData.from_contiguous("1o", jnp.array([2.0, 0.0, 0.0])),
-    e3nn.IrrepsData.from_contiguous("1o", jnp.array([0.0, 2.0, 0.0]))
+    e3nn.IrrepsArray("1o", jnp.array([2.0, 0.0, 0.0])),
+    e3nn.IrrepsArray("1o", jnp.array([0.0, 2.0, 0.0]))
 )
-# out is of type `IrrepsData` and contains the following fields:
+# out is of type `IrrepsArray` and contains the following fields:
 
 out.irreps
 # 1x0e+1x1e+1x2e
 
-out.contiguous
+out.array
 # DeviceArray([0.  , 0.  , 0.  , 2.83, 0.  , 2.83, 0.  , 0.  , 0.  ], dtype=float32)
 
 out.list
@@ -79,7 +79,7 @@ out.list
 #  DeviceArray([[0.  , 2.83, 0.  , 0.  , 0.  ]], dtype=float32)]
 ```
 
-The two fields `contiguous` and `list` contain the same information under different forms.
+The two fields `array` and `list` contain the same information under different forms.
 This is not a performence issue, we rely on `jax.jit` to optimize the code and get rid of the unused operations.
 
 ## Complete example
@@ -116,8 +116,8 @@ def tp(x1, x2):
 irreps_in1 = e3nn.Irreps("1e")
 irreps_in2 = e3nn.Irreps("1e")
 
-x1 = e3nn.IrrepsData.randn(irreps_in1, jax.random.PRNGKey(0), (10,))
-x2 = e3nn.IrrepsData.randn(irreps_in2, jax.random.PRNGKey(1), (10,))
+x1 = e3nn.IrrepsArray.randn(irreps_in1, jax.random.PRNGKey(0), (10,))
+x2 = e3nn.IrrepsArray.randn(irreps_in2, jax.random.PRNGKey(1), (10,))
 w = tp.init(jax.random.PRNGKey(2), x1, x2)
 
 out = tp.apply(w, x1, x2)

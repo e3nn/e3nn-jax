@@ -12,7 +12,7 @@ def test_equivariant(keys, irreps):
     @hk.transform_with_state
     def b(x, is_training=True):
         m = BatchNorm(irreps=irreps)
-        return m(x, is_training).contiguous
+        return m(x, is_training).array
 
     params, state = b.init(next(keys), irreps.randn(next(keys), (16, -1)))
     _, state = b.apply(params, state, irreps.randn(next(keys), (16, -1)))

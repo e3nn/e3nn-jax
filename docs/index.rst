@@ -67,7 +67,7 @@ This representation is not irreducible (is reducible). It can be decomposed into
 
 .. jupyter-execute::
 
-    tp = e3nn.full_tensor_product(e3nn.IrrepsData.from_contiguous(irreps_x, x), e3nn.IrrepsData.from_contiguous(irreps_y, y))
+    tp = e3nn.full_tensor_product(e3nn.IrrepsArray(irreps_x, x), e3nn.IrrepsArray(irreps_y, y))
     tp
 
 
@@ -147,15 +147,15 @@ This mechanism is quite robust.
 
     print(jit_code(f, 1.0))
 
-IrrepsData
+IrrepsArray
 ----------
 
-`e3nn_jax.IrrepsData` contains the data of an irreducible representation.
-It rely on the ``jax.jit`` compiler because it contains both a ``contiguous`` and a ``list`` representation of the data.
+`e3nn_jax.IrrepsArray` contains the data of an irreducible representation.
+It rely on the ``jax.jit`` compiler because it contains both a ``array`` and a ``list`` representation of the data.
 
 .. jupyter-execute::
 
-    x = e3nn.IrrepsData.from_contiguous("2x0e + 1o", jnp.array(
+    x = e3nn.IrrepsArray("2x0e + 1o", jnp.array(
         [
             [1.0, 0.0,  0.0, 0.0, 0.0],
             [0.0, 1.0,  1.0, 0.0, 0.0],
@@ -164,18 +164,12 @@ It rely on the ``jax.jit`` compiler because it contains both a ``contiguous`` an
     ))
     x
 
-The ``shape`` of ``x`` is the shape of the non irrep part.
-
-.. jupyter-execute::
-
-    x.shape
-
 The irrep index is always the last index.
 
 .. jupyter-execute::
 
-    assert x.irreps.dim == x.contiguous.shape[-1]
-    x.contiguous.shape
+    assert x.irreps.dim == x.shape[-1]
+    x.shape
 
 The list contains the data split into different arrays.
 

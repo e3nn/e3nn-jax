@@ -4,16 +4,16 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsData, config
-from e3nn_jax.util.decorators import overload_for_irreps_without_data
+from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsArray, config
+from e3nn_jax.util.decorators import overload_for_irreps_without_array
 
 
 def naive_broadcast_decorator(func):
     def wrapper(*args):
-        shape = jnp.broadcast_shapes(*(arg.shape for arg in args))
-        args = [arg.broadcast_to(shape) for arg in args]
+        leading_shape = jnp.broadcast_shapes(*(arg.shape[:-1] for arg in args))
+        args = [arg.broadcast_to(leading_shape + (-1,)) for arg in args]
         f = func
-        for _ in range(len(shape)):
+        for _ in range(len(leading_shape)):
             f = jax.vmap(f)
         return f(*args)
 
@@ -64,11 +64,11 @@ class FullyConnectedTensorProduct(hk.Module):
         self.irreps_in1 = Irreps(irreps_in1) if irreps_in1 is not None else None
         self.irreps_in2 = Irreps(irreps_in2) if irreps_in2 is not None else None
 
-    def __call__(self, x1: IrrepsData, x2: IrrepsData) -> IrrepsData:
+    def __call__(self, x1: IrrepsArray, x2: IrrepsArray) -> IrrepsArray:
         if self.irreps_in1 is not None:
-            x1 = IrrepsData.new(self.irreps_in1, x1)
+            x1 = IrrepsArray.from_any(self.irreps_in1, x1)
         if self.irreps_in2 is not None:
-            x2 = IrrepsData.new(self.irreps_in2, x2)
+            x2 = IrrepsArray.from_any(self.irreps_in2, x2)
 
         x1 = x1.remove_nones().simplify()
         x2 = x2.remove_nones().simplify()
@@ -90,23 +90,23 @@ class FullyConnectedTensorProduct(hk.Module):
         return output.convert(self.irreps_out)
 
 
-@overload_for_irreps_without_data((0, 1))
+@overload_for_irreps_without_array((0, 1))
 def full_tensor_product(
-    input1: IrrepsData,
-    input2: IrrepsData,
+    input1: IrrepsArray,
+    input2: IrrepsArray,
     filter_ir_out: Optional[Irrep] = None,
     irrep_normalization: Optional[str] = None,
 ):
     r"""Full tensor product of two irreps.
 
     Args:
-        input1 (IrrepsData): First input.
-        input2 (IrrepsData): Second input.
+        input1 (IrrepsArray): First input.
+        input2 (IrrepsArray): Second input.
         filter_ir_out (Optional[List[Irrep]]): List of irreps to keep in the output.
         irrep_normalization (Optional[str]): How to normalize the output. See :func:`e3nn_jax.FunctionalTensorProduct`.
 
     Returns:
-        IrrepsData: Output.
+        IrrepsArray: Output.
     """
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -136,14 +136,14 @@ def full_tensor_product(
     return naive_broadcast_decorator(tp.left_right)(input1, input2)
 
 
-@overload_for_irreps_without_data((0, 1))
+@overload_for_irreps_without_array((0, 1))
 def elementwise_tensor_product(
-    input1: IrrepsData,
-    input2: IrrepsData,
+    input1: IrrepsArray,
+    input2: IrrepsArray,
     filter_ir_out=None,
     irrep_normalization: str = None,
     path_normalization: str = None,
-) -> IrrepsData:
+) -> IrrepsArray:
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
@@ -255,9 +255,9 @@ class TensorSquare(hk.Module):
             init = hk.initializers.RandomNormal
         self.init = init
 
-    def __call__(self, input: IrrepsData) -> IrrepsData:
+    def __call__(self, input: IrrepsArray) -> IrrepsArray:
         if self.irreps_in is not None:
-            input = IrrepsData.new(self.irreps_in, input)
+            input = IrrepsArray.from_any(self.irreps_in, input)
 
         input = input.remove_nones().simplify()
 

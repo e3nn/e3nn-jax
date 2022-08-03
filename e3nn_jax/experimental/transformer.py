@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 from e3nn_jax import (
     Irreps,
-    IrrepsData,
+    IrrepsArray,
     FunctionalTensorProduct,
     index_add,
     Linear,
@@ -29,7 +29,7 @@ class TensorProductMultiLayerPerceptron(hk.Module):
 
         assert all(i.has_weight for i in self.tp.instructions)
 
-    def __call__(self, emb, x1: IrrepsData, x2: IrrepsData) -> IrrepsData:
+    def __call__(self, emb, x1: IrrepsArray, x2: IrrepsArray) -> IrrepsArray:
         w = self.mlp(emb)
 
         w = [
@@ -73,7 +73,7 @@ def _instructions_uvu(irreps_in1, irreps_in2, out_ir_list):
     return irreps_out, instructions
 
 
-def _tp_mlp_uvu(emb, input1: IrrepsData, input2: IrrepsData, out_ir_list, *, list_neurons, act) -> IrrepsData:
+def _tp_mlp_uvu(emb, input1: IrrepsArray, input2: IrrepsArray, out_ir_list, *, list_neurons, act) -> IrrepsArray:
     irreps_out, instructions = _instructions_uvu(input1.irreps, input2.irreps, out_ir_list)
     tp = FunctionalTensorProduct(input1.irreps, input2.irreps, irreps_out, instructions)
     return TensorProductMultiLayerPerceptron(tp, list_neurons, act)(emb, input1, input2)
@@ -93,19 +93,19 @@ class Transformer(hk.Module):
         self.num_heads = num_heads
 
     def __call__(
-        self, edge_src, edge_dst, edge_scalar_attr, edge_weight_cutoff, edge_attr: IrrepsData, node_feat: IrrepsData
-    ) -> IrrepsData:
+        self, edge_src, edge_dst, edge_scalar_attr, edge_weight_cutoff, edge_attr: IrrepsArray, node_feat: IrrepsArray
+    ) -> IrrepsArray:
         r"""
         Args:
             edge_src (array of int32): source index of the edges
             edge_dst (array of int32): destination index of the edges
             edge_scalar_attr (array of float): scalar attributes of the edges (typically given by ``soft_one_hot_linspace``)
             edge_weight_cutoff (array of float): cutoff weight for the edges (typically given by ``sus``)
-            edge_attr (IrrepsData): attributes of the edges (typically given by ``spherical_harmonics``)
-            node_f (IrrepsData): features of the nodes
+            edge_attr (IrrepsArray): attributes of the edges (typically given by ``spherical_harmonics``)
+            node_f (IrrepsArray): features of the nodes
 
         Returns:
-            IrrepsData: output features of the nodes
+            IrrepsArray: output features of the nodes
         """
         edge_src_feat = jax.tree_util.tree_map(lambda x: x[edge_src], node_feat)
         edge_dst_feat = jax.tree_util.tree_map(lambda x: x[edge_dst], node_feat)
@@ -120,18 +120,18 @@ class Transformer(hk.Module):
 
         edge_logit = jax.vmap(FullyConnectedTensorProduct(f"{self.num_heads}x0e"))(
             edge_dst_feat, edge_k
-        ).contiguous  # array[edge, head]
+        ).array  # array[edge, head]
         node_logit_max = _index_max(edge_dst, edge_logit, node_feat.shape[0])  # array[node, head]
         exp = edge_weight_cutoff[:, None] * jnp.exp(edge_logit - node_logit_max[edge_dst])  # array[edge, head]
         z = index_add(edge_dst, exp, node_feat.shape[0])  # array[node, head]
         z = jnp.where(z == 0.0, 1.0, z)
         alpha = exp / z[edge_dst]  # array[edge, head]
 
-        edge_v = edge_v.factor_mul_to_last_axis(self.num_heads)  # IrrepsData[edge, head, irreps_out]
-        edge_v = edge_v * jnp.sqrt(jax.nn.relu(alpha))  # IrrepsData[edge, head, irreps_out]
-        edge_v = edge_v.repeat_mul_by_last_axis()  # IrrepsData[edge, irreps_out]
+        edge_v = edge_v.factor_mul_to_last_axis(self.num_heads)  # IrrepsArray[edge, head, irreps_out]
+        edge_v = edge_v * jnp.sqrt(jax.nn.relu(alpha))[:, :, None]  # IrrepsArray[edge, head, irreps_out]
+        edge_v = edge_v.repeat_mul_by_last_axis()  # IrrepsArray[edge, irreps_out]
 
         node_out = jax.tree_util.tree_map(
             lambda x: index_add(edge_dst, x, node_feat.shape[0]), edge_v
-        )  # IrrepsData[node, irreps_out]
-        return jax.vmap(Linear(self.irreps_node_output))(node_out)  # IrrepsData[edge, head, irreps_out]
+        )  # IrrepsArray[node, irreps_out]
+        return jax.vmap(Linear(self.irreps_node_output))(node_out)  # IrrepsArray[edge, head, irreps_out]

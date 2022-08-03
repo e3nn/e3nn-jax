@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import haiku as hk
 
-from e3nn_jax import Irreps, IrrepsData
+from e3nn_jax import Irreps, IrrepsArray
 
 
 class Dropout(hk.Module):
@@ -31,24 +31,24 @@ class Dropout(hk.Module):
     def __repr__(self):
         return f"{self.__class__.__name__} (p={self.p})"
 
-    def __call__(self, rng, x: IrrepsData, is_training=True) -> IrrepsData:
+    def __call__(self, rng, x: IrrepsArray, is_training=True) -> IrrepsArray:
         """equivariant dropout
 
         Args:
             rng (`jax.random.PRNGKey`): the random number generator
-            x (IrrepsData): the input
+            x (IrrepsArray): the input
             is_training (bool): whether to perform dropout
 
         Returns:
-            IrrepsData: the output
+            IrrepsArray: the output
         """
         if not is_training:
             return x
 
         if self.irreps is not None:
-            x = IrrepsData.new(self.irreps, x)
-        if not isinstance(x, IrrepsData):
-            raise TypeError(f"{self.__class__.__name__} only supports IrrepsData")
+            x = IrrepsArray.from_any(self.irreps, x)
+        if not isinstance(x, IrrepsArray):
+            raise TypeError(f"{self.__class__.__name__} only supports IrrepsArray")
 
         noises = []
         out_list = []
@@ -65,4 +65,4 @@ class Dropout(hk.Module):
                 noises.append(jnp.repeat(noise, ir.dim, axis=1).flatten())
 
         noises = jnp.concatenate(noises)
-        return IrrepsData(irreps=x.irreps, contiguous=x.contiguous * noises, list=out_list)
+        return IrrepsArray(irreps=x.irreps, array=x.array * noises, list=out_list)

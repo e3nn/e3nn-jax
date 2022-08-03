@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- **breaking change** rename `IrrepsData` into `IrrepsArray`
+- **breaking change** `IrrepsArray.shape` is now equal to `contiguous.shape` (instead of `contiguous.shape[:-1]`)
+- **breaking change** `IrrepsArray * array` requires `array.shape[-1]` to be 1 or `array` to be a scalar
+- **breaking change** `IrrepsArray.contiguous` is renamed in `IrrepsArray.array`
+- **breaking change** `IrrepsArray.new` is renamed in `IrrepsArray.from_any`
+- `spherical_harmonics` normalization is now set to `component` like everything else.
+
+### Removed
+- **breaking change** `IrrepsArray.from_contiguous` is removed. Use `IrrepsArray(irreps, array)` instead.
+
 ### Added
 - add `e3nn.config` to set global defaults parameters
 - `__getindex__` to `IrrepsData`
@@ -12,9 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `path_normalization` can be a number between 0 and 1
 - add nearest interpolation for `zoom`, default is linear
 - implement `custom_jvp` for spherical harmonics
-
-### Changed
-- `spherical_harmonics` normalization is now set to `component` like everything else.
 
 ## [0.6.3] - 2022-06-29
 ### Added

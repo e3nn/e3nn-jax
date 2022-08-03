@@ -3,8 +3,8 @@ from typing import Callable, List, Optional
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, IrrepsData
-from e3nn_jax.util.decorators import overload_for_irreps_without_data
+from e3nn_jax import Irreps, IrrepsArray
+from e3nn_jax.util.decorators import overload_for_irreps_without_array
 
 
 def normalize_function(phi):
@@ -41,9 +41,9 @@ def is_zero_in_zero(phi):
         return jnp.allclose(phi(jnp.array(0.0)), 0.0)
 
 
-@overload_for_irreps_without_data(irrepsdata_argnums=[0])
-def scalar_activation(input: IrrepsData, acts: List[Optional[Callable[[float], float]]]) -> IrrepsData:
-    assert isinstance(input, IrrepsData)
+@overload_for_irreps_without_array(irrepsarray_argnums=[0])
+def scalar_activation(input: IrrepsArray, acts: List[Optional[Callable[[float], float]]]) -> IrrepsArray:
+    assert isinstance(input, IrrepsArray)
 
     assert len(input.irreps) == len(acts), (input.irreps, acts)
 
@@ -70,7 +70,7 @@ def scalar_activation(input: IrrepsData, acts: List[Optional[Callable[[float], f
                 if is_zero_in_zero(act):
                     list.append(None)
                 else:
-                    list.append(act(jnp.ones(input.shape + (mul, 1))))
+                    list.append(act(jnp.ones(input.shape[:-1] + (mul, 1))))
             else:
                 list.append(act(x))
         else:
@@ -81,10 +81,10 @@ def scalar_activation(input: IrrepsData, acts: List[Optional[Callable[[float], f
 
     if acts and acts.count(acts[0]) == len(acts):
         # for performance, if all the activation functions are the same, we can apply it to the contiguous array as well
-        contiguous = input.contiguous if acts[0] is None else normalize_function(acts[0])(input.contiguous)
-        return IrrepsData(irreps=irreps_out, contiguous=contiguous, list=list)
+        array = input.array if acts[0] is None else normalize_function(acts[0])(input.array)
+        return IrrepsArray(irreps=irreps_out, array=array, list=list)
 
-    return IrrepsData.from_list(irreps_out, list, input.shape)
+    return IrrepsArray.from_list(irreps_out, list, input.shape[:-1])
 
 
 # TODO remove this class and follow the same pattern as scalar_activation

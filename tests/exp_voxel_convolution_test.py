@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from e3nn_jax import Irreps, IrrepsData
+from e3nn_jax import Irreps, IrrepsArray
 from e3nn_jax.experimental.voxel_convolution import Convolution
 
 
@@ -15,7 +15,7 @@ def test_convolution(keys):
     @hk.without_apply_rng
     @hk.transform
     def c(x, z):
-        x = IrrepsData.from_contiguous(irreps_in, x)
+        x = IrrepsArray(irreps_in, x)
         x = Convolution(
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,
@@ -24,7 +24,7 @@ def test_convolution(keys):
             relative_starts={0: 0.0, 1: 0.0, 2: 0.5},
             steps=((1.0, 1.0, 1.0), z),
         )(x)
-        return x.contiguous
+        return x.array
 
     f = jax.jit(c.apply)
 
@@ -56,7 +56,7 @@ def test_convolution_defaults(keys):
     @hk.without_apply_rng
     @hk.transform
     def c(x):
-        x = IrrepsData.from_contiguous(irreps_in, x)
+        x = IrrepsArray(irreps_in, x)
         x = Convolution(
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,
@@ -64,7 +64,7 @@ def test_convolution_defaults(keys):
             num_radial_basis=3,
             steps=(1.0, 1.0, 1.0),
         )(x)
-        return x.contiguous
+        return x.array
 
     f = jax.jit(c.apply)
 

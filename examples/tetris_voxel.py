@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-from e3nn_jax import gate, Irreps, IrrepsData
+from e3nn_jax import gate, Irreps, IrrepsArray
 from e3nn_jax.experimental.voxel_convolution import Convolution
 from tqdm.auto import tqdm
 
@@ -60,7 +60,7 @@ def main():
         # kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=5.5, num_radial_basis=3, steps=(1.0, 1.0, 1.0))
         kw = dict(irreps_sh=Irreps("0e + 1o"), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
 
-        x = IrrepsData.from_contiguous("0e", x[..., None])
+        x = IrrepsArray("0e", x[..., None])
 
         # for _ in range(2):
         for _ in range(5):
@@ -68,7 +68,7 @@ def main():
 
         x = Convolution("0o + 7x0e", **kw)(x)
 
-        x = x.contiguous
+        x = x.array
         x = jnp.sum(x, axis=(1, 2, 3))
         return x
 

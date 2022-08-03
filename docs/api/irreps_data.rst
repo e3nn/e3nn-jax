@@ -1,5 +1,5 @@
-IrrepsData
-==========
+IrrepsArray
+===========
 
-.. autoclass:: e3nn_jax.IrrepsData
+.. autoclass:: e3nn_jax.IrrepsArray
     :members:

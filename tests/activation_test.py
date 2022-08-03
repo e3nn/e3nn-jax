@@ -1,16 +1,16 @@
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import Irreps, IrrepsData, scalar_activation
+from e3nn_jax import Irreps, IrrepsArray, scalar_activation
 
 
 def test_errors(keys):
-    x = IrrepsData.randn("0e + 1e", keys[0])
+    x = IrrepsArray.randn("0e + 1e", keys[0])
     with pytest.raises(ValueError):
         scalar_activation(x, [None, jnp.tanh])
 
 
 def test_zero_in_zero():
-    x = IrrepsData.new("0e + 0o + 0o + 0e", [jnp.ones((1, 1)), None, None, None])
+    x = IrrepsArray.from_any("0e + 0o + 0o + 0e", [jnp.ones((1, 1)), None, None, None])
     y = scalar_activation(x, [jnp.tanh, jnp.tanh, lambda x: x**2, jnp.cos])
 
     assert y.irreps == Irreps("0e + 0o + 0e + 0e")
