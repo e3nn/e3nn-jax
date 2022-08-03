@@ -143,7 +143,7 @@ def main():
         ws = jnp.concatenate([w.reshape(w_shape + (-1,)) for w in ws], axis=-1)
         print(f"flat weight shape = {ws.shape}")
 
-    print(f"{sum(x.size for x in jax.tree_leaves(ws))} parameters")
+    print(f"{sum(x.size for x in jax.tree_util.tree_leaves(ws))} parameters")
 
     if args.lists:
         inputs = iter(
@@ -170,7 +170,9 @@ def main():
     if args.backward:
         # tanh() forces it to realize the grad as a full size matrix rather than expanded (stride 0) ones
         f_2 = f
-        f = jax.value_and_grad(lambda ws, x1, x2: sum(jnp.sum(jnp.tanh(x)) for x in jax.tree_leaves(f_2(ws, x1, x2))), 0)
+        f = jax.value_and_grad(
+            lambda ws, x1, x2: sum(jnp.sum(jnp.tanh(x)) for x in jax.tree_util.tree_leaves(f_2(ws, x1, x2))), 0
+        )
 
     # compile
     if args.jit:

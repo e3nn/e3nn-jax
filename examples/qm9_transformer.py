@@ -266,7 +266,7 @@ def execute(config):
             if not np.isfinite(pred).all():
                 raise ValueError("nan prediction")
 
-            if not all(jnp.isfinite(w).all() for w in jax.tree_leaves(params)):
+            if not all(jnp.isfinite(w).all() for w in jax.tree_util.tree_leaves(params)):
                 raise ValueError(f"{jax.tree_util.tree_map(lambda w: bool(jnp.isfinite(w).all()), params)}")
 
             mae += [np.abs(pred - a["y"][:, 7:11])[: a["num_graphs"]]]
