@@ -10,8 +10,10 @@ irreps = 128x0e + 128x1e + 128x2e
 
 ## Records on NVIDIA RTX A5000 using cuda 11.6
 
-pytorch 1.11.0 e3nn 0.5.0  between 13ms and 14ms.
-jax 0.3.15 e3nn 0.7.0  1.7ms
+|version        |            | time                   |
+|---------------|------------|------------------------|
+|pytorch 1.11.0 | e3nn 0.5.0 | between 13ms and 14ms. |
+|jax 0.3.15     | e3nn 0.7.0 | 1.7ms                  |
 
 x8 speedup
 
