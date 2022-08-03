@@ -1,4 +1,4 @@
-__version__ = "0.6.3"
+__version__ = "0.7.0"
 
 from ._config import config
 from ._graph_util import index_add, radius_graph
