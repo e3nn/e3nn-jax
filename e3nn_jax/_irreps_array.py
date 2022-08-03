@@ -36,10 +36,13 @@ class IrrepsArray:
             self._list = list
         return self._list
 
-    def __jax_array__(self):
-        if self.irreps.lmax > 0:
-            raise ValueError("trying to convert IrrepsArray to jnp.ndarray, but lmax > 0")
-        return self.contiguous
+    # def __jax_array__(self):
+    #     if self.irreps.lmax > 0:
+    #         return NotImplemented
+    #     return self.contiguous
+    #
+    # Note: - __jax_array__ seems to be incompatible with register_pytree_node
+    #       - __jax_array__ cause problem for the multiplication: jnp.array * IrrepsArray -> jnp.array
 
     @staticmethod
     def zeros(irreps: Irreps, leading_shape) -> "IrrepsArray":
