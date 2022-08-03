@@ -199,6 +199,6 @@ class Convolution(hk.Module):
                     i += 1
                 else:
                     list.append(None)
-            output = IrrepsArray.from_list(self.irreps_out, list, output.shape)
+            output = IrrepsArray.from_list(self.irreps_out, list, output.shape[:-1])
 
         return output
