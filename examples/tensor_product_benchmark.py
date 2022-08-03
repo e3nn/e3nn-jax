@@ -7,6 +7,8 @@ from functools import partial, reduce
 
 import jax
 import jax.numpy as jnp
+import jaxlib
+import e3nn_jax as e3nn
 from e3nn_jax import FunctionalFullyConnectedTensorProduct, Irreps, IrrepsArray
 
 # logging.basicConfig(level=logging.DEBUG)
@@ -46,6 +48,10 @@ def main():
 
     # device = 'cuda' if (torch.cuda.is_available() and args.cuda) else 'cpu'
     # args.cuda = device == 'cuda'
+    print("======= Versions: ======")
+    print("jax:", jax.__version__)
+    print("jaxlib:", jaxlib.__version__)
+    print("e3nn_jax:", e3nn.__version__)
 
     print("======= Benchmark with settings: ======")
     for key, val in vars(args).items():
@@ -124,9 +130,9 @@ def main():
 
     assert len(tp.instructions) > 0, "Bad irreps, no instructions"
 
-    # print("Instructions:")
-    # for ins in tp.instructions:
-    #     print(f"  {ins}")
+    print("Instructions:")
+    for ins in tp.instructions:
+        print(f"  {ins}")
 
     # from https://pytorch.org/docs/master/_modules/torch/utils/benchmark/utils/timer.html#Timer.timeit
     warmup = max(int(args.n // 100), 1)
