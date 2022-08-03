@@ -10,16 +10,32 @@ from e3nn_jax import Irreps, axis_angle_to_angles, matrix_to_angles, quaternion_
 
 
 class IrrepsArray:
-    r"""Class storing an array and its irreps"""
+    r"""Class storing an array and its irreps
+
+    Args:
+        irreps (`Irreps`): Irreps of the array
+        array (``jnp.ndarray``): Array of shape ``(..., irreps.dim)``
+        list (optional ``List[jnp.ndarray]``): List of arrays of shape ``(..., mul, ir.dim)``
+    """
 
     irreps: Irreps
     array: jnp.ndarray  # this field is mendatory because it contains the shape
     _list: List[Optional[jnp.ndarray]]  # this field is lazy, it is computed only when needed
 
-    def __init__(self, irreps: Irreps, array: jnp.ndarray, list: List[Optional[jnp.ndarray]] = None):
+    def __init__(
+        self, irreps: Irreps, array: jnp.ndarray, list: List[Optional[jnp.ndarray]] = None, _perform_checks: bool = True
+    ):
         self.irreps = Irreps(irreps)
         self.array = array
         self._list = list
+
+        if _perform_checks:
+            assert self.array.shape[-1] == self.irreps.dim
+            if self._list is not None:
+                assert len(self._list) == len(self.irreps)
+                for x, (mul, ir) in zip(self._list, self.irreps):
+                    if x is not None:
+                        assert x.shape == self.array.shape[:-1] + (mul, ir.dim)
 
     @staticmethod
     def from_any(irreps: Irreps, any) -> "IrrepsArray":
@@ -42,7 +58,7 @@ class IrrepsArray:
             if leading_shape is None:
                 raise ValueError("IrrepsArray.from_any cannot infer shape from list of arrays")
             return IrrepsArray.from_list(irreps, any, leading_shape)
-        return IrrepsArray.from_array(irreps, any)
+        return IrrepsArray(irreps, any)
 
     @staticmethod
     def from_list(irreps: Irreps, list, leading_shape: Tuple[int]) -> "IrrepsArray":
@@ -75,20 +91,6 @@ class IrrepsArray:
         else:
             array = jnp.zeros(leading_shape + (0,))
         return IrrepsArray(irreps=irreps, array=array, list=list)
-
-    @staticmethod
-    def from_array(irreps: Irreps, array) -> "IrrepsArray":
-        r"""Create an IrrepsArray from a contiguous array
-
-        Args:
-            irreps (Irreps): irreps
-            array (``jnp.ndarray``): contiguous array
-
-        Returns:
-            IrrepsArray
-        """
-        assert array.shape[-1] == Irreps(irreps).dim
-        return IrrepsArray(irreps=irreps, array=array, list=None)
 
     @property
     def list(self) -> List[Optional[jnp.ndarray]]:
@@ -193,7 +195,7 @@ class IrrepsArray:
         assert len(self.shape) >= 2
         irreps = (self.shape[-2] * self.irreps).simplify()
         array = self.array.reshape(self.shape[:-2] + (irreps.dim,))
-        return IrrepsArray.from_array(irreps, array)
+        return IrrepsArray(irreps, array)
 
     def repeat_mul_by_last_axis(self) -> "IrrepsArray":
         assert len(self.shape) >= 2
@@ -437,11 +439,11 @@ class IrrepsArray:
     def randn(irreps, key, leading_shape=(), *, normalization=None):
         irreps = Irreps(irreps)
         x = irreps.randn(key, leading_shape + (-1,), normalization=normalization)
-        return IrrepsArray.from_array(irreps, x)
+        return IrrepsArray(irreps, x)
 
 
 jax.tree_util.register_pytree_node(
     IrrepsArray,
     lambda x: ((x.array, x.list), x.irreps),
-    lambda x, data: IrrepsArray(irreps=x, array=data[0], list=data[1]),
+    lambda x, data: IrrepsArray(irreps=x, array=data[0], list=data[1], _perform_checks=False),
 )

@@ -113,7 +113,7 @@ def create_model(config):
         edge_src, edge_dst = a["edge_index"]
 
         irreps_sh = Irreps.spherical_harmonics(config["shlmax"])
-        edge_attr = IrrepsArray.from_array(
+        edge_attr = IrrepsArray(
             irreps_sh, spherical_harmonics(irreps_sh, pos[edge_dst] - pos[edge_src], True, normalization="component")
         ).list
 

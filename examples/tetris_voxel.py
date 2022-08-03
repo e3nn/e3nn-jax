@@ -60,7 +60,7 @@ def main():
         # kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=5.5, num_radial_basis=3, steps=(1.0, 1.0, 1.0))
         kw = dict(irreps_sh=Irreps("0e + 1o"), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
 
-        x = IrrepsArray.from_array("0e", x[..., None])
+        x = IrrepsArray("0e", x[..., None])
 
         # for _ in range(2):
         for _ in range(5):

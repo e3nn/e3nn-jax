@@ -15,7 +15,7 @@ def test_convolution(keys):
     @hk.without_apply_rng
     @hk.transform
     def c(x, z):
-        x = IrrepsArray.from_array(irreps_in, x)
+        x = IrrepsArray(irreps_in, x)
         x = Convolution(
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,
@@ -56,7 +56,7 @@ def test_convolution_defaults(keys):
     @hk.without_apply_rng
     @hk.transform
     def c(x):
-        x = IrrepsArray.from_array(irreps_in, x)
+        x = IrrepsArray(irreps_in, x)
         x = Convolution(
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,

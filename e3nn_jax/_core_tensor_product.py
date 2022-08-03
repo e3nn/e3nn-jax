@@ -445,7 +445,7 @@ def _left_right(
                 input1.array,
                 input2.array,
             )
-        return IrrepsArray.from_array(self.irreps_out, out)
+        return IrrepsArray(self.irreps_out, out)
 
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):

@@ -67,7 +67,7 @@ This representation is not irreducible (is reducible). It can be decomposed into
 
 .. jupyter-execute::
 
-    tp = e3nn.full_tensor_product(e3nn.IrrepsArray.from_array(irreps_x, x), e3nn.IrrepsArray.from_array(irreps_y, y))
+    tp = e3nn.full_tensor_product(e3nn.IrrepsArray(irreps_x, x), e3nn.IrrepsArray(irreps_y, y))
     tp
 
 
@@ -155,7 +155,7 @@ It rely on the ``jax.jit`` compiler because it contains both a ``array`` and a `
 
 .. jupyter-execute::
 
-    x = e3nn.IrrepsArray.from_array("2x0e + 1o", jnp.array(
+    x = e3nn.IrrepsArray("2x0e + 1o", jnp.array(
         [
             [1.0, 0.0,  0.0, 0.0, 0.0],
             [0.0, 1.0,  1.0, 0.0, 0.0],

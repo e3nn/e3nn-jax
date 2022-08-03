@@ -64,7 +64,7 @@ def sh(
     Returns:
         ``jnp.ndarray``: polynomials of the spherical harmonics
     """
-    input = IrrepsArray.from_array("1e", input)
+    input = IrrepsArray("1e", input)
     return spherical_harmonics(irreps_out, input, normalize, normalization, algorithm=algorithm).array
 
 

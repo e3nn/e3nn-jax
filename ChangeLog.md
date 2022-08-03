@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **breaking change** `IrrepsArray.new` is renamed in `IrrepsArray.from_any`
 - `spherical_harmonics` normalization is now set to `component` like everything else.
 
+### Removed
+- **breaking change** `IrrepsArray.from_contiguous` is removed. Use `IrrepsArray(irreps, array)` instead.
+
 ### Added
 - add `e3nn.config` to set global defaults parameters
 - `__getindex__` to `IrrepsData`

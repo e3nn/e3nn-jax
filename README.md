@@ -62,8 +62,8 @@ irreps.D_from_angles(alpha=0.0, beta=0.0, gamma=0.0, k=1)  # the matrix that app
 Here is the example of the tensor product of the two vectors.
 ```python
 out = e3nn.full_tensor_product(
-    e3nn.IrrepsArray.from_array("1o", jnp.array([2.0, 0.0, 0.0])),
-    e3nn.IrrepsArray.from_array("1o", jnp.array([0.0, 2.0, 0.0]))
+    e3nn.IrrepsArray("1o", jnp.array([2.0, 0.0, 0.0])),
+    e3nn.IrrepsArray("1o", jnp.array([0.0, 2.0, 0.0]))
 )
 # out is of type `IrrepsArray` and contains the following fields:
 

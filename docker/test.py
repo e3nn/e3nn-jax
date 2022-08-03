@@ -13,7 +13,7 @@ irreps_sh = Irreps("0e + 1e + 2e")
 @hk.without_apply_rng
 @hk.transform
 def c(x, z):
-    x = IrrepsArray.from_array(irreps_in, x)
+    x = IrrepsArray(irreps_in, x)
     x = Convolution(
         irreps_out=irreps_out,
         irreps_sh=irreps_sh,

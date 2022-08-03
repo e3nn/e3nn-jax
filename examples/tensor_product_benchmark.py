@@ -149,8 +149,8 @@ def main():
         inputs = iter(
             [
                 (
-                    IrrepsArray.from_array(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
-                    IrrepsArray.from_array(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list,
+                    IrrepsArray(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
+                    IrrepsArray(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list,
                 )
                 for _ in range(args.n + warmup)
             ]

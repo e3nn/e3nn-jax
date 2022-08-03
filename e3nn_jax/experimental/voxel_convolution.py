@@ -179,7 +179,7 @@ class Convolution(hk.Module):
             ]
         )
 
-        output = IrrepsArray.from_array(
+        output = IrrepsArray(
             irreps_out,
             lax.conv_general_dilated(
                 lhs=input.array,
