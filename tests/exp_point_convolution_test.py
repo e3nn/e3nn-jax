@@ -33,7 +33,7 @@ def test_point_convolution(keys):
     w = model.init(next(keys), pos, src, dst, x)
     out = apply(w, pos, src, dst, x)
 
-    assert out.shape[:-1] == x.shape
+    assert out.shape[:-1] == x.shape[:-1]
     assert out.irreps == Irreps("8x0e + 8x0o + 5e")
     assert out.list[2] is None
 
