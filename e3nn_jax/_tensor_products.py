@@ -106,7 +106,7 @@ def full_tensor_product(
         irrep_normalization (Optional[str]): How to normalize the output. See :func:`e3nn_jax.FunctionalTensorProduct`.
 
     Returns:
-        IrrepsArray: Output.
+        IrrepsArray: Output with sorted irreps.
     """
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]

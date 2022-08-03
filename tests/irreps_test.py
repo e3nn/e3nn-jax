@@ -112,3 +112,17 @@ def test_irreps_data_convert():
 
     id = IrrepsArray.zeros("10x0e + 10x1e", ())
     id = id.convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
+
+
+def test_ordering():
+    n_test = 100
+
+    last = None
+    for ir in Irrep.iterator():
+        if last is not None:
+            assert last < ir
+        last = ir
+
+        n_test -= 1
+        if n_test == 0:
+            break
