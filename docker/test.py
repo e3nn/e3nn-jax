@@ -13,7 +13,7 @@ irreps_sh = Irreps("0e + 1e + 2e")
 @hk.without_apply_rng
 @hk.transform
 def c(x, z):
-    x = IrrepsArray.from_contiguous(irreps_in, x)
+    x = IrrepsArray.from_array(irreps_in, x)
     x = Convolution(
         irreps_out=irreps_out,
         irreps_sh=irreps_sh,
@@ -22,7 +22,7 @@ def c(x, z):
         relative_starts={0: 0.0, 1: 0.0, 2: 0.5},
         steps=((1.0, 1.0, 1.0), z),
     )(x)
-    return x.contiguous
+    return x.array
 
 
 f = jax.jit(c.apply)

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **breaking change** rename `IrrepsData` into `IrrepsArray`
 - **breaking change** `IrrepsArray.shape` is now equal to `contiguous.shape` (instead of `contiguous.shape[:-1]`)
+- **breaking change** `IrrepsArray * array` requires `array.shape[-1]` to be 1 or `array` to be a scalar
+- **breaking change** `IrrepsArray.contiguous` is renamed in `IrrepsArray.array`
 - `spherical_harmonics` normalization is now set to `component` like everything else.
 
 ### Added

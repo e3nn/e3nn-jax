@@ -5,11 +5,11 @@ from e3nn_jax import FullyConnectedTensorProduct, Irreps, IrrepsArray, elementwi
 
 
 def test_full_tensor_product():
-    x1 = IrrepsArray.from_contiguous("1o", jnp.array([1.0, 0.0, 0.0]))
-    x2 = IrrepsArray.from_contiguous("1o", jnp.array([0.0, 1.0, 0.0]))
+    x1 = IrrepsArray.from_array("1o", jnp.array([1.0, 0.0, 0.0]))
+    x2 = IrrepsArray.from_array("1o", jnp.array([0.0, 1.0, 0.0]))
     x3 = full_tensor_product(x1, x2, filter_ir_out=("1e",))
     assert x3.irreps == Irreps("1e")
-    np.testing.assert_allclose(x3.contiguous, jnp.array([0.0, 0.0, 1 / 2**0.5]))
+    np.testing.assert_allclose(x3.array, jnp.array([0.0, 0.0, 1 / 2**0.5]))
 
 
 def test_full_tensor_product_irreps():

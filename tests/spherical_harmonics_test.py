@@ -28,7 +28,7 @@ def test_equivariance(keys, l):
     output1 = e3nn.spherical_harmonics(l, input.transform_by_angles(*abc), False)
     output2 = e3nn.spherical_harmonics(l, input, False).transform_by_angles(*abc)
 
-    np.testing.assert_allclose(output1.contiguous, output2.contiguous, atol=1e-2, rtol=1e-2)
+    np.testing.assert_allclose(output1.array, output2.array, atol=1e-2, rtol=1e-2)
 
 
 def test_closure(keys):
@@ -54,9 +54,7 @@ def test_normalization_integral(keys, l):
     irreps = e3nn.Irreps([l])
 
     n = jnp.mean(
-        e3nn.spherical_harmonics(
-            irreps, jax.random.normal(keys[l + 0], (3,)), normalize=True, normalization="integral"
-        ).contiguous
+        e3nn.spherical_harmonics(irreps, jax.random.normal(keys[l + 0], (3,)), normalize=True, normalization="integral").array
         ** 2
     )
     assert abs((4 * jnp.pi) * n - 1) < 7e-7 * max((l / 4) ** 8, 1)
@@ -67,8 +65,7 @@ def test_normalization_norm(keys, l):
     irreps = e3nn.Irreps([l])
 
     n = jnp.sum(
-        e3nn.spherical_harmonics(irreps, jax.random.normal(keys[l + 1], (3,)), normalize=True, normalization="norm").contiguous
-        ** 2
+        e3nn.spherical_harmonics(irreps, jax.random.normal(keys[l + 1], (3,)), normalize=True, normalization="norm").array ** 2
     )
     assert abs(n - 1) < 6e-7 * max((l / 4) ** 8, 1)
 
@@ -78,9 +75,7 @@ def test_normalization_component(keys, l):
     irreps = e3nn.Irreps([l])
 
     n = jnp.mean(
-        e3nn.spherical_harmonics(
-            irreps, jax.random.normal(keys[l + 2], (3,)), normalize=True, normalization="component"
-        ).contiguous
+        e3nn.spherical_harmonics(irreps, jax.random.normal(keys[l + 2], (3,)), normalize=True, normalization="component").array
         ** 2
     )
     assert abs(n - 1) < 6e-7 * max((l / 4) ** 8, 1)
@@ -93,19 +88,19 @@ def test_parity(keys, l):
 
     y1 = (-1) ** l * e3nn.spherical_harmonics(irreps, x, normalize=True, normalization="integral")
     y2 = e3nn.spherical_harmonics(irreps, -x, normalize=True, normalization="integral")
-    np.testing.assert_allclose(y1.contiguous, y2.contiguous, atol=1e-6, rtol=1e-6)
+    np.testing.assert_allclose(y1.array, y2.array, atol=1e-6, rtol=1e-6)
 
 
 @pytest.mark.parametrize("l", range(7 + 1))
 def test_recurrence_relation(keys, l):
     x = jax.random.normal(next(keys), (3,))
 
-    y1 = e3nn.spherical_harmonics(e3nn.Irreps([l + 1]), x, normalize=True, normalization="integral").contiguous
+    y1 = e3nn.spherical_harmonics(e3nn.Irreps([l + 1]), x, normalize=True, normalization="integral").array
     y2 = jnp.einsum(
         "ijk,i,j->k",
         e3nn.clebsch_gordan(1, l, l + 1),
         x,
-        e3nn.spherical_harmonics(e3nn.Irreps([l]), x, normalize=True, normalization="integral").contiguous,
+        e3nn.spherical_harmonics(e3nn.Irreps([l]), x, normalize=True, normalization="integral").array,
     )
 
     y1 = y1 / jnp.linalg.norm(y1)
@@ -117,7 +112,7 @@ def test_recurrence_relation(keys, l):
 @pytest.mark.parametrize("irreps", ["3x1o+2e+2x4e", "2x0e", "10e"])
 def test_check_grads(keys, irreps, normalization):
     check_grads(
-        lambda x: e3nn.spherical_harmonics(irreps, x, normalize=False, normalization=normalization).contiguous,
+        lambda x: e3nn.spherical_harmonics(irreps, x, normalize=False, normalization=normalization).array,
         (jax.random.normal(keys[0], (10, 3)),),
         1,
         modes=["fwd", "rev"],
@@ -129,9 +124,6 @@ def test_check_grads(keys, irreps, normalization):
 @pytest.mark.parametrize("l", range(7 + 1))
 def test_normalize(keys, l):
     x = jax.random.normal(keys[0], (10, 3))
-    y1 = (
-        e3nn.spherical_harmonics(e3nn.Irreps([l]), x, normalize=True).contiguous
-        * jnp.linalg.norm(x, axis=1, keepdims=True) ** l
-    )
-    y2 = e3nn.spherical_harmonics(e3nn.Irreps([l]), x, normalize=False).contiguous
+    y1 = e3nn.spherical_harmonics(e3nn.Irreps([l]), x, normalize=True).array * jnp.linalg.norm(x, axis=1, keepdims=True) ** l
+    y2 = e3nn.spherical_harmonics(e3nn.Irreps([l]), x, normalize=False).array
     np.testing.assert_allclose(y1, y2, atol=1e-6, rtol=1e-5)

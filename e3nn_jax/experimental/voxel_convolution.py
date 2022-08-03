@@ -179,10 +179,10 @@ class Convolution(hk.Module):
             ]
         )
 
-        output = IrrepsArray.from_contiguous(
+        output = IrrepsArray.from_array(
             irreps_out,
             lax.conv_general_dilated(
-                lhs=input.contiguous,
+                lhs=input.array,
                 rhs=self.kernel(input.irreps, irreps_out),
                 window_strides=(1, 1, 1),
                 padding=self.padding,

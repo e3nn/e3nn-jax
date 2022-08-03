@@ -106,7 +106,7 @@ def dummy_fill(a, num_graphs, num_nodes, num_edges):
 def create_model(config):
     @hk.transform
     def f(a):
-        node_attr = e3nn.IrrepsArray.from_contiguous("5x0e", a["x"][:, :5] * 5**0.5)
+        node_attr = e3nn.IrrepsArray.from_array("5x0e", a["x"][:, :5] * 5**0.5)
         pos = a["pos"]
         edge_src, edge_dst = a["edge_index"]
 
@@ -179,7 +179,7 @@ def create_model(config):
 
         # stat('T ...(x)', x)
 
-        out = x.contiguous
+        out = x.array
 
         M = jnp.array([atomrefs[i] for i in range(7, 11)]).T
 

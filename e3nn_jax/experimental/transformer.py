@@ -120,7 +120,7 @@ class Transformer(hk.Module):
 
         edge_logit = jax.vmap(FullyConnectedTensorProduct(f"{self.num_heads}x0e"))(
             edge_dst_feat, edge_k
-        ).contiguous  # array[edge, head]
+        ).array  # array[edge, head]
         node_logit_max = _index_max(edge_dst, edge_logit, node_feat.shape[0])  # array[node, head]
         exp = edge_weight_cutoff[:, None] * jnp.exp(edge_logit - node_logit_max[edge_dst])  # array[edge, head]
         z = index_add(edge_dst, exp, node_feat.shape[0])  # array[node, head]

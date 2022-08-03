@@ -44,8 +44,8 @@ def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, ji
     x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=irrep_normalization)
     x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=irrep_normalization)
 
-    a = f(ws, x1, x2).contiguous
-    b = g(ws, x1, x2).contiguous
+    a = f(ws, x1, x2).array
+    b = g(ws, x1, x2).array
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), jnp.max(jnp.abs(a - b))
 
 
@@ -65,8 +65,8 @@ def test_fuse_all(keys):
     y = jax.random.normal(keys[3], (4,))
 
     assert jnp.allclose(
-        tp.left_right(w, x, y, fuse_all=True).contiguous,
-        tp.left_right(w, x, y, fuse_all=False).contiguous,
+        tp.left_right(w, x, y, fuse_all=True).array,
+        tp.left_right(w, x, y, fuse_all=False).array,
         rtol=1e-4,
         atol=1e-6,
     )
@@ -86,8 +86,8 @@ def test_fuse_all_no_weight(keys):
     y = jax.random.normal(keys[3], (10,))
 
     assert jnp.allclose(
-        tp.left_right(w, x, y, fuse_all=True).contiguous,
-        tp.left_right(w, x, y, fuse_all=False).contiguous,
+        tp.left_right(w, x, y, fuse_all=True).array,
+        tp.left_right(w, x, y, fuse_all=False).array,
         rtol=1e-4,
         atol=1e-6,
     )
@@ -108,8 +108,8 @@ def test_fuse_all_mix_weight(keys):
     y = jax.random.normal(keys[3], (5,))
 
     assert jnp.allclose(
-        tp.left_right(w, x, y, fuse_all=True).contiguous,
-        tp.left_right(w, x, y, fuse_all=False).contiguous,
+        tp.left_right(w, x, y, fuse_all=True).array,
+        tp.left_right(w, x, y, fuse_all=False).array,
         rtol=1e-4,
         atol=1e-6,
     )
@@ -123,8 +123,8 @@ def test_fuse(keys):
     x1 = tp.irreps_in1.randn(next(keys), (-1,))
     x2 = tp.irreps_in2.randn(next(keys), (-1,))
 
-    a = tp.left_right(ws, x1, x2, fuse_all=False).contiguous
-    b = tp.left_right(wf, x1, x2, fuse_all=True).contiguous
+    a = tp.left_right(ws, x1, x2, fuse_all=False).array
+    b = tp.left_right(wf, x1, x2, fuse_all=True).array
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), (a, b)
 
 
@@ -161,7 +161,7 @@ def test_square_normalization(keys):
 
     @jax.vmap
     def f(w, x):
-        return tp.left_right(w, x, x).contiguous
+        return tp.left_right(w, x, x).array
 
     k = 1_000_000
     w = jax.random.normal(keys[0], (k, n))

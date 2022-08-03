@@ -13,17 +13,17 @@ def test_dropout(keys):
         m = Dropout(p=0.75)
         return m(rng, x, is_training)
 
-    x = IrrepsArray.from_contiguous(irreps, irreps.randn(next(keys), (-1,)))
+    x = IrrepsArray.from_array(irreps, irreps.randn(next(keys), (-1,)))
     params = b.init(next(keys), next(keys), x)
 
     y = b.apply(params, next(keys), x, is_training=False)
-    assert (y.contiguous == x.contiguous).all()
+    assert (y.array == x.array).all()
 
     y = b.apply(params, next(keys), x)
-    assert ((y.contiguous == (x.contiguous / 0.25)) | (y.contiguous == 0)).all()
+    assert ((y.array == (x.array / 0.25)) | (y.array == 0)).all()
 
     def wrap(x):
-        x = IrrepsArray.from_contiguous(irreps, x)
-        return b.apply(params, keys[0], x).contiguous
+        x = IrrepsArray.from_array(irreps, x)
+        return b.apply(params, keys[0], x).array
 
-    assert_equivariant(wrap, rng_key=next(keys), args_in=[x.contiguous], irreps_in=[irreps], irreps_out=[irreps])
+    assert_equivariant(wrap, rng_key=next(keys), args_in=[x.array], irreps_in=[irreps], irreps_out=[irreps])

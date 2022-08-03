@@ -64,8 +64,8 @@ def sh(
     Returns:
         ``jnp.ndarray``: polynomials of the spherical harmonics
     """
-    input = IrrepsArray.from_contiguous("1e", input)
-    return spherical_harmonics(irreps_out, input, normalize, normalization, algorithm=algorithm).contiguous
+    input = IrrepsArray.from_array("1e", input)
+    return spherical_harmonics(irreps_out, input, normalize, normalization, algorithm=algorithm).array
 
 
 def spherical_harmonics(
@@ -154,7 +154,7 @@ def spherical_harmonics(
         assert mul == 1
         assert ir.l == 1
         assert all([ir.p == p for _, (l, p) in irreps_out if l % 2 == 1])
-        x = input.contiguous
+        x = input.array
     else:
         x = input
 

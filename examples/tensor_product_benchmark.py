@@ -149,8 +149,8 @@ def main():
         inputs = iter(
             [
                 (
-                    IrrepsArray.from_contiguous(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
-                    IrrepsArray.from_contiguous(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list,
+                    IrrepsArray.from_array(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
+                    IrrepsArray.from_array(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list,
                 )
                 for _ in range(args.n + warmup)
             ]
@@ -165,7 +165,7 @@ def main():
             ]
         )
         f_1 = f
-        f = lambda w, x1, x2: f_1(w, x1, x2).contiguous
+        f = lambda w, x1, x2: f_1(w, x1, x2).array
 
     if args.backward:
         # tanh() forces it to realize the grad as a full size matrix rather than expanded (stride 0) ones

@@ -62,15 +62,15 @@ irreps.D_from_angles(alpha=0.0, beta=0.0, gamma=0.0, k=1)  # the matrix that app
 Here is the example of the tensor product of the two vectors.
 ```python
 out = e3nn.full_tensor_product(
-    e3nn.IrrepsArray.from_contiguous("1o", jnp.array([2.0, 0.0, 0.0])),
-    e3nn.IrrepsArray.from_contiguous("1o", jnp.array([0.0, 2.0, 0.0]))
+    e3nn.IrrepsArray.from_array("1o", jnp.array([2.0, 0.0, 0.0])),
+    e3nn.IrrepsArray.from_array("1o", jnp.array([0.0, 2.0, 0.0]))
 )
 # out is of type `IrrepsArray` and contains the following fields:
 
 out.irreps
 # 1x0e+1x1e+1x2e
 
-out.contiguous
+out.array
 # DeviceArray([0.  , 0.  , 0.  , 2.83, 0.  , 2.83, 0.  , 0.  , 0.  ], dtype=float32)
 
 out.list
@@ -79,7 +79,7 @@ out.list
 #  DeviceArray([[0.  , 2.83, 0.  , 0.  , 0.  ]], dtype=float32)]
 ```
 
-The two fields `contiguous` and `list` contain the same information under different forms.
+The two fields `array` and `list` contain the same information under different forms.
 This is not a performence issue, we rely on `jax.jit` to optimize the code and get rid of the unused operations.
 
 ## Complete example

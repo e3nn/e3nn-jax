@@ -433,7 +433,7 @@ def _left_right(
 
         if has_path_with_no_weights and big_w3j.shape[0] == 1:
             big_w3j = big_w3j.reshape(big_w3j.shape[1:])
-            out = einsum("ijk,i,j->k", big_w3j, input1.contiguous, input2.contiguous)
+            out = einsum("ijk,i,j->k", big_w3j, input1.array, input2.array)
         else:
             if has_path_with_no_weights:
                 weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
@@ -442,10 +442,10 @@ def _left_right(
                 "p,pijk,i,j->k",
                 weights_flat,
                 big_w3j,
-                input1.contiguous,
-                input2.contiguous,
+                input1.array,
+                input2.array,
             )
-        return IrrepsArray.from_contiguous(self.irreps_out, out)
+        return IrrepsArray.from_array(self.irreps_out, out)
 
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):

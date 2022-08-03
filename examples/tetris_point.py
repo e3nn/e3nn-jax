@@ -60,7 +60,7 @@ def model(pos, edge_src, edge_dst):
         node_feat = e3nn.gate(node_feat)
     node_feat = Convolution("0o + 7x0e", **kw)(node_feat, edge_src, edge_dst, edge_attr)
 
-    return node_feat.contiguous
+    return node_feat.array
 
 
 def main():
