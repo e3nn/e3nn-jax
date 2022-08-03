@@ -30,12 +30,22 @@ class IrrepsArray:
         self._list = list
 
         if _perform_checks:
-            assert self.array.shape[-1] == self.irreps.dim
+            if self.array.shape[-1] != self.irreps.dim:
+                raise ValueError(
+                    f"IrrepsArray: Array shape {self.array.shape} incompatible with irreps {self.irreps}. "
+                    f"{self.array.shape[-1]} != {self.irreps.dim}"
+                )
             if self._list is not None:
-                assert len(self._list) == len(self.irreps)
+                if len(self._list) != len(self.irreps):
+                    raise ValueError(f"IrrepsArray: List length {len(self._list)} incompatible with irreps {self.irreps}.")
                 for x, (mul, ir) in zip(self._list, self.irreps):
                     if x is not None:
-                        assert x.shape == self.array.shape[:-1] + (mul, ir.dim)
+                        if x.shape != self.array.shape[:-1] + (mul, ir.dim):
+                            raise ValueError(
+                                f"IrrepsArray: List shapes {[None if x is None else x.shape for x in self._list]} "
+                                f"incompatible with array shape {self.array.shape} and irreps {self.irreps}. "
+                                f"Expecting {[self.array.shape[:-1] + (mul, ir.dim) for (mul, ir) in self.irreps]}."
+                            )
 
     @staticmethod
     def from_any(irreps: Irreps, any) -> "IrrepsArray":
