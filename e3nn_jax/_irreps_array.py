@@ -208,12 +208,26 @@ class IrrepsArray:
         )
 
     def repeat_irreps_by_last_axis(self) -> "IrrepsArray":
+        r"""Repeat the irreps by the last axis of the array.
+
+        Example:
+            >>> irreps = IrrepsArray("0e + 1e", jnp.zeros((3, 4)))
+            >>> irreps.repeat_irreps_by_last_axis().irreps
+            1x0e+1x1e+1x0e+1x1e+1x0e+1x1e
+        """
         assert len(self.shape) >= 2
         irreps = (self.shape[-2] * self.irreps).simplify()
         array = self.array.reshape(self.shape[:-2] + (irreps.dim,))
         return IrrepsArray(irreps, array)
 
     def repeat_mul_by_last_axis(self) -> "IrrepsArray":
+        r"""Repeat the multiplicity by the last axis of the array.
+
+        Example:
+            >>> irreps = IrrepsArray("0e + 1e", jnp.zeros((3, 4)))
+            >>> irreps.repeat_mul_by_last_axis().irreps
+            3x0e+3x1e
+        """
         assert len(self.shape) >= 2
         irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
         list = [None if x is None else x.reshape(self.shape[:-2] + (mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)]
@@ -223,6 +237,13 @@ class IrrepsArray:
         raise NotImplementedError
 
     def factor_mul_to_last_axis(self, factor=None) -> "IrrepsArray":
+        r"""Create a new axis in the previous last position by factoring the multiplicities.
+
+        Example:
+            >>> irreps = IrrepsArray("6x0e + 3x1e", jnp.zeros((3, 6 + 9)))
+            >>> irreps.factor_mul_to_last_axis().irreps
+            2x0e+1x1e
+        """
         if factor is None:
             factor = math.gcd(*(mul for mul, _ in self.irreps))
 
