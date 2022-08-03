@@ -83,12 +83,18 @@ class IrrepsArray:
             IrrepsArray
         """
         irreps = Irreps(irreps)
-        assert len(irreps) == len(list), f"irreps has {len(irreps)} elements and list has {len(list)}"
-        assert all(x is None or isinstance(x, jnp.ndarray) for x in list)
-        assert all(x is None or x.shape == leading_shape + (mul, ir.dim) for x, (mul, ir) in zip(list, irreps)), (
-            [x.shape for x in list if x is not None],
-            leading_shape,
-        )
+        if len(irreps) != len(list):
+            raise ValueError(f"IrrepsArray.from_list: len(irreps) != len(list), {len(irreps)} != {len(list)}")
+
+        if not all(x is None or isinstance(x, jnp.ndarray) for x in list):
+            raise ValueError(f"IrrepsArray.from_list: list contains non-array elements type={[type(x) for x in list]}")
+
+        if not all(x is None or x.shape == leading_shape + (mul, ir.dim) for x, (mul, ir) in zip(list, irreps)):
+            raise ValueError(
+                f"IrrepsArray.from_list: list shapes {[None if x is None else x.shape for x in list]} "
+                f"incompatible with leading shape {leading_shape} and irreps {irreps}. "
+                f"Expecting {[leading_shape + (mul, ir.dim) for (mul, ir) in irreps]}."
+            )
 
         if irreps.dim > 0:
             array = jnp.concatenate(
