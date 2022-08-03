@@ -169,8 +169,8 @@ class FunctionalTensorProduct:
         if input2 is None:
             weights, input1, input2 = [], weights, input1
 
-        input1 = IrrepsArray.new(self.irreps_in1, input1)
-        input2 = IrrepsArray.new(self.irreps_in2, input2)
+        input1 = IrrepsArray.from_any(self.irreps_in1, input1)
+        input2 = IrrepsArray.from_any(self.irreps_in2, input2)
 
         return _left_right(
             self,
@@ -216,7 +216,7 @@ class FunctionalTensorProduct:
         if input2 is None:
             weights, input2 = [], weights
 
-        input2 = IrrepsArray.new(self.irreps_in2, input2)
+        input2 = IrrepsArray.from_any(self.irreps_in2, input2)
         return _right(
             self,
             weights,

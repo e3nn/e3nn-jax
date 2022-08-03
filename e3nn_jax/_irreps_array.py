@@ -10,7 +10,7 @@ from e3nn_jax import Irreps, axis_angle_to_angles, matrix_to_angles, quaternion_
 
 
 class IrrepsArray:
-    r"""Class storing data and its irreps"""
+    r"""Class storing an array and its irreps"""
 
     irreps: Irreps
     array: jnp.ndarray  # this field is mendatory because it contains the shape
@@ -21,45 +21,8 @@ class IrrepsArray:
         self.array = array
         self._list = list
 
-    @property
-    def list(self) -> List[Optional[jnp.ndarray]]:
-        if self._list is None:
-            leading_shape = self.array.shape[:-1]
-            if len(self.irreps) == 1:
-                mul, ir = self.irreps[0]
-                list = [jnp.reshape(self.array, leading_shape + (mul, ir.dim))]
-            else:
-                list = [
-                    jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
-                    for i, (mul, ir) in zip(self.irreps.slices(), self.irreps)
-                ]
-            self._list = list
-        return self._list
-
-    # def __jax_array__(self):
-    #     if self.irreps.lmax > 0:
-    #         return NotImplemented
-    #     return self.array
-    #
-    # Note: - __jax_array__ seems to be incompatible with register_pytree_node
-    #       - __jax_array__ cause problem for the multiplication: jnp.array * IrrepsArray -> jnp.array
-
     @staticmethod
-    def zeros(irreps: Irreps, leading_shape) -> "IrrepsArray":
-        irreps = Irreps(irreps)
-        return IrrepsArray(irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,)), list=[None] * len(irreps))
-
-    @staticmethod
-    def ones(irreps: Irreps, leading_shape) -> "IrrepsArray":
-        irreps = Irreps(irreps)
-        return IrrepsArray(
-            irreps=irreps,
-            array=jnp.ones(leading_shape + (irreps.dim,)),
-            list=[jnp.ones(leading_shape + (mul, ir.dim)) for mul, ir in irreps],
-        )
-
-    @staticmethod
-    def new(irreps: Irreps, any) -> "IrrepsArray":
+    def from_any(irreps: Irreps, any) -> "IrrepsArray":
         r"""Create a new IrrepsArray
 
         Args:
@@ -77,7 +40,7 @@ class IrrepsArray:
                 if x is not None:
                     leading_shape = x.shape[:-2]
             if leading_shape is None:
-                raise ValueError("IrrepsArray.new cannot infer shape from list of arrays")
+                raise ValueError("IrrepsArray.from_any cannot infer shape from list of arrays")
             return IrrepsArray.from_list(irreps, any, leading_shape)
         return IrrepsArray.from_array(irreps, any)
 
@@ -126,6 +89,43 @@ class IrrepsArray:
         """
         assert array.shape[-1] == Irreps(irreps).dim
         return IrrepsArray(irreps=irreps, array=array, list=None)
+
+    @property
+    def list(self) -> List[Optional[jnp.ndarray]]:
+        if self._list is None:
+            leading_shape = self.array.shape[:-1]
+            if len(self.irreps) == 1:
+                mul, ir = self.irreps[0]
+                list = [jnp.reshape(self.array, leading_shape + (mul, ir.dim))]
+            else:
+                list = [
+                    jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
+                    for i, (mul, ir) in zip(self.irreps.slices(), self.irreps)
+                ]
+            self._list = list
+        return self._list
+
+    # def __jax_array__(self):
+    #     if self.irreps.lmax > 0:
+    #         return NotImplemented
+    #     return self.array
+    #
+    # Note: - __jax_array__ seems to be incompatible with register_pytree_node
+    #       - __jax_array__ cause problem for the multiplication: jnp.array * IrrepsArray -> jnp.array
+
+    @staticmethod
+    def zeros(irreps: Irreps, leading_shape) -> "IrrepsArray":
+        irreps = Irreps(irreps)
+        return IrrepsArray(irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,)), list=[None] * len(irreps))
+
+    @staticmethod
+    def ones(irreps: Irreps, leading_shape) -> "IrrepsArray":
+        irreps = Irreps(irreps)
+        return IrrepsArray(
+            irreps=irreps,
+            array=jnp.ones(leading_shape + (irreps.dim,)),
+            list=[jnp.ones(leading_shape + (mul, ir.dim)) for mul, ir in irreps],
+        )
 
     def __repr__(self):
         return f"{self.irreps}\n{self.array}"
@@ -290,7 +290,7 @@ class IrrepsArray:
             ValueError: if the irreps are not compatible
 
         Example:
-        >>> id = IrrepsArray.new("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
+        >>> id = IrrepsArray.from_any("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
         >>> jax.tree_util.tree_map(lambda x: x.shape, id.convert("20x0e")).list
         [(1, 20, 1)]
         """

@@ -131,7 +131,7 @@ class FunctionalLinear:
         return IrrepsArray.from_list(self.irreps_out, output, output_shape)
 
     def __call__(self, ws: List[jnp.ndarray], input: IrrepsArray) -> IrrepsArray:
-        input = IrrepsArray.new(self.irreps_in, input)
+        input = IrrepsArray.from_any(self.irreps_in, input)
         assert input.ndim == 1
 
         paths = [
@@ -182,7 +182,7 @@ class Linear(hk.Module):
         if self.irreps_in is None and not isinstance(input, IrrepsArray):
             raise ValueError("the input of Linear must be an IrrepsArray, or `irreps_in` must be specified")
         if self.irreps_in is not None:
-            input = IrrepsArray.new(self.irreps_in, input)
+            input = IrrepsArray.from_any(self.irreps_in, input)
 
         input = input.remove_nones().simplify()
         lin = FunctionalLinear(input.irreps, self.irreps_out, self.instructions, biases=self.biases)

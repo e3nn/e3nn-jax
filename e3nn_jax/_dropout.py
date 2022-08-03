@@ -46,7 +46,7 @@ class Dropout(hk.Module):
             return x
 
         if self.irreps is not None:
-            x = IrrepsArray.new(self.irreps, x)
+            x = IrrepsArray.from_any(self.irreps, x)
         if not isinstance(x, IrrepsArray):
             raise TypeError(f"{self.__class__.__name__} only supports IrrepsArray")
 

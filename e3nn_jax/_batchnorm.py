@@ -179,7 +179,7 @@ class BatchNorm(hk.Module):
             output: normalized tensor of shape ``(batch, [spatial], irreps.dim)``
         """
         if self.irreps is not None:
-            input = IrrepsArray.new(self.irreps, input)
+            input = IrrepsArray.from_any(self.irreps, input)
         if not isinstance(input, IrrepsArray):
             raise ValueError("input should be of type IrrepsArray")
 
