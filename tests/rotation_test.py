@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 import e3nn_jax as e3nn
 
@@ -21,6 +22,8 @@ def test_xyz(keys):
 
 
 def test_conversions(keys):
+    jax.config.update("jax_enable_x64", True)
+
     # @jax.jit
     def f(g):
         def wrap(f):
@@ -50,10 +53,14 @@ def test_conversions(keys):
     R1 = e3nn.rand_matrix(next(keys), (100,))
     R2 = f(R1)
 
-    assert jnp.max(jnp.abs(R1 - R2)) < float_tolerance
+    np.testing.assert_allclose(R1, R2, rtol=0, atol=1e-10)
+
+    jax.config.update("jax_enable_x64", False)
 
 
 def test_compose(keys):
+    jax.config.update("jax_enable_x64", True)
+
     q1 = e3nn.rand_quaternion(keys[1], (10,))
     q2 = e3nn.rand_quaternion(keys[2], (10,))
 
@@ -79,9 +86,11 @@ def test_compose(keys):
     R3 = e3nn.angles_to_matrix(*abc)
     R4 = e3nn.axis_angle_to_matrix(ax, a)
 
-    assert jnp.max(jnp.abs(R1 - R2)) < float_tolerance
-    assert jnp.max(jnp.abs(R1 - R3)) < float_tolerance
-    assert jnp.max(jnp.abs(R1 - R4)) < float_tolerance
+    np.testing.assert_allclose(R1, R2, rtol=0, atol=1e-10)
+    np.testing.assert_allclose(R1, R3, rtol=0, atol=1e-10)
+    np.testing.assert_allclose(R1, R4, rtol=0, atol=1e-10)
+
+    jax.config.update("jax_enable_x64", False)
 
 
 def test_inverse_angles(keys):
@@ -95,16 +104,17 @@ def test_inverse_angles(keys):
 
 
 def test_rand_axis_angle(keys):
+    jax.config.update("jax_enable_x64", True)
+
     @jax.jit
     def f(key):
-        axis, angle = e3nn.rand_axis_angle(key, (10_000,))
+        axis, angle = e3nn.rand_axis_angle(key, (100_000,))
         return e3nn.axis_angle_to_matrix(axis, angle) @ jnp.array([0.2, 0.5, 0.3])
 
     x = f(next(keys))
-    tol = 0.005
-    assert jnp.max(jnp.abs(jnp.mean(x[:, 0]))) < tol
-    assert jnp.max(jnp.abs(jnp.mean(x[:, 1]))) < tol
-    assert jnp.max(jnp.abs(jnp.mean(x[:, 2]))) < tol
+    np.testing.assert_allclose(jnp.mean(x, axis=0), jnp.array([0.0, 0.0, 0.0]), atol=0.005)
+
+    jax.config.update("jax_enable_x64", False)
 
 
 def test_matrix_xyz(keys):
