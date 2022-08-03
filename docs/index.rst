@@ -177,6 +177,57 @@ The list contains the data split into different arrays.
 
     jax.tree_util.tree_map(lambda x: x.shape, x.list)
 
+Here is the example of the tensor product of the two vectors.
+
+.. jupyter-execute::
+    out = e3nn.full_tensor_product(
+        e3nn.IrrepsArray("1o", jnp.array([2.0, 0.0, 0.0])),
+        e3nn.IrrepsArray("1o", jnp.array([0.0, 2.0, 0.0]))
+    )
+    out
+
+The output is an `e3nn_jax.IrrepsArray` object and therefore also contains a ``list`` representation of the data.
+
+.. jupyter-execute::
+
+    out.list
+
+The two fields `array` and `list` contain the same information under different forms.
+This is not a performence issue, we rely on `jax.jit` to ignore the dead code.
+
+Tensor prodcut with weights
+---------------------------
+
+We use ``dm-haiku`` to create parameterized modules.
+
+.. jupyter-execute::
+
+    import haiku as hk
+
+``dm-haiku`` ask to create a function that does only take the inputs as arguments (no parameters) and then this function is transformed.
+
+.. jupyter-execute::
+
+    @hk.without_apply_rng
+    @hk.transform
+    def tp(x1, x2):
+        return e3nn.FullyConnectedTensorProduct("1e")(x1, x2)
+
+Note that the inputs irreps are not yet specified, ``"1e"`` here specify the output.
+Let's define two random inputs and initialize the parameters:
+
+.. jupyter-execute::
+
+    x1 = e3nn.IrrepsArray.randn("1e", jax.random.PRNGKey(0), (10,))
+    x2 = e3nn.IrrepsArray.randn("1e", jax.random.PRNGKey(1), (10,))
+    w = tp.init(jax.random.PRNGKey(2), x1, x2)
+
+Now that we have the weights, we can use them to compute the output.
+
+.. jupyter-execute::
+
+    tp.apply(w, x1, x2)
+
 
 Spherical Harmonics
 -------------------
