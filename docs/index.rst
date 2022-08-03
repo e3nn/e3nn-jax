@@ -148,7 +148,7 @@ This mechanism is quite robust.
     print(jit_code(f, 1.0))
 
 IrrepsArray
-----------
+-----------
 
 `e3nn_jax.IrrepsArray` contains the data of an irreducible representation.
 It rely on the ``jax.jit`` compiler because it contains both a ``array`` and a ``list`` representation of the data.
@@ -180,6 +180,7 @@ The list contains the data split into different arrays.
 Here is the example of the tensor product of the two vectors.
 
 .. jupyter-execute::
+
     out = e3nn.full_tensor_product(
         e3nn.IrrepsArray("1o", jnp.array([2.0, 0.0, 0.0])),
         e3nn.IrrepsArray("1o", jnp.array([0.0, 2.0, 0.0]))
