@@ -446,7 +446,12 @@ class Irreps(tuple):
         return Irreps(super().__rmul__(other))
 
     def __eq__(self, other: object) -> bool:
-        return super().__eq__(Irreps(other))
+        if isinstance(other, str):
+            try:
+                other = Irreps(other)
+            except ValueError:
+                return False
+        return super().__eq__(other)
 
     def __hash__(self) -> int:
         return super().__hash__()
