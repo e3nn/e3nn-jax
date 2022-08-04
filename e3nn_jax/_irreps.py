@@ -448,6 +448,9 @@ class Irreps(tuple):
     def __eq__(self, other: object) -> bool:
         return super().__eq__(Irreps(other))
 
+    def __hash__(self) -> int:
+        return super().__hash__()
+
     def unify(self):
         r"""Regroup same irrep together.
 
