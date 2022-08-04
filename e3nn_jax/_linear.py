@@ -168,22 +168,26 @@ class FunctionalLinear:
 class Linear(hk.Module):
     def __init__(
         self,
-        irreps_out,
+        irreps_out: Irreps,
+        channel_out: int = None,
         *,
-        irreps_in=None,
-        biases=False,
+        irreps_in: Optional[Irreps] = None,
+        biases: bool = False,
         path_normalization: Union[str, float] = None,
         gradient_normalization: Union[str, float] = None,
     ):
         r"""Equivariant Linear Haiku Module
 
         Args:
-            irreps_out: output representations
+            irreps_out (`e3nn_jax.Irreps`): output representations
+            channel_out (optional int): if specified, the last axis is assumed to be the channel axis
+                and is mixed with the irreps.
         """
         super().__init__()
 
-        self.irreps_out = Irreps(irreps_out)
         self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None
+        self.channel_out = channel_out
+        self.irreps_out = Irreps(irreps_out)
         self.instructions = None
         self.biases = biases
         self.path_normalization = path_normalization
@@ -196,9 +200,14 @@ class Linear(hk.Module):
             input = IrrepsArray.from_any(self.irreps_in, input)
 
         input = input.remove_nones().simplify()
+        output_irreps = self.irreps_out.simplify()
+        if self.channel_out is not None:
+            input = input.repeat_mul_by_last_axis()
+            output_irreps = Irreps([(self.channel_out * mul, ir) for mul, ir in output_irreps])
+
         lin = FunctionalLinear(
             input.irreps,
-            self.irreps_out.simplify(),
+            output_irreps,
             self.instructions,
             biases=self.biases,
             path_normalization=self.path_normalization,
@@ -221,5 +230,8 @@ class Linear(hk.Module):
         f = lambda x: lin(w, x)
         for _ in range(input.ndim - 1):
             f = hk.vmap(f, split_rng=False)
-        output = f(input)
-        return output.convert(self.irreps_out)
+        output_irreps = f(input)
+
+        if self.channel_out is not None:
+            output_irreps = output_irreps.factor_mul_to_last_axis(self.channel_out)
+        return output_irreps.convert(self.irreps_out)
