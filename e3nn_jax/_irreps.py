@@ -200,6 +200,10 @@ class Irrep:
     def __lt__(self, other):
         return (self.l, -self.p * (-1) ** self.l) < (other.l, -other.p * (-1) ** other.l)
 
+    def __eq__(self, other: object) -> bool:
+        other = Irrep(other)
+        return (self.l, self.p) == (other.l, other.p)
+
 
 jax.tree_util.register_pytree_node(Irrep, lambda ir: ((), ir), lambda ir, _: ir)
 
