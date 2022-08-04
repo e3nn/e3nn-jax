@@ -109,7 +109,7 @@ def spherical_harmonics(
     .. _Wikipedia: https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics
 
     Args:
-        irreps_out (`Irreps` or int): output irreps
+        irreps_out (`Irreps` or list of int or int): output irreps
         input (`IrrepsArray` or ``jnp.ndarray``): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
