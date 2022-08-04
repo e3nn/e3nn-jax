@@ -132,7 +132,8 @@ class FunctionalLinear:
 
     def __call__(self, ws: List[jnp.ndarray], input: IrrepsArray) -> IrrepsArray:
         input = IrrepsArray.from_any(self.irreps_in, input)
-        assert input.ndim == 1
+        if input.ndim != 1:
+            raise ValueError(f"FunctionalLinear does not support broadcasting, input shape is {input.shape}")
 
         paths = [
             ins.path_weight * w
@@ -165,7 +166,15 @@ class FunctionalLinear:
 
 
 class Linear(hk.Module):
-    def __init__(self, irreps_out, *, irreps_in=None, biases=False, path_normalization="element"):
+    def __init__(
+        self,
+        irreps_out,
+        *,
+        irreps_in=None,
+        biases=False,
+        path_normalization: Union[str, float] = None,
+        gradient_normalization: Union[str, float] = None,
+    ):
         r"""Equivariant Linear Haiku Module
 
         Args:
@@ -176,7 +185,9 @@ class Linear(hk.Module):
         self.irreps_out = Irreps(irreps_out)
         self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None
         self.instructions = None
-        self.biases = False
+        self.biases = biases
+        self.path_normalization = path_normalization
+        self.gradient_normalization = gradient_normalization
 
     def __call__(self, input):
         if self.irreps_in is None and not isinstance(input, IrrepsArray):
@@ -185,7 +196,14 @@ class Linear(hk.Module):
             input = IrrepsArray.from_any(self.irreps_in, input)
 
         input = input.remove_nones().simplify()
-        lin = FunctionalLinear(input.irreps, self.irreps_out, self.instructions, biases=self.biases)
+        lin = FunctionalLinear(
+            input.irreps,
+            self.irreps_out.simplify(),
+            self.instructions,
+            biases=self.biases,
+            path_normalization=self.path_normalization,
+            gradient_normalization=self.gradient_normalization,
+        )
         w = [
             hk.get_parameter(
                 f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}",
@@ -200,4 +218,8 @@ class Linear(hk.Module):
             )
             for ins in lin.instructions
         ]
-        return lin(w, input)
+        f = lambda x: lin(w, x)
+        for _ in range(input.ndim - 1):
+            f = hk.vmap(f, split_rng=False)
+        output = f(input)
+        return output.convert(self.irreps_out)
