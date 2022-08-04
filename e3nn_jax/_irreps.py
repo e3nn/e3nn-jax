@@ -57,6 +57,10 @@ class Irrep:
                 p = l.p
                 l = l.l
 
+            if isinstance(l, MulIrrep):
+                p = l.ir.p
+                l = l.ir.l
+
             if isinstance(l, str):
                 try:
                     name = l.strip()
@@ -192,6 +196,9 @@ class Irrep:
 
     def __add__(self, other):
         return Irreps(self) + Irreps(other)
+
+    def __radd__(self, other):
+        return Irreps(other) + Irreps(self)
 
     def __iter__(self):
         yield self.l
@@ -428,6 +435,9 @@ class Irreps(tuple):
     def __add__(self, irreps):
         irreps = Irreps(irreps)
         return Irreps(super().__add__(irreps))
+
+    def __radd__(self, irreps):
+        return Irreps(irreps) + self
 
     def __mul__(self, other):
         r"""

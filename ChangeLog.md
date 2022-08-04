@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - broadcast for `Linear`
 - argument `channel_out` to `Linear` for convenience
+- `Irreps` can be created from a `MulIrrep`
+- `"0e" + Irreps("1e")` is now supported
+- `"0e" + Irrep("1e")` is now supported
 
 ## [0.7.0] - 2022-08-03
 ### Changed

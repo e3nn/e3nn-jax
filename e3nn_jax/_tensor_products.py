@@ -94,7 +94,7 @@ class FullyConnectedTensorProduct(hk.Module):
 def full_tensor_product(
     input1: IrrepsArray,
     input2: IrrepsArray,
-    filter_ir_out: Optional[Irrep] = None,
+    filter_ir_out: Optional[List[Irrep]] = None,
     irrep_normalization: Optional[str] = None,
 ):
     r"""Full tensor product of two irreps.
