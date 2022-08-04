@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - **breaking change** change the ordering of `Irrep`. Now it matches with `Irrep.iterator`.
+- `index_add` supports `IrrepArray`
 
 ### Added
 - broadcast for `Linear`

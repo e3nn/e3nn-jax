@@ -1,8 +1,12 @@
+from typing import Union
+
 import jax
 import jax.numpy as jnp
 
+import e3nn_jax as e3nn
 
-def index_add(i, x, out_dim):
+
+def index_add(indices: jnp.ndarray, input: Union[jnp.ndarray, e3nn.IrrepsArray], out_dim: int):
     r"""perform the operation
 
     ```
@@ -11,12 +15,12 @@ def index_add(i, x, out_dim):
     ```
 
     Args:
-        i (``jnp.ndarray``): array of indices
-        x (``jnp.ndarray``): array of data
+        indices (``jnp.ndarray``): array of indices
+        input (``jnp.ndarray`` or `e3nn_jax.IrrepsArray`): array of data
         out_dim (int): size of the output
 
     Returns:
-        ``jnp.ndarray``: ``out``
+        ``jnp.ndarray`` or ``e3nn_jax.IrrepsArray``: output
 
     Example:
        >>> i = jnp.array([0, 2, 2, 0])
@@ -24,8 +28,16 @@ def index_add(i, x, out_dim):
        >>> index_add(i, x, out_dim=4)
        DeviceArray([-9.,  0.,  5.,  0.], dtype=float32)
     """
+    x = input
+    if isinstance(input, e3nn.IrrepsArray):
+        x = input.array
+
     # out_dim = jnp.max(i) + 1
-    return jnp.zeros((out_dim,) + x.shape[1:]).at[i].add(x)
+    output = jnp.zeros((out_dim,) + x.shape[1:]).at[indices].add(x)
+
+    if isinstance(input, e3nn.IrrepsArray):
+        return e3nn.IrrepsArray(input.irreps, output)
+    return output
 
 
 def radius_graph(pos, r_max, *, batch=None, size=None, loop=False):

@@ -1,7 +1,6 @@
 __version__ = "0.7.0"
 
 from ._config import config
-from ._graph_util import index_add, radius_graph
 from ._rotation import (
     rand_matrix,
     identity_angles,
@@ -54,11 +53,10 @@ from ._gate import gate
 from ._batchnorm import BatchNorm
 from ._dropout import Dropout
 from ._nn import MultiLayerPerceptron
+from ._graph_util import index_add, radius_graph
 
 __all__ = [
     "config",
-    "index_add",
-    "radius_graph",
     "rand_matrix",
     "identity_angles",
     "rand_angles",
@@ -117,4 +115,6 @@ __all__ = [
     "BatchNorm",
     "Dropout",
     "MultiLayerPerceptron",
+    "index_add",
+    "radius_graph",
 ]
