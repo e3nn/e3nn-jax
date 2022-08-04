@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - **breaking change** change the ordering of `Irrep`. Now it matches with `Irrep.iterator`.
-- **breaking change** `Irrep("1e") == "1e"` is now `true`
+- **breaking change** `Irrep("1e") == "1e"` and `Irreps("1e + 2e") == "1e + 2e"` are now `True`.
 - `index_add` supports `IrrepArray`
 
 ### Added
