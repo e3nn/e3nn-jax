@@ -123,7 +123,7 @@ class Transformer(hk.Module):
         ).array  # array[edge, head]
         node_logit_max = _index_max(edge_dst, edge_logit, node_feat.shape[0])  # array[node, head]
         exp = edge_weight_cutoff[:, None] * jnp.exp(edge_logit - node_logit_max[edge_dst])  # array[edge, head]
-        z = index_add(edge_dst, exp, node_feat.shape[0])  # array[node, head]
+        z = index_add(edge_dst, exp, out_dim=node_feat.shape[0])  # array[node, head]
         z = jnp.where(z == 0.0, 1.0, z)
         alpha = exp / z[edge_dst]  # array[edge, head]
 
@@ -131,7 +131,5 @@ class Transformer(hk.Module):
         edge_v = edge_v * jnp.sqrt(jax.nn.relu(alpha))[:, :, None]  # IrrepsArray[edge, head, irreps_out]
         edge_v = edge_v.repeat_mul_by_last_axis()  # IrrepsArray[edge, irreps_out]
 
-        node_out = jax.tree_util.tree_map(
-            lambda x: index_add(edge_dst, x, node_feat.shape[0]), edge_v
-        )  # IrrepsArray[node, irreps_out]
+        node_out = index_add(edge_dst, edge_v, out_dim=node_feat.shape[0])  # IrrepsArray[node, irreps_out]
         return jax.vmap(Linear(self.irreps_node_output))(node_out)  # IrrepsArray[edge, head, irreps_out]

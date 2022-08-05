@@ -63,21 +63,15 @@ def index_add(
         out_dim = indices.shape[0]
         indices = _distinct_but_small(indices)
 
-    x = input
-    if isinstance(input, e3nn.IrrepsArray):
-        x = input.array
-
-    output = jnp.zeros((out_dim,) + x.shape[1:]).at[indices].add(x)
+    output = jax.tree_util.tree_map(lambda x: jnp.zeros((out_dim,) + x.shape[1:]).at[indices].add(x), input)
 
     if map_back:
         output = output[indices]
 
-    if isinstance(input, e3nn.IrrepsArray):
-        return e3nn.IrrepsArray(input.irreps, output)
     return output
 
 
-def radius_graph(pos, r_max, *, batch=None, size=None, loop=False):
+def radius_graph(pos, r_max, *, batch=None, size=None, loop=False, fill_src=-1, fill_dst=-1):
     r"""naive and inefficient version of ``torch_cluster.radius_graph``
 
     Args:
@@ -105,6 +99,11 @@ def radius_graph(pos, r_max, *, batch=None, size=None, loop=False):
         mask = (r < r_max) & (r > 0)
 
     src, dst = jnp.where(mask, size=size, fill_value=-1)
+
+    if fill_src != -1:
+        src = jnp.where(src == -1, fill_src, src)
+    if fill_dst != -1:
+        dst = jnp.where(dst == -1, fill_dst, dst)
 
     if batch is None:
         return src, dst
