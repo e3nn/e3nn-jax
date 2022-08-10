@@ -152,6 +152,9 @@ class IrrepsArray:
     def shape(self):
         return self.array.shape
 
+    def __len__(self):
+        return len(self.array)
+
     @property
     def ndim(self):
         return len(self.shape)
