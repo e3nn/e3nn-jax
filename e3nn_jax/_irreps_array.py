@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -146,7 +146,10 @@ class IrrepsArray:
         )
 
     def __repr__(self):
-        return f"{self.irreps}\n{self.array}"
+        r = str(self.array)
+        if "\n" in r:
+            return f"{self.irreps}\n{r}"
+        return f"{self.irreps} {r}"
 
     @property
     def shape(self):
@@ -190,13 +193,29 @@ class IrrepsArray:
     def simplify(self) -> "IrrepsArray":
         return self.convert(self.irreps.simplify())
 
-    def split(self, indices: List[int]) -> List["IrrepsArray"]:
-        array_parts = jnp.split(self.array, [self.irreps[:i].dim for i in indices], axis=-1)
-        assert len(array_parts) == len(indices) + 1
-        return [
-            IrrepsArray(irreps=self.irreps[i:j], array=array, list=self.list[i:j])
-            for (i, j), array in zip(zip([0] + indices, indices + [len(self.irreps)]), array_parts)
-        ]
+    def split(self, indices: Union[List[int], List[Irreps]]) -> List["IrrepsArray"]:
+        """Split the array into subarrays
+
+        Examples:
+            >>> IrrepsArray("0e + 1e", jnp.array([1.0, 2, 3, 4])).split(["0e", "1e"])
+            [1x0e [1.], 1x1e [2. 3. 4.]]
+
+            >>> IrrepsArray("0e + 1e", jnp.array([1.0, 2, 3, 4])).split([1])
+            [1x0e [1.], 1x1e [2. 3. 4.]]
+        """
+        if all(isinstance(i, int) for i in indices):
+            array_parts = jnp.split(self.array, [self.irreps[:i].dim for i in indices], axis=-1)
+            assert len(array_parts) == len(indices) + 1
+            return [
+                IrrepsArray(irreps=self.irreps[i:j], array=array, list=self.list[i:j])
+                for (i, j), array in zip(zip([0] + indices, indices + [len(self.irreps)]), array_parts)
+            ]
+
+        irrepss = [Irreps(i) for i in indices]
+        assert self.irreps.simplify() == sum(irrepss, Irreps()).simplify()
+        array_parts = jnp.split(self.array, [sum(irreps.dim for irreps in irrepss[:i]) for i in range(1, len(irrepss))])
+        assert len(array_parts) == len(irrepss)
+        return [IrrepsArray(irreps, array) for irreps, array in zip(irrepss, array_parts)]
 
     def __getitem__(self, index) -> "IrrepsArray":
         if not isinstance(index, tuple):
