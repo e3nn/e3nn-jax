@@ -1,24 +1,17 @@
 from functools import partial
+from typing import List
 
+import e3nn_jax as e3nn
 import haiku as hk
 import jax
 import jax.numpy as jnp
-from e3nn_jax import (
-    Irreps,
-    IrrepsArray,
-    FunctionalTensorProduct,
-    index_add,
-    Linear,
-    FullyConnectedTensorProduct,
-    MultiLayerPerceptron,
-)
 
 
 class Convolution(hk.Module):
     r"""Equivariant Point Convolution
 
     Args:
-        irreps_node_output : `e3nn.o3.Irreps`
+        irreps_node_output : `e3nn_jax.Irreps`
             representation of the output node features
 
         fc_neurons : list of int
@@ -27,31 +20,53 @@ class Convolution(hk.Module):
 
         num_neighbors : float
             typical number of nodes convolved over
+
+        mixing : float
+            mixing between self interaction and neighbors interaction,
+            0 for only self interaction, 1 for only neighbors interaction
     """
 
-    def __init__(self, irreps_node_output, fc_neurons, num_neighbors, mixing_angle=jnp.pi / 8.0):
+    def __init__(
+        self,
+        irreps_node_output: e3nn.Irreps,
+        fc_neurons: List[int],
+        num_neighbors: float,
+        *,
+        mixing: float = 0.15,
+        mixing_angle: float = None,
+    ):
         super().__init__()
 
-        self.irreps_node_output = Irreps(irreps_node_output)
+        self.irreps_node_output = e3nn.Irreps(irreps_node_output)
         self.fc_neurons = fc_neurons
         self.num_neighbors = num_neighbors
-        self.mixing_angle = mixing_angle
+
+        if mixing_angle is not None:
+            self.mixing = jnp.sin(mixing_angle) ** 2
+        else:
+            self.mixing = mixing
 
     @partial(jax.profiler.annotate_function, name="convolution")
     def __call__(
-        self, node_input: IrrepsArray, edge_src, edge_dst, edge_attr: IrrepsArray, node_attr=None, edge_scalar_attr=None
-    ) -> IrrepsArray:
-        assert isinstance(node_input, IrrepsArray)
-        assert isinstance(edge_attr, IrrepsArray)
+        self,
+        node_input: e3nn.IrrepsArray,
+        edge_src: jnp.ndarray,
+        edge_dst: jnp.ndarray,
+        edge_attr: e3nn.IrrepsArray,
+        node_attr: e3nn.IrrepsArray = None,
+        edge_scalar_attr: jnp.ndarray = None,
+    ) -> e3nn.IrrepsArray:
+        assert isinstance(node_input, e3nn.IrrepsArray)
+        assert isinstance(edge_attr, e3nn.IrrepsArray)
 
-        if node_attr is not None:
-            tmp = jax.vmap(FullyConnectedTensorProduct(node_input.irreps + self.irreps_node_output))(node_input, node_attr)
-        else:
-            tmp = jax.vmap(Linear(node_input.irreps + self.irreps_node_output))(node_input)
+        if node_attr is None:
+            node_attr = e3nn.IrrepsArray.ones("0e", node_input.shape[:-1])
 
-        node_features, node_self_out = tmp.split([len(node_input.irreps)])
+        node_features, node_self_out = e3nn.FullyConnectedTensorProduct(node_input.irreps + self.irreps_node_output)(
+            node_input, node_attr
+        ).split([len(node_input.irreps)])
 
-        edge_features = jax.tree_util.tree_map(lambda x: x[edge_src], node_features)
+        edge_features = node_features[edge_src]
         del node_features
 
         ######################################################################################
@@ -64,7 +79,7 @@ class Convolution(hk.Module):
                         k = len(irreps_mid)
                         irreps_mid.append((mul, ir_out))
                         instructions.append((i, j, k, "uvu", True))
-        irreps_mid = Irreps(irreps_mid)
+        irreps_mid = e3nn.Irreps(irreps_mid)
 
         assert irreps_mid.dim > 0, (
             f"irreps_node_input={node_input.irreps} "
@@ -75,7 +90,7 @@ class Convolution(hk.Module):
         irreps_mid, p, _ = irreps_mid.sort()
         instructions = [(i_1, i_2, p[i_out], mode, train) for i_1, i_2, i_out, mode, train in instructions]
 
-        tp = FunctionalTensorProduct(
+        tp = e3nn.FunctionalTensorProduct(
             node_input.irreps,
             edge_attr.irreps,
             irreps_mid,
@@ -83,7 +98,7 @@ class Convolution(hk.Module):
         )
 
         if self.fc_neurons:
-            weight = MultiLayerPerceptron(self.fc_neurons, jax.nn.gelu)(edge_scalar_attr)
+            weight = e3nn.MultiLayerPerceptron(self.fc_neurons, jax.nn.gelu)(edge_scalar_attr)
 
             weight = [
                 jnp.einsum(
@@ -102,7 +117,7 @@ class Convolution(hk.Module):
                 for ins in tp.instructions
             ]
 
-            edge_features: IrrepsArray = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr)
+            edge_features: e3nn.IrrepsArray = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr)
         else:
             weight = [
                 hk.get_parameter(
@@ -115,25 +130,19 @@ class Convolution(hk.Module):
                 )
                 for ins in tp.instructions
             ]
-            edge_features: IrrepsArray = jax.vmap(tp.left_right, (None, 0, 0), 0)(weight, edge_features, edge_attr)
+            edge_features: e3nn.IrrepsArray = jax.vmap(tp.left_right, (None, 0, 0), 0)(weight, edge_features, edge_attr)
 
         edge_features = edge_features.remove_nones().simplify()
+
         ######################################################################################
 
-        node_features = jax.tree_util.tree_map(lambda x: index_add(edge_dst, x, out_dim=node_input.shape[0]), edge_features)
+        node_features = e3nn.index_add(edge_dst, edge_features, out_dim=node_input.shape[0])
         node_features = node_features / self.num_neighbors**0.5
 
         ######################################################################################
 
-        if node_attr is not None:
-            node_conv_out = jax.vmap(FullyConnectedTensorProduct(self.irreps_node_output))(node_features, node_attr)
-        else:
-            node_conv_out = jax.vmap(Linear(self.irreps_node_output))(node_features)
+        node_conv_out = e3nn.FullyConnectedTensorProduct(self.irreps_node_output)(node_features, node_attr)
 
         ######################################################################################
 
-        with jax.ensure_compile_time_eval():
-            c = jnp.cos(self.mixing_angle)
-            s = jnp.sin(self.mixing_angle)
-
-        return node_self_out * c + node_conv_out * s
+        return jnp.sqrt(1.0 - self.mixing) * node_self_out + jnp.sqrt(self.mixing) * node_conv_out
