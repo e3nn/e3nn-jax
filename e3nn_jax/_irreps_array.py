@@ -231,6 +231,21 @@ class IrrepsArray:
             list=[None if x is None else x[index] for x in self.list],
         )
 
+    def __eq__(self, other: object) -> "IrrepsArray":
+        assert self.irreps == other.irreps
+
+        leading_shape = jnp.broadcast_shapes(self.shape[:-1], other.shape[:-1])
+
+        def eq(mul: int, x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
+            if x is None or y is None:
+                return jnp.ones(leading_shape + (mul,), dtype="bool")
+            if x is not None and y is not None:
+                return jnp.all(x == y, axis=-1)
+            return jnp.zeros(leading_shape + (mul,), dtype="bool")
+
+        list = [eq(mul, x, y)[..., None] for (mul, ir), x, y in zip(self.irreps, self.list, other.list)]
+        return IrrepsArray.from_list([(mul, "0e") for mul, _ in self.irreps], list, leading_shape)
+
     def repeat_irreps_by_last_axis(self) -> "IrrepsArray":
         r"""Repeat the irreps by the last axis of the array.
 
