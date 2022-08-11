@@ -68,7 +68,7 @@ def main():
 
     def loss_pred(params, pos, edge_src, edge_dst, labels, batch):
         pred = model.apply(params, pos, edge_src, edge_dst)
-        pred = e3nn.index_add(batch, pred, 8)  # [batch, 1 + 7]
+        pred = e3nn.index_add(batch, pred, out_dim=8)  # [batch, 1 + 7]
         loss_odd = jnp.log(1 + jnp.exp(-labels[:, 0] * pred[:, 0]))
         loss_even = jnp.mean(-labels[:, 1:] * jax.nn.log_softmax(pred[:, 1:]), axis=1)
         loss = jnp.mean(loss_odd + loss_even)

@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -146,11 +146,17 @@ class IrrepsArray:
         )
 
     def __repr__(self):
-        return f"{self.irreps}\n{self.array}"
+        r = str(self.array)
+        if "\n" in r:
+            return f"{self.irreps}\n{r}"
+        return f"{self.irreps} {r}"
 
     @property
     def shape(self):
         return self.array.shape
+
+    def __len__(self):
+        return len(self.array)
 
     @property
     def ndim(self):
@@ -187,13 +193,35 @@ class IrrepsArray:
     def simplify(self) -> "IrrepsArray":
         return self.convert(self.irreps.simplify())
 
-    def split(self, indices: List[int]) -> List["IrrepsArray"]:
-        array_parts = jnp.split(self.array, [self.irreps[:i].dim for i in indices], axis=-1)
-        assert len(array_parts) == len(indices) + 1
-        return [
-            IrrepsArray(irreps=self.irreps[i:j], array=array, list=self.list[i:j])
-            for (i, j), array in zip(zip([0] + indices, indices + [len(self.irreps)]), array_parts)
-        ]
+    def sorted(self) -> "IrrepsArray":
+        irreps, p, inv = self.irreps.sort()
+        return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1])
+
+    def split(self, indices: Union[List[int], List[Irreps]]) -> List["IrrepsArray"]:
+        """Split the array into subarrays
+
+        Examples:
+            >>> IrrepsArray("0e + 1e", jnp.array([1.0, 2, 3, 4])).split(["0e", "1e"])
+            [1x0e [1.], 1x1e [2. 3. 4.]]
+
+            >>> IrrepsArray("0e + 1e", jnp.array([1.0, 2, 3, 4])).split([1])
+            [1x0e [1.], 1x1e [2. 3. 4.]]
+        """
+        if all(isinstance(i, int) for i in indices):
+            array_parts = jnp.split(self.array, [self.irreps[:i].dim for i in indices], axis=-1)
+            assert len(array_parts) == len(indices) + 1
+            return [
+                IrrepsArray(irreps=self.irreps[i:j], array=array, list=self.list[i:j])
+                for (i, j), array in zip(zip([0] + indices, indices + [len(self.irreps)]), array_parts)
+            ]
+
+        irrepss = [Irreps(i) for i in indices]
+        assert self.irreps.simplify() == sum(irrepss, Irreps()).simplify()
+        array_parts = jnp.split(
+            self.array, [sum(irreps.dim for irreps in irrepss[:i]) for i in range(1, len(irrepss))], axis=-1
+        )
+        assert len(array_parts) == len(irrepss)
+        return [IrrepsArray(irreps, array) for irreps, array in zip(irrepss, array_parts)]
 
     def __getitem__(self, index) -> "IrrepsArray":
         if not isinstance(index, tuple):
@@ -206,6 +234,21 @@ class IrrepsArray:
             array=self.array[index],
             list=[None if x is None else x[index] for x in self.list],
         )
+
+    def __eq__(self, other: object) -> "IrrepsArray":
+        assert self.irreps == other.irreps
+
+        leading_shape = jnp.broadcast_shapes(self.shape[:-1], other.shape[:-1])
+
+        def eq(mul: int, x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
+            if x is None or y is None:
+                return jnp.ones(leading_shape + (mul,), dtype="bool")
+            if x is not None and y is not None:
+                return jnp.all(x == y, axis=-1)
+            return jnp.zeros(leading_shape + (mul,), dtype="bool")
+
+        list = [eq(mul, x, y)[..., None] for (mul, ir), x, y in zip(self.irreps, self.list, other.list)]
+        return IrrepsArray.from_list([(mul, "0e") for mul, _ in self.irreps], list, leading_shape)
 
     def repeat_irreps_by_last_axis(self) -> "IrrepsArray":
         r"""Repeat the irreps by the last axis of the array.
