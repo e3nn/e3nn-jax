@@ -230,8 +230,8 @@ class Linear(hk.Module):
         f = lambda x: lin(w, x)
         for _ in range(input.ndim - 1):
             f = jax.vmap(f)
-        output_irreps = f(input)
+        output = f(input)
 
         if self.channel_out is not None:
-            output_irreps = output_irreps.factor_mul_to_last_axis(self.channel_out)
-        return output_irreps.convert(self.irreps_out)
+            output = output.factor_mul_to_last_axis(self.channel_out)
+        return output.convert(self.irreps_out)
