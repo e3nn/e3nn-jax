@@ -568,6 +568,7 @@ class Irreps(tuple):
 
     @property
     def num_irreps(self) -> int:
+        """Sum of the multiplicities."""
         return sum(mul for mul, _ in self)
 
     @property

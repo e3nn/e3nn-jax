@@ -213,7 +213,9 @@ class IrrepsArray:
 
         irrepss = [Irreps(i) for i in indices]
         assert self.irreps.simplify() == sum(irrepss, Irreps()).simplify()
-        array_parts = jnp.split(self.array, [sum(irreps.dim for irreps in irrepss[:i]) for i in range(1, len(irrepss))])
+        array_parts = jnp.split(
+            self.array, [sum(irreps.dim for irreps in irrepss[:i]) for i in range(1, len(irrepss))], axis=-1
+        )
         assert len(array_parts) == len(irrepss)
         return [IrrepsArray(irreps, array) for irreps, array in zip(irrepss, array_parts)]
 
