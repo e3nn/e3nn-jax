@@ -200,7 +200,7 @@ class Linear(hk.Module):
             input = IrrepsArray.from_any(self.irreps_in, input)
 
         input = input.remove_nones().simplify()
-        output_irreps = self.irreps_out  # .simplify()
+        output_irreps = self.irreps_out.simplify()
         if self.channel_out is not None:
             input = input.repeat_mul_by_last_axis()
             output_irreps = Irreps([(self.channel_out * mul, ir) for mul, ir in output_irreps])
