@@ -1,4 +1,4 @@
-from functools import cache
+from functools import lru_cache
 from math import factorial
 from typing import Callable
 
@@ -15,7 +15,7 @@ def _constraint(x: float, derivative: int, degree: int):
     return [0 if derivative > N else factorial(N) // factorial(N - derivative) * x ** (N - derivative) for N in range(degree)]
 
 
-@cache
+@lru_cache
 def solve_polynomial(constraints) -> jnp.ndarray:
     with jax.ensure_compile_time_eval():
         jax_enable_x64 = jax.config.read("jax_enable_x64")
