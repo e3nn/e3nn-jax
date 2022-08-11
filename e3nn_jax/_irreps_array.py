@@ -193,6 +193,10 @@ class IrrepsArray:
     def simplify(self) -> "IrrepsArray":
         return self.convert(self.irreps.simplify())
 
+    def sorted(self) -> "IrrepsArray":
+        irreps, p, inv = self.irreps.sort()
+        return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1])
+
     def split(self, indices: Union[List[int], List[Irreps]]) -> List["IrrepsArray"]:
         """Split the array into subarrays
 
