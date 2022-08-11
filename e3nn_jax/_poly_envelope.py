@@ -39,6 +39,21 @@ def poly_envelope(n0: int, n1: int) -> Callable[[float], float]:
     Small documentation available at ``https://mariogeiger.ch/polynomial_envelope_for_gnn.pdf``.
     This is a generalization of :math:`u_p(x)`.
 
+    .. jupyter-execute::
+        :hide-code:
+
+        import jax.numpy as jnp
+        import e3nn_jax as e3nn
+        import matplotlib.pyplot as plt
+
+    .. jupyter-execute::
+
+        x = jnp.linspace(0.0, 1.0, 100)
+        plt.plot(x, e3nn.poly_envelope(10, 5)(x), label="10, 5")
+        plt.plot(x, e3nn.poly_envelope(4, 4)(x), label="4, 4")
+        plt.plot(x, e3nn.poly_envelope(1, 2)(x), label="10, 10")
+        plt.legend()
+
     Args:
         n0 (int): number of derivatives equal to 0 at ``x=0``
         n1 (int): number of derivatives equal to 0 at ``x=1``
