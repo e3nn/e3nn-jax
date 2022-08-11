@@ -54,6 +54,7 @@ from ._batchnorm import BatchNorm
 from ._dropout import Dropout
 from ._nn import MultiLayerPerceptron
 from ._graph_util import index_add, radius_graph
+from ._poly_envelope import poly_envelope
 
 __all__ = [
     "config",
@@ -117,4 +118,5 @@ __all__ = [
     "MultiLayerPerceptron",
     "index_add",
     "radius_graph",
+    "poly_envelope",
 ]

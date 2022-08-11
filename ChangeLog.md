@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `"0e" + Irreps("1e")` is now supported
 - `"0e" + Irrep("1e")` is now supported
 - `map_back` argument to `index_add`
+- `poly_envelope` function
 
 ## [0.7.0] - 2022-08-03
 ### Changed

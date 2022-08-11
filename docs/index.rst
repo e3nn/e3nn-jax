@@ -264,5 +264,6 @@ API
     api/spherical_harmonics
     api/tensor_product
     api/so3
+    api/poly_envelope
 
 .. _jax: https://github.com/google/jax
