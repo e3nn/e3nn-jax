@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.8.0] - 2022-08-11
 ### Changed
 - **breaking change** change the ordering of `Irrep`. Now it matches with `Irrep.iterator`.
 - **breaking change** `Irrep("1e") == "1e"` and `Irreps("1e + 2e") == "1e + 2e"` are now `True`.

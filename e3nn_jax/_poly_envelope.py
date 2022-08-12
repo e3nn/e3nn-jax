@@ -51,7 +51,7 @@ def poly_envelope(n0: int, n1: int) -> Callable[[float], float]:
         x = jnp.linspace(0.0, 1.0, 100)
         plt.plot(x, e3nn.poly_envelope(10, 5)(x), label="10, 5")
         plt.plot(x, e3nn.poly_envelope(4, 4)(x), label="4, 4")
-        plt.plot(x, e3nn.poly_envelope(1, 2)(x), label="10, 10")
+        plt.plot(x, e3nn.poly_envelope(1, 2)(x), label="1, 2")
         plt.legend()
 
     Args:
