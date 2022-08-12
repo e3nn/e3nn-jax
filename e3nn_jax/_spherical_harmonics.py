@@ -164,7 +164,7 @@ def spherical_harmonics(
         x = x / jnp.where(r == 0.0, 1.0, r)
 
     sh = _jited_spherical_harmonics(tuple(ir.l for _, ir in irreps_out), x, normalization, algorithm)
-    sh = [jnp.repeat(y[..., None, :], mul, -2) for (mul, ir), y in zip(irreps_out, sh)]
+    sh = [jnp.repeat(y[..., None, :], mul, -2) if mul != 1 else y[..., None, :] for (mul, ir), y in zip(irreps_out, sh)]
     return IrrepsArray.from_list(irreps_out, sh, x.shape[:-1])
 
 
@@ -286,21 +286,26 @@ def _recursive_spherical_harmonics(
 ) -> sympy.Array:
     context.update(dict(jnp=jnp, clebsch_gordan=clebsch_gordan))
 
-    if 0 not in context:
-        if normalization == "integral":
-            context[0] = math.sqrt(1 / (4 * math.pi)) * jnp.ones_like(input[..., :1])
-            context[1] = math.sqrt(3 / (4 * math.pi)) * input
-        elif normalization == "component":
-            context[0] = jnp.ones_like(input[..., :1])
-            context[1] = math.sqrt(3) * input
-        else:
-            context[0] = jnp.ones_like(input[..., :1])
-            context[1] = input
-
     if l == 0:
+        if 0 not in context:
+            if normalization == "integral":
+                context[0] = math.sqrt(1 / (4 * math.pi)) * jnp.ones_like(input[..., :1])
+            elif normalization == "component":
+                context[0] = jnp.ones_like(input[..., :1])
+            else:
+                context[0] = jnp.ones_like(input[..., :1])
+
         return sympy.Array([1])
 
     if l == 1:
+        if 1 not in context:
+            if normalization == "integral":
+                context[1] = math.sqrt(3 / (4 * math.pi)) * input
+            elif normalization == "component":
+                context[1] = math.sqrt(3) * input
+            else:
+                context[1] = input
+
         return sympy.Array([1, 0, 0])
 
     def sh_var(l):
