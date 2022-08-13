@@ -140,10 +140,11 @@ def spherical_harmonics(
 
     if algorithm is None:
         if config("spherical_harmonics_algorithm") == "automatic":
+            # NOTE the dense algorithm is faster to jit than the sparse one
             if irreps_out.lmax <= 8:
-                algorithm = ("recursive", "sparse", "custom_vjp")
+                algorithm = ("recursive", "dense", "custom_vjp")
             else:
-                algorithm = ("legendre", "sparse", "custom_vjp")
+                algorithm = ("legendre", "dense", "custom_vjp")
         else:
             algorithm = config("spherical_harmonics_algorithm")
 
