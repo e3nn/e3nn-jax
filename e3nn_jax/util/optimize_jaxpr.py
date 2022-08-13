@@ -4,7 +4,7 @@ from typing import Any, List
 import jax
 import numpy as np
 from jax import linear_util as lu
-from jax.core import Atom, ClosedJaxpr, Jaxpr, Literal, Var, check_jaxpr, jaxpr_as_fun, JaxprEqn
+from jax.core import Atom, ClosedJaxpr, Jaxpr, Literal, Var, jaxpr_as_fun, JaxprEqn
 
 
 def curry(f):
@@ -20,7 +20,6 @@ def closed_jaxpr_transform_to_fn_transform(closed_jaxpr_transform, fn, *args):
     f, out_tree = jax.flatten_fun_nokwargs(f, in_tree)
     closed_jaxpr = jax.make_jaxpr(f.call_wrapped)(*in_flat)
     closed_jaxpr = closed_jaxpr_transform(closed_jaxpr)
-    check_jaxpr(closed_jaxpr.jaxpr)
     out_flat = jaxpr_as_fun(closed_jaxpr)(*in_flat)
 
     return jax.tree_util.tree_unflatten(out_tree(), out_flat)
@@ -109,7 +108,7 @@ def remove_duplicate_constants(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:
     return closed_jaxpr
 
 
-def remove_duplicate_equations(jaxpr: Jaxpr) -> ClosedJaxpr:
+def remove_duplicate_equations(jaxpr: Jaxpr, skip_first=0) -> ClosedJaxpr:
     def atom_key(a: Atom):
         if type(a) is Literal:
             return a.val
@@ -131,16 +130,18 @@ def remove_duplicate_equations(jaxpr: Jaxpr) -> ClosedJaxpr:
         return str(p)
 
     for i, eq1 in enumerate(jaxpr.eqns):
+        if i < skip_first:
+            continue
+
         for j, eq2 in enumerate(jaxpr.eqns[:i]):
             if eq1.primitive == eq2.primitive:
                 if list(map(atom_key, eq1.invars)) == list(map(atom_key, eq2.invars)):
-                    p1 = param_key(eq1.params)
-                    p2 = param_key(eq2.params)
-                    if p1 == p2:
-                        for old, new in zip(eq2.outvars, eq1.outvars):
+                    if param_key(eq1.params) == param_key(eq2.params):
+                        assert i > j
+                        for old, new in zip(eq1.outvars, eq2.outvars):
                             jaxpr = replace_var(jaxpr, old, new)
-                        jaxpr.eqns.pop(j)
-                        return remove_duplicate_equations(jaxpr)
+                        jaxpr.eqns.pop(i)
+                        return remove_duplicate_equations(jaxpr, skip_first=i - 1)
 
     # apply reccursively
     jaxpr = jaxpr.replace(
@@ -173,3 +174,13 @@ def optimize_jaxpr(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:
 
 
 reduce_compile_time = closed_jaxpr_transform_to_fn_transform(optimize_jaxpr)
+
+
+# TEST
+# Compile time of allegro with small amount of deadcode and duplicate equations
+# without calling reduce_compile_time: 51 seconds
+# with calling reduce_compile_time: 53 seconds
+#
+# Compile time of allegro with large amount of deadcode and duplicate equations
+# without calling reduce_compile_time: 1 minute 14 seconds
+# with calling reduce_compile_time: 1 minute 25 seconds
