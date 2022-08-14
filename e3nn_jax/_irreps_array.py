@@ -223,11 +223,17 @@ class IrrepsArray:
         assert len(array_parts) == len(irrepss)
         return [IrrepsArray(irreps, array) for irreps, array in zip(irrepss, array_parts)]
 
+    def __iter__(self):
+        if self.ndim <= 1:
+            raise ValueError("Can't iterate over IrrepsArray with ndim <= 1")
+        for i in range(len(self)):
+            yield self[i]
+
     def __getitem__(self, index) -> "IrrepsArray":
         if not isinstance(index, tuple):
             index = (index,)
-        if len(index) == self.ndim or Ellipsis in index:
-            if not (index[-1] == Ellipsis or index[-1] == slice(None)):
+        if len(index) == self.ndim or type(Ellipsis) in map(type, index):
+            if not (type(index[-1]) == type(Ellipsis) or index[-1] == slice(None)):
                 raise IndexError("IrrepsArray does not support indexing of the last dimension (irreps dimension)")
         return IrrepsArray(
             self.irreps,
