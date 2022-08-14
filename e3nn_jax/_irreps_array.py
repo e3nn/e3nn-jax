@@ -232,13 +232,35 @@ class IrrepsArray:
     def __getitem__(self, index) -> "IrrepsArray":
         if not isinstance(index, tuple):
             index = (index,)
-        if len(index) == self.ndim or type(Ellipsis) in map(type, index):
-            if not (type(index[-1]) == type(Ellipsis) or index[-1] == slice(None)):
-                raise IndexError("IrrepsArray does not support indexing of the last dimension (irreps dimension)")
+
+        def is_ellipse(x):
+            return type(x) == type(Ellipsis)
+
+        def is_none_slice(x):
+            return isinstance(x, slice) and x == slice(None)
+
+        # Handle x[..., "1e"] and x[:, :, "1e"]
+        if isinstance(index[-1], (Irreps, str)):
+            if not (any(map(is_ellipse, index[:-1])) or len(index) == self.ndim):
+                raise ValueError("Irreps index must be the last index")
+
+            irreps = Irreps(index[-1])
+            if len(irreps) != 1:
+                raise ValueError('Only support indexing of a single "mul x ir"')
+            if list(self.irreps).count(irreps[0]) != 1:
+                raise ValueError(f"Can't slice with {irreps} because it doesn't appear exactly once in {self.irreps}")
+
+            i = list(self.irreps).index(irreps[0])
+            index = index[:-1] + (slice(None),)
+            return IrrepsArray.from_list(irreps, self.list[i : i + 1], self.shape[:-1])[index]
+
+        if len(index) == self.ndim or any(map(is_ellipse, index)):
+            if not (is_ellipse(index[-1]) or is_none_slice(index[-1])):
+                raise IndexError('Indexing of the last dimension of an IrrepsArray is restricted to "mul x ir"')
         return IrrepsArray(
             self.irreps,
             array=self.array[index],
-            list=[None if x is None else x[index] for x in self.list],
+            list=[None if x is None else x[index + (slice(None),)] for x in self.list],
         )
 
     def __eq__(self, other: object) -> "IrrepsArray":

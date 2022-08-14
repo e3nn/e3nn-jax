@@ -30,3 +30,13 @@ def test_convert():
     b = e3nn.IrrepsArray.from_list(b.irreps, b.list, b.shape[:-1])
 
     np.testing.assert_allclose(a.array, b.array)
+
+
+def test_indexing():
+    x = e3nn.IrrepsArray("2x0e + 1x0e", jnp.array([[1.0, 2, 3], [4.0, 5, 6]]))
+    assert x.shape == (2, 3)
+    assert jnp.allclose(x[0].array, jnp.array([1.0, 2, 3]))
+    assert jnp.allclose(x[1, "1x0e"].array, jnp.array([6.0]))
+    assert jnp.allclose(x[:, "1x0e"].array, jnp.array([[3.0], [6.0]]))
+    assert jnp.allclose(x[..., "1x0e"].array, jnp.array([[3.0], [6.0]]))
+    assert jnp.allclose(x[..., 1, "1x0e"].array, jnp.array([6.0]))
