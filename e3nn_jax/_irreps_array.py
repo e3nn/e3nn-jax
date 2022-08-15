@@ -1,4 +1,6 @@
 import math
+import operator
+import warnings
 from typing import List, Optional, Tuple, Union
 
 import jax
@@ -512,36 +514,8 @@ class IrrepsArray:
 
     @staticmethod
     def cat(args, axis=-1) -> "IrrepsArray":
-        r"""Concatenate IrrepsArray
-
-        Args:
-            args (list of `IrrepsArray`): list of data to concatenate
-            axis (int): axis to concatenate on
-
-        Returns:
-            `IrrepsArray`: concatenated data
-        """
-        assert len(args) >= 1
-        assert isinstance(axis, int)
-
-        while axis < 0:
-            axis += args[0].ndim
-
-        if axis == args[0].ndim - 1:
-            irreps = Irreps(sum([x.irreps for x in args], Irreps("")))
-            return IrrepsArray(
-                irreps=irreps,
-                array=jnp.concatenate([x.array for x in args], axis=-1),
-                list=sum([x.list for x in args], []),
-            )
-
-        assert {x.irreps for x in args} == {args[0].irreps}
-        args = [x.replace_none_with_zeros() for x in args]  # TODO this could be optimized
-        return IrrepsArray(
-            irreps=args[0].irreps,
-            array=jnp.concatenate([x.array for x in args], axis=axis),
-            list=[jnp.concatenate(xs, axis=axis) for xs in zip(*[x.list for x in args])],
-        )
+        warnings.warn("IrrepsArray.cat is deprecated, use e3nn.concatenate instead", DeprecationWarning)
+        return concatenate(args, axis=axis)
 
     @staticmethod
     def randn(irreps, key, leading_shape=(), *, normalization=None):
@@ -555,3 +529,77 @@ jax.tree_util.register_pytree_node(
     lambda x: ((x.array, x.list), x.irreps),
     lambda x, data: IrrepsArray(irreps=x, array=data[0], list=data[1], _perform_checks=False),
 )
+
+
+def _standardize_axis(axis, ndim):
+    if axis is None:
+        return tuple(range(ndim))
+    try:
+        axis = (operator.index(axis),)
+    except TypeError:
+        axis = tuple(operator.index(i) for i in axis)
+
+    assert all(-ndim <= i < ndim for i in axis)
+    axis = tuple(i % ndim for i in axis)
+
+    return tuple(sorted(set(axis)))
+
+
+def _reduce(op, array: IrrepsArray, axis=None, keepdims=False):
+    axis = _standardize_axis(axis, array.ndim)
+    if axis[-1] < array.ndim - 1:
+        # irrep dimension is not affected by mean
+        return IrrepsArray(
+            array.irreps,
+            op(array.array, axis=axis, keepdims=keepdims),
+            [None if x is None else op(x, axis=axis, keepdims=keepdims) for x in array.list],
+        )
+
+    array = _reduce(op, array, axis=axis[:-1], keepdims=keepdims)
+    return IrrepsArray.from_list(
+        Irreps([(1, ir) for _, ir in array.irreps]),
+        [None if x is None else op(x, axis=-2, keepdims=True) for x in array.list],
+    )
+
+
+def mean(array: IrrepsArray, axis=None, keepdims=False) -> IrrepsArray:
+    """Mean of IrrepsArray along the specified axis."""
+    return _reduce(jnp.mean, array, axis, keepdims)
+
+
+def sum(array: IrrepsArray, axis=None, keepdims=False) -> IrrepsArray:
+    """Sum of IrrepsArray along the specified axis."""
+    return _reduce(jnp.sum, array, axis, keepdims)
+
+
+def concatenate(arrays, axis=-1) -> "IrrepsArray":
+    r"""Concatenate a list of IrrepsArray
+
+    Args:
+        arrays (list of `IrrepsArray`): list of data to concatenate
+        axis (int): axis to concatenate on
+
+    Returns:
+        concatenated `IrrepsArray`
+    """
+    assert len(arrays) >= 1
+    assert isinstance(axis, int)
+    assert -arrays[0].ndim <= axis < arrays[0].ndim
+
+    axis = axis % arrays[0].ndim
+
+    if axis == arrays[0].ndim - 1:
+        irreps = Irreps(sum([x.irreps for x in arrays], Irreps("")))
+        return IrrepsArray(
+            irreps=irreps,
+            array=jnp.concatenate([x.array for x in arrays], axis=-1),
+            list=sum([x.list for x in arrays], []),
+        )
+
+    assert {x.irreps for x in arrays} == {arrays[0].irreps}
+    arrays = [x.replace_none_with_zeros() for x in arrays]  # TODO this could be optimized
+    return IrrepsArray(
+        irreps=arrays[0].irreps,
+        array=jnp.concatenate([x.array for x in arrays], axis=axis),
+        list=[jnp.concatenate(xs, axis=axis) for xs in zip(*[x.list for x in arrays])],
+    )
