@@ -559,6 +559,7 @@ def _reduce(op, array: IrrepsArray, axis=None, keepdims=False):
     return IrrepsArray.from_list(
         Irreps([(1, ir) for _, ir in array.irreps]),
         [None if x is None else op(x, axis=-2, keepdims=True) for x in array.list],
+        array.shape[:-1],
     )
 
 
