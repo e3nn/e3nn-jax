@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simple irreps indexing of `IrrepsArray`: like `x[..., "10x0e"]` but not `x[..., "0e + 1e"]`
 - `e3nn.concatenate, e3nn.mean, e3nn.sum`
 - `e3nn.norm` for `IrrepsArray`
+- `e3nn.tensor_product`
 
 ### Removed
 - `IrrepsArray.cat` is now deprecated and replaced by `e3nn.concatenate`
+- `e3nn.full_tensor_product` is now deprecated and replaced by `e3nn.tensor_product`
+- `e3nn.FullyConnectedTensorProduct` is now deprecated in favor of `e3nn.tensor_product` and `e3nn.Linear`
 
 ## [0.8.0] - 2022-08-11
 ### Changed

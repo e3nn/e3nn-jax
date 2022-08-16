@@ -1,3 +1,4 @@
+import warnings
 from typing import List, Optional
 
 import haiku as hk
@@ -60,6 +61,11 @@ class FullyConnectedTensorProduct(hk.Module):
     def __init__(self, irreps_out, *, irreps_in1=None, irreps_in2=None):
         super().__init__()
 
+        warnings.warn(
+            "e3nn.FullyConnectedTensorProduct is deprecated. Use e3nn.tensor_product followed by e3nn.Linear instead.",
+            DeprecationWarning,
+        )
+
         self.irreps_out = Irreps(irreps_out)
         self.irreps_in1 = Irreps(irreps_in1) if irreps_in1 is not None else None
         self.irreps_in2 = Irreps(irreps_in2) if irreps_in2 is not None else None
@@ -90,10 +96,22 @@ class FullyConnectedTensorProduct(hk.Module):
         return output.convert(self.irreps_out)
 
 
-@overload_for_irreps_without_array((0, 1))
 def full_tensor_product(
     input1: IrrepsArray,
     input2: IrrepsArray,
+    filter_ir_out: Optional[List[Irrep]] = None,
+    irrep_normalization: Optional[str] = None,
+):
+    warnings.warn("e3nn.full_tensor_product is deprecated. Use e3nn.tensor_product instead.", DeprecationWarning)
+
+    return tensor_product(input1, input2, filter_ir_out, irrep_normalization)
+
+
+@overload_for_irreps_without_array((0, 1))
+def tensor_product(
+    input1: IrrepsArray,
+    input2: IrrepsArray,
+    *,
     filter_ir_out: Optional[List[Irrep]] = None,
     irrep_normalization: Optional[str] = None,
 ):
