@@ -509,8 +509,13 @@ class IrrepsArray:
 
     def __truediv__(self, other) -> "IrrepsArray":
         other = jnp.array(other)
-        list = [None if x is None else x / other[..., None, None] for x in self.list]
-        return IrrepsArray(irreps=self.irreps, array=self.array / other[..., None], list=list)
+        if self.irreps.lmax > 0 and other.ndim > 0 and other.shape[-1] != 1:
+            raise ValueError(
+                f"Tying to divide an IrrepArray of shape {self.shape} ({self.shape[-1]}=dim({self.irreps}))"
+                f" with an array of shape {other.shape}"
+            )
+        list = [None if x is None else x / other[..., None] for x in self.list]
+        return IrrepsArray(irreps=self.irreps, array=self.array / other, list=list)
 
     @staticmethod
     def cat(args, axis=-1) -> "IrrepsArray":
