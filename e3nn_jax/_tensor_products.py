@@ -104,7 +104,7 @@ def full_tensor_product(
 ):
     warnings.warn("e3nn.full_tensor_product is deprecated. Use e3nn.tensor_product instead.", DeprecationWarning)
 
-    return tensor_product(input1, input2, filter_ir_out, irrep_normalization)
+    return tensor_product(input1, input2, filter_ir_out=filter_ir_out, irrep_normalization=irrep_normalization)
 
 
 @overload_for_irreps_without_array((0, 1))
