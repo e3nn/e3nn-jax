@@ -608,3 +608,18 @@ def concatenate(arrays, axis=-1) -> "IrrepsArray":
         array=jnp.concatenate([x.array for x in arrays], axis=axis),
         list=[jnp.concatenate(xs, axis=axis) for xs in zip(*[x.list for x in arrays])],
     )
+
+
+def norm(array: IrrepsArray, *, squared=False) -> IrrepsArray:
+    """Norm of IrrepsArray."""
+    def f(x):
+        x = jnp.sum(x ** 2, axis=-1, keepdims=True)
+        if not squared:
+            x = jnp.sqrt(x)
+        return x
+
+    return IrrepsArray.from_list(
+        [(mul, "0e") for mul, _ in array.irreps],
+        [f(x) for x in array.list],
+        array.shape[:-1],
+    )

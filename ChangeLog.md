@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Simple irreps indexing of `IrrepsArray`: like `x[..., "10x0e"]` but not `x[..., "0e + 1e"]`
 - `e3nn.concatenate, e3nn.mean, e3nn.sum`
+- `e3nn.norm` for `IrrepsArray`
 
 ### Removed
 - `IrrepsArray.cat` is now deprecated and replaced by `e3nn.concatenate`
