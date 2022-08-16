@@ -1,6 +1,7 @@
 import collections
 import dataclasses
 import itertools
+import warnings
 from functools import partial
 from typing import List
 
@@ -386,6 +387,7 @@ class Irreps(tuple):
             >>> jnp.max(jnp.abs(jnp.linalg.norm(random_tensor, axis=1) - 1)) < 1e-5
             DeviceArray(True, dtype=bool)
         """
+        warnings.warn("Irreps.randn is deprecated, use e3nn.normal instead", DeprecationWarning)
         di = size.index(-1)
         lsize = size[:di]
         rsize = size[di + 1 :]
@@ -598,6 +600,10 @@ class Irreps(tuple):
         Returns:
             ``jnp.ndarray``
         """
+        warnings.warn(
+            "Irreps.transform_by_angles is deprecated, use IrrepsArray.transform_by_angles instead", DeprecationWarning
+        )
+
         assert array.shape[-1] == self.dim
         D = self.D_from_angles(alpha, beta, gamma, k)
         return jnp.einsum("ij,...j", D, array)
@@ -623,6 +629,10 @@ class Irreps(tuple):
             ... ) + 0.0
             DeviceArray([ 1.,  0., -1.,  0.,  0.,  0.,  1.,  0.,  0.], dtype=float32)
         """
+        warnings.warn(
+            "Irreps.transform_by_quaternion is deprecated, use IrrepsArray.transform_by_quaternion instead", DeprecationWarning
+        )
+
         return self.transform_by_angles(array, *quaternion_to_angles(q), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
@@ -638,6 +648,10 @@ class Irreps(tuple):
         Returns:
             ``jnp.ndarray``
         """
+        warnings.warn(
+            "Irreps.transform_by_axis_angle is deprecated, use IrrepsArray.transform_by_axis_angle instead", DeprecationWarning
+        )
+
         return self.transform_by_angles(array, *axis_angle_to_angles(axis, angle), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
@@ -651,6 +665,10 @@ class Irreps(tuple):
         Returns:
             ``jnp.ndarray``
         """
+        warnings.warn(
+            "Irreps.transform_by_matrix is deprecated, use IrrepsArray.transform_by_matrix instead", DeprecationWarning
+        )
+
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
         k = (1 - d) / 2

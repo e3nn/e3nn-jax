@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import jax.scipy
 import numpy as np
 
-from e3nn_jax import Irreps, axis_angle_to_angles, matrix_to_angles, quaternion_to_angles
+from e3nn_jax import Irreps, axis_angle_to_angles, matrix_to_angles, quaternion_to_angles, config
 
 
 class IrrepsArray:
@@ -519,9 +519,8 @@ class IrrepsArray:
 
     @staticmethod
     def randn(irreps, key, leading_shape=(), *, normalization=None):
-        irreps = Irreps(irreps)
-        x = irreps.randn(key, leading_shape + (-1,), normalization=normalization)
-        return IrrepsArray(irreps, x)
+        warnings.warn("IrrepsArray.randn is deprecated, use e3nn.normal instead", DeprecationWarning)
+        return normal(irreps, key, leading_shape=leading_shape, normalization=normalization)
 
 
 jax.tree_util.register_pytree_node(
@@ -624,3 +623,26 @@ def norm(array: IrrepsArray, *, squared=False) -> IrrepsArray:
         [f(x) for x in array.list],
         array.shape[:-1],
     )
+
+
+def normal(
+    irreps: Irreps, key: jnp.ndarray, leading_shape: Tuple[int, ...] = (), *, normalization: bool = None
+) -> IrrepsArray:
+    r"""Random array with normal distribution."""
+    irreps = Irreps(irreps)
+
+    if normalization is None:
+        normalization = config("irrep_normalization")
+
+    if normalization == "component":
+        return IrrepsArray(irreps, jax.random.normal(key, leading_shape + (irreps.dim,)))
+    elif normalization == "norm":
+        list = []
+        for mul, ir in irreps:
+            key, k = jax.random.split(key)
+            r = jax.random.normal(k, leading_shape + (mul, ir.dim))
+            r = r / jnp.linalg.norm(r, axis=-1, keepdims=True)
+            list.append(r)
+        return IrrepsArray.from_list(irreps, list, leading_shape)
+    else:
+        raise ValueError("Normalization needs to be 'norm' or 'component'")

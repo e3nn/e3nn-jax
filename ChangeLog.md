@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.concatenate, e3nn.mean, e3nn.sum`
 - `e3nn.norm` for `IrrepsArray`
 - `e3nn.tensor_product`
+- `e3nn.normal`
 
 ### Removed
 - `IrrepsArray.cat` is now deprecated and replaced by `e3nn.concatenate`
