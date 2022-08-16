@@ -6,11 +6,8 @@ What is ``e3nn-jax``?
 
 ``e3nn-jax`` is a python library based on jax_ to create equivariant neural networks for the group :math:`O(3)`.
 
-
-Irreps
-------
-
-If two tensors :math:`x` and :math:`y` transforms as :math:`D_x = 2 \times 1_o` (two vectors) and :math:`D_y = 0_e + 1_e` (a scalar and a pseudovector) respectively, where the indices :math:`e` and :math:`o` stand for even and odd -- the representation of parity,
+Example
+-------
 
 .. jupyter-execute::
     :hide-code:
@@ -18,11 +15,54 @@ If two tensors :math:`x` and :math:`y` transforms as :math:`D_x = 2 \times 1_o` 
     import jax
     jax.numpy.set_printoptions(precision=3, suppress=True)
 
+``e3nn-jax`` contains many tools to manipulate irreps of the group :math:`O(3)`.
+
 .. jupyter-execute::
 
     import jax
     import jax.numpy as jnp
     import e3nn_jax as e3nn
+
+    # Create a vector and compute its tensor product
+    x = e3nn.IrrepsArray("1o", jnp.array([1.0, 2.0, 0.0]))
+    y = e3nn.tensor_product(x, x)
+    print(y)
+    print(e3nn.norm(y))
+
+And contains haiku modules to make learnable neural networks.
+
+.. jupyter-execute::
+
+    import haiku as hk
+
+    # Create a neural network
+    @hk.without_apply_rng
+    @hk.transform
+    def net(x, f):
+        # the inputs and outputs are all of type e3nn.IrrepsArray
+        Y = e3nn.spherical_harmonics([0, 1, 2], x, False)
+        f = e3nn.tensor_product(Y, f)
+        return e3nn.Linear("0e + 0o + 1o")(f)
+
+    # Create random inputs
+    f = e3nn.normal("4x0e + 1o + 1e", jax.random.PRNGKey(0), (16,))
+    print(f"feature vector: {f.shape}")
+
+    # Initialize the neural network
+    w = net.init(jax.random.PRNGKey(0), x, f)
+    print(jax.tree_util.tree_map(jnp.shape, w))
+
+    # Evaluate the neural network
+    f = net.apply(w, x, f)
+    print(f"feature vector: {f.shape}")
+
+
+Irreps
+------
+
+If two tensors :math:`x` and :math:`y` transforms as :math:`D_x = 2 \times 1_o` (two vectors) and :math:`D_y = 0_e + 1_e` (a scalar and a pseudovector) respectively, where the indices :math:`e` and :math:`o` stand for even and odd -- the representation of parity,
+
+.. jupyter-execute::
 
     irreps_x = e3nn.Irreps("2x1o")
     irreps_y = e3nn.Irreps("0e + 1e")
