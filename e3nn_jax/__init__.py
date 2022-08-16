@@ -35,7 +35,8 @@ from ._su2 import su2_clebsch_gordan, su2_generators
 from ._so3 import clebsch_gordan, wigner_D, generators
 from ._instruction import Instruction
 from ._irreps import Irrep, MulIrrep, Irreps
-from ._irreps_array import IrrepsArray, concatenate, mean, sum
+from ._irreps_array import IrrepsArray, concatenate, mean
+from ._irreps_array import sum_ as sum
 from ._spherical_harmonics import spherical_harmonics, sh, legendre
 from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
 from ._linear import FunctionalLinear, Linear

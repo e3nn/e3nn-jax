@@ -547,6 +547,10 @@ def _standardize_axis(axis, ndim):
 
 def _reduce(op, array: IrrepsArray, axis=None, keepdims=False):
     axis = _standardize_axis(axis, array.ndim)
+
+    if axis == ():
+        return array
+
     if axis[-1] < array.ndim - 1:
         # irrep dimension is not affected by mean
         return IrrepsArray(
@@ -568,7 +572,7 @@ def mean(array: IrrepsArray, axis=None, keepdims=False) -> IrrepsArray:
     return _reduce(jnp.mean, array, axis, keepdims)
 
 
-def sum(array: IrrepsArray, axis=None, keepdims=False) -> IrrepsArray:
+def sum_(array: IrrepsArray, axis=None, keepdims=False) -> IrrepsArray:
     """Sum of IrrepsArray along the specified axis."""
     return _reduce(jnp.sum, array, axis, keepdims)
 

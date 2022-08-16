@@ -40,3 +40,13 @@ def test_indexing():
     assert jnp.allclose(x[:, "1x0e"].array, jnp.array([[3.0], [6.0]]))
     assert jnp.allclose(x[..., "1x0e"].array, jnp.array([[3.0], [6.0]]))
     assert jnp.allclose(x[..., 1, "1x0e"].array, jnp.array([6.0]))
+
+
+def test_reductions():
+    x = e3nn.IrrepsArray("2x0e + 1x1e", jnp.array([[1.0, 2, 3, 4, 5], [4.0, 5, 6, 6, 6]]))
+    assert e3nn.sum(x).irreps == "0e + 1e"
+    np.testing.assert_allclose(e3nn.sum(x).array, jnp.array([12.0, 9, 10, 11]))
+    np.testing.assert_allclose(e3nn.sum(x, axis=0).array, jnp.array([5.0, 7, 9, 10, 11]))
+    np.testing.assert_allclose(e3nn.sum(x, axis=1).array, jnp.array([[3.0, 3, 4, 5], [9.0, 6, 6, 6]]))
+
+    np.testing.assert_allclose(e3nn.mean(x, axis=1).array, jnp.array([[1.5, 3, 4, 5], [4.5, 6, 6, 6]]))
