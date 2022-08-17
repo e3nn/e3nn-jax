@@ -1,8 +1,8 @@
+import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
 import numpy as np
-
-import e3nn_jax as e3nn
+import pytest
 
 
 def test_convert():
@@ -50,3 +50,37 @@ def test_reductions():
     np.testing.assert_allclose(e3nn.sum(x, axis=1).array, jnp.array([[3.0, 3, 4, 5], [9.0, 6, 6, 6]]))
 
     np.testing.assert_allclose(e3nn.mean(x, axis=1).array, jnp.array([[1.5, 3, 4, 5], [4.5, 6, 6, 6]]))
+
+
+def test_operators():
+    x = e3nn.IrrepsArray("2x0e + 1x1e", jnp.array([[1.0, 2, 3, 4, 5], [4.0, 5, 6, 6, 6]]))
+    y = e3nn.IrrepsArray("2x0e + 1x1o", jnp.array([[1.0, 2, 3, 4, 5], [4.0, 5, 6, 6, 6]]))
+
+    with pytest.raises(ValueError):
+        x + 1
+
+    e3nn.norm(x) + 1
+
+    assert (x + x).shape == x.shape
+
+    with pytest.raises(ValueError):
+        x + y
+
+    assert (x - x).shape == x.shape
+
+    with pytest.raises(ValueError):
+        x - y
+
+    assert (x * 2.0).shape == x.shape
+    assert (x / 2.0).shape == x.shape
+    assert (x * jnp.array([[2], [3.0]])).shape == x.shape
+
+    with pytest.raises(ValueError):
+        x * jnp.array([1.0, 2.0, 3.0, 4.0, 5.0])
+
+    with pytest.raises(ValueError):
+        1.0 / x
+
+    1.0 / e3nn.norm(x)
+
+    np.testing.assert_allclose(e3nn.norm(x / e3nn.norm(x)).array, 1)
