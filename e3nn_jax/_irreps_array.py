@@ -243,7 +243,7 @@ class IrrepsArray:
             return isinstance(x, slice) and x == slice(None)
 
         # Handle x[..., "1e"] and x[:, :, "1e"]
-        if isinstance(index[-1], (Irreps, str)):
+        if isinstance(index[-1], (e3nn.Irrep, e3nn.MulIrrep, Irreps, str)):
             if not (any(map(is_ellipse, index[:-1])) or len(index) == self.ndim):
                 raise ValueError("Irreps index must be the last index")
 
