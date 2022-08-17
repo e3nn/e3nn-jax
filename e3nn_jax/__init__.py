@@ -59,13 +59,12 @@ from ._graph_util import index_add, radius_graph
 from ._poly_envelope import poly_envelope
 
 __all__ = [
-    "config",
+    "config",  # not in docs
     "rand_matrix",
     "identity_angles",
     "rand_angles",
     "compose_angles",
     "inverse_angles",
-    "Instruction",
     "identity_quaternion",
     "rand_quaternion",
     "compose_quaternion",
@@ -89,13 +88,14 @@ __all__ = [
     "axis_angle_to_angles",
     "angles_to_xyz",
     "xyz_to_angles",
-    "su2_clebsch_gordan",
-    "su2_generators",
+    "su2_clebsch_gordan",  # not in docs
+    "su2_generators",  # not in docs
     "clebsch_gordan",
-    "wigner_D",
-    "generators",
+    "wigner_D",  # TODO could be moved into Irrep
+    "generators",  # TODO could be moved into Irrep
+    "Instruction",  # not in docs
     "Irrep",
-    "MulIrrep",
+    "MulIrrep",  # not in docs
     "Irreps",
     "IrrepsArray",
     "concatenate",
@@ -105,18 +105,18 @@ __all__ = [
     "sum",
     "spherical_harmonics",
     "sh",
-    "legendre",
+    "legendre",  # not in docs
     "sus",
     "soft_one_hot_linspace",
-    "FunctionalLinear",
+    "FunctionalLinear",  # not in docs
     "Linear",
     "FunctionalTensorProduct",
-    "FunctionalFullyConnectedTensorProduct",
-    "FullyConnectedTensorProduct",
-    "full_tensor_product",
+    "FunctionalFullyConnectedTensorProduct",  # deprecated
+    "FullyConnectedTensorProduct",  # deprecated
+    "full_tensor_product",  # deprecated
     "tensor_product",
     "elementwise_tensor_product",
-    "FunctionalTensorSquare",
+    "FunctionalTensorSquare",  # not in docs
     "TensorSquare",
     "scalar_activation",
     "normalize_function",
