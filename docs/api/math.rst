@@ -2,94 +2,94 @@ Primitive Math Functions
 ========================
 
 
-.. autofunction:: rand_matrix
+.. autofunction:: e3nn_jax.rand_matrix
 
 
-.. autofunction:: identity_angles
+.. autofunction:: e3nn_jax.identity_angles
 
 
-.. autofunction:: rand_angles
+.. autofunction:: e3nn_jax.rand_angles
 
 
-.. autofunction:: compose_angles
+.. autofunction:: e3nn_jax.compose_angles
 
 
-.. autofunction:: inverse_angles
+.. autofunction:: e3nn_jax.inverse_angles
 
 
-.. autofunction:: identity_quaternion
+.. autofunction:: e3nn_jax.identity_quaternion
 
 
-.. autofunction:: rand_quaternion
+.. autofunction:: e3nn_jax.rand_quaternion
 
 
-.. autofunction:: compose_quaternion
+.. autofunction:: e3nn_jax.compose_quaternion
 
 
-.. autofunction:: inverse_quaternion
+.. autofunction:: e3nn_jax.inverse_quaternion
 
 
-.. autofunction:: rand_axis_angle
+.. autofunction:: e3nn_jax.rand_axis_angle
 
 
-.. autofunction:: compose_axis_angle
+.. autofunction:: e3nn_jax.compose_axis_angle
 
 
-.. autofunction:: matrix_x
+.. autofunction:: e3nn_jax.matrix_x
 
 
-.. autofunction:: matrix_y
+.. autofunction:: e3nn_jax.matrix_y
 
 
-.. autofunction:: matrix_z
+.. autofunction:: e3nn_jax.matrix_z
 
 
-.. autofunction:: angles_to_matrix
+.. autofunction:: e3nn_jax.angles_to_matrix
 
 
-.. autofunction:: matrix_to_angles
+.. autofunction:: e3nn_jax.matrix_to_angles
 
 
-.. autofunction:: angles_to_quaternion
+.. autofunction:: e3nn_jax.angles_to_quaternion
 
 
-.. autofunction:: matrix_to_quaternion
+.. autofunction:: e3nn_jax.matrix_to_quaternion
 
 
-.. autofunction:: axis_angle_to_quaternion
+.. autofunction:: e3nn_jax.axis_angle_to_quaternion
 
 
-.. autofunction:: quaternion_to_axis_angle
+.. autofunction:: e3nn_jax.quaternion_to_axis_angle
 
 
-.. autofunction:: matrix_to_axis_angle
+.. autofunction:: e3nn_jax.matrix_to_axis_angle
 
 
-.. autofunction:: angles_to_axis_angle
+.. autofunction:: e3nn_jax.angles_to_axis_angle
 
 
-.. autofunction:: axis_angle_to_matrix
+.. autofunction:: e3nn_jax.axis_angle_to_matrix
 
 
-.. autofunction:: quaternion_to_matrix
+.. autofunction:: e3nn_jax.quaternion_to_matrix
 
 
-.. autofunction:: quaternion_to_angles
+.. autofunction:: e3nn_jax.quaternion_to_angles
 
 
-.. autofunction:: axis_angle_to_angles
+.. autofunction:: e3nn_jax.axis_angle_to_angles
 
 
-.. autofunction:: angles_to_xyz
+.. autofunction:: e3nn_jax.angles_to_xyz
 
 
-.. autofunction:: xyz_to_angles
+.. autofunction:: e3nn_jax.xyz_to_angles
 
 
-.. autofunction:: e3nn_jax.clebsch_gordan
+.. autofunction:: e3nn_jax.e3nn_jax.clebsch_gordan
 
 
-.. autofunction:: e3nn_jax.wigner_D
+.. autofunction:: e3nn_jax.e3nn_jax.wigner_D
 
 
-.. autofunction:: e3nn_jax.generators
+.. autofunction:: e3nn_jax.e3nn_jax.generators

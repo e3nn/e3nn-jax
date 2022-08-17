@@ -22,6 +22,6 @@ Operations
     :members:
 
 
-.. autoclass:: TensorSquare
+.. autoclass:: e3nn_jax.TensorSquare
     :members:
 

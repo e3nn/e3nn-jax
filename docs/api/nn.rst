@@ -2,17 +2,17 @@ Neural Network Functions
 ========================
 
 
-.. autofunction:: gate
+.. autofunction:: e3nn_jax.gate
 
 
-.. autoclass:: BatchNorm
+.. autoclass:: e3nn_jax.BatchNorm
     :members:
 
 
-.. autoclass:: Dropout
+.. autoclass:: e3nn_jax.Dropout
     :members:
 
 
-.. autoclass:: MultiLayerPerceptron
+.. autoclass:: e3nn_jax.MultiLayerPerceptron
     :members:
 
