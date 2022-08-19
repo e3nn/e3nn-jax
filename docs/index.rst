@@ -67,8 +67,8 @@ If two tensors :math:`x` and :math:`y` transforms as :math:`D_x = 2 \times 1_o` 
     irreps_x = e3nn.Irreps("2x1o")
     irreps_y = e3nn.Irreps("0e + 1e")
 
-    x = irreps_x.randn(jax.random.PRNGKey(0), (-1,))
-    y = irreps_y.randn(jax.random.PRNGKey(1), (-1,))
+    x = e3nn.normal(irreps_x, jax.random.PRNGKey(0), ())
+    y = e3nn.normal(irreps_y, jax.random.PRNGKey(1), ())
 
     irreps_x.dim, irreps_y.dim
 
@@ -77,7 +77,7 @@ their outer product is a :math:`6 \times 4` matrix of two indices :math:`A_{ij} 
 
 .. jupyter-execute::
 
-    A = jnp.einsum("i,j", x, y)
+    A = jnp.einsum("i,j", x.array, y.array)
     A
 
 
@@ -103,11 +103,11 @@ Which can be represented by
     plt.imshow(jnp.kron(D_x, D_y), cmap="bwr", vmin=-1, vmax=1);
 
 
-This representation is not irreducible (is reducible). It can be decomposed into irreps by a change of basis. The outerproduct followed by the change of basis is done by the class `e3nn_jax.full_tensor_product`.
+This representation is not irreducible (is reducible). It can be decomposed into irreps by a change of basis. The outerproduct followed by the change of basis is done by the class `e3nn_jax.tensor_product`.
 
 .. jupyter-execute::
 
-    tp = e3nn.full_tensor_product(e3nn.IrrepsArray(irreps_x, x), e3nn.IrrepsArray(irreps_y, y))
+    tp = e3nn.tensor_product(x, y)
     tp
 
 
@@ -118,8 +118,6 @@ As a sanity check, we can verify that the representation of the tensor prodcut i
     D = tp.irreps.D_from_matrix(R)
     plt.imshow(D, cmap="bwr", vmin=-1, vmax=1);
 
-
-`e3nn_jax.full_tensor_product` is a special case of `e3nn_jax.FunctionalTensorProduct`, other ones like `e3nn_jax.FullyConnectedTensorProduct` can contained weights what can be learned, very useful to create neural networks.
 
 
 jax jit capabilities
@@ -204,6 +202,16 @@ It rely on the ``jax.jit`` compiler because it contains both a ``array`` and a `
     ))
     x
 
+.. jupyter-execute::
+
+    y = e3nn.IrrepsArray("0o + 2x0e", jnp.array(
+        [
+            [1.5,  0.0, 1.0],
+            [0.5, -1.0, 2.0],
+            [0.5,  1.0, 1.5],
+        ]
+    ))
+
 The irrep index is always the last index.
 
 .. jupyter-execute::
@@ -211,30 +219,94 @@ The irrep index is always the last index.
     assert x.irreps.dim == x.shape[-1]
     x.shape
 
-The list contains the data split into different arrays.
+`e3nn_jax.IrrepsArray` handles binary operations:
 
 .. jupyter-execute::
 
-    jax.tree_util.tree_map(lambda x: x.shape, x.list)
-
-Here is the example of the tensor product of the two vectors.
+    x + x
 
 .. jupyter-execute::
 
-    out = e3nn.full_tensor_product(
-        e3nn.IrrepsArray("1o", jnp.array([2.0, 0.0, 0.0])),
-        e3nn.IrrepsArray("1o", jnp.array([0.0, 2.0, 0.0]))
-    )
-    out
-
-The output is an `e3nn_jax.IrrepsArray` object and therefore also contains a ``list`` representation of the data.
+    2.0 * x
 
 .. jupyter-execute::
 
-    out.list
+    x / 2.0
 
-The two fields `array` and `list` contain the same information under different forms.
-This is not a performence issue, we rely on `jax.jit` to ignore the dead code.
+.. jupyter-execute::
+
+    x * y
+
+.. jupyter-execute::
+
+    x / y
+
+.. jupyter-execute::
+
+    1.0 / y
+
+.. jupyter-execute::
+
+    x == x
+
+Indexing:
+
+.. jupyter-execute::
+
+    x[0]
+
+.. jupyter-execute::
+
+    x[1, "1o"]
+
+.. jupyter-execute::
+
+    x[..., "1o"]
+
+.. jupyter-execute::
+
+    x[..., "2x0e + 1o"]
+
+Reductions:
+
+.. jupyter-execute::
+
+    e3nn.mean(y)
+
+.. jupyter-execute::
+
+    e3nn.sum(x)
+
+.. jupyter-execute::
+
+    e3nn.sum(x, axis=0)
+
+.. jupyter-execute::
+
+    e3nn.sum(x, axis=1)
+
+And other operations:
+
+.. jupyter-execute::
+
+    e3nn.concatenate([x, x], axis=0)
+
+.. jupyter-execute::
+
+    e3nn.concatenate([x, y], axis=1)
+
+.. jupyter-execute::
+
+    x.reshape((1, 3, -1))
+
+.. jupyter-execute::
+
+    x1, x2, x3 = x
+    x1
+
+
+
+
 
 Tensor prodcut with weights
 ---------------------------
@@ -252,15 +324,15 @@ We use ``dm-haiku`` to create parameterized modules.
     @hk.without_apply_rng
     @hk.transform
     def tp(x1, x2):
-        return e3nn.FullyConnectedTensorProduct("1e")(x1, x2)
+        return e3nn.Linear("1e")(e3nn.tensor_product(x1, x2))
 
 Note that the inputs irreps are not yet specified, ``"1e"`` here specify the output.
 Let's define two random inputs and initialize the parameters:
 
 .. jupyter-execute::
 
-    x1 = e3nn.IrrepsArray.randn("1e", jax.random.PRNGKey(0), (10,))
-    x2 = e3nn.IrrepsArray.randn("1e", jax.random.PRNGKey(1), (10,))
+    x1 = e3nn.normal("1e", jax.random.PRNGKey(0), (10,))
+    x2 = e3nn.normal("1e", jax.random.PRNGKey(1), (10,))
     w = tp.init(jax.random.PRNGKey(2), x1, x2)
 
 Now that we have the weights, we can use them to compute the output.
