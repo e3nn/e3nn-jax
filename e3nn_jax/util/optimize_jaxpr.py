@@ -5,6 +5,7 @@ import jax
 import numpy as np
 from jax import linear_util as lu
 from jax.core import Atom, ClosedJaxpr, Jaxpr, Literal, Var, jaxpr_as_fun, JaxprEqn
+from jax.interpreters.xla import xla_call_p
 
 
 def curry(f):
@@ -19,8 +20,8 @@ def closed_jaxpr_transform_to_fn_transform(closed_jaxpr_transform, fn, *args):
     in_flat, in_tree = jax.tree_util.tree_flatten(args)
     f, out_tree = jax.flatten_fun_nokwargs(f, in_tree)
     closed_jaxpr = jax.make_jaxpr(f.call_wrapped)(*in_flat)
-    closed_jaxpr = closed_jaxpr_transform(closed_jaxpr)
-    out_flat = jaxpr_as_fun(closed_jaxpr)(*in_flat)
+    closed_jaxpr, input_indices = closed_jaxpr_transform(closed_jaxpr)
+    out_flat = jaxpr_as_fun(closed_jaxpr)(*[in_flat[i] for i in input_indices])
 
     return jax.tree_util.tree_unflatten(out_tree(), out_flat)
 
@@ -43,45 +44,44 @@ def replace_var(jaxpr: Jaxpr, old: Var, new: Var) -> List[JaxprEqn]:
     )
 
 
-def remove_deadcode(jaxpr: Jaxpr) -> ClosedJaxpr:
-    needed = set(jaxpr.outvars)
+def remove_deadcode(jaxpr: Jaxpr, output_indices=None) -> ClosedJaxpr:
+    if output_indices is None:
+        output_indices = range(len(jaxpr.outvars))
+
+    needed = set([jaxpr.outvars[i] for i in output_indices])
     eqns = []
 
     for eqn in reversed(jaxpr.eqns):
         if len(needed.intersection(eqn.outvars)) == 0:
             continue
 
+        if eqn.primitive in [xla_call_p]:
+            xla_call_jaxpr = eqn.params["call_jaxpr"]
+            xla_call_jaxpr, input_indices = remove_deadcode(
+                xla_call_jaxpr, [i for i, out in enumerate(eqn.outvars) if out in needed]
+            )
+            eqn = eqn.replace(
+                params={
+                    **eqn.params,
+                    "call_jaxpr": xla_call_jaxpr,
+                    "donated_invars": tuple(eqn.params["donated_invars"][i] for i in input_indices),
+                },
+                outvars=[out for out in eqn.outvars if out in needed],
+                invars=[inv for i, inv in enumerate(eqn.invars) if i in input_indices],
+            )
+
         eqns.insert(0, eqn)
 
-        for outvar in eqn.outvars:
-            if outvar in needed:
-                needed.remove(outvar)
         for invar in eqn.invars:
             if type(invar) is Var:
                 needed.add(invar)
 
     jaxpr = jaxpr.replace(eqns=eqns)
+    jaxpr = jaxpr.replace(outvars=[jaxpr.outvars[i] for i in output_indices])
+    input_indices = [i for i, invar in enumerate(jaxpr.invars) if invar in needed]
+    jaxpr = jaxpr.replace(invars=[invar for invar in jaxpr.invars if invar in needed])
 
-    # apply reccursively
-    jaxpr = jaxpr.replace(
-        eqns=[
-            eqn.replace(params={k: remove_deadcode(v) if type(v) is Jaxpr else v for k, v in eqn.params.items()})
-            for eqn in jaxpr.eqns
-        ]
-    )
-    jaxpr = jaxpr.replace(
-        eqns=[
-            eqn.replace(
-                params={
-                    k: v.replace(jaxpr=remove_deadcode(v.jaxpr)) if type(v) is ClosedJaxpr else v
-                    for k, v in eqn.params.items()
-                }
-            )
-            for eqn in jaxpr.eqns
-        ]
-    )
-
-    return jaxpr
+    return (jaxpr, input_indices)
 
 
 def remove_duplicate_constants(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:
@@ -168,9 +168,9 @@ def remove_duplicate_equations(jaxpr: Jaxpr, skip_first=0) -> ClosedJaxpr:
 def optimize_jaxpr(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:
     closed_jaxpr = remove_duplicate_constants(closed_jaxpr)
     jaxpr = closed_jaxpr.jaxpr
-    jaxpr = remove_deadcode(jaxpr)
+    jaxpr, input_indices = remove_deadcode(jaxpr)
     jaxpr = remove_duplicate_equations(jaxpr)
-    return closed_jaxpr.replace(jaxpr=jaxpr)
+    return closed_jaxpr.replace(jaxpr=jaxpr), input_indices
 
 
 reduce_compile_time = closed_jaxpr_transform_to_fn_transform(optimize_jaxpr)
