@@ -129,23 +129,7 @@ It can for instance get rid of the dead code:
 .. jupyter-execute::
     :hide-code:
 
-    def jit_code(f, *args, **kwargs):
-        c = jax.xla_computation(f)(*args, **kwargs)
-        backend = jax.lib.xla_bridge.get_backend()
-        e = backend.compile(c)
-        import jaxlib.xla_extension as xla_ext
-
-        option = xla_ext.HloPrintOptions.fingerprint()
-        option.print_operand_shape = False
-        option.print_result_shape = False
-        option.print_program_shape = True
-        code = e.hlo_modules()[0].to_string(option)
-
-        code = code.split("ENTRY")[1]
-        code = code.split("\n}")[0]
-        code = "\n".join(x[2:] for x in code.split("\n")[1:])
-
-        return code
+    from e3nn_jax.util.jit import jit_code
 
 .. jupyter-execute::
 
