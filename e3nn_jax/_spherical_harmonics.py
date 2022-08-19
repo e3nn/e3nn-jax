@@ -192,56 +192,10 @@ def _spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str
 
 
 @partial(jax.custom_jvp, nondiff_argnums=(0, 2, 3))
-@partial(jax.custom_vjp, nondiff_argnums=(0, 2, 3))
 def _custom_vjp_spherical_harmonics(
     ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
 ) -> List[jnp.ndarray]:
     return _spherical_harmonics(ls, x, normalization, algorithm)
-
-
-def _fwd(
-    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
-) -> Tuple[List[jnp.ndarray], List[jnp.ndarray]]:
-    js = tuple(max(0, l - 1) for l in ls)
-    output = _custom_vjp_spherical_harmonics(ls + js, x, normalization, algorithm)
-
-    return output[: len(ls)], output[len(ls) :]
-
-
-def _bwd(
-    ls: Tuple[int, ...], normalization: str, algorithm: Tuple[str], res: List[jnp.ndarray], grad: List[jnp.ndarray]
-) -> jnp.ndarray:
-    # algo in list with different code per L is faster to execute but very slow to compile!
-    # TODO implement a dense version of this. No list per l. Can use jax.lax.fori_loop
-    # TODO it could be max(ls) dependant. for max(ls) > 10, use a dense algorithm!
-
-    def h(l, r, g):
-        w = clebsch_gordan(l - 1, l, 1)
-        if normalization == "norm":
-            w *= ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
-        else:
-            w *= l**0.5 * (2 * l + 1)
-
-        if "dense" in algorithm:
-            return jnp.einsum("...i,...j,ijk->...k", r, g, w)
-        if "sparse" in algorithm:
-            return jnp.stack(
-                [
-                    sum(
-                        [
-                            w[i, j, k] * r[..., i] * g[..., j]
-                            for i in range(2 * l - 1)
-                            for j in range(2 * l + 1)
-                            if w[i, j, k] != 0
-                        ]
-                    )
-                    for k in range(3)
-                ],
-                axis=-1,
-            )
-        raise ValueError("Unknown algorithm: must be 'dense' or 'sparse'")
-
-    return (sum([h(l, r, g) if l > 0 else jnp.zeros_like(r, shape=r.shape[:-1] + (3,)) for l, r, g in zip(ls, res, grad)]),)
 
 
 def _jvp(
@@ -278,7 +232,6 @@ def _jvp(
     return out, [h(l, r) if l > 0 else jnp.zeros_like(r) for l, r in zip(ls, res)]
 
 
-_custom_vjp_spherical_harmonics.defvjp(_fwd, _bwd)
 _custom_vjp_spherical_harmonics.defjvp(_jvp)
 
 
