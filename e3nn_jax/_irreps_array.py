@@ -277,14 +277,13 @@ class IrrepsArray:
                 raise ValueError("Irreps index must be the last index")
 
             irreps = Irreps(index[-1])
-            if len(irreps) != 1:
-                raise ValueError('Only support indexing of a single "mul x ir"')
-            if list(self.irreps).count(irreps[0]) != 1:
-                raise ValueError(f"Can't slice with {irreps} because it doesn't appear exactly once in {self.irreps}")
 
-            i = list(self.irreps).index(irreps[0])
-            index = index[:-1] + (slice(None),)
-            return IrrepsArray.from_list(irreps, self.list[i : i + 1], self.shape[:-1])[index]
+            ii = [i for i in range(len(self.irreps)) if self.irreps[i : i + len(irreps)] == irreps]
+            if len(ii) != 1:
+                raise ValueError(f"Can't slice with {irreps} because it doesn't appear exactly once in {self.irreps}")
+            i = ii[0]
+
+            return IrrepsArray.from_list(irreps, self.list[i : i + len(irreps)], self.shape[:-1])[index[:-1] + (slice(None),)]
 
         if len(index) == self.ndim or any(map(is_ellipse, index)):
             if not (is_ellipse(index[-1]) or is_none_slice(index[-1])):

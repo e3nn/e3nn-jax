@@ -40,6 +40,7 @@ def test_indexing():
     assert jnp.allclose(x[:, "1x0e"].array, jnp.array([[3.0], [6.0]]))
     assert jnp.allclose(x[..., "1x0e"].array, jnp.array([[3.0], [6.0]]))
     assert jnp.allclose(x[..., 1, "1x0e"].array, jnp.array([6.0]))
+    assert jnp.allclose(x[..., 1, "2x0e + 1x0e"].array, jnp.array([4, 5, 6.0]))
 
 
 def test_reductions():
