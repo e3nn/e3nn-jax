@@ -10,7 +10,13 @@ from e3nn_jax.util import prod
 def grad(
     fun: Callable[[e3nn.IrrepsArray], e3nn.IrrepsArray],
 ) -> e3nn.IrrepsArray:
-    r"""Gradient of an equivariant function.
+    r"""Take the gradient of an equivariant function and reduce it into irreps.
+
+    Args:
+        fun: An equivariant function.
+
+    Returns:
+        The gradient of the function. Also an equivariant function.
 
     Examples:
         >>> jnp.set_printoptions(precision=3, suppress=True)
