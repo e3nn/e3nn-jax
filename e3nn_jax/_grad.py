@@ -13,10 +13,11 @@ def grad(
     r"""Gradient of an equivariant function.
 
     Examples:
-        >>> f = grad(lambda x: x)
+        >>> jnp.set_printoptions(precision=3, suppress=True)
+        >>> f = grad(lambda x: 0.5 * e3nn.norm(x, squared=True))
         >>> x = e3nn.IrrepsArray("1o", jnp.array([1.0, 2, 3]))
-        >>> f(x).irreps
-        0e+1e+2e
+        >>> f(x)
+        1x1o [1. 2. 3.]
     """
 
     def _grad(x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
