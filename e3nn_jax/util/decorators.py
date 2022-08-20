@@ -1,6 +1,7 @@
 import inspect
 from functools import wraps
 
+import jax
 from e3nn_jax import Irreps, IrrepsArray
 
 
@@ -20,7 +21,7 @@ def overload_for_irreps_without_array(irrepsarray_argnums=None, irrepsarray_argn
 
                 args = [IrrepsArray.ones(a, shape) if i in argnums else a for i, a in enumerate(args)]
                 kwargs = {k: IrrepsArray.ones(v, shape) if k in argnames else v for k, v in kwargs.items()}
-                output = func(*args, **kwargs)
+                output = jax.eval_shape(func, *args, **kwargs)
                 if isinstance(output, IrrepsArray):
                     return output.irreps
                 if isinstance(output, tuple):
