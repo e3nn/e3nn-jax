@@ -50,6 +50,7 @@ from ._tensor_products import (
     FunctionalTensorSquare,
     TensorSquare,
 )
+from ._grad import grad
 from ._activation import scalar_activation, normalize_function
 from ._gate import gate
 from ._batchnorm import BatchNorm
@@ -118,6 +119,7 @@ __all__ = [
     "elementwise_tensor_product",
     "FunctionalTensorSquare",  # not in docs
     "TensorSquare",
+    "grad",  # TODO: add to docs
     "scalar_activation",
     "normalize_function",
     "gate",

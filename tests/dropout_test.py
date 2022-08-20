@@ -23,7 +23,6 @@ def test_dropout(keys):
     assert ((y.array == (x.array / 0.25)) | (y.array == 0)).all()
 
     def wrap(x):
-        x = IrrepsArray(irreps, x)
-        return b.apply(params, keys[0], x).array
+        return b.apply(params, keys[0], x)
 
-    assert_equivariant(wrap, rng_key=next(keys), args_in=[x.array], irreps_in=[irreps], irreps_out=[irreps])
+    assert_equivariant(wrap, rng_key=next(keys), args_in=[x])

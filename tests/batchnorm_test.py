@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 import haiku as hk
 from e3nn_jax import BatchNorm, Irreps
+import e3nn_jax as e3nn
 from e3nn_jax.util.test import assert_equivariant
 import pytest
 
@@ -12,16 +13,16 @@ def test_equivariant(keys, irreps):
     @hk.transform_with_state
     def b(x, is_training=True):
         m = BatchNorm(irreps=irreps)
-        return m(x, is_training).array
+        return m(x, is_training)
 
-    params, state = b.init(next(keys), irreps.randn(next(keys), (16, -1)))
-    _, state = b.apply(params, state, irreps.randn(next(keys), (16, -1)))
-    _, state = b.apply(params, state, irreps.randn(next(keys), (16, -1)))
+    params, state = b.init(next(keys), e3nn.normal(irreps, next(keys), (16,)))
+    _, state = b.apply(params, state, e3nn.normal(irreps, next(keys), (16,)))
+    _, state = b.apply(params, state, e3nn.normal(irreps, next(keys), (16,)))
 
     m_train = lambda x: b.apply(params, state, x)[0]
-    assert_equivariant(m_train, next(keys), irreps_in=[irreps], irreps_out=[irreps])
+    assert_equivariant(m_train, next(keys), [e3nn.normal(irreps, next(keys), (16,))])
     m_eval = lambda x: b.apply(params, state, x, is_training=False)[0]
-    assert_equivariant(m_eval, next(keys), irreps_in=[irreps], irreps_out=[irreps])
+    assert_equivariant(m_eval, next(keys), [e3nn.normal(irreps, next(keys), (16,))])
 
 
 @pytest.mark.parametrize("affine", [True, False])
