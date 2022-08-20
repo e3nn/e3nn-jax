@@ -19,9 +19,16 @@ def overload_for_irreps_without_array(irrepsarray_argnums=None, irrepsarray_argn
             if any(isinstance(arg, (Irreps, str)) for arg in concerned_args):
                 # assume arguments are Irreps (not IrrepsArray)
 
-                args = [IrrepsArray.ones(a, shape) if i in argnums else a for i, a in enumerate(args)]
-                kwargs = {k: IrrepsArray.ones(v, shape) if k in argnames else v for k, v in kwargs.items()}
-                output = jax.eval_shape(func, *args, **kwargs)
+                converted_args = {i: IrrepsArray.ones(a, shape) for i, a in enumerate(args) if i in argnums}
+                converted_args.update({k: IrrepsArray.ones(v, shape) for k, v in kwargs.items() if k in argnames})
+
+                def fn(converted_args):
+                    args_ = [converted_args.get(i, a) for i, a in enumerate(args)]
+                    kwargs_ = {k: converted_args.get(k, v) for k, v in kwargs.items()}
+                    return func(*args_, **kwargs_)
+
+                output = jax.eval_shape(fn, converted_args)
+
                 if isinstance(output, IrrepsArray):
                     return output.irreps
                 if isinstance(output, tuple):
