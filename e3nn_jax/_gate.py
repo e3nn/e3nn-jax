@@ -10,11 +10,14 @@ from e3nn_jax.util.decorators import overload_for_irreps_without_array
 @partial(jax.jit, static_argnums=(1, 2, 3, 4))
 def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) -> IrrepsArray:
     scalars, gated = input, None
+    scalar_index = None
     for j, (_, ir) in enumerate(input.irreps):
         if ir.l > 0:
             scalars, gated = input.split([j])
+            scalar_index = j
             break
     assert scalars.irreps.lmax == 0
+    assert scalar_index is not None
 
     # No gates:
     if gated is None:
@@ -22,7 +25,7 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
 
     # Get the scalar gates:
     gates = None
-    for i in range(j + 1):
+    for i in range(scalar_index + 1):
         if scalars.irreps[i:].num_irreps == gated.irreps.num_irreps:
             scalars, gates = scalars.split([i])
             break
