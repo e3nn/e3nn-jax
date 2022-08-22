@@ -119,7 +119,7 @@ __all__ = [
     "elementwise_tensor_product",
     "FunctionalTensorSquare",  # not in docs
     "TensorSquare",
-    "grad",  # TODO: add to docs
+    "grad",
     "scalar_activation",
     "normalize_function",
     "gate",

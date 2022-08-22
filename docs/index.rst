@@ -6,8 +6,8 @@ What is ``e3nn-jax``?
 
 ``e3nn-jax`` is a python library based on jax_ to create equivariant neural networks for the group :math:`O(3)`.
 
-Example
--------
+Amuse-bouche
+------------
 
 .. jupyter-execute::
     :hide-code:
@@ -21,19 +21,10 @@ Example
 
     import jax
     import jax.numpy as jnp
+    import haiku as hk
+
     import e3nn_jax as e3nn
 
-    # Create a vector and compute its tensor product
-    x = e3nn.IrrepsArray("1o", jnp.array([1.0, 2.0, 0.0]))
-    y = e3nn.tensor_product(x, x)
-    print(y)
-    print(e3nn.norm(y))
-
-And contains haiku modules to make learnable neural networks.
-
-.. jupyter-execute::
-
-    import haiku as hk
 
     # Create a neural network
     @hk.without_apply_rng
@@ -44,7 +35,8 @@ And contains haiku modules to make learnable neural networks.
         f = e3nn.tensor_product(Y, f)
         return e3nn.Linear("0e + 0o + 1o")(f)
 
-    # Create random inputs
+    # Create some inputs
+    x = e3nn.IrrepsArray("1o", jnp.array([1.0, 2.0, 0.0]))
     f = e3nn.normal("4x0e + 1o + 1e", jax.random.PRNGKey(0), (16,))
     print(f"feature vector: {f.shape}")
 
@@ -57,73 +49,12 @@ And contains haiku modules to make learnable neural networks.
     print(f"feature vector: {f.shape}")
 
 
-Irreps
-------
+Why rewrite e3nn in jax?
+------------------------
 
-If two tensors :math:`x` and :math:`y` transforms as :math:`D_x = 2 \times 1_o` (two vectors) and :math:`D_y = 0_e + 1_e` (a scalar and a pseudovector) respectively, where the indices :math:`e` and :math:`o` stand for even and odd -- the representation of parity,
+Jax has two beautiful function transformations: `jax.grad` and `jax.vmap`.
 
-.. jupyter-execute::
-
-    irreps_x = e3nn.Irreps("2x1o")
-    irreps_y = e3nn.Irreps("0e + 1e")
-
-    x = e3nn.normal(irreps_x, jax.random.PRNGKey(0), ())
-    y = e3nn.normal(irreps_y, jax.random.PRNGKey(1), ())
-
-    irreps_x.dim, irreps_y.dim
-
-
-their outer product is a :math:`6 \times 4` matrix of two indices :math:`A_{ij} = x_i y_j`.
-
-.. jupyter-execute::
-
-    A = jnp.einsum("i,j", x.array, y.array)
-    A
-
-
-If a rotation is applied to the system, this matrix will transform with the representation :math:`D_x \otimes D_y` (the tensor product representation).
-
-.. math::
-
-    A = x y^t \longrightarrow A' = D_x A D_y^t
-
-Which can be represented by
-
-.. jupyter-execute::
-    :hide-code:
-
-    import matplotlib.pyplot as plt
-
-.. jupyter-execute::
-
-    R = e3nn.rand_matrix(jax.random.PRNGKey(2), ())
-    D_x = irreps_x.D_from_matrix(R)
-    D_y = irreps_y.D_from_matrix(R)
-
-    plt.imshow(jnp.kron(D_x, D_y), cmap="bwr", vmin=-1, vmax=1);
-
-
-This representation is not irreducible (is reducible). It can be decomposed into irreps by a change of basis. The outerproduct followed by the change of basis is done by the class `e3nn_jax.tensor_product`.
-
-.. jupyter-execute::
-
-    tp = e3nn.tensor_product(x, y)
-    tp
-
-
-As a sanity check, we can verify that the representation of the tensor prodcut is block diagonal and of the same dimension.
-
-.. jupyter-execute::
-
-    D = tp.irreps.D_from_matrix(R)
-    plt.imshow(D, cmap="bwr", vmin=-1, vmax=1);
-
-
-
-jax jit capabilities
---------------------
-
-``e3nn-jax`` expoit the capabilities of ``jax.jit`` to optimize the code.
+On top of that it is very powerful to optimize code.
 It can for instance get rid of the dead code:
 
 .. jupyter-execute::
@@ -161,7 +92,7 @@ This mechanism is quite robust.
 
     @jax.jit
     def g(x):
-        return jnp.exp((x + 1) - 1)
+        return jax.grad(jnp.exp)((x + 1) - 1)
 
     @jax.jit
     def h(x):
@@ -169,11 +100,27 @@ This mechanism is quite robust.
 
     print(jit_code(f, 1.0))
 
+
+Irreps
+------
+
+In e3nn we have a notation to define direct sums of irreducible representations of :math:`O(3)`.
+
+.. jupyter-execute::
+
+    e3nn.Irreps("0e + 2x1o")
+
+
+This mean one scalar and two vectors.
+``0e`` stands for the even irrep ``L=0`` and ``1o`` stands for the odd irrep ``L=1``.
+The suffixes ``e`` and ``o`` stand for even and odd -- the representation of parity.
+
+The class `e3nn_jax.Irreps` has many methods to manipulate the representations.
+
 IrrepsArray
 -----------
 
-`e3nn_jax.IrrepsArray` contains the data of an irreducible representation.
-It rely on the ``jax.jit`` compiler because it contains both a ``array`` and a ``list`` representation of the data.
+`e3nn_jax.IrrepsArray` contains an ``irreps`` attribute of class `e3nn_jax.Irreps` and an ``array`` attribute of class `jax.numpy.ndarray`.
 
 .. jupyter-execute::
 
@@ -292,8 +239,8 @@ And other operations:
 
 
 
-Tensor prodcut with weights
----------------------------
+Tensor prodcut
+--------------
 
 We use ``dm-haiku`` to create parameterized modules.
 
@@ -348,6 +295,38 @@ Note the ``normalize`` option. If ``normalize`` is ``False``, the function is an
         a**2 * e3nn.sh(2, x, False),
     )
 
+The function `e3nn_jax.sh` is a wrapper of `e3nn_jax.spherical_harmonics` for which inputs and outputs are `e3nn_jax.IrrepsArray`.
+
+
+Gradient
+--------
+
+The gradient of an equivariant function is also equivariant.
+If a function inputs and outputs `e3nn_jax.IrrepsArray`, we can compute its gradient using `e3nn_jax.grad`.
+
+.. jupyter-execute::
+
+    def cross_product(x, y):
+        return e3nn.tensor_product(x, y)["1e"]
+
+    x = e3nn.IrrepsArray("1o", jnp.array([1.0, 2.0, 0.0]))
+    y = e3nn.IrrepsArray("1o", jnp.array([2.0, 2.0, 1.0]))
+    e3nn.grad(cross_product)(x, y)
+
+
+Here is a vector and its spherical harmonics of degree :math:`L=2`: :math:`Y^2`
+
+.. jupyter-execute::
+
+    x = e3nn.IrrepsArray("1o", jnp.array([1.0, 2, 3]))
+    e3nn.spherical_harmonics("2e", x, False)
+
+We can verify that it can also be obtained by taking the gradient of :math:`Y^3`
+
+.. jupyter-execute::
+
+    f = e3nn.grad(lambda x: e3nn.spherical_harmonics("3o", x, False))
+    0.18443 * f(x)["2e"]
 
 API
 ---

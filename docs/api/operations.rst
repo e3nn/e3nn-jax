@@ -2,13 +2,17 @@ Operations
 ==========
 
 
-.. autofunction:: e3nn_jax.sh
-
-
 .. autofunction:: e3nn_jax.spherical_harmonics
 
 
 .. autofunction:: e3nn_jax.tensor_product
+
+
+.. autofunction:: e3nn_jax.grad
+
+
+.. autoclass:: e3nn_jax.Linear
+    :members:
 
 
 .. autofunction:: e3nn_jax.elementwise_tensor_product
@@ -18,8 +22,7 @@ Operations
     :members:
 
 
-.. autoclass:: e3nn_jax.Linear
-    :members:
+.. autofunction:: e3nn_jax.sh
 
 
 .. autoclass:: e3nn_jax.TensorSquare
