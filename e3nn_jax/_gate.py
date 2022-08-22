@@ -10,14 +10,11 @@ from e3nn_jax.util.decorators import overload_for_irreps_without_array
 @partial(jax.jit, static_argnums=(1, 2, 3, 4))
 def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) -> IrrepsArray:
     scalars, gated = input, None
-    scalar_index = None
     for j, (_, ir) in enumerate(input.irreps):
         if ir.l > 0:
             scalars, gated = input.split([j])
-            scalar_index = j
             break
     assert scalars.irreps.lmax == 0
-    assert scalar_index is not None
 
     # No gates:
     if gated is None:
@@ -25,15 +22,15 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
 
     # Get the scalar gates:
     gates = None
-    for i in range(scalar_index + 1):
+    for i in range(len(scalars.irreps)):
         if scalars.irreps[i:].num_irreps == gated.irreps.num_irreps:
             scalars, gates = scalars.split([i])
             break
 
     if gates is None:
         raise ValueError(
-            f"Gate: did not manage to split the input {input.irreps} into scalars, gates ({scalars.irreps}) and gated "
-            f"({gated.irreps})."
+            f"Gate: did not manage to split the input into scalars, gates and gated. "
+            f"({input.irreps}) = ({scalars.irreps}) + ({gated.irreps})."
         )
 
     scalars = scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
