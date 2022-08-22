@@ -9,6 +9,8 @@ from e3nn_jax.util import prod
 
 def grad(
     fun: Callable[[e3nn.IrrepsArray], e3nn.IrrepsArray],
+    argnums: int = 0,
+    has_aux: bool = False,
 ) -> e3nn.IrrepsArray:
     r"""Take the gradient of an equivariant function and reduce it into irreps.
 
@@ -25,20 +27,45 @@ def grad(
         >>> f(x)
         1x1o [1. 2. 3.]
     """
+    if not isinstance(argnums, int):
+        raise ValueError("argnums must be an int.")
 
-    def _grad(x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+    def _grad(*args, **kwargs) -> e3nn.IrrepsArray:
+        args = list(args)
+        x = args[argnums]
+        if not isinstance(x, e3nn.IrrepsArray):
+            raise TypeError(f"arg{argnums} must be an e3nn.IrrepsArray.")
         irreps_in = x.irreps
         leading_shape_in = x.shape[:-1]
+        args[argnums] = x.list
 
-        def naked_fun(x_list: List[jnp.ndarray]) -> List[jnp.ndarray]:
-            x_ = e3nn.IrrepsArray.from_list(irreps_in, x_list, leading_shape_in)
-            y = fun(x_)
-            return y.list, (y.irreps, y.shape[:-1])
+        def naked_fun(*args, **kwargs) -> List[jnp.ndarray]:
+            args = list(args)
+            args[argnums] = e3nn.IrrepsArray.from_list(irreps_in, args[argnums], leading_shape_in)
+            if has_aux:
+                y, aux = fun(*args, **kwargs)
+                if not isinstance(y, e3nn.IrrepsArray):
+                    raise TypeError(f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}.")
+                return y.list, (y.irreps, y.shape[:-1], aux)
+            else:
+                y = fun(*args, **kwargs)
+                if not isinstance(y, e3nn.IrrepsArray):
+                    raise TypeError(f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}.")
+                return y.list, (y.irreps, y.shape[:-1])
 
-        jac, (irreps_out, leading_shape_out) = jax.jacobian(naked_fun, has_aux=True)(x.list)
+        output = jax.jacobian(
+            naked_fun,
+            argnums=argnums,
+            has_aux=True,
+        )(*args, **kwargs)
+
+        if has_aux:
+            jac, (irreps_out, leading_shape_out, aux) = output
+        else:
+            jac, (irreps_out, leading_shape_out) = output
 
         irreps = []
-        list = []
+        lst = []
         for mir_out, y_list in zip(irreps_out, jac):
             for mir_in, z in zip(irreps_in, y_list):
                 assert z.shape == (
@@ -50,11 +77,15 @@ def grad(
                 )
                 for ir in mir_out.ir * mir_in.ir:
                     irreps.append((mir_out.mul * mir_in.mul, ir))
-                    list.append(
+                    lst.append(
                         jnp.einsum(
                             "auibvj,ijk->abuvk", z, jnp.sqrt(ir.dim) * e3nn.clebsch_gordan(mir_out.ir.l, mir_in.ir.l, ir.l)
                         ).reshape(leading_shape_out + leading_shape_in + (mir_out.mul * mir_in.mul, ir.dim))
                     )
-        return e3nn.IrrepsArray.from_list(irreps, list, leading_shape_out + leading_shape_in)
+        output = e3nn.IrrepsArray.from_list(irreps, lst, leading_shape_out + leading_shape_in)
+        if has_aux:
+            return output, aux
+        else:
+            return output
 
     return _grad
