@@ -255,6 +255,18 @@ class IrrepsArray:
 
         return IrrepsArray(irreps=self.irreps, array=other / self.array, list=[other[..., None] / x for x in self.list])
 
+    def __pow__(self, exponent) -> "IrrepsArray":
+        if all(ir == "0e" for _, ir in self.irreps):
+            return IrrepsArray(irreps=self.irreps, array=self.array**exponent, list=[x**exponent for x in self.list])
+
+        if exponent % 1.0 == 0.0 and self.irreps.lmax == 0:
+            irreps = self.irreps
+            if exponent % 2.0 == 0.0:
+                irreps = [(mul, "0e") for mul, ir in self.irreps]
+            return IrrepsArray(irreps, array=self.array**exponent, list=[x**exponent for x in self.list])
+
+        raise ValueError(f"IrrepsArray({self.irreps}) ** scalar is not equivariant.")
+
     def __iter__(self):
         if self.ndim <= 1:
             raise ValueError("Can't iterate over IrrepsArray with ndim <= 1")
