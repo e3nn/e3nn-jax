@@ -35,7 +35,7 @@ def main():
     parser.add_argument("--cuda", type=t_or_f, default=True)
     parser.add_argument("--backward", type=t_or_f, default=True)
     parser.add_argument("--opt-ein", type=t_or_f, default=True)
-    parser.add_argument("--custom-einsum-vjp", type=t_or_f, default=False)
+    parser.add_argument("--custom-einsum-jvp", type=t_or_f, default=False)
     parser.add_argument("--specialized-code", type=t_or_f, default=False)
     parser.add_argument("--elementwise", type=t_or_f, default=False)
     parser.add_argument("--extrachannels", type=t_or_f, default=False)
@@ -92,7 +92,7 @@ def main():
             tp.left_right,
             specialized_code=args.specialized_code,
             optimize_einsums=args.opt_ein,
-            custom_einsum_vjp=args.custom_einsum_vjp,
+            custom_einsum_jvp=args.custom_einsum_jvp,
             fused=args.fused,
         )
 
@@ -123,7 +123,7 @@ def main():
             tp.left_right,
             specialized_code=args.specialized_code,
             optimize_einsums=args.opt_ein,
-            custom_einsum_vjp=args.custom_einsum_vjp,
+            custom_einsum_jvp=args.custom_einsum_jvp,
             fused=args.fused,
         )
     f = jax.vmap(f, (None, 0, 0), 0)

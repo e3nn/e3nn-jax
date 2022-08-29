@@ -59,7 +59,7 @@ def sh(
         input (``jnp.ndarray``): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
-        algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_vjp])
+        algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_jvp])
 
     Returns:
         ``jnp.ndarray``: polynomials of the spherical harmonics
@@ -113,7 +113,7 @@ def spherical_harmonics(
         input (`IrrepsArray` or ``jnp.ndarray``): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
-        algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_vjp])
+        algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_jvp])
 
     Returns:
         `IrrepsArray`: polynomials of the spherical harmonics
@@ -142,13 +142,13 @@ def spherical_harmonics(
         if config("spherical_harmonics_algorithm") == "automatic":
             # NOTE the dense algorithm is faster to jit than the sparse one
             if irreps_out.lmax <= 8:
-                algorithm = ("recursive", "dense", "custom_vjp")
+                algorithm = ("recursive", "dense", "custom_jvp")
             else:
-                algorithm = ("legendre", "dense", "custom_vjp")
+                algorithm = ("legendre", "dense", "custom_jvp")
         else:
             algorithm = config("spherical_harmonics_algorithm")
 
-    assert all(keyword in ["legendre", "recursive", "dense", "sparse", "custom_vjp"] for keyword in algorithm)
+    assert all(keyword in ["legendre", "recursive", "dense", "sparse", "custom_jvp"] for keyword in algorithm)
 
     if isinstance(input, IrrepsArray):
         [(mul, ir)] = input.irreps
@@ -173,8 +173,8 @@ def spherical_harmonics(
 def _jited_spherical_harmonics(
     ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
 ) -> List[jnp.ndarray]:
-    if "custom_vjp" in algorithm:
-        return _custom_vjp_spherical_harmonics(ls, x, normalization, algorithm)
+    if "custom_jvp" in algorithm:
+        return _custom_jvp_spherical_harmonics(ls, x, normalization, algorithm)
     else:
         return _spherical_harmonics(ls, x, normalization, algorithm)
 
@@ -192,7 +192,7 @@ def _spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str
 
 
 @partial(jax.custom_jvp, nondiff_argnums=(0, 2, 3))
-def _custom_vjp_spherical_harmonics(
+def _custom_jvp_spherical_harmonics(
     ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
 ) -> List[jnp.ndarray]:
     return _spherical_harmonics(ls, x, normalization, algorithm)
@@ -205,7 +205,7 @@ def _jvp(
     (x_dot,) = tangents
 
     js = tuple(max(0, l - 1) for l in ls)
-    output = _custom_vjp_spherical_harmonics(ls + js, x, normalization, algorithm)
+    output = _custom_jvp_spherical_harmonics(ls + js, x, normalization, algorithm)
     out, res = output[: len(ls)], output[len(ls) :]
 
     def h(l: int, r: jnp.ndarray) -> jnp.ndarray:
@@ -232,7 +232,7 @@ def _jvp(
     return out, [h(l, r) if l > 0 else jnp.zeros_like(r) for l, r in zip(ls, res)]
 
 
-_custom_vjp_spherical_harmonics.defjvp(_jvp)
+_custom_jvp_spherical_harmonics.defjvp(_jvp)
 
 
 def _recursive_spherical_harmonics(

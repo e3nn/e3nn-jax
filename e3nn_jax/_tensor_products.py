@@ -115,7 +115,9 @@ def tensor_product(
     *,
     filter_ir_out: Optional[List[Irrep]] = None,
     irrep_normalization: Optional[str] = None,
-    fused: bool = False,
+    specialized_code: bool = None,
+    custom_einsum_jvp: bool = None,
+    fused: bool = None,
 ):
     r"""Full tensor product of two irreps.
 
@@ -153,7 +155,9 @@ def tensor_product(
         input1.irreps, input2.irreps, irreps_out, instructions, irrep_normalization=irrep_normalization
     )
 
-    return naive_broadcast_decorator(partial(tp.left_right, fused=fused))(input1, input2)
+    return naive_broadcast_decorator(
+        partial(tp.left_right, specialized_code=specialized_code, fused=fused, custom_einsum_jvp=custom_einsum_jvp)
+    )(input1, input2)
 
 
 @overload_for_irreps_without_array((0, 1))

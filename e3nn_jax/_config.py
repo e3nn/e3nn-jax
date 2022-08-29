@@ -6,7 +6,7 @@ __conf = {
     "spherical_harmonics_normalization": "component",
     "specialized_code": False,
     "optimize_einsums": True,
-    "custom_einsum_vjp": False,
+    "custom_einsum_jvp": False,
     "fused": False,
 }
 

@@ -138,7 +138,7 @@ class FunctionalTensorProduct:
         *,
         specialized_code=None,
         optimize_einsums=None,
-        custom_einsum_vjp=None,
+        custom_einsum_jvp=None,
         fused=None,
     ) -> IrrepsArray:
         r"""Compute the tensor product of two input tensors.
@@ -150,7 +150,7 @@ class FunctionalTensorProduct:
             specialized_code (bool): If True, use the specialized code for the
                 tensor product.
             optimize_einsums (bool): If True, optimize the einsum code.
-            custom_einsum_vjp (bool): If True, use the custom vjp for the einsum
+            custom_einsum_jvp (bool): If True, use the custom jvp for the einsum
                 code.
             fused (bool): If True, fuse all the einsums.
 
@@ -161,8 +161,8 @@ class FunctionalTensorProduct:
             specialized_code = config("specialized_code")
         if optimize_einsums is None:
             optimize_einsums = config("optimize_einsums")
-        if custom_einsum_vjp is None:
-            custom_einsum_vjp = config("custom_einsum_vjp")
+        if custom_einsum_jvp is None:
+            custom_einsum_jvp = config("custom_einsum_jvp")
         if fused is None:
             fused = config("fused")
 
@@ -179,7 +179,7 @@ class FunctionalTensorProduct:
             input2,
             specialized_code=specialized_code,
             optimize_einsums=optimize_einsums,
-            custom_einsum_vjp=custom_einsum_vjp,
+            custom_einsum_jvp=custom_einsum_jvp,
             fused=fused,
         )
 
@@ -190,7 +190,7 @@ class FunctionalTensorProduct:
         *,
         specialized_code=None,
         optimize_einsums=None,
-        custom_einsum_vjp=None,
+        custom_einsum_jvp=None,
         fused=None,
     ) -> jnp.ndarray:
         r"""Compute the right contraction of the tensor product.
@@ -199,7 +199,7 @@ class FunctionalTensorProduct:
             weights (array or list of arrays): The weights of the tensor product.
             input2 (IrrepsArray): The second input tensor.
             optimize_einsums (bool): If True, optimize the einsum code.
-            custom_einsum_vjp (bool): If True, use the custom vjp for the einsum code.
+            custom_einsum_jvp (bool): If True, use the custom jvp for the einsum code.
 
         Returns:
             A matrix of shape ``(irreps_in1.dim, irreps_out.dim)``.
@@ -208,8 +208,8 @@ class FunctionalTensorProduct:
             specialized_code = config("specialized_code")
         if optimize_einsums is None:
             optimize_einsums = config("optimize_einsums")
-        if custom_einsum_vjp is None:
-            custom_einsum_vjp = config("custom_einsum_vjp")
+        if custom_einsum_jvp is None:
+            custom_einsum_jvp = config("custom_einsum_jvp")
         if fused is None:
             fused = config("fused")
 
@@ -222,7 +222,7 @@ class FunctionalTensorProduct:
             weights,
             input2,
             optimize_einsums=optimize_einsums,
-            custom_einsum_vjp=custom_einsum_vjp,
+            custom_einsum_jvp=custom_einsum_jvp,
         )
 
     def __repr__(self):
@@ -320,7 +320,7 @@ def _normalize_instruction_path_weights(
     return [update(instruction) for instruction in instructions]
 
 
-@partial(jax.jit, static_argnums=(0,), static_argnames=("specialized_code", "optimize_einsums", "custom_einsum_vjp", "fused"))
+@partial(jax.jit, static_argnums=(0,), static_argnames=("specialized_code", "optimize_einsums", "custom_einsum_jvp", "fused"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
     self: FunctionalTensorProduct,
@@ -330,7 +330,7 @@ def _left_right(
     *,
     specialized_code=False,
     optimize_einsums=True,
-    custom_einsum_vjp=False,
+    custom_einsum_jvp=False,
     fused=False,
 ):
 
@@ -338,7 +338,7 @@ def _left_right(
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
         return IrrepsArray.zeros(self.irreps_out, ())
 
-    if custom_einsum_vjp:
+    if custom_einsum_jvp:
         assert optimize_einsums
         einsum = opt_einsum
     else:
@@ -609,7 +609,7 @@ def _left_right(
     return IrrepsArray.from_list(self.irreps_out, out, ())
 
 
-@partial(jax.jit, static_argnums=(0,), static_argnames=("optimize_einsums", "custom_einsum_vjp"))
+@partial(jax.jit, static_argnums=(0,), static_argnames=("optimize_einsums", "custom_einsum_jvp"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.right")
 def _right(
     self: FunctionalTensorProduct,
@@ -617,7 +617,7 @@ def _right(
     input2,
     *,
     optimize_einsums=False,
-    custom_einsum_vjp=False,
+    custom_einsum_jvp=False,
 ):
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
@@ -628,7 +628,7 @@ def _right(
             )
         )
 
-    if custom_einsum_vjp:
+    if custom_einsum_jvp:
         assert optimize_einsums
         einsum = opt_einsum
     else:

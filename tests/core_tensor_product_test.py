@@ -32,7 +32,7 @@ def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, ji
             x2,
             specialized_code=specialized_code,
             optimize_einsums=optimize_einsums,
-            custom_einsum_vjp=optimize_einsums,
+            custom_einsum_jvp=optimize_einsums,
         )
 
     if jitted:

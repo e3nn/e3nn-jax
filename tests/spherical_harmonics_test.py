@@ -11,9 +11,9 @@ from jax.test_util import check_grads
     autouse=True,
     params=[
         "recursive,dense",
-        "recursive,sparse,custom_vjp",
-        "legendre,dense,custom_vjp",
-        "legendre,sparse,custom_vjp",
+        "recursive,sparse,custom_jvp",
+        "legendre,dense,custom_jvp",
+        "legendre,sparse,custom_jvp",
     ],
 )
 def algorithm(request):
