@@ -7,7 +7,7 @@ __conf = {
     "specialized_code": False,
     "optimize_einsums": True,
     "custom_einsum_vjp": False,
-    "fuse_all": False,
+    "fused": False,
 }
 
 

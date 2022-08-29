@@ -21,7 +21,7 @@ x8 speedup
 On Pytorch it takes 140 ms.
 
 ```
-python examples/tensor_product_benchmark.py --irreps "128x0e + 128x1e + 128x2e" --extrachannels f --specialized-code f --fuse-all f --lists t --custom-einsum-vjp f --batch 64 -n 10
+python examples/tensor_product_benchmark.py --irreps "128x0e + 128x1e + 128x2e" --extrachannels f --specialized-code f --fused f --lists t --custom-einsum-vjp f --batch 64 -n 10
 
 ======= Benchmark with settings: ======
                jit : True
@@ -36,7 +36,7 @@ python examples/tensor_product_benchmark.py --irreps "128x0e + 128x1e + 128x2e" 
   specialized_code : False
        elementwise : False
      extrachannels : False
-          fuse_all : False
+          fused : False
              lists : True
                  n : 10
              batch : 64

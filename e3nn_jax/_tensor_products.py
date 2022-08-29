@@ -1,4 +1,5 @@
 import warnings
+from functools import partial
 from typing import List, Optional
 
 import haiku as hk
@@ -114,6 +115,7 @@ def tensor_product(
     *,
     filter_ir_out: Optional[List[Irrep]] = None,
     irrep_normalization: Optional[str] = None,
+    fused: bool = False,
 ):
     r"""Full tensor product of two irreps.
 
@@ -151,7 +153,7 @@ def tensor_product(
         input1.irreps, input2.irreps, irreps_out, instructions, irrep_normalization=irrep_normalization
     )
 
-    return naive_broadcast_decorator(tp.left_right)(input1, input2)
+    return naive_broadcast_decorator(partial(tp.left_right, fused=fused))(input1, input2)
 
 
 @overload_for_irreps_without_array((0, 1))

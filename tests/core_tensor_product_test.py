@@ -49,30 +49,31 @@ def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, ji
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), jnp.max(jnp.abs(a - b))
 
 
-def test_fuse_all(keys):
+def test_fused(keys):
     tp = FunctionalTensorProduct(
         "10x0e + 5x1e",
-        "0e + 1e",
-        "10x0e + 5x1e",
+        "0e + 1e + 3x1e",
+        "10x0e + 5x1e + 30x1e",
         [
             (0, 0, 0, "uvu", True),
             (1, 1, 1, "uvu", True),
             (1, 0, 1, "uvu", True),
+            (0, 2, 2, "uvuv", True),
         ],
     )
     w = [jax.random.normal(keys[1], ins.path_shape) for ins in tp.instructions]
     x = jax.random.normal(keys[2], (25,))
-    y = jax.random.normal(keys[3], (4,))
+    y = jax.random.normal(keys[3], (13,))
 
     assert jnp.allclose(
-        tp.left_right(w, x, y, fuse_all=True).array,
-        tp.left_right(w, x, y, fuse_all=False).array,
+        tp.left_right(w, x, y, fused=True).array,
+        tp.left_right(w, x, y, fused=False).array,
         rtol=1e-4,
         atol=1e-6,
     )
 
 
-def test_fuse_all_no_weight(keys):
+def test_fused_no_weight(keys):
     tp = FunctionalTensorProduct(
         "10x0e",
         "10x0e",
@@ -86,14 +87,14 @@ def test_fuse_all_no_weight(keys):
     y = jax.random.normal(keys[3], (10,))
 
     assert jnp.allclose(
-        tp.left_right(w, x, y, fuse_all=True).array,
-        tp.left_right(w, x, y, fuse_all=False).array,
+        tp.left_right(w, x, y, fused=True).array,
+        tp.left_right(w, x, y, fused=False).array,
         rtol=1e-4,
         atol=1e-6,
     )
 
 
-def test_fuse_all_mix_weight(keys):
+def test_fused_mix_weight(keys):
     tp = FunctionalTensorProduct(
         "5x0e",
         "5x0e",
@@ -108,8 +109,8 @@ def test_fuse_all_mix_weight(keys):
     y = jax.random.normal(keys[3], (5,))
 
     assert jnp.allclose(
-        tp.left_right(w, x, y, fuse_all=True).array,
-        tp.left_right(w, x, y, fuse_all=False).array,
+        tp.left_right(w, x, y, fused=True).array,
+        tp.left_right(w, x, y, fused=False).array,
         rtol=1e-4,
         atol=1e-6,
     )
@@ -123,8 +124,8 @@ def test_fuse(keys):
     x1 = tp.irreps_in1.randn(next(keys), (-1,))
     x2 = tp.irreps_in2.randn(next(keys), (-1,))
 
-    a = tp.left_right(ws, x1, x2, fuse_all=False).array
-    b = tp.left_right(wf, x1, x2, fuse_all=True).array
+    a = tp.left_right(ws, x1, x2, fused=False).array
+    b = tp.left_right(wf, x1, x2, fused=True).array
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), (a, b)
 
 

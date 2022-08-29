@@ -139,7 +139,7 @@ class FunctionalTensorProduct:
         specialized_code=None,
         optimize_einsums=None,
         custom_einsum_vjp=None,
-        fuse_all=None,
+        fused=None,
     ) -> IrrepsArray:
         r"""Compute the tensor product of two input tensors.
 
@@ -152,7 +152,7 @@ class FunctionalTensorProduct:
             optimize_einsums (bool): If True, optimize the einsum code.
             custom_einsum_vjp (bool): If True, use the custom vjp for the einsum
                 code.
-            fuse_all (bool): If True, fuse all the einsums.
+            fused (bool): If True, fuse all the einsums.
 
         Returns:
             `IrrepsArray`: The output tensor.
@@ -163,8 +163,8 @@ class FunctionalTensorProduct:
             optimize_einsums = config("optimize_einsums")
         if custom_einsum_vjp is None:
             custom_einsum_vjp = config("custom_einsum_vjp")
-        if fuse_all is None:
-            fuse_all = config("fuse_all")
+        if fused is None:
+            fused = config("fused")
 
         if input2 is None:
             weights, input1, input2 = [], weights, input1
@@ -180,7 +180,7 @@ class FunctionalTensorProduct:
             specialized_code=specialized_code,
             optimize_einsums=optimize_einsums,
             custom_einsum_vjp=custom_einsum_vjp,
-            fuse_all=fuse_all,
+            fused=fused,
         )
 
     def right(
@@ -191,7 +191,7 @@ class FunctionalTensorProduct:
         specialized_code=None,
         optimize_einsums=None,
         custom_einsum_vjp=None,
-        fuse_all=None,
+        fused=None,
     ) -> jnp.ndarray:
         r"""Compute the right contraction of the tensor product.
 
@@ -210,8 +210,8 @@ class FunctionalTensorProduct:
             optimize_einsums = config("optimize_einsums")
         if custom_einsum_vjp is None:
             custom_einsum_vjp = config("custom_einsum_vjp")
-        if fuse_all is None:
-            fuse_all = config("fuse_all")
+        if fused is None:
+            fused = config("fused")
 
         if input2 is None:
             weights, input2 = [], weights
@@ -320,9 +320,7 @@ def _normalize_instruction_path_weights(
     return [update(instruction) for instruction in instructions]
 
 
-@partial(
-    jax.jit, static_argnums=(0,), static_argnames=("specialized_code", "optimize_einsums", "custom_einsum_vjp", "fuse_all")
-)
+@partial(jax.jit, static_argnums=(0,), static_argnames=("specialized_code", "optimize_einsums", "custom_einsum_vjp", "fused"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
     self: FunctionalTensorProduct,
@@ -333,7 +331,7 @@ def _left_right(
     specialized_code=False,
     optimize_einsums=True,
     custom_einsum_vjp=False,
-    fuse_all=False,
+    fused=False,
 ):
 
     # = Short-circut for zero dimensional =
@@ -368,7 +366,7 @@ def _left_right(
     assert input1.ndim == 1, f"input1 is shape {input1.shape}. Execting ndim to be 1. Use jax.vmap to map over input1"
     assert input2.ndim == 1, f"input2 is shape {input2.shape}. Execting ndim to be 1. Use jax.vmap to map over input2"
 
-    if fuse_all:
+    if fused:
         with jax.ensure_compile_time_eval():
             num_path = weights_flat.size
             has_path_with_no_weights = any(not ins.has_weight for ins in self.instructions)
@@ -398,8 +396,8 @@ def _left_right(
 
                 w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
 
-                def set_w3j(i, u, v, w):
-                    return big_w3j.at[
+                def set_w3j(x, i, u, v, w):
+                    return x.at[
                         i,
                         s1 + u * d1 : s1 + (u + 1) * d1,
                         s2 + v * d2 : s2 + (v + 1) * d2,
@@ -409,27 +407,37 @@ def _left_right(
                 if ins.connection_mode == "uvw":
                     assert ins.has_weight
                     for u, v, w in itertools.product(range(m1), range(m2), range(mo)):
-                        big_w3j = set_w3j(i, u, v, w)
+                        big_w3j = set_w3j(big_w3j, i, u, v, w)
                         i += 1
                 elif ins.connection_mode == "uvu":
                     assert ins.has_weight
                     for u, v in itertools.product(range(m1), range(m2)):
-                        big_w3j = set_w3j(i, u, v, u)
+                        big_w3j = set_w3j(big_w3j, i, u, v, u)
                         i += 1
                 elif ins.connection_mode == "uvv":
                     assert ins.has_weight
                     for u, v in itertools.product(range(m1), range(m2)):
-                        big_w3j = set_w3j(i, u, v, v)
+                        big_w3j = set_w3j(big_w3j, i, u, v, v)
                         i += 1
                 elif ins.connection_mode == "uuu":
                     for u in range(m1):
                         if ins.has_weight:
-                            big_w3j = set_w3j(i, u, u, u)
+                            big_w3j = set_w3j(big_w3j, i, u, u, u)
                             i += 1
                         else:
-                            big_w3j = set_w3j(0, u, u, u)
+                            big_w3j = set_w3j(big_w3j, 0, u, u, u)
+                elif ins.connection_mode == "uvuv":
+                    for u in range(m1):
+                        for v in range(m2):
+                            if ins.has_weight:
+                                big_w3j = set_w3j(big_w3j, i, u, v, u * m2 + v)
+                                i += 1
+                            else:
+                                big_w3j = set_w3j(big_w3j, 0, u, v, u * m2 + v)
                 else:
                     assert False
+
+            assert i == num_path
 
         if has_path_with_no_weights and big_w3j.shape[0] == 1:
             big_w3j = big_w3j.reshape(big_w3j.shape[1:])

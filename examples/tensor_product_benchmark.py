@@ -39,7 +39,7 @@ def main():
     parser.add_argument("--specialized-code", type=t_or_f, default=False)
     parser.add_argument("--elementwise", type=t_or_f, default=False)
     parser.add_argument("--extrachannels", type=t_or_f, default=False)
-    parser.add_argument("--fuse-all", type=t_or_f, default=False)
+    parser.add_argument("--fused", type=t_or_f, default=False)
     parser.add_argument("--lists", type=t_or_f, default=False)
     parser.add_argument("-n", type=int, default=1000)
     parser.add_argument("--batch", type=int, default=10)
@@ -93,7 +93,7 @@ def main():
             specialized_code=args.specialized_code,
             optimize_einsums=args.opt_ein,
             custom_einsum_vjp=args.custom_einsum_vjp,
-            fuse_all=args.fuse_all,
+            fused=args.fused,
         )
 
         f = jax.vmap(f, (0, None, None), 0)  # channel_out
@@ -124,7 +124,7 @@ def main():
             specialized_code=args.specialized_code,
             optimize_einsums=args.opt_ein,
             custom_einsum_vjp=args.custom_einsum_vjp,
-            fuse_all=args.fuse_all,
+            fused=args.fused,
         )
     f = jax.vmap(f, (None, 0, 0), 0)
 
@@ -145,7 +145,7 @@ def main():
 
     ws = [jax.random.normal(k(), w_shape + ins.path_shape) for ins in tp.instructions]
 
-    if args.fuse_all:
+    if args.fused:
         ws = jnp.concatenate([w.reshape(w_shape + (-1,)) for w in ws], axis=-1)
         print(f"flat weight shape = {ws.shape}")
 
