@@ -283,7 +283,7 @@ class IrrepsArray:
         def is_none_slice(x):
             return isinstance(x, slice) and x == slice(None)
 
-        # Handle x[..., "1e"] and x[:, :, "1e"]
+        # Support of x[..., "1e + 2e"]
         if isinstance(index[-1], (e3nn.Irrep, e3nn.MulIrrep, Irreps, str)):
             if not (any(map(is_ellipse, index[:-1])) or len(index) == self.ndim):
                 raise ValueError("Irreps index must be the last index")
@@ -295,11 +295,72 @@ class IrrepsArray:
                 raise ValueError(f"Can't slice with {irreps} because it doesn't appear exactly once in {self.irreps}")
             i = ii[0]
 
-            return IrrepsArray.from_list(irreps, self.list[i : i + len(irreps)], self.shape[:-1])[index[:-1] + (slice(None),)]
+            return IrrepsArray(
+                irreps,
+                self.array[..., self.irreps[:i].dim : self.irreps[: i + len(irreps)].dim],
+                self.list[i : i + len(irreps)],
+            )[index[:-1] + (slice(None),)]
+
+        # Support of x[..., 3:32]
+        if (
+            (any(map(is_ellipse, index[:-1])) or len(index) == self.ndim)
+            and isinstance(index[-1], slice)
+            and index[-1].step is None
+            and isinstance(index[-1].start, (int, type(None)))
+            and isinstance(index[-1].stop, (int, type(None)))
+            and (index[-1].start is not None or index[-1].stop is not None)
+        ):
+            start = index[-1].start if index[-1].start is not None else 0
+            stop = index[-1].stop if index[-1].stop is not None else self.shape[-1]
+
+            if start < 0:
+                start += self.shape[-1]
+            if stop < 0:
+                stop += self.shape[-1]
+
+            start = min(max(0, start), self.shape[-1])
+            stop = min(max(0, stop), self.shape[-1])
+
+            irreps_start = None
+            irreps_stop = None
+
+            for i in range(len(self.irreps) + 1):
+                if self.irreps[:i].dim == start:
+                    irreps_start = i
+
+                if irreps_start is None and start < self.irreps[:i].dim:
+                    # "2x1e"[3:]
+                    mul, ir = self.irreps[i - 1]
+                    if (start - self.irreps[: i - 1].dim) % ir.dim == 0:
+                        mul1 = (start - self.irreps[: i - 1].dim) // ir.dim
+                        return self.convert(
+                            self.irreps[: i - 1] + e3nn.Irreps([(mul1, ir), (mul - mul1, ir)]) + self.irreps[i:]
+                        )[index]
+
+                if self.irreps[:i].dim == stop:
+                    irreps_stop = i
+                    break
+
+                if irreps_stop is None and stop < self.irreps[:i].dim:
+                    # "2x1e"[:3]
+                    mul, ir = self.irreps[i - 1]
+                    if (stop - self.irreps[: i - 1].dim) % ir.dim == 0:
+                        mul1 = (stop - self.irreps[: i - 1].dim) // ir.dim
+                        return self.convert(
+                            self.irreps[: i - 1] + e3nn.Irreps([(mul1, ir), (mul - mul1, ir)]) + self.irreps[i:]
+                        )[index]
+
+            if irreps_start is None or irreps_stop is None:
+                raise ValueError(f"Can't slice with {index[-1]} because it doesn't match with {self.irreps}")
+
+            return IrrepsArray(
+                self.irreps[irreps_start:irreps_stop], self.array[..., start:stop], self.list[irreps_start:irreps_stop]
+            )[index[:-1] + (slice(None),)]
 
         if len(index) == self.ndim or any(map(is_ellipse, index)):
             if not (is_ellipse(index[-1]) or is_none_slice(index[-1])):
-                raise IndexError('Indexing of the last dimension of an IrrepsArray is restricted to "mul x ir"')
+                raise IndexError(f"Indexing with {index[-1]} in the irreps dimension is not supported.")
+
         return IrrepsArray(
             self.irreps,
             array=self.array[index],

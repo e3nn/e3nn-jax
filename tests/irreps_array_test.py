@@ -35,12 +35,31 @@ def test_convert():
 def test_indexing():
     x = e3nn.IrrepsArray("2x0e + 1x0e", jnp.array([[1.0, 2, 3], [4.0, 5, 6]]))
     assert x.shape == (2, 3)
-    assert jnp.allclose(x[0].array, jnp.array([1.0, 2, 3]))
-    assert jnp.allclose(x[1, "1x0e"].array, jnp.array([6.0]))
-    assert jnp.allclose(x[:, "1x0e"].array, jnp.array([[3.0], [6.0]]))
-    assert jnp.allclose(x[..., "1x0e"].array, jnp.array([[3.0], [6.0]]))
-    assert jnp.allclose(x[..., 1, "1x0e"].array, jnp.array([6.0]))
-    assert jnp.allclose(x[..., 1, "2x0e + 1x0e"].array, jnp.array([4, 5, 6.0]))
+    np.testing.assert_allclose(x[0].array, jnp.array([1.0, 2, 3]))
+    np.testing.assert_allclose(x[1, "1x0e"].array, jnp.array([6.0]))
+    np.testing.assert_allclose(x[:, "1x0e"].array, jnp.array([[3.0], [6.0]]))
+    np.testing.assert_allclose(x[..., "1x0e"].array, jnp.array([[3.0], [6.0]]))
+    np.testing.assert_allclose(x[..., 1, "1x0e"].array, jnp.array([6.0]))
+    np.testing.assert_allclose(x[..., 1, 2:].array, jnp.array([6.0]))
+    np.testing.assert_allclose(x[..., 1, 2:3].array, jnp.array([6.0]))
+    np.testing.assert_allclose(x[..., 1, -1:50].array, jnp.array([6.0]))
+    np.testing.assert_allclose(x[..., 1, "2x0e + 1x0e"].array, jnp.array([4, 5, 6.0]))
+    np.testing.assert_allclose(x[..., :1].array, jnp.array([[1.0], [4.0]]))
+    np.testing.assert_allclose(x[..., 1:].array, jnp.array([[2, 3], [5.0, 6]]))
+
+    x = e3nn.IrrepsArray("2x0e + 1x2e", jnp.arange(3 * 4 * 7).reshape((3, 4, 7)))
+    np.testing.assert_allclose(x[..., 1, -5:].array, x[:3, 1, "2e"].array)
+
+    x = e3nn.IrrepsArray.zeros("2x1e + 2x1e", (3, 3))
+    with pytest.raises(ValueError):
+        x[..., "2x1e"]
+
+    with pytest.raises(ValueError):
+        x[..., :2]
+
+    x = e3nn.IrrepsArray("2x1e + 2x1e", jnp.array([0.1, 0.2, 0.3, 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3]))
+    assert x[3:-3].irreps == "1e + 1e"
+    np.testing.assert_allclose(x[3:-3].array, jnp.array([1.1, 1.2, 1.3, 2.1, 2.2, 2.3]))
 
 
 def test_reductions():
@@ -84,4 +103,6 @@ def test_operators():
 
     1.0 / e3nn.norm(x)
 
+    jax.config.update("jax_enable_x64", True)
     np.testing.assert_allclose(e3nn.norm(x / e3nn.norm(x)).array, 1)
+    jax.config.update("jax_enable_x64", False)
