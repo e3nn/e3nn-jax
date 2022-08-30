@@ -1,16 +1,22 @@
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import FunctionalFullyConnectedTensorProduct, FunctionalTensorProduct, FunctionalTensorSquare, Irreps
+from e3nn_jax import (
+    FunctionalFullyConnectedTensorProduct,
+    FunctionalTensorProduct,
+    FunctionalTensorSquare,
+    Irreps,
+    IrrepsArray,
+)
+import e3nn_jax as e3nn
 from e3nn_jax.util import prod
 
 
 @pytest.mark.parametrize("connection_mode", ["uvw", "uvu", "uvv"])
 @pytest.mark.parametrize("jitted", [False, True])
 @pytest.mark.parametrize("optimize_einsums", [False, True])
-@pytest.mark.parametrize("specialized_code", [False, True])
 @pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
-def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, jitted, connection_mode):
+def test_modes(keys, irrep_normalization, optimize_einsums, jitted, connection_mode):
     tp = FunctionalTensorProduct(
         Irreps("10x0o + 10x1o + 1x2e"),
         Irreps("10x0o + 10x1o + 1x2o"),
@@ -30,7 +36,6 @@ def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, ji
             ws,
             x1,
             x2,
-            specialized_code=specialized_code,
             optimize_einsums=optimize_einsums,
             custom_einsum_jvp=optimize_einsums,
         )
@@ -47,6 +52,28 @@ def test_modes(keys, irrep_normalization, specialized_code, optimize_einsums, ji
     a = f(ws, x1, x2).array
     b = g(ws, x1, x2).array
     assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), jnp.max(jnp.abs(a - b))
+
+
+def test_zero_dim(keys):
+    tp = FunctionalTensorProduct(
+        "0x0e + 1e",
+        "0e + 0x1e",
+        "0x0e + 1e",
+        [
+            (0, 0, 0, "uvw", True),
+            (1, 1, 0, "uvw", True),
+        ],
+    )
+    w = [jax.random.normal(keys[1], ins.path_shape) for ins in tp.instructions]
+    x = e3nn.normal(tp.irreps_in1, keys[2], ())
+    y = e3nn.normal(tp.irreps_in2, keys[3], ())
+
+    assert jnp.allclose(
+        tp.left_right(w, x, y, fused=True).array,
+        tp.left_right(w, x, y, fused=False).array,
+        rtol=1e-4,
+        atol=1e-6,
+    )
 
 
 def test_fused(keys):
@@ -164,7 +191,7 @@ def test_square_normalization(keys):
     def f(w, x):
         return tp.left_right(w, x, x).array
 
-    k = 1_000_000
+    k = 100_000
     w = jax.random.normal(keys[0], (k, n))
     x = irreps.randn(keys[1], (k, -1), normalization="component")
     y = f(w, x)

@@ -36,7 +36,6 @@ def main():
     parser.add_argument("--backward", type=t_or_f, default=True)
     parser.add_argument("--opt-ein", type=t_or_f, default=True)
     parser.add_argument("--custom-einsum-jvp", type=t_or_f, default=False)
-    parser.add_argument("--specialized-code", type=t_or_f, default=False)
     parser.add_argument("--elementwise", type=t_or_f, default=False)
     parser.add_argument("--extrachannels", type=t_or_f, default=False)
     parser.add_argument("--fused", type=t_or_f, default=False)
@@ -63,15 +62,6 @@ def main():
     irreps_out = Irreps(args.irreps_out if args.irreps_out else args.irreps)
 
     if args.elementwise:
-        # tp = ElementwiseTensorProduct(
-        #     irreps_in1,
-        #     irreps_in2,
-        #     _specialized_code=args.specialized_code,
-        #     _optimize_einsums=args.opt_ein
-        # )
-        # if args.backward:
-        #     print("Elementwise TP has no weights, cannot backward. Setting --backward False.")
-        #     args.backward = False
         pass
     elif args.extrachannels:
 
@@ -90,7 +80,6 @@ def main():
 
         f = partial(
             tp.left_right,
-            specialized_code=args.specialized_code,
             optimize_einsums=args.opt_ein,
             custom_einsum_jvp=args.custom_einsum_jvp,
             fused=args.fused,
@@ -121,7 +110,6 @@ def main():
 
         f = partial(
             tp.left_right,
-            specialized_code=args.specialized_code,
             optimize_einsums=args.opt_ein,
             custom_einsum_jvp=args.custom_einsum_jvp,
             fused=args.fused,

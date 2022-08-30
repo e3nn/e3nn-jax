@@ -136,7 +136,6 @@ class FunctionalTensorProduct:
         input1: IrrepsArray,
         input2: IrrepsArray = None,
         *,
-        specialized_code=None,
         optimize_einsums=None,
         custom_einsum_jvp=None,
         fused=None,
@@ -147,8 +146,6 @@ class FunctionalTensorProduct:
             weights (array or list of arrays): The weights of the tensor product.
             input1 (IrrepsArray): The first input tensor.
             input2 (IrrepsArray): The second input tensor.
-            specialized_code (bool): If True, use the specialized code for the
-                tensor product.
             optimize_einsums (bool): If True, optimize the einsum code.
             custom_einsum_jvp (bool): If True, use the custom jvp for the einsum
                 code.
@@ -157,8 +154,6 @@ class FunctionalTensorProduct:
         Returns:
             `IrrepsArray`: The output tensor.
         """
-        if specialized_code is None:
-            specialized_code = config("specialized_code")
         if optimize_einsums is None:
             optimize_einsums = config("optimize_einsums")
         if custom_einsum_jvp is None:
@@ -177,7 +172,6 @@ class FunctionalTensorProduct:
             weights,
             input1,
             input2,
-            specialized_code=specialized_code,
             optimize_einsums=optimize_einsums,
             custom_einsum_jvp=custom_einsum_jvp,
             fused=fused,
@@ -188,7 +182,6 @@ class FunctionalTensorProduct:
         weights: List[jnp.ndarray],
         input2: IrrepsArray = None,
         *,
-        specialized_code=None,
         optimize_einsums=None,
         custom_einsum_jvp=None,
         fused=None,
@@ -204,8 +197,6 @@ class FunctionalTensorProduct:
         Returns:
             A matrix of shape ``(irreps_in1.dim, irreps_out.dim)``.
         """
-        if specialized_code is None:
-            specialized_code = config("specialized_code")
         if optimize_einsums is None:
             optimize_einsums = config("optimize_einsums")
         if custom_einsum_jvp is None:
@@ -320,7 +311,7 @@ def _normalize_instruction_path_weights(
     return [update(instruction) for instruction in instructions]
 
 
-@partial(jax.jit, static_argnums=(0,), static_argnames=("specialized_code", "optimize_einsums", "custom_einsum_jvp", "fused"))
+@partial(jax.jit, static_argnums=(0,), static_argnames=("optimize_einsums", "custom_einsum_jvp", "fused"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
     self: FunctionalTensorProduct,
@@ -328,7 +319,6 @@ def _left_right(
     input1,
     input2,
     *,
-    specialized_code=False,
     optimize_einsums=True,
     custom_einsum_jvp=False,
     fused=False,
@@ -495,67 +485,18 @@ def _left_right(
 
         if ins.connection_mode == "uvw":
             assert ins.has_weight
-            if specialized_code and (
-                mul_ir_in1.ir.l,
-                mul_ir_in2.ir.l,
-                mul_ir_out.ir.l,
-            ) == (0, 0, 0):
-                out = ins.path_weight * einsum("uvw,uv->w", w, xx.reshape(mul_ir_in1.dim, mul_ir_in2.dim))
-            elif specialized_code and mul_ir_in1.ir.l == 0:
-                out = ins.path_weight * einsum("uvw,u,vj->wj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
-            elif specialized_code and mul_ir_in2.ir.l == 0:
-                out = ins.path_weight * einsum("uvw,ui,v->wi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
-            elif specialized_code and mul_ir_out.ir.l == 0:
-                out = ins.path_weight * einsum("uvw,ui,vi->w", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
-            else:
-                out = einsum("uvw,ijk,uvij->wk", w, w3j, xx)
+            out = einsum("uvw,ijk,uvij->wk", w, w3j, xx)
         if ins.connection_mode == "uvu":
             assert mul_ir_in1.mul == mul_ir_out.mul
             if ins.has_weight:
-                if specialized_code and (
-                    mul_ir_in1.ir.l,
-                    mul_ir_in2.ir.l,
-                    mul_ir_out.ir.l,
-                ) == (0, 0, 0):
-                    out = ins.path_weight * einsum(
-                        "uv,u,v->u",
-                        w,
-                        x1.reshape(mul_ir_in1.dim),
-                        x2.reshape(mul_ir_in2.dim),
-                    )
-                elif specialized_code and mul_ir_in1.ir.l == 0:
-                    out = ins.path_weight * einsum("uv,u,vj->uj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
-                elif specialized_code and mul_ir_in2.ir.l == 0:
-                    out = ins.path_weight * einsum("uv,ui,v->ui", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
-                elif specialized_code and mul_ir_out.ir.l == 0:
-                    out = ins.path_weight * einsum("uv,ui,vi->u", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
-                else:
-                    out = einsum("uv,ijk,uvij->uk", w, w3j, xx)
+                out = einsum("uv,ijk,uvij->uk", w, w3j, xx)
             else:
                 # not so useful operation because v is summed
                 out = einsum("ijk,uvij->uk", w3j, xx)
         if ins.connection_mode == "uvv":
             assert mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                if specialized_code and (
-                    mul_ir_in1.ir.l,
-                    mul_ir_in2.ir.l,
-                    mul_ir_out.ir.l,
-                ) == (0, 0, 0):
-                    out = ins.path_weight * einsum(
-                        "uv,u,v->v",
-                        w,
-                        x1.reshape(mul_ir_in1.dim),
-                        x2.reshape(mul_ir_in2.dim),
-                    )
-                elif specialized_code and mul_ir_in1.ir.l == 0:
-                    out = ins.path_weight * einsum("uv,u,vj->vj", w, x1.reshape(mul_ir_in1.dim), x2) / sqrt(mul_ir_out.ir.dim)
-                elif specialized_code and mul_ir_in2.ir.l == 0:
-                    out = ins.path_weight * einsum("uv,ui,v->vi", w, x1, x2.reshape(mul_ir_in2.dim)) / sqrt(mul_ir_out.ir.dim)
-                elif specialized_code and mul_ir_out.ir.l == 0:
-                    out = ins.path_weight * einsum("uv,ui,vi->v", w, x1, x2) / sqrt(mul_ir_in1.ir.dim)
-                else:
-                    out = einsum("uv,ijk,uvij->vk", w, w3j, xx)
+                out = einsum("uv,ijk,uvij->vk", w, w3j, xx)
             else:
                 # not so useful operation because u is summed
                 out = einsum("ijk,uvij->vk", w3j, xx)

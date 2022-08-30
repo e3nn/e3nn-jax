@@ -4,7 +4,6 @@ __conf = {
     "gradient_normalization": "path",
     "spherical_harmonics_algorithm": "automatic",
     "spherical_harmonics_normalization": "component",
-    "specialized_code": False,
     "optimize_einsums": True,
     "custom_einsum_jvp": False,
     "fused": False,
