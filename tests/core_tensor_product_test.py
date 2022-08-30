@@ -1,13 +1,7 @@
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import (
-    FunctionalFullyConnectedTensorProduct,
-    FunctionalTensorProduct,
-    FunctionalTensorSquare,
-    Irreps,
-    IrrepsArray,
-)
+from e3nn_jax import FunctionalFullyConnectedTensorProduct, FunctionalTensorProduct, FunctionalTensorSquare, Irreps
 import e3nn_jax as e3nn
 from e3nn_jax.util import prod
 
