@@ -490,7 +490,7 @@ class IrrepsArray:
             ValueError: if the irreps are not compatible
 
         Example:
-        >>> id = IrrepsArray.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1, 10))
+        >>> id = IrrepsArray.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
         >>> jax.tree_util.tree_map(lambda x: x.shape, id.convert("20x0e")).list
         [(1, 20, 1)]
         """
