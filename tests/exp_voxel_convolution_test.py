@@ -15,7 +15,6 @@ def test_convolution(keys):
     @hk.without_apply_rng
     @hk.transform
     def c(x, z):
-        x = e3nn.IrrepsArray(irreps_in, x)
         x = Convolution(
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,
@@ -24,28 +23,28 @@ def test_convolution(keys):
             relative_starts={0: 0.0, 1: 0.0, 2: 0.5},
             steps=((1.0, 1.0, 1.0), z),
         )(x)
-        return x.array
+        return x
 
     f = jax.jit(c.apply)
 
-    x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8, -1))
-    x0 = jnp.pad(x0, ((0, 0), (4, 4), (4, 4), (4, 4), (0, 0)))
+    x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8))
+    x0 = jax.tree_util.tree_map(lambda x: jnp.pad(x, ((0, 0), (4, 4), (4, 4), (4, 4)) + ((0, 0),) * (x.ndim - 4)), x0)
 
     w = c.init(next(keys), x0, jnp.array([1.0, 1.0, 1.0]))
 
     y0 = f(w, x0, jnp.array([1.0, 1.02, 0.98]))
-    y2 = jnp.rot90(y0, axes=(2, 3))
-    y2 = irreps_out.transform_by_angles(y2, 0.0, jnp.pi / 2, 0.0)
+    y2 = jax.tree_util.tree_map(lambda x: jnp.rot90(x, axes=(2, 3)), y0)
+    y2 = y2.transform_by_angles(0.0, jnp.pi / 2, 0.0)
 
-    x1 = jnp.rot90(x0, axes=(2, 3))
-    x1 = irreps_in.transform_by_angles(x1, 0.0, jnp.pi / 2, 0.0)
+    x1 = jax.tree_util.tree_map(lambda x: jnp.rot90(x, axes=(2, 3)), x0)
+    x1 = x1.transform_by_angles(0.0, jnp.pi / 2, 0.0)
     y1 = f(w, x1, jnp.array([1.0, 0.98, 1.02]))
 
-    np.testing.assert_allclose(y1, y2, atol=1e-5)
+    np.testing.assert_allclose(y1.array, y2.array, atol=1e-5)
 
     y1 = f(w, x1, jnp.array([1.0, 1.02, 0.98]))
     with pytest.raises(AssertionError):
-        np.testing.assert_allclose(y1, y2, atol=1e-5)
+        np.testing.assert_allclose(y1.array, y2.array, atol=1e-5)
 
 
 def test_convolution_defaults(keys):
@@ -56,7 +55,6 @@ def test_convolution_defaults(keys):
     @hk.without_apply_rng
     @hk.transform
     def c(x):
-        x = e3nn.IrrepsArray(irreps_in, x)
         x = Convolution(
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,
@@ -64,21 +62,21 @@ def test_convolution_defaults(keys):
             num_radial_basis=3,
             steps=(1.0, 1.0, 1.0),
         )(x)
-        return x.array
+        return x
 
     f = jax.jit(c.apply)
 
-    x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8, -1))
-    x0 = jnp.pad(x0, ((0, 0), (4, 4), (4, 4), (4, 4), (0, 0)))
+    x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8))
+    x0 = jax.tree_util.tree_map(lambda x: jnp.pad(x, ((0, 0), (4, 4), (4, 4), (4, 4)) + ((0, 0),) * (x.ndim - 4)), x0)
 
     w = c.init(next(keys), x0)
     y0 = f(w, x0)
 
-    x1 = jnp.rot90(x0, axes=(2, 3))
-    x1 = irreps_in.transform_by_angles(x1, 0.0, jnp.pi / 2, 0.0)
+    x1 = jax.tree_util.tree_map(lambda x: jnp.rot90(x, axes=(2, 3)), x0)
+    x1 = x1.transform_by_angles(0.0, jnp.pi / 2, 0.0)
     y1 = f(w, x1)
 
-    y2 = jnp.rot90(y0, axes=(2, 3))
-    y2 = irreps_out.transform_by_angles(y2, 0.0, jnp.pi / 2, 0.0)
+    y2 = jax.tree_util.tree_map(lambda x: jnp.rot90(x, axes=(2, 3)), y0)
+    y2 = y2.transform_by_angles(0.0, jnp.pi / 2, 0.0)
 
-    assert jnp.allclose(y1, y2, atol=1e-5)
+    assert jnp.allclose(y1.array, y2.array, atol=1e-5)

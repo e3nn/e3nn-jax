@@ -13,7 +13,7 @@ def test_dropout(keys):
         m = e3nn.Dropout(p=0.75)
         return m(rng, x, is_training)
 
-    x = e3nn.normal(irreps, next(keys), (-1,))
+    x = e3nn.normal(irreps, next(keys), ())
     params = b.init(next(keys), next(keys), x)
 
     y = b.apply(params, next(keys), x, is_training=False)
