@@ -1,19 +1,19 @@
 import haiku as hk
 
-from e3nn_jax import Dropout, Irreps, IrrepsArray
+import e3nn_jax as e3nn
 from e3nn_jax.util.test import assert_equivariant
 
 
 def test_dropout(keys):
-    irreps = Irreps("10x1e + 10x0e")
+    irreps = e3nn.Irreps("10x1e + 10x0e")
 
     @hk.without_apply_rng
     @hk.transform
     def b(rng, x, is_training=True):
-        m = Dropout(p=0.75)
+        m = e3nn.Dropout(p=0.75)
         return m(rng, x, is_training)
 
-    x = IrrepsArray(irreps, irreps.randn(next(keys), (-1,)))
+    x = e3nn.normal(irreps, next(keys), (-1,))
     params = b.init(next(keys), next(keys), x)
 
     y = b.apply(params, next(keys), x, is_training=False)

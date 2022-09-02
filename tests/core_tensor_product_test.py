@@ -1,7 +1,6 @@
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import FunctionalFullyConnectedTensorProduct, FunctionalTensorProduct, FunctionalTensorSquare, Irreps
 import e3nn_jax as e3nn
 from e3nn_jax.util import prod
 
@@ -11,10 +10,10 @@ from e3nn_jax.util import prod
 @pytest.mark.parametrize("optimize_einsums", [False, True])
 @pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
 def test_modes(keys, irrep_normalization, optimize_einsums, jitted, connection_mode):
-    tp = FunctionalTensorProduct(
-        Irreps("10x0o + 10x1o + 1x2e"),
-        Irreps("10x0o + 10x1o + 1x2o"),
-        Irreps("10x0e + 10x1e + 2x2o"),
+    tp = e3nn.FunctionalTensorProduct(
+        e3nn.Irreps("10x0o + 10x1o + 1x2e"),
+        e3nn.Irreps("10x0o + 10x1o + 1x2o"),
+        e3nn.Irreps("10x0e + 10x1e + 2x2o"),
         [
             (0, 0, 0, connection_mode, True),
             (1, 1, 1, connection_mode, True),
@@ -40,8 +39,8 @@ def test_modes(keys, irrep_normalization, optimize_einsums, jitted, connection_m
     g = tp.left_right
 
     ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
-    x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=irrep_normalization)
-    x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=irrep_normalization)
+    x1 = e3nn.normal(tp.irreps_in1, next(keys), ())
+    x2 = e3nn.normal(tp.irreps_in2, next(keys), ())
 
     a = f(ws, x1, x2).array
     b = g(ws, x1, x2).array
@@ -49,7 +48,7 @@ def test_modes(keys, irrep_normalization, optimize_einsums, jitted, connection_m
 
 
 def test_zero_dim(keys):
-    tp = FunctionalTensorProduct(
+    tp = e3nn.FunctionalTensorProduct(
         "0x0e + 1e",
         "0e + 0x1e",
         "0x0e + 1e",
@@ -71,7 +70,7 @@ def test_zero_dim(keys):
 
 
 def test_fused(keys):
-    tp = FunctionalTensorProduct(
+    tp = e3nn.FunctionalTensorProduct(
         "10x0e + 5x1e",
         "0e + 1e + 3x1e",
         "10x0e + 5x1e + 30x1e",
@@ -83,8 +82,8 @@ def test_fused(keys):
         ],
     )
     w = [jax.random.normal(keys[1], ins.path_shape) for ins in tp.instructions]
-    x = jax.random.normal(keys[2], (25,))
-    y = jax.random.normal(keys[3], (13,))
+    x = e3nn.normal(tp.irreps_in1, keys[2], ())
+    y = e3nn.normal(tp.irreps_in2, keys[3], ())
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fused=True).array,
@@ -95,7 +94,7 @@ def test_fused(keys):
 
 
 def test_fused_no_weight(keys):
-    tp = FunctionalTensorProduct(
+    tp = e3nn.FunctionalTensorProduct(
         "10x0e",
         "10x0e",
         "10x0e",
@@ -104,8 +103,8 @@ def test_fused_no_weight(keys):
         ],
     )
     w = jnp.ones(0)
-    x = jax.random.normal(keys[2], (10,))
-    y = jax.random.normal(keys[3], (10,))
+    x = e3nn.normal(tp.irreps_in1, keys[2], ())
+    y = e3nn.normal(tp.irreps_in2, keys[3], ())
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fused=True).array,
@@ -116,7 +115,7 @@ def test_fused_no_weight(keys):
 
 
 def test_fused_mix_weight(keys):
-    tp = FunctionalTensorProduct(
+    tp = e3nn.FunctionalTensorProduct(
         "5x0e",
         "5x0e",
         "5x0e",
@@ -126,8 +125,8 @@ def test_fused_mix_weight(keys):
         ],
     )
     w = jax.random.normal(keys[1], (5**3,))
-    x = jax.random.normal(keys[2], (5,))
-    y = jax.random.normal(keys[3], (5,))
+    x = e3nn.normal(tp.irreps_in1, keys[2], ())
+    y = e3nn.normal(tp.irreps_in2, keys[3], ())
 
     assert jnp.allclose(
         tp.left_right(w, x, y, fused=True).array,
@@ -138,12 +137,12 @@ def test_fused_mix_weight(keys):
 
 
 def test_fuse(keys):
-    tp = FunctionalFullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
+    tp = e3nn.FunctionalFullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
 
     ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
     wf = jnp.concatenate([w.flatten() for w in ws])
-    x1 = tp.irreps_in1.randn(next(keys), (-1,))
-    x2 = tp.irreps_in2.randn(next(keys), (-1,))
+    x1 = e3nn.normal(tp.irreps_in1, next(keys), ())
+    x2 = e3nn.normal(tp.irreps_in2, next(keys), ())
 
     a = tp.left_right(ws, x1, x2, fused=False).array
     b = tp.left_right(wf, x1, x2, fused=True).array
@@ -154,7 +153,7 @@ def test_fuse(keys):
 @pytest.mark.parametrize("path_normalization", ["element", "path", 0.5])
 @pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
 def test_normalization(keys, irrep_normalization, path_normalization, gradient_normalization):
-    tp = FunctionalFullyConnectedTensorProduct(
+    tp = e3nn.FunctionalFullyConnectedTensorProduct(
         "5x0e+1x0e+10x1e",
         "2x0e+2x1e+10x1e",
         "1000x1e+1000x0e",
@@ -164,8 +163,8 @@ def test_normalization(keys, irrep_normalization, path_normalization, gradient_n
     )
 
     ws = [ins.weight_std * jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
-    x1 = tp.irreps_in1.randn(next(keys), (-1,), normalization=irrep_normalization)
-    x2 = tp.irreps_in2.randn(next(keys), (-1,), normalization=irrep_normalization)
+    x1 = e3nn.normal(tp.irreps_in1, next(keys), (), normalization=irrep_normalization)
+    x2 = e3nn.normal(tp.irreps_in2, next(keys), (), normalization=irrep_normalization)
 
     v, s = tp.left_right(ws, x1, x2).list
 
@@ -177,8 +176,8 @@ def test_normalization(keys, irrep_normalization, path_normalization, gradient_n
 
 
 def test_square_normalization(keys):
-    irreps = Irreps("2x0e + 3x1e + 2x2e + 3e")
-    tp = FunctionalTensorSquare(irreps, irreps, irrep_normalization="component")
+    irreps = e3nn.Irreps("2x0e + 3x1e + 2x2e + 3e")
+    tp = e3nn.FunctionalTensorSquare(irreps, irreps, irrep_normalization="component")
     n = sum(prod(ins.path_shape) for ins in tp.instructions if ins.has_weight)
 
     @jax.vmap
@@ -187,6 +186,6 @@ def test_square_normalization(keys):
 
     k = 100_000
     w = jax.random.normal(keys[0], (k, n))
-    x = irreps.randn(keys[1], (k, -1), normalization="component")
+    x = e3nn.normal(irreps, keys[1], (k,), normalization="component")
     y = f(w, x)
     assert jnp.all(jnp.exp(jnp.abs(jnp.log(jnp.mean(y**2, 0)))) < 1.1)

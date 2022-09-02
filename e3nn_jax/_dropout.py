@@ -1,6 +1,6 @@
+import haiku as hk
 import jax
 import jax.numpy as jnp
-import haiku as hk
 
 from e3nn_jax import Irreps, IrrepsArray
 
@@ -46,7 +46,7 @@ class Dropout(hk.Module):
             return x
 
         if self.irreps is not None:
-            x = IrrepsArray.from_any(self.irreps, x)
+            x = x.convert(self.irreps)
         if not isinstance(x, IrrepsArray):
             raise TypeError(f"{self.__class__.__name__} only supports IrrepsArray")
 

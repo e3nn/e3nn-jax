@@ -131,7 +131,7 @@ class FunctionalLinear:
         return IrrepsArray.from_list(self.irreps_out, output, output_shape)
 
     def __call__(self, ws: List[jnp.ndarray], input: IrrepsArray) -> IrrepsArray:
-        input = IrrepsArray.from_any(self.irreps_in, input)
+        input = input.convert(self.irreps_in)
         if input.ndim != 1:
             raise ValueError(f"FunctionalLinear does not support broadcasting, input shape is {input.shape}")
 
@@ -193,11 +193,9 @@ class Linear(hk.Module):
         self.path_normalization = path_normalization
         self.gradient_normalization = gradient_normalization
 
-    def __call__(self, input):
-        if self.irreps_in is None and not isinstance(input, IrrepsArray):
-            raise ValueError("the input of Linear must be an IrrepsArray, or `irreps_in` must be specified")
+    def __call__(self, input: IrrepsArray) -> IrrepsArray:
         if self.irreps_in is not None:
-            input = IrrepsArray.from_any(self.irreps_in, input)
+            input = input.convert(self.irreps_in)
 
         input = input.remove_nones().simplify()
         output_irreps = self.irreps_out.simplify()

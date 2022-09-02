@@ -73,9 +73,9 @@ class FullyConnectedTensorProduct(hk.Module):
 
     def __call__(self, x1: IrrepsArray, x2: IrrepsArray) -> IrrepsArray:
         if self.irreps_in1 is not None:
-            x1 = IrrepsArray.from_any(self.irreps_in1, x1)
+            x1 = x1.convert(self.irreps_in1)
         if self.irreps_in2 is not None:
-            x2 = IrrepsArray.from_any(self.irreps_in2, x2)
+            x2 = x2.convert(self.irreps_in2)
 
         x1 = x1.remove_nones().simplify()
         x2 = x2.remove_nones().simplify()
@@ -278,7 +278,7 @@ class TensorSquare(hk.Module):
 
     def __call__(self, input: IrrepsArray) -> IrrepsArray:
         if self.irreps_in is not None:
-            input = IrrepsArray.from_any(self.irreps_in, input)
+            input = input.convert(self.irreps_in)
 
         input = input.remove_nones().simplify()
 

@@ -1,18 +1,19 @@
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import IrrepsArray, gate, rand_matrix
+
+import e3nn_jax as e3nn
 
 
 def test_gate(keys):
-    f = jax.jit(jax.vmap(gate))
+    f = jax.jit(jax.vmap(e3nn.gate))
 
-    x = IrrepsArray.randn("16x0o + 32x0o + 16x1e + 16x1o", next(keys), (10,))
+    x = e3nn.normal("16x0o + 32x0o + 16x1e + 16x1o", next(keys), (10,))
     y = f(x)
 
     assert jnp.abs(jnp.log(jnp.mean(y.array**2))) < 0.2
 
-    R = -rand_matrix(next(keys), ())
+    R = -e3nn.rand_matrix(next(keys), ())
     y1 = y.transform_by_matrix(R)
     y2 = f(x.transform_by_matrix(R))
 

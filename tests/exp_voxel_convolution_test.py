@@ -1,21 +1,21 @@
+import e3nn_jax as e3nn
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from e3nn_jax import Irreps, IrrepsArray
 from e3nn_jax.experimental.voxel_convolution import Convolution
 
 
 def test_convolution(keys):
-    irreps_in = Irreps("2x0e + 3x1e + 2x2e")
-    irreps_out = Irreps("0e + 2x1e + 2e")
-    irreps_sh = Irreps("0e + 1e + 2e")
+    irreps_in = e3nn.Irreps("2x0e + 3x1e + 2x2e")
+    irreps_out = e3nn.Irreps("0e + 2x1e + 2e")
+    irreps_sh = e3nn.Irreps("0e + 1e + 2e")
 
     @hk.without_apply_rng
     @hk.transform
     def c(x, z):
-        x = IrrepsArray(irreps_in, x)
+        x = e3nn.IrrepsArray(irreps_in, x)
         x = Convolution(
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,
@@ -28,7 +28,7 @@ def test_convolution(keys):
 
     f = jax.jit(c.apply)
 
-    x0 = irreps_in.randn(next(keys), (3, 8, 8, 8, -1))
+    x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8, -1))
     x0 = jnp.pad(x0, ((0, 0), (4, 4), (4, 4), (4, 4), (0, 0)))
 
     w = c.init(next(keys), x0, jnp.array([1.0, 1.0, 1.0]))
@@ -49,14 +49,14 @@ def test_convolution(keys):
 
 
 def test_convolution_defaults(keys):
-    irreps_in = Irreps("2x0e + 3x1e + 2x2e")
-    irreps_out = Irreps("0e + 2x1e + 2e")
-    irreps_sh = Irreps("0e + 1e + 2e")
+    irreps_in = e3nn.Irreps("2x0e + 3x1e + 2x2e")
+    irreps_out = e3nn.Irreps("0e + 2x1e + 2e")
+    irreps_sh = e3nn.Irreps("0e + 1e + 2e")
 
     @hk.without_apply_rng
     @hk.transform
     def c(x):
-        x = IrrepsArray(irreps_in, x)
+        x = e3nn.IrrepsArray(irreps_in, x)
         x = Convolution(
             irreps_out=irreps_out,
             irreps_sh=irreps_sh,
@@ -68,7 +68,7 @@ def test_convolution_defaults(keys):
 
     f = jax.jit(c.apply)
 
-    x0 = irreps_in.randn(next(keys), (3, 8, 8, 8, -1))
+    x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8, -1))
     x0 = jnp.pad(x0, ((0, 0), (4, 4), (4, 4), (4, 4), (0, 0)))
 
     w = c.init(next(keys), x0)

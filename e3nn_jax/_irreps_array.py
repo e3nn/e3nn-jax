@@ -51,29 +51,6 @@ class IrrepsArray:
                             )
 
     @staticmethod
-    def from_any(irreps: Irreps, any) -> "IrrepsArray":
-        r"""Create a new IrrepsArray
-
-        Args:
-            irreps (`Irreps`): the irreps of the data
-            any: the data
-
-        Returns:
-            `IrrepsArray`
-        """
-        if isinstance(any, IrrepsArray):
-            return any.convert(irreps)
-        if isinstance(any, list):
-            leading_shape = None
-            for x in any:
-                if x is not None:
-                    leading_shape = x.shape[:-2]
-            if leading_shape is None:
-                raise ValueError("IrrepsArray.from_any cannot infer shape from list of arrays")
-            return IrrepsArray.from_list(irreps, any, leading_shape)
-        return IrrepsArray(irreps, any)
-
-    @staticmethod
     def from_list(irreps: Irreps, list, leading_shape: Tuple[int]) -> "IrrepsArray":
         r"""Create an IrrepsArray from a list of arrays
 
@@ -513,7 +490,7 @@ class IrrepsArray:
             ValueError: if the irreps are not compatible
 
         Example:
-        >>> id = IrrepsArray.from_any("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))])
+        >>> id = IrrepsArray.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1, 10))
         >>> jax.tree_util.tree_map(lambda x: x.shape, id.convert("20x0e")).list
         [(1, 20, 1)]
         """

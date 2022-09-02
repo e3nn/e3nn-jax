@@ -168,7 +168,7 @@ class BatchNorm(hk.Module):
     def __repr__(self):
         return f"{self.__class__.__name__} ({self.irreps}, eps={self.eps}, momentum={self.momentum})"
 
-    def __call__(self, input, is_training=True):
+    def __call__(self, input: IrrepsArray, is_training: bool = True) -> IrrepsArray:
         r"""evaluate the batch normalization
 
         Args:
@@ -179,9 +179,7 @@ class BatchNorm(hk.Module):
             output: normalized tensor of shape ``(batch, [spatial], irreps.dim)``
         """
         if self.irreps is not None:
-            input = IrrepsArray.from_any(self.irreps, input)
-        if not isinstance(input, IrrepsArray):
-            raise ValueError("input should be of type IrrepsArray")
+            input = input.convert(self.irreps)
 
         num_scalar = sum(mul for mul, ir in input.irreps if ir.is_scalar())
         num_features = input.irreps.num_irreps
