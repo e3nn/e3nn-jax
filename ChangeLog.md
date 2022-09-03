@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add **new operator** `e3nn.grad`: it takes an `IrrepsArray -> IrrepsArray` function and returns a `IrrepsArray -> IrrepsArray` function
 - Add support of operator `IrrepsArray ** scalar`
 - Add support of `x[..., 3:6]` for `IrrepsArray`
+- Add `e3nn.reduced_tensor_product_basis`
 
 ### Removed
 - `IrrepsArray.cat` is now deprecated and replaced by `e3nn.concatenate`

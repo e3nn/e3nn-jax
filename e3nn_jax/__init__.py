@@ -58,6 +58,7 @@ from ._dropout import Dropout
 from ._nn import MultiLayerPerceptron
 from ._graph_util import index_add, radius_graph
 from ._poly_envelope import poly_envelope
+from ._reduced_tensor_product import reduced_tensor_product_basis
 
 __all__ = [
     "config",  # not in docs
@@ -129,4 +130,5 @@ __all__ = [
     "index_add",
     "radius_graph",
     "poly_envelope",
+    "reduced_tensor_product_basis",
 ]
