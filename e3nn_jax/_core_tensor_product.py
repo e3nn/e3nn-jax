@@ -4,7 +4,7 @@ import collections
 import itertools
 from functools import lru_cache, partial
 from math import sqrt
-from typing import Any, List, Optional, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -49,7 +49,7 @@ class FunctionalTensorProduct:
         irreps_in1: Irreps,
         irreps_in2: Irreps,
         irreps_out: Irreps,
-        instructions: List[Any],
+        instructions: List[Tuple[int, int, int, str, bool, Optional[float]]],
         in1_var: Optional[List[float]] = None,
         in2_var: Optional[List[float]] = None,
         out_var: Optional[List[float]] = None,
@@ -132,12 +132,12 @@ class FunctionalTensorProduct:
 
     def left_right(
         self,
-        weights: List[jnp.ndarray],
+        weights: Union[List[jnp.ndarray], jnp.ndarray],
         input1: IrrepsArray,
         input2: IrrepsArray = None,
         *,
-        custom_einsum_jvp=None,
-        fused=None,
+        custom_einsum_jvp: bool = None,
+        fused: bool = None,
     ) -> IrrepsArray:
         r"""Compute the tensor product of two input tensors.
 
@@ -297,12 +297,12 @@ def _normalize_instruction_path_weights(
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
     self: FunctionalTensorProduct,
-    weights,
-    input1,
-    input2,
+    weights: Union[List[jnp.ndarray], jnp.ndarray],
+    input1: IrrepsArray,
+    input2: IrrepsArray,
     *,
-    custom_einsum_jvp=False,
-    fused=False,
+    custom_einsum_jvp: bool = False,
+    fused: bool = False,
 ):
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
         return IrrepsArray.zeros(self.irreps_out, ())
@@ -332,94 +332,18 @@ def _left_right(
     assert input2.ndim == 1, f"input2 is shape {input2.shape}. Execting ndim to be 1. Use jax.vmap to map over input2"
 
     if fused:
-        with jax.ensure_compile_time_eval():
-            num_path = weights_flat.size
-            has_path_with_no_weights = any(not ins.has_weight for ins in self.instructions)
-            i = 0
+        return _fused_left_right(self, weights_flat, input1, input2, einsum)
+    else:
+        return _block_left_right(self, weights_list, input1, input2, einsum)
 
-            if has_path_with_no_weights:
-                num_path += 1
-                i += 1
 
-            big_w3j = jnp.zeros(
-                (
-                    num_path,
-                    self.irreps_in1.dim,
-                    self.irreps_in2.dim,
-                    self.irreps_out.dim,
-                )
-            )
-            for ins in self.instructions:
-                mul_ir_in1 = self.irreps_in1[ins.i_in1]
-                mul_ir_in2 = self.irreps_in2[ins.i_in2]
-                mul_ir_out = self.irreps_out[ins.i_out]
-                m1, m2, mo = mul_ir_in1.mul, mul_ir_in2.mul, mul_ir_out.mul
-                d1, d2, do = mul_ir_in1.ir.dim, mul_ir_in2.ir.dim, mul_ir_out.ir.dim
-                s1 = self.irreps_in1[: ins.i_in1].dim
-                s2 = self.irreps_in2[: ins.i_in2].dim
-                so = self.irreps_out[: ins.i_out].dim
-
-                w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
-
-                def set_w3j(x, i, u, v, w):
-                    return x.at[
-                        i,
-                        s1 + u * d1 : s1 + (u + 1) * d1,
-                        s2 + v * d2 : s2 + (v + 1) * d2,
-                        so + w * do : so + (w + 1) * do,
-                    ].add(ins.path_weight * w3j)
-
-                if ins.connection_mode == "uvw":
-                    assert ins.has_weight
-                    for u, v, w in itertools.product(range(m1), range(m2), range(mo)):
-                        big_w3j = set_w3j(big_w3j, i, u, v, w)
-                        i += 1
-                elif ins.connection_mode == "uvu":
-                    assert ins.has_weight
-                    for u, v in itertools.product(range(m1), range(m2)):
-                        big_w3j = set_w3j(big_w3j, i, u, v, u)
-                        i += 1
-                elif ins.connection_mode == "uvv":
-                    assert ins.has_weight
-                    for u, v in itertools.product(range(m1), range(m2)):
-                        big_w3j = set_w3j(big_w3j, i, u, v, v)
-                        i += 1
-                elif ins.connection_mode == "uuu":
-                    for u in range(m1):
-                        if ins.has_weight:
-                            big_w3j = set_w3j(big_w3j, i, u, u, u)
-                            i += 1
-                        else:
-                            big_w3j = set_w3j(big_w3j, 0, u, u, u)
-                elif ins.connection_mode == "uvuv":
-                    for u in range(m1):
-                        for v in range(m2):
-                            if ins.has_weight:
-                                big_w3j = set_w3j(big_w3j, i, u, v, u * m2 + v)
-                                i += 1
-                            else:
-                                big_w3j = set_w3j(big_w3j, 0, u, v, u * m2 + v)
-                else:
-                    assert False
-
-            assert i == num_path
-
-        if has_path_with_no_weights and big_w3j.shape[0] == 1:
-            big_w3j = big_w3j.reshape(big_w3j.shape[1:])
-            out = einsum("ijk,i,j->k", big_w3j, input1.array, input2.array)
-        else:
-            if has_path_with_no_weights:
-                weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
-
-            out = einsum(
-                "p,pijk,i,j->k",
-                weights_flat,
-                big_w3j,
-                input1.array,
-                input2.array,
-            )
-        return IrrepsArray(self.irreps_out, out)
-
+def _block_left_right(
+    self: FunctionalTensorProduct,
+    weights_list: List[jnp.ndarray],
+    input1: IrrepsArray,
+    input2: IrrepsArray,
+    einsum: Callable,
+) -> IrrepsArray:
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):
         if mode == "uv":
@@ -526,15 +450,111 @@ def _left_right(
     return IrrepsArray.from_list(self.irreps_out, out, ())
 
 
+def _fused_left_right(
+    self: FunctionalTensorProduct,
+    weights_flat: jnp.ndarray,
+    input1: IrrepsArray,
+    input2: IrrepsArray,
+    einsum: Callable,
+) -> IrrepsArray:
+    with jax.ensure_compile_time_eval():
+        num_path = weights_flat.size
+        has_path_with_no_weights = any(not ins.has_weight for ins in self.instructions)
+        i = 0
+
+        if has_path_with_no_weights:
+            num_path += 1
+            i += 1
+
+        big_w3j = jnp.zeros(
+            (
+                num_path,
+                self.irreps_in1.dim,
+                self.irreps_in2.dim,
+                self.irreps_out.dim,
+            )
+        )
+        for ins in self.instructions:
+            mul_ir_in1 = self.irreps_in1[ins.i_in1]
+            mul_ir_in2 = self.irreps_in2[ins.i_in2]
+            mul_ir_out = self.irreps_out[ins.i_out]
+            m1, m2, mo = mul_ir_in1.mul, mul_ir_in2.mul, mul_ir_out.mul
+            d1, d2, do = mul_ir_in1.ir.dim, mul_ir_in2.ir.dim, mul_ir_out.ir.dim
+            s1 = self.irreps_in1[: ins.i_in1].dim
+            s2 = self.irreps_in2[: ins.i_in2].dim
+            so = self.irreps_out[: ins.i_out].dim
+
+            w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+
+            def set_w3j(x, i, u, v, w):
+                return x.at[
+                    i,
+                    s1 + u * d1 : s1 + (u + 1) * d1,
+                    s2 + v * d2 : s2 + (v + 1) * d2,
+                    so + w * do : so + (w + 1) * do,
+                ].add(ins.path_weight * w3j)
+
+            if ins.connection_mode == "uvw":
+                assert ins.has_weight
+                for u, v, w in itertools.product(range(m1), range(m2), range(mo)):
+                    big_w3j = set_w3j(big_w3j, i, u, v, w)
+                    i += 1
+            elif ins.connection_mode == "uvu":
+                assert ins.has_weight
+                for u, v in itertools.product(range(m1), range(m2)):
+                    big_w3j = set_w3j(big_w3j, i, u, v, u)
+                    i += 1
+            elif ins.connection_mode == "uvv":
+                assert ins.has_weight
+                for u, v in itertools.product(range(m1), range(m2)):
+                    big_w3j = set_w3j(big_w3j, i, u, v, v)
+                    i += 1
+            elif ins.connection_mode == "uuu":
+                for u in range(m1):
+                    if ins.has_weight:
+                        big_w3j = set_w3j(big_w3j, i, u, u, u)
+                        i += 1
+                    else:
+                        big_w3j = set_w3j(big_w3j, 0, u, u, u)
+            elif ins.connection_mode == "uvuv":
+                for u in range(m1):
+                    for v in range(m2):
+                        if ins.has_weight:
+                            big_w3j = set_w3j(big_w3j, i, u, v, u * m2 + v)
+                            i += 1
+                        else:
+                            big_w3j = set_w3j(big_w3j, 0, u, v, u * m2 + v)
+            else:
+                assert False
+
+        assert i == num_path
+
+    if has_path_with_no_weights and big_w3j.shape[0] == 1:
+        big_w3j = big_w3j.reshape(big_w3j.shape[1:])
+        out = einsum("ijk,i,j->k", big_w3j, input1.array, input2.array)
+    else:
+        if has_path_with_no_weights:
+            weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
+
+        out = einsum(
+            "p,pijk,i,j->k",
+            weights_flat,
+            big_w3j,
+            input1.array,
+            input2.array,
+        )
+    return IrrepsArray(self.irreps_out, out)
+
+
 @partial(jax.jit, static_argnums=(0,), static_argnames=("custom_einsum_jvp"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.right")
 def _right(
     self: FunctionalTensorProduct,
-    weights,
-    input2,
+    weights: List[jnp.ndarray],
+    input2: IrrepsArray,
     *,
-    custom_einsum_jvp=False,
-):
+    custom_einsum_jvp: bool = False,
+) -> jnp.ndarray:
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
         return jnp.zeros(
