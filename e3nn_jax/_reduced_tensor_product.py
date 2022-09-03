@@ -108,7 +108,7 @@ def round_to_sqrt_rational(x: np.ndarray, max_denominator=4096) -> np.ndarray:
     return _round_to_sqrt_rational(np.real(x), max_denominator)
 
 
-def gram_schmidt(A: np.ndarray, *, epsilon=1e-4, round_fn=lambda x: x) -> np.ndarray:
+def gram_schmidt(A: np.ndarray, *, epsilon=1e-5, round_fn=lambda x: x) -> np.ndarray:
     """
     Orthogonalize a matrix using the Gram-Schmidt process.
     """
@@ -126,7 +126,7 @@ def gram_schmidt(A: np.ndarray, *, epsilon=1e-4, round_fn=lambda x: x) -> np.nda
     return np.stack(Q) if len(Q) > 0 else np.empty((0, A.shape[1]))
 
 
-def basis_intersection(basis1: np.ndarray, basis2: np.ndarray, *, epsilon=1e-4, round_fn=lambda x: x) -> np.ndarray:
+def basis_intersection(basis1: np.ndarray, basis2: np.ndarray, *, epsilon=1e-5, round_fn=lambda x: x) -> np.ndarray:
     """Compute the intersection of two bases
 
     Args:
@@ -171,7 +171,7 @@ def basis_intersection(basis1: np.ndarray, basis2: np.ndarray, *, epsilon=1e-4, 
 
 
 def constrain_rotation_basis_by_permutation_basis(
-    rotation_basis: e3nn.IrrepsArray, permutation_basis: np.ndarray, *, epsilon=1e-4, round_fn=lambda x: x
+    rotation_basis: e3nn.IrrepsArray, permutation_basis: np.ndarray, *, epsilon=1e-5, round_fn=lambda x: x
 ) -> e3nn.IrrepsArray:
     """Constrain a rotation basis by a permutation basis.
 
@@ -313,7 +313,7 @@ def reduce_subgroup_permutation(sub_f0: str, f0: str, formulas: FrozenSet[Tuple[
 def reduced_tensor_product_basis(
     formula: str,
     *,
-    epsilon: float = 1e-9,
+    epsilon: float = 1e-5,
     **irreps,
 ):
     f0, formulas = germinate_formulas(formula)
