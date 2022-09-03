@@ -13,6 +13,17 @@ from . import Irreps, axis_angle_to_angles, config, matrix_to_angles, quaternion
 from ._irreps import IntoIrreps
 
 
+def _infer_backend(pytree):
+    any_numpy = any(isinstance(x, np.ndarray) for x in jax.tree_util.tree_leaves(pytree))
+    any_jax = any(isinstance(x, jnp.ndarray) for x in jax.tree_util.tree_leaves(pytree))
+    if any_numpy and any_jax:
+        raise ValueError("Cannot mix numpy and jax arrays")
+    if any_numpy:
+        return np
+    if any_jax:
+        return jnp
+
+
 class IrrepsArray:
     r"""Class storing an array and its irreps
 
@@ -63,6 +74,8 @@ class IrrepsArray:
         Returns:
             IrrepsArray
         """
+        jnp = _infer_backend(list)
+
         irreps = Irreps(irreps)
         if len(irreps) != len(list):
             raise ValueError(f"IrrepsArray.from_list: len(irreps) != len(list), {len(irreps)} != {len(list)}")
@@ -105,6 +118,8 @@ class IrrepsArray:
 
     @property
     def list(self) -> List[Optional[jnp.ndarray]]:
+        jnp = _infer_backend(self.array)
+
         if self._list is None:
             leading_shape = self.array.shape[:-1]
             if len(self.irreps) == 1:
@@ -144,6 +159,8 @@ class IrrepsArray:
         return len(self.array)
 
     def __eq__(self, other) -> "IrrepsArray":
+        jnp = _infer_backend((self.array, other.array))
+
         if isinstance(other, IrrepsArray):
             if self.irreps != other.irreps:
                 raise ValueError("IrrepsArray({self.irreps}) == IrrepsArray({other.irreps}) is not equivariant.")
@@ -163,7 +180,7 @@ class IrrepsArray:
             list = [eq(mul, x, y)[..., None] for (mul, ir), x, y in zip(self.irreps, self.list, other.list)]
             return IrrepsArray.from_list([(mul, "0e") for mul, _ in self.irreps], list, leading_shape)
 
-        other = np.array(other)
+        other = jnp.asarray(other)
         if self.irreps.lmax > 0 or (other.ndim > 0 and other.shape[-1] != 1):
             raise ValueError(f"IrrepsArray({self.irreps}) == scalar(shape={other.shape}) is not equivariant.")
         return IrrepsArray(irreps=self.irreps, array=self.array == other)
@@ -192,6 +209,8 @@ class IrrepsArray:
         return IrrepsArray(irreps=self.irreps, array=self.array - other.array, list=list)
 
     def __mul__(self, other) -> "IrrepsArray":
+        jnp = _infer_backend((self.array, other.array))
+
         if isinstance(other, IrrepsArray):
             if self.irreps.lmax > 0 and other.irreps.lmax > 0:
                 raise ValueError(
@@ -199,7 +218,7 @@ class IrrepsArray:
                 )
             return e3nn.elementwise_tensor_product(self, other)
 
-        other = jnp.array(other)
+        other = jnp.asarray(other)
         if self.irreps.lmax > 0 and other.ndim > 0 and other.shape[-1] != 1:
             raise ValueError(f"IrrepsArray({self.irreps}) * scalar(shape={other.shape}) is not equivariant.")
         list = [None if x is None else x * other[..., None] for x in self.list]
@@ -209,6 +228,8 @@ class IrrepsArray:
         return self * other
 
     def __truediv__(self, other) -> "IrrepsArray":
+        jnp = _infer_backend((self.array, other.array))
+
         if isinstance(other, IrrepsArray):
             if len(other.irreps) == 0 or other.irreps.lmax > 0 or self.irreps.num_irreps != other.irreps.num_irreps:
                 raise ValueError(f"IrrepsArray({self.irreps}) / IrrepsArray({other.irreps}) is not equivariant.")
@@ -218,14 +239,16 @@ class IrrepsArray:
             other = 1.0 / other
             return e3nn.elementwise_tensor_product(self, other)
 
-        other = jnp.array(other)
+        other = jnp.asarray(other)
         if self.irreps.lmax > 0 and other.ndim > 0 and other.shape[-1] != 1:
             raise ValueError(f"IrrepsArray({self.irreps}) / scalar(shape={other.shape}) is not equivariant.")
         list = [None if x is None else x / other[..., None] for x in self.list]
         return IrrepsArray(irreps=self.irreps, array=self.array / other, list=list)
 
     def __rtruediv__(self, other) -> "IrrepsArray":
-        other = jnp.array(other)
+        jnp = _infer_backend((self.array, other.array))
+
+        other = jnp.asarray(other)
         if self.irreps.lmax > 0:
             raise ValueError(f"scalar(shape={other.shape}) / IrrepsArray({self.irreps}) is not equivariant.")
         if any(x is None for x in self.list):
@@ -352,6 +375,8 @@ class IrrepsArray:
         return IrrepsArray(irreps=self.irreps, array=self.array.reshape(shape + (self.irreps.dim,)), list=list)
 
     def replace_none_with_zeros(self) -> "IrrepsArray":
+        jnp = _infer_backend(self.array)
+
         list = [jnp.zeros(self.shape[:-1] + (mul, ir.dim)) if x is None else x for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array, list=list)
 
@@ -495,6 +520,8 @@ class IrrepsArray:
         >>> jax.tree_util.tree_map(lambda x: x.shape, id.convert("20x0e")).list
         [(1, 20, 1)]
         """
+        jnp = _infer_backend(self.array)
+
         # Optimization: we use only the list of arrays, not the array data
         irreps = Irreps(irreps)
         assert self.irreps.simplify() == irreps.simplify(), (self.irreps, irreps)
@@ -564,7 +591,7 @@ class IrrepsArray:
         assert current_array == 0
 
         assert len(new_list) == len(irreps)
-        assert all(x is None or isinstance(x, (jnp.ndarray, np.ndarray)) for x in new_list), [type(x) for x in new_list]
+        assert all(x is None or isinstance(x, jnp.ndarray) for x in new_list), [type(x) for x in new_list]
         assert all(x is None or x.shape[-2:] == (mul, ir.dim) for x, (mul, ir) in zip(new_list, irreps))
 
         return IrrepsArray(irreps=irreps, array=self.array, list=new_list)
@@ -579,6 +606,8 @@ class IrrepsArray:
             >>> IrrepsArray("0e + 1e", jnp.array([1.0, 2, 3, 4])).split([1])
             [1x0e [1.], 1x1e [2. 3. 4.]]
         """
+        jnp = _infer_backend(self.array)
+
         if all(isinstance(i, int) for i in indices):
             array_parts = jnp.split(self.array, [self.irreps[:i].dim for i in indices], axis=-1)
             assert len(array_parts) == len(indices) + 1
@@ -596,6 +625,8 @@ class IrrepsArray:
         return [IrrepsArray(irreps, array) for irreps, array in zip(irrepss, array_parts)]
 
     def broadcast_to(self, shape) -> "IrrepsArray":
+        jnp = _infer_backend(self.array)
+
         assert isinstance(shape, tuple)
         assert shape[-1] == self.irreps.dim or shape[-1] == -1
         leading_shape = shape[:-1]
@@ -662,15 +693,17 @@ def _reduce(op, array: IrrepsArray, axis=None, keepdims=False):
 
 def mean(array: IrrepsArray, axis=None, keepdims=False) -> IrrepsArray:
     """Mean of IrrepsArray along the specified axis."""
+    jnp = _infer_backend(array.array)
     return _reduce(jnp.mean, array, axis, keepdims)
 
 
 def sum_(array: IrrepsArray, axis=None, keepdims=False) -> IrrepsArray:
     """Sum of IrrepsArray along the specified axis."""
+    jnp = _infer_backend(array.array)
     return _reduce(jnp.sum, array, axis, keepdims)
 
 
-def concatenate(arrays, axis=-1) -> "IrrepsArray":
+def concatenate(arrays: List[IrrepsArray], axis=-1) -> IrrepsArray:
     r"""Concatenate a list of IrrepsArray
 
     Args:
@@ -683,6 +716,8 @@ def concatenate(arrays, axis=-1) -> "IrrepsArray":
     assert len(arrays) >= 1
     assert isinstance(axis, int)
     assert -arrays[0].ndim <= axis < arrays[0].ndim
+
+    jnp = _infer_backend([x.array for x in arrays])
 
     axis = axis % arrays[0].ndim
 
@@ -705,6 +740,7 @@ def concatenate(arrays, axis=-1) -> "IrrepsArray":
 
 def norm(array: IrrepsArray, *, squared=False) -> IrrepsArray:
     """Norm of IrrepsArray."""
+    jnp = _infer_backend(array.array)
 
     def f(x):
         x = jnp.sum(x**2, axis=-1, keepdims=True)
