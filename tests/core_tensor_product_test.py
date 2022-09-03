@@ -5,11 +5,11 @@ import e3nn_jax as e3nn
 from e3nn_jax.util import prod
 
 
+@pytest.mark.parametrize("custom_einsum_jvp", [False, True])
 @pytest.mark.parametrize("connection_mode", ["uvw", "uvu", "uvv"])
 @pytest.mark.parametrize("jitted", [False, True])
-@pytest.mark.parametrize("optimize_einsums", [False, True])
 @pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
-def test_modes(keys, irrep_normalization, optimize_einsums, jitted, connection_mode):
+def test_modes(keys, irrep_normalization, jitted, connection_mode, custom_einsum_jvp):
     tp = e3nn.FunctionalTensorProduct(
         e3nn.Irreps("10x0o + 10x1o + 1x2e"),
         e3nn.Irreps("10x0o + 10x1o + 1x2o"),
@@ -29,8 +29,7 @@ def test_modes(keys, irrep_normalization, optimize_einsums, jitted, connection_m
             ws,
             x1,
             x2,
-            optimize_einsums=optimize_einsums,
-            custom_einsum_jvp=optimize_einsums,
+            custom_einsum_jvp=custom_einsum_jvp,
         )
 
     if jitted:

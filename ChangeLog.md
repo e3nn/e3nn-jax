@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.full_tensor_product` is now deprecated and replaced by `e3nn.tensor_product`
 - `e3nn.FullyConnectedTensorProduct` is now deprecated in favor of `e3nn.tensor_product` and `e3nn.Linear`
 - **breaking change** remove `IrrepsArray.from_any`
+- **breaking change** remove option `optimize_einsums`, (it is now always `True`)
 
 ### Changed
 - **breaking change** rewrite the `equivariance_error` and `assert_equivariant` functions

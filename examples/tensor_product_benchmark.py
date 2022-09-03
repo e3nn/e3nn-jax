@@ -34,7 +34,6 @@ def main():
     parser.add_argument("--irreps-out", type=str, default=None)
     parser.add_argument("--cuda", type=t_or_f, default=True)
     parser.add_argument("--backward", type=t_or_f, default=True)
-    parser.add_argument("--opt-ein", type=t_or_f, default=True)
     parser.add_argument("--custom-einsum-jvp", type=t_or_f, default=False)
     parser.add_argument("--elementwise", type=t_or_f, default=False)
     parser.add_argument("--extrachannels", type=t_or_f, default=False)
@@ -80,7 +79,6 @@ def main():
 
         f = partial(
             tp.left_right,
-            optimize_einsums=args.opt_ein,
             custom_einsum_jvp=args.custom_einsum_jvp,
             fused=args.fused,
         )
@@ -110,7 +108,6 @@ def main():
 
         f = partial(
             tp.left_right,
-            optimize_einsums=args.opt_ein,
             custom_einsum_jvp=args.custom_einsum_jvp,
             fused=args.fused,
         )

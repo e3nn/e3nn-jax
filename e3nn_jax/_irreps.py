@@ -3,7 +3,7 @@ import dataclasses
 import itertools
 import warnings
 from functools import partial
-from typing import List
+from typing import List, Union
 
 import jax
 import jax.numpy as jnp
@@ -409,7 +409,7 @@ class Irreps(tuple):
         else:
             raise ValueError("Normalization needs to be 'norm' or 'component'")
 
-    def __getitem__(self, i):
+    def __getitem__(self, i) -> Union[MulIrrep, "Irreps"]:
         x = super().__getitem__(i)
         if isinstance(i, slice):
             return Irreps(x)

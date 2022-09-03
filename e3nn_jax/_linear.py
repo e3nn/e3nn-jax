@@ -26,8 +26,8 @@ class FunctionalLinear:
 
     def __init__(
         self,
-        irreps_in: Any,
-        irreps_out: Any,
+        irreps_in: Irreps,
+        irreps_out: Irreps,
         instructions: Optional[List[Tuple[int, int]]] = None,
         biases: Optional[Union[List[bool], bool]] = None,
         path_normalization: Union[str, float] = None,
