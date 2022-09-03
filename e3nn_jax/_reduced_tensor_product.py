@@ -1,5 +1,6 @@
+import functools
 import itertools
-from typing import List, Optional, Set, Tuple
+from typing import FrozenSet, List, Optional, Tuple
 
 import numpy as np
 
@@ -200,7 +201,8 @@ def constrain_rotation_basis_by_permutation_basis(
     return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1])
 
 
-def germinate_formulas(formula: str) -> Tuple[str, Set[Tuple[int, Tuple[int, ...]]]]:
+@functools.lru_cache(maxsize=None)
+def germinate_formulas(formula: str) -> Tuple[str, FrozenSet[Tuple[int, Tuple[int, ...]]]]:
     formulas = [(-1 if f.startswith("-") else 1, f.replace("-", "")) for f in formula.split("=")]
     s0, f0 = formulas[0]
     assert s0 == 1
@@ -225,20 +227,22 @@ def germinate_formulas(formula: str) -> Tuple[str, Set[Tuple[int, Tuple[int, ...
         if len(formulas) == n:
             break  # we break when the set is stable => it is now a group \o/
 
-    return f0, formulas
+    return f0, frozenset(formulas)
 
 
 def subgroup_formulas(
-    sub_f0: str, f0: str, formulas: Tuple[str, Set[Tuple[int, Tuple[int, ...]]]]
-) -> Tuple[str, Set[Tuple[int, Tuple[int, ...]]]]:
-    return {
-        (s, tuple(sub_f0.index(f0[i]) for i in p if f0[i] in sub_f0))
-        for s, p in formulas
-        if all(f0[i] in sub_f0 or i == j for j, i in enumerate(p))
-    }
+    sub_f0: str, f0: str, formulas: FrozenSet[Tuple[int, Tuple[int, ...]]]
+) -> FrozenSet[Tuple[int, Tuple[int, ...]]]:
+    return frozenset(
+        {
+            (s, tuple(sub_f0.index(f0[i]) for i in p if f0[i] in sub_f0))
+            for s, p in formulas
+            if all(f0[i] in sub_f0 or i == j for j, i in enumerate(p))
+        }
+    )
 
 
-def reduce_permutation(f0: str, formulas: Tuple[str, Set[Tuple[int, Tuple[int, ...]]]], **dims) -> np.ndarray:
+def reduce_permutation(f0: str, formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], **dims) -> np.ndarray:
     # here we check that each index has one and only one dimension
     for _s, p in formulas:
         f = "".join(f0[i] for i in p)
@@ -254,8 +258,12 @@ def reduce_permutation(f0: str, formulas: Tuple[str, Set[Tuple[int, Tuple[int, .
         if i not in dims:
             raise RuntimeError(f"index {i} has no dimension associated to it")
 
-    dims = [dims[i] for i in f0]
+    dims = tuple(dims[i] for i in f0)
+    return _reduce_permutation(formulas, dims)
 
+
+@functools.lru_cache(maxsize=None)
+def _reduce_permutation(formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], dims: Tuple[int, ...]) -> np.ndarray:
     full_base = list(itertools.product(*(range(d) for d in dims)))  # (0, 0, 0), (0, 0, 1), (0, 0, 2), ... (3, 3, 3)
     # len(full_base) degrees of freedom in an unconstrained tensor
 
@@ -296,9 +304,7 @@ def reduce_permutation(f0: str, formulas: Tuple[str, Set[Tuple[int, Tuple[int, .
     return Q.reshape(d_sym, *dims)
 
 
-def reduce_subgroup_permutation(
-    sub_f0: str, f0: str, formulas: Tuple[str, Set[Tuple[int, Tuple[int, ...]]]], **dims
-) -> np.ndarray:
+def reduce_subgroup_permutation(sub_f0: str, f0: str, formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], **dims) -> np.ndarray:
     sub_formulas = subgroup_formulas(sub_f0, f0, formulas)
     permutation_basis = reduce_permutation(sub_f0, sub_formulas, **dims)
     return np.reshape(permutation_basis, (-1,) + tuple(dims[f0[i]] if f0[i] in sub_f0 else 1 for i in range(len(f0))))
@@ -307,16 +313,9 @@ def reduce_subgroup_permutation(
 def reduced_tensor_product_basis(
     formula: str,
     *,
-    filter_ir_out: Optional[List[e3nn.Irrep]] = None,
     epsilon: float = 1e-9,
     **irreps,
 ):
-    if filter_ir_out is not None:
-        try:
-            filter_ir_out = [e3nn.Irrep(ir) for ir in filter_ir_out]
-        except ValueError:
-            raise ValueError(f"filter_ir_out (={filter_ir_out}) must be an iterable of e3nn.Irrep")
-
     f0, formulas = germinate_formulas(formula)
 
     irreps = {i: e3nn.Irreps(irs) for i, irs in irreps.items()}
@@ -343,7 +342,32 @@ def reduced_tensor_product_basis(
         if i not in f0:
             raise RuntimeError(f"index {i} has an irreps but does not appear in the fomula")
 
-    rotation_basis = e3nn.IrrepsArray("0e", np.ones((1,) * len(f0) + (1,)))
+    def _recursion(bases):
+        if len(bases) == 1:
+            f, b = bases[0]
+            assert f == f0
+            return b
+
+        # greedy algorithm
+        min_p = np.inf
+        best = None
+
+        for i in range(len(bases)):
+            for j in range(i + 1, len(bases)):
+                (fa, a) = bases[i]
+                (fb, b) = bases[j]
+                f = "".join(sorted(fa + fb, key=lambda i: f0.index(i)))
+                p = reduce_subgroup_permutation(f, f0, formulas, **{i: irs.dim for i, irs in irreps.items()})
+                if p.shape[0] < min_p:
+                    min_p = p.shape[0]
+                    best = (i, j, a, b, f, p)
+
+        i, j, a, b, f, p = best
+        del bases[j]
+        del bases[i]
+        ab = reduce_basis_product(a, b)
+        ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon, round_fn=round_to_sqrt_rational)
+        return _recursion([(f, ab)] + bases)
 
     initial_bases = [
         e3nn.IrrepsArray(
@@ -352,12 +376,4 @@ def reduced_tensor_product_basis(
         )
         for i, irreps in ((i, irreps[f0[i]]) for i in range(len(f0)))
     ]
-
-    for i in range(len(f0)):
-        rotation_basis = reduce_basis_product(rotation_basis, initial_bases[i])
-        permutation_basis = reduce_subgroup_permutation(f0[: i + 1], f0, formulas, **{i: irs.dim for i, irs in irreps.items()})
-        rotation_basis = constrain_rotation_basis_by_permutation_basis(
-            rotation_basis, permutation_basis, epsilon=epsilon, round_fn=round_to_sqrt_rational
-        )
-
-    return rotation_basis
+    return _recursion(list(zip(f0, initial_bases)))
