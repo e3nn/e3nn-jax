@@ -3,13 +3,15 @@ import dataclasses
 import itertools
 import warnings
 from functools import partial
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import jax
 import jax.numpy as jnp
 import jax.scipy
 
 from e3nn_jax import axis_angle_to_angles, config, matrix_to_angles, perm, quaternion_to_angles, wigner_D
+
+IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
 
 
 @dataclasses.dataclass(init=False, frozen=True)
@@ -52,7 +54,7 @@ class Irrep:
     l: int
     p: int
 
-    def __init__(self, l, p=None):
+    def __init__(self, l: IntoIrrep, p=None):
         if p is None:
             if isinstance(l, Irrep):
                 p = l.p
@@ -245,6 +247,22 @@ class MulIrrep:
 
 jax.tree_util.register_pytree_node(MulIrrep, lambda mulir: ((), mulir), lambda mulir, _: mulir)
 
+IntoIrreps = Union[
+    None,
+    Irrep,
+    MulIrrep,
+    str,
+    "Irreps",
+    List[
+        Union[
+            str,
+            Irrep,
+            MulIrrep,
+            Tuple[int, IntoIrrep],
+        ]
+    ],
+]
+
 
 class Irreps(tuple):
     r"""Direct sum of irreducible representations of :math:`O(3)`
@@ -285,13 +303,17 @@ class Irreps(tuple):
         (, )
     """
 
-    def __new__(cls, irreps=None):
+    def __new__(cls, irreps: IntoIrreps = None):
         if isinstance(irreps, Irreps):
             return super().__new__(cls, irreps)
 
-        out = []
+        out: List[MulIrrep] = []
         if isinstance(irreps, Irrep):
             out.append(MulIrrep(1, Irrep(irreps)))
+        elif irreps is None:
+            pass
+        elif isinstance(irreps, MulIrrep):
+            out.append(irreps)
         elif isinstance(irreps, str):
             try:
                 if irreps.strip() != "":
@@ -308,8 +330,6 @@ class Irreps(tuple):
                         out.append(MulIrrep(mul, ir))
             except Exception:
                 raise ValueError(f'Unable to convert string "{irreps}" into an Irreps')
-        elif irreps is None:
-            pass
         else:
             for mul_ir in irreps:
                 if isinstance(mul_ir, str):

@@ -9,7 +9,8 @@ import jax.scipy
 import numpy as np
 
 import e3nn_jax as e3nn
-from e3nn_jax import Irreps, axis_angle_to_angles, config, matrix_to_angles, quaternion_to_angles
+from . import Irreps, axis_angle_to_angles, config, matrix_to_angles, quaternion_to_angles
+from ._irreps import IntoIrreps
 
 
 class IrrepsArray:
@@ -26,7 +27,7 @@ class IrrepsArray:
     _list: List[Optional[jnp.ndarray]]  # this field is lazy, it is computed only when needed
 
     def __init__(
-        self, irreps: Irreps, array: jnp.ndarray, list: List[Optional[jnp.ndarray]] = None, _perform_checks: bool = True
+        self, irreps: IntoIrreps, array: jnp.ndarray, list: List[Optional[jnp.ndarray]] = None, _perform_checks: bool = True
     ):
         self.irreps = Irreps(irreps)
         self.array = array
@@ -51,7 +52,7 @@ class IrrepsArray:
                             )
 
     @staticmethod
-    def from_list(irreps: Irreps, list, leading_shape: Tuple[int]) -> "IrrepsArray":
+    def from_list(irreps: IntoIrreps, list, leading_shape: Tuple[int]) -> "IrrepsArray":
         r"""Create an IrrepsArray from a list of arrays
 
         Args:
@@ -89,12 +90,12 @@ class IrrepsArray:
         return IrrepsArray(irreps=irreps, array=array, list=list)
 
     @staticmethod
-    def zeros(irreps: Irreps, leading_shape) -> "IrrepsArray":
+    def zeros(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
         irreps = Irreps(irreps)
         return IrrepsArray(irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,)), list=[None] * len(irreps))
 
     @staticmethod
-    def ones(irreps: Irreps, leading_shape) -> "IrrepsArray":
+    def ones(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
         irreps = Irreps(irreps)
         return IrrepsArray(
             irreps=irreps,
@@ -477,7 +478,7 @@ class IrrepsArray:
         k = (1 - d) / 2
         return self.transform_by_angles(*matrix_to_angles(R), k)
 
-    def convert(self, irreps: Irreps) -> "IrrepsArray":
+    def convert(self, irreps: IntoIrreps) -> "IrrepsArray":
         r"""Convert the list property into an equivalent irreps
 
         Args:
@@ -719,7 +720,7 @@ def norm(array: IrrepsArray, *, squared=False) -> IrrepsArray:
 
 
 def normal(
-    irreps: Irreps, key: jnp.ndarray, leading_shape: Tuple[int, ...] = (), *, normalization: bool = None
+    irreps: IntoIrreps, key: jnp.ndarray, leading_shape: Tuple[int, ...] = (), *, normalization: bool = None
 ) -> IrrepsArray:
     r"""Random array with normal distribution."""
     irreps = Irreps(irreps)
