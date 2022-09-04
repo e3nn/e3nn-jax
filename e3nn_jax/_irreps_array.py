@@ -35,12 +35,30 @@ class IrrepsArray:
         list (optional `List[Optional[jax.numpy.ndarray]]`): the same data in a list format.
             It can contain ``None`` to represent zeros otherwise the shape has to be ``(..., mul, ir.dim)``.
 
-    Example:
+    Examples:
         >>> import e3nn_jax as e3nn
         >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
         >>> y = e3nn.IrrepsArray.from_list("1o + 2x0e", [None, jnp.ones((2, 1))], ())
         >>> x + y
         1x1o+2x0e [1. 1. 1. 2. 2.]
+
+        Example of indexing:
+
+        >>> x = IrrepsArray("0e + 1o", jnp.arange(2 * 4).reshape(2, 4))
+        >>> x[0]
+        1x0e+1x1o [0 1 2 3]
+        >>> x[1, "0e"]
+        1x0e [4]
+        >>> x[:, 1:]
+        1x1o
+        [[1 2 3]
+         [5 6 7]]
+        >>> IrrepsArray("5x0e", jnp.arange(5))[1:3]
+        2x0e [1 2]
+
+    Note:
+        `IrrepsArray` tries to enforce only equivariant operations.
+        ``IrrepsArray("1o", jnp.ones(3)) + IrrepsArray("1e", jnp.ones(3))`` will raise an error.
     """
 
     irreps: Irreps
@@ -298,19 +316,6 @@ class IrrepsArray:
 
         Returns:
             IrrepsArray: subarray
-
-        Examples:
-            >>> x = IrrepsArray("0e + 1o", jnp.arange(2 * 4).reshape(2, 4))
-            >>> x[0]
-            1x0e+1x1o [0 1 2 3]
-            >>> x[1, "0e"]
-            1x0e [4]
-            >>> x[:, 1:]
-            1x1o
-            [[1 2 3]
-             [5 6 7]]
-            >>> IrrepsArray("5x0e", jnp.arange(5))[1:3]
-            2x0e [1 2]
         """
         if not isinstance(index, tuple):
             index = (index,)
@@ -469,9 +474,9 @@ class IrrepsArray:
         r"""Repeat the irreps by the last axis of the array.
 
         Example:
-            >>> x = IrrepsArray("0e + 1e", jnp.zeros((3, 4)))
-            >>> x.repeat_irreps_by_last_axis().irreps
-            1x0e+1x1e+1x0e+1x1e+1x0e+1x1e
+            >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
+            >>> x.repeat_irreps_by_last_axis()
+            1x0e+1x1e+1x0e+1x1e [0 1 2 3 4 5 6 7]
         """
         assert len(self.shape) >= 2
         irreps = (self.shape[-2] * self.irreps).simplify()
