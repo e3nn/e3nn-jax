@@ -26,3 +26,4 @@ Extra Stuff
 .. autofunction:: e3nn_jax.poly_envelope
 
 
+.. autofunction:: e3nn_jax.reduced_tensor_product_basis
