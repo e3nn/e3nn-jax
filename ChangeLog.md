@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.9.0] - 2022-09-04
 ### Added
 - Simple irreps indexing of `IrrepsArray`: like `x[..., "10x0e"]` but not `x[..., "0e + 1e"]`
 - `e3nn.concatenate, e3nn.mean, e3nn.sum`
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support of operator `IrrepsArray ** scalar`
 - Add support of `x[..., 3:6]` for `IrrepsArray`
 - Add `e3nn.reduced_tensor_product_basis`
+- Add `e3nn.stack`
 
 ### Removed
 - `IrrepsArray.cat` is now deprecated and replaced by `e3nn.concatenate`
