@@ -26,8 +26,8 @@ def _infer_backend(pytree):
 
 
 class IrrepsArray:
-    r"""Class storing an array of data (``.array``) and its representation in terms of
-    irreducible representations (``.irreps``).
+    r"""Class enforcing equivariant operations by storing an array of data (``.array``)
+    along with its representation (``.irreps``).
 
     Args:
         irreps (`Irreps`): representation of the data
@@ -55,10 +55,6 @@ class IrrepsArray:
          [5 6 7]]
         >>> IrrepsArray("5x0e", jnp.arange(5))[1:3]
         2x0e [1 2]
-
-    Note:
-        `IrrepsArray` tries to enforce only equivariant operations.
-        ``IrrepsArray("1o", jnp.ones(3)) + IrrepsArray("1e", jnp.ones(3))`` will raise an error.
     """
 
     irreps: Irreps
@@ -132,6 +128,7 @@ class IrrepsArray:
 
     @staticmethod
     def zeros(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
+        r"""Create an IrrepsArray of zeros"""
         irreps = Irreps(irreps)
         return IrrepsArray(irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,)), list=[None] * len(irreps))
 
@@ -146,6 +143,23 @@ class IrrepsArray:
 
     @property
     def list(self) -> List[Optional[jnp.ndarray]]:
+        r"""List of arrays matching each item of the ``.irreps``
+
+        Example:
+            >>> x = IrrepsArray("2x0e + 0e", jnp.arange(3))
+            >>> len(x.list)
+            2
+            >>> x.list[0]
+            DeviceArray([[0],
+                         [1]], dtype=int32)
+            >>> x.list[1]
+            DeviceArray([[2]], dtype=int32)
+
+            The follwing is always true:
+
+            >>> all(e is None or e.shape == x.shape[:-1] + (mul, ir.dim) for (mul, ir), e in zip(x.irreps, x.list))
+            True
+        """
         jnp = _infer_backend(self.array)
 
         if self._list is None:
@@ -163,10 +177,12 @@ class IrrepsArray:
 
     @property
     def shape(self):
+        r"""Shape. Equivalent to ``self.array.shape``"""
         return self.array.shape
 
     @property
     def ndim(self):
+        r"""Number of dimensions. Equivalent to ``self.array.ndim``"""
         return len(self.shape)
 
     # def __jax_array__(self):
@@ -557,7 +573,7 @@ class IrrepsArray:
             k (int): parity operation
 
         Returns:
-            IrrepsArray
+            `IrrepsArray`: rotated data
         """
         return self.transform_by_angles(*quaternion_to_angles(q), k)
 
@@ -570,7 +586,7 @@ class IrrepsArray:
             k (int): parity operation
 
         Returns:
-            IrrepsArray
+            `IrrepsArray`: rotated data
         """
         return self.transform_by_angles(*axis_angle_to_angles(axis, angle), k)
 
@@ -581,7 +597,7 @@ class IrrepsArray:
             R (`jax.numpy.ndarray`): rotation matrix
 
         Returns:
-            IrrepsArray
+            `IrrepsArray`: rotated data
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
@@ -744,7 +760,7 @@ jax.tree_util.register_pytree_node(
 )
 
 
-def _standardize_axis(axis, ndim):
+def _standardize_axis(axis: Union[None, int, Tuple[int, ...]], ndim: int) -> Tuple[int, ...]:
     if axis is None:
         return tuple(range(ndim))
     try:
@@ -752,13 +768,14 @@ def _standardize_axis(axis, ndim):
     except TypeError:
         axis = tuple(operator.index(i) for i in axis)
 
-    assert all(-ndim <= i < ndim for i in axis)
+    if not all(-ndim <= i < ndim for i in axis):
+        raise ValueError("axis out of range")
     axis = tuple(i % ndim for i in axis)
 
     return tuple(sorted(set(axis)))
 
 
-def _reduce(op, array: IrrepsArray, axis=None, keepdims=False):
+def _reduce(op, array: IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None, keepdims: bool = False) -> IrrepsArray:
     axis = _standardize_axis(axis, array.ndim)
 
     if axis == ():
@@ -780,19 +797,57 @@ def _reduce(op, array: IrrepsArray, axis=None, keepdims=False):
     )
 
 
-def mean(array: IrrepsArray, axis=None, keepdims=False) -> IrrepsArray:
-    """Mean of IrrepsArray along the specified axis."""
+def mean(array: IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None, keepdims: bool = False) -> IrrepsArray:
+    """Mean of IrrepsArray along the specified axis.
+
+    Args:
+        array (`IrrepsArray`): input array
+        axis (optional int or tuple of ints): axis along which the mean is computed.
+
+    Returns:
+        `IrrepsArray`: mean of the input array
+
+    Examples:
+        >>> x = e3nn.IrrepsArray("3x0e + 2x0e", jnp.arange(2 * 5).reshape(2, 5))
+        >>> e3nn.mean(x, axis=0)
+        3x0e+2x0e [2.5 3.5 4.5 5.5 6.5]
+        >>> e3nn.mean(x, axis=1)
+        1x0e+1x0e
+        [[1.  3.5]
+         [6.  8.5]]
+        >>> e3nn.mean(x)
+        1x0e+1x0e [3.5 6. ]
+    """
     jnp = _infer_backend(array.array)
     return _reduce(jnp.mean, array, axis, keepdims)
 
 
-def sum_(array: IrrepsArray, axis=None, keepdims=False) -> IrrepsArray:
-    """Sum of IrrepsArray along the specified axis."""
+def sum_(array: IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None, keepdims: bool = False) -> IrrepsArray:
+    """Sum of IrrepsArray along the specified axis.
+
+    Args:
+        array (`IrrepsArray`): input array
+        axis (optional int or tuple of ints): axis along which the sum is computed.
+
+    Returns:
+        `IrrepsArray`: sum of the input array
+
+    Examples:
+        >>> x = e3nn.IrrepsArray("3x0e + 2x0e", jnp.arange(2 * 5).reshape(2, 5))
+        >>> e3nn.sum(x, axis=0)
+        3x0e+2x0e [ 5  7  9 11 13]
+        >>> e3nn.sum(x, axis=1)
+        1x0e+1x0e
+        [[ 3  7]
+         [18 17]]
+        >>> e3nn.sum(x)
+        1x0e+1x0e [21 24]
+    """
     jnp = _infer_backend(array.array)
     return _reduce(jnp.sum, array, axis, keepdims)
 
 
-def concatenate(arrays: List[IrrepsArray], axis=-1) -> IrrepsArray:
+def concatenate(arrays: List[IrrepsArray], axis: int = -1) -> IrrepsArray:
     r"""Concatenate a list of IrrepsArray
 
     Args:
@@ -800,15 +855,28 @@ def concatenate(arrays: List[IrrepsArray], axis=-1) -> IrrepsArray:
         axis (int): axis to concatenate on
 
     Returns:
-        concatenated `IrrepsArray`
+        `IrrepsArray`: concatenated array
+
+    Examples:
+        >>> x = e3nn.IrrepsArray("3x0e + 2x0o", jnp.arange(2 * 5).reshape(2, 5))
+        >>> y = e3nn.IrrepsArray("3x0e + 2x0o", jnp.arange(2 * 5).reshape(2, 5) + 10)
+        >>> e3nn.concatenate([x, y], axis=0)
+        3x0e+2x0o
+        [[ 0  1  2  3  4]
+         [ 5  6  7  8  9]
+         [10 11 12 13 14]
+         [15 16 17 18 19]]
+        >>> e3nn.concatenate([x, y], axis=1)
+        3x0e+2x0o+3x0e+2x0o
+        [[ 0  1  2  3  4 10 11 12 13 14]
+         [ 5  6  7  8  9 15 16 17 18 19]]
     """
-    assert len(arrays) >= 1
-    assert isinstance(axis, int)
-    assert -arrays[0].ndim <= axis < arrays[0].ndim
+    if len(arrays) == 0:
+        raise ValueError("Cannot concatenate empty list of IrrepsArray")
+
+    axis = _standardize_axis(axis, arrays[0].ndim)[0]
 
     jnp = _infer_backend([x.array for x in arrays])
-
-    axis = axis % arrays[0].ndim
 
     if axis == arrays[0].ndim - 1:
         irreps = Irreps(sum([x.irreps for x in arrays], Irreps("")))
@@ -818,7 +886,9 @@ def concatenate(arrays: List[IrrepsArray], axis=-1) -> IrrepsArray:
             list=sum([x.list for x in arrays], []),
         )
 
-    assert {x.irreps for x in arrays} == {arrays[0].irreps}
+    if {x.irreps for x in arrays} != {arrays[0].irreps}:
+        raise ValueError("Irreps must be the same for all arrays")
+
     arrays = [x.replace_none_with_zeros() for x in arrays]  # TODO this could be optimized
     return IrrepsArray(
         irreps=arrays[0].irreps,
@@ -827,8 +897,73 @@ def concatenate(arrays: List[IrrepsArray], axis=-1) -> IrrepsArray:
     )
 
 
-def norm(array: IrrepsArray, *, squared=False) -> IrrepsArray:
-    """Norm of IrrepsArray."""
+def stack(arrays: List[IrrepsArray], axis=0) -> IrrepsArray:
+    r"""Stack a list of IrrepsArray
+
+    Args:
+        arrays (list of `IrrepsArray`): list of data to stack
+        axis (int): axis to stack on
+
+    Returns:
+        `IrrepsArray`: stacked array
+
+    Examples:
+        >>> x = e3nn.IrrepsArray("3x0e + 2x0o", jnp.arange(2 * 5).reshape(2, 5))
+        >>> y = e3nn.IrrepsArray("3x0e + 2x0o", jnp.arange(2 * 5).reshape(2, 5) + 10)
+        >>> e3nn.stack([x, y], axis=0)
+        3x0e+2x0o
+        [[[ 0  1  2  3  4]
+          [ 5  6  7  8  9]]
+        <BLANKLINE>
+         [[10 11 12 13 14]
+          [15 16 17 18 19]]]
+        >>> e3nn.stack([x, y], axis=1)
+        3x0e+2x0o
+        [[[ 0  1  2  3  4]
+          [10 11 12 13 14]]
+        <BLANKLINE>
+         [[ 5  6  7  8  9]
+          [15 16 17 18 19]]]
+    """
+    if len(arrays) == 0:
+        raise ValueError("Cannot stack empty list of IrrepsArray")
+
+    result_ndim = arrays[0].ndim + 1
+    axis = _standardize_axis(axis, result_ndim)[0]
+
+    jnp = _infer_backend([x.array for x in arrays])
+
+    if axis == result_ndim - 1:
+        raise ValueError(
+            "IrrepsArray cannot be stacked on the last axis because the last axis is reserved for the irreps dimension"
+        )
+
+    if {x.irreps for x in arrays} != {arrays[0].irreps}:
+        raise ValueError("Irreps must be the same for all arrays")
+
+    arrays = [x.replace_none_with_zeros() for x in arrays]  # TODO this could be optimized
+    return IrrepsArray(
+        irreps=arrays[0].irreps,
+        array=jnp.stack([x.array for x in arrays], axis=axis),
+        list=[jnp.stack(xs, axis=axis) for xs in zip(*[x.list for x in arrays])],
+    )
+
+
+def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
+    """Norm of IrrepsArray.
+
+    Args:
+        array (IrrepsArray): input array
+        squared (bool): if True, return the squared norm
+
+    Returns:
+        IrrepsArray: norm of the input array
+
+    Example:
+        >>> x = e3nn.IrrepsArray("2x0e + 1e + 2e", jnp.arange(10))
+        >>> e3nn.norm(x)
+        2x0e+1x0e+1x0e [ 0.     1.     5.385 15.969]
+    """
     jnp = _infer_backend(array.array)
 
     def f(x):
@@ -845,9 +980,38 @@ def norm(array: IrrepsArray, *, squared=False) -> IrrepsArray:
 
 
 def normal(
-    irreps: IntoIrreps, key: jnp.ndarray, leading_shape: Tuple[int, ...] = (), *, normalization: bool = None
+    irreps: IntoIrreps, key: jnp.ndarray, leading_shape: Tuple[int, ...] = (), *, normalization: Optional[str] = None
 ) -> IrrepsArray:
-    r"""Random array with normal distribution."""
+    r"""Random array with normal distribution.
+
+    Args:
+        irreps (Irreps): irreps of the output array
+        key (jnp.ndarray): random key
+        leading_shape (tuple of int): shape of the leading dimensions
+        normalization (str): normalization of the output array, ``"component"`` or ``"norm"``
+
+    Returns:
+        IrrepsArray: random array
+
+    Examples:
+        >>> np.set_printoptions(precision=2, suppress=True)
+
+        Generate a random array with normalization ``"component"``
+
+        >>> x = e3nn.normal("0e + 5e", jax.random.PRNGKey(0), (), normalization="component")
+        >>> x
+        1x0e+1x5e [ 1.19 -1.1   0.44  0.6  -0.39  0.69  0.46 -2.07 -0.21 -0.99 -0.68  0.27]
+        >>> e3nn.norm(x, squared=True)
+        1x0e+1x0e [1.42 8.45]
+
+        Generate a random array with normalization ``"norm"``
+
+        >>> x = e3nn.normal("0e + 5e", jax.random.PRNGKey(0), (), normalization="norm")
+        >>> x
+        1x0e+1x5e [-1.    0.12 -0.26 -0.43  0.4   0.08  0.16 -0.41  0.37 -0.44  0.03 -0.19]
+        >>> e3nn.norm(x, squared=True)
+        1x0e+1x0e [1. 1.]
+    """
     irreps = Irreps(irreps)
 
     if normalization is None:
