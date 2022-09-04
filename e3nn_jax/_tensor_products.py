@@ -151,6 +151,11 @@ def tensor_product(
         >>> jax.tree_util.tree_structure(params)
         PyTreeDef({'linear': {'w[1,0] 2x1e,3x1e': *}})
         >>> z = fully_connected_tensor_product.apply(params, x, y)
+
+        The irreps can be determined without providing input data:
+
+        >>> e3nn.tensor_product("2x1e + 2e", "2e")
+        1x0e+2x1e+1x1e+2x2e+1x2e+2x3e+1x3e+1x4e
     """
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
