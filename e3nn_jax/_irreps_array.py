@@ -30,7 +30,7 @@ class IrrepsArray:
 
     Args:
         irreps (`Irreps`): Irreps of the array
-        array (``jnp.ndarray``): Array of shape ``(..., irreps.dim)``
+        array (`jax.numpy.ndarray`): Array of shape ``(..., irreps.dim)``
         list (optional ``List[jnp.ndarray]``): List of arrays of shape ``(..., mul, ir.dim)``
     """
 
@@ -69,7 +69,7 @@ class IrrepsArray:
 
         Args:
             irreps (Irreps): irreps
-            list (list of optional ``jnp.ndarray``): list of arrays
+            list (list of optional `jax.numpy.ndarray`): list of arrays
             leading_shape (tuple of int): leading shape of the arrays (without the irreps)
 
         Returns:
@@ -475,7 +475,7 @@ class IrrepsArray:
         r"""Rotate data by a rotation given by a quaternion
 
         Args:
-            q (``jnp.ndarray``): quaternion
+            q (`jax.numpy.ndarray`): quaternion
             k (int): parity operation
 
         Returns:
@@ -487,7 +487,7 @@ class IrrepsArray:
         r"""Rotate data by a rotation given by an axis and an angle
 
         Args:
-            axis (``jnp.ndarray``): axis
+            axis (`jax.numpy.ndarray`): axis
             angle (float): angle (in radians)
             k (int): parity operation
 
@@ -500,7 +500,7 @@ class IrrepsArray:
         r"""Rotate data by a rotation given by a matrix
 
         Args:
-            R (``jnp.ndarray``): rotation matrix
+            R (`jax.numpy.ndarray`): rotation matrix
 
         Returns:
             IrrepsArray

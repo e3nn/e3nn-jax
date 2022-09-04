@@ -10,10 +10,10 @@ def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
     """Maps the input to the integers 0, 1, 2, ..., n-1, where n is the number of distinct elements in x.
 
     Args:
-        x (``jnp.ndarray``): array of integers
+        x (`jax.numpy.ndarray`): array of integers
 
     Returns:
-        ``jnp.ndarray``: array of integers of same size
+        `jax.numpy.ndarray`: array of integers of same size
     """
     assert x.ndim == 1
     unique = jnp.unique(x, size=x.shape[0])  # Pigeonhole principle
@@ -37,13 +37,13 @@ def index_add(
     ```
 
     Args:
-        indices (``jnp.ndarray``): array of indices
-        input (``jnp.ndarray`` or `e3nn_jax.IrrepsArray`): array of data
+        indices (`jax.numpy.ndarray`): array of indices
+        input (`jax.numpy.ndarray` or `e3nn_jax.IrrepsArray`): array of data
         out_dim (int): size of the output
         map_back (bool): whether to map back to the input position
 
     Returns:
-        ``jnp.ndarray`` or ``e3nn_jax.IrrepsArray``: output
+        `jax.numpy.ndarray` or ``e3nn_jax.IrrepsArray``: output
 
     Example:
        >>> i = jnp.array([0, 2, 2, 0])
@@ -77,12 +77,12 @@ def radius_graph(pos, r_max, *, batch=None, size=None, loop=False, fill_src=-1, 
     Args:
         pos (`jax.numpy.ndarray`): array of shape ``(n, 3)``
         r_max (float):
-        batch (`jnp.ndarray`): indices
+        batch (`jax.numpy.ndarray`): indices
         size (int): size of the output
         loop (bool): whether to include self-loops
 
     Returns:
-        `Tuple[jnp.ndarray, jnp.ndarray]``: source and destination indices
+        `Tuple[jax.numpy.ndarray, jax.numpy.ndarray]`: source and destination indices
 
     Example:
         >>> key = jax.random.PRNGKey(0)
