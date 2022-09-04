@@ -20,13 +20,14 @@ def reduced_tensor_product_basis(
 
     Args:
         formula (str): a formula of the form ``ijk=jik=ikj`` or ``ijk=-jki``.
-            The left hand side is the original formula and the right hand side are the permutations, with a sign.
+            The left hand side is the original formula and the right hand side are the signed permutations.
 
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
         irreps (dict): the irreps of each index of the formula. For instance ``i="1x1o"``.
 
     Returns:
-        IrrepsArray: the change of basis matrix. The shape is ``(d1, ..., dn, irreps.dim)``
+        IrrepsArray: The change of basis
+            The shape is ``(d1, ..., dn, irreps.dim)``
             where ``di`` is the dimension of the index ``i`` and ``n`` is the number of indices in the formula.
 
     Example:

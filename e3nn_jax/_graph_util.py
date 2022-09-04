@@ -75,15 +75,14 @@ def radius_graph(pos, r_max, *, batch=None, size=None, loop=False, fill_src=-1, 
     r"""naive and inefficient version of ``torch_cluster.radius_graph``
 
     Args:
-        pos (``jnp.ndarray``): array of shape ``(n, 3)``
+        pos (`jax.numpy.ndarray`): array of shape ``(n, 3)``
         r_max (float):
-        batch (``jnp.ndarray``): indices
+        batch (`jnp.ndarray`): indices
         size (int): size of the output
         loop (bool): whether to include self-loops
 
     Returns:
-        ``jnp.ndarray``: src
-        ``jnp.ndarray``: dst
+        `Tuple[jnp.ndarray, jnp.ndarray]``: source and destination indices
 
     Example:
         >>> key = jax.random.PRNGKey(0)
