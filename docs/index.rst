@@ -150,7 +150,9 @@ The irrep index is always the last index.
     assert x.irreps.dim == x.shape[-1]
     x.shape
 
-`e3nn_jax.IrrepsArray` handles binary operations:
+`e3nn_jax.IrrepsArray` handles
+
+* binary operations:
 
 .. jupyter-execute::
 
@@ -180,7 +182,8 @@ The irrep index is always the last index.
 
     x == x
 
-Indexing:
+
+* Indexing:
 
 .. jupyter-execute::
 
@@ -198,7 +201,12 @@ Indexing:
 
     x[..., "2x0e + 1o"]
 
-Reductions:
+.. jupyter-execute::
+
+    x[..., 2:]
+
+
+* Reductions:
 
 .. jupyter-execute::
 
@@ -216,7 +224,8 @@ Reductions:
 
     e3nn.sum(x, axis=1)
 
-And other operations:
+
+* And other operations:
 
 .. jupyter-execute::
 
@@ -224,7 +233,12 @@ And other operations:
 
 .. jupyter-execute::
 
-    e3nn.concatenate([x, y], axis=1)
+    z = e3nn.concatenate([x, y], axis=1)
+    z
+
+.. jupyter-execute::
+
+    z.sorted().simplify()
 
 .. jupyter-execute::
 
