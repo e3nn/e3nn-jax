@@ -470,11 +470,23 @@ class IrrepsArray:
     def simplify(self) -> "IrrepsArray":
         r"""Simplify the irreps
 
-        Example:
+        Examples:
             >>> IrrepsArray("0e + 0e + 0e", jnp.ones(3)).simplify()
             3x0e [1. 1. 1.]
+
+            >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).simplify()
+            2x0e [1. 1.]
         """
         return self.convert(self.irreps.simplify())
+
+    def unify(self) -> "IrrepsArray":
+        r"""Unify the irreps
+
+        Example:
+            >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).unify()
+            1x0e+0x1e+1x0e [1. 1.]
+        """
+        return self.convert(self.irreps.unify())
 
     def sorted(self) -> "IrrepsArray":
         r"""Sort the irreps

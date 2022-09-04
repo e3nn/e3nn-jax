@@ -118,16 +118,39 @@ def tensor_product(
     custom_einsum_jvp: bool = None,
     fused: bool = None,
 ):
-    r"""Full tensor product of two irreps.
+    """Tensor product of two sets of irreps
 
     Args:
-        input1 (IrrepsArray): First input.
-        input2 (IrrepsArray): Second input.
-        filter_ir_out (Optional[List[Irrep]]): List of irreps to keep in the output.
-        irrep_normalization (Optional[str]): How to normalize the output. See :func:`e3nn_jax.FunctionalTensorProduct`.
+        input1 (IrrepsArray): First input
+        input2 (IrrepsArray): Second input
+        filter_ir_out (list of Irrep, optional): Filter the output irreps. Defaults to None.
+        irrep_normalization (str, optional): Irrep normalization, ``"component"`` or ``"norm"``. Defaults to ``"component"``.
 
     Returns:
-        IrrepsArray: Output with sorted irreps.
+        IrrepsArray: Tensor product of the two inputs. The irreps are sorted (``0e, 0o, 1o, 1e, 2e, 2o, ...``)
+            but not simplified, see example below.
+
+    Examples:
+        >>> jnp.set_printoptions(precision=2, suppress=True)
+        >>> import e3nn_jax as e3nn
+        >>> x = e3nn.IrrepsArray("2x0e + 1o", jnp.arange(5))
+        >>> y = e3nn.IrrepsArray("0o + 2o", jnp.arange(6))
+        >>> e3nn.tensor_product(x, y)
+        2x0o+1x1e+1x1e+1x2e+2x2o+1x3e
+        [  0.     0.     0.     0.     0.    -1.9   16.65  14.83   7.35 -12.57
+           0.    -0.66   4.08   0.     0.     0.     0.     0.     1.     2.
+           3.     4.     5.     9.9   10.97   9.27  -1.97  12.34  15.59  12.73]
+
+        Usage in combination with `~e3nn_jax.Linear`:
+
+        >>> @hk.without_apply_rng
+        ... @hk.transform
+        ... def fully_connected_tensor_product(x, y):
+        ...     return e3nn.Linear("3x1e")(e3nn.tensor_product(x, y))
+        >>> params = fully_connected_tensor_product.init(jax.random.PRNGKey(0), x, y)
+        >>> jax.tree_util.tree_structure(params)
+        PyTreeDef({'linear': {'w[1,0] 2x1e,3x1e': *}})
+        >>> z = fully_connected_tensor_product.apply(params, x, y)
     """
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -163,12 +186,32 @@ def elementwise_tensor_product(
     input2: IrrepsArray,
     filter_ir_out=None,
     irrep_normalization: str = None,
-    path_normalization: str = None,
 ) -> IrrepsArray:
+    r"""Elementwise tensor product of two `IrrepsArray`
+
+    Args:
+        input1 (IrrepsArray): First input
+        input2 (IrrepsArray): Second input with the same number of irreps as ``input1``,
+            ``input1.irreps.num_irreps == input2.irreps.num_irreps``.
+        filter_ir_out (list of Irrep, optional): Filter the output irreps. Defaults to None.
+        irrep_normalization (str, optional): Irrep normalization, ``"component"`` or ``"norm"``. Defaults to ``"component"``.
+
+    Returns:
+        IrrepsArray: Elementwise tensor product of the two inputs. The irreps are not sorted and not simplified.
+
+    Examples:
+        >>> jnp.set_printoptions(precision=2, suppress=True)
+        >>> import e3nn_jax as e3nn
+        >>> x = e3nn.IrrepsArray("2x0e + 1o", jnp.arange(5))
+        >>> y = e3nn.IrrepsArray("1e + 0o + 0o", jnp.arange(5))
+        >>> e3nn.elementwise_tensor_product(x, y)
+        1x1e+1x0o+1x1e [ 0.  0.  0.  3.  8. 12. 16.]
+    """
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
-    assert input1.irreps.num_irreps == input2.irreps.num_irreps
+    if input1.irreps.num_irreps != input2.irreps.num_irreps:
+        raise ValueError(f"Number of irreps must be the same, got {input1.irreps.num_irreps} and {input2.irreps.num_irreps}")
 
     irreps_in1 = list(input1.irreps)
     irreps_in2 = list(input2.irreps)
@@ -209,7 +252,6 @@ def elementwise_tensor_product(
         irreps_out,
         instructions,
         irrep_normalization=irrep_normalization,
-        path_normalization=path_normalization,
     )
 
     return naive_broadcast_decorator(tp.left_right)(input1, input2)
