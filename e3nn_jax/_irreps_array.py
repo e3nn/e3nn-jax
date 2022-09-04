@@ -22,6 +22,7 @@ def _infer_backend(pytree):
         return np
     if any_jax:
         return jnp
+    return np
 
 
 class IrrepsArray:
@@ -158,8 +159,8 @@ class IrrepsArray:
     def __len__(self):
         return len(self.array)
 
-    def __eq__(self, other) -> "IrrepsArray":
-        jnp = _infer_backend((self.array, other.array))
+    def __eq__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+        jnp = _infer_backend(self.array)
 
         if isinstance(other, IrrepsArray):
             if self.irreps != other.irreps:
@@ -185,9 +186,12 @@ class IrrepsArray:
             raise ValueError(f"IrrepsArray({self.irreps}) == scalar(shape={other.shape}) is not equivariant.")
         return IrrepsArray(irreps=self.irreps, array=self.array == other)
 
-    def __add__(self, other) -> "IrrepsArray":
+    def __add__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+        jnp = _infer_backend(self.array)
+
         if not isinstance(other, IrrepsArray):
             if all(ir == "0e" for _, ir in self.irreps):
+                other = jnp.asarray(other)
                 return IrrepsArray(irreps=self.irreps, array=self.array + other)
             raise ValueError(f"IrrepsArray({self.irreps}) + scalar is not equivariant.")
 
@@ -197,9 +201,12 @@ class IrrepsArray:
         list = [x if y is None else (y if x is None else x + y) for x, y in zip(self.list, other.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array + other.array, list=list)
 
-    def __sub__(self, other) -> "IrrepsArray":
+    def __sub__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+        jnp = _infer_backend(self.array)
+
         if not isinstance(other, IrrepsArray):
             if all(ir == "0e" for _, ir in self.irreps):
+                other = jnp.asarray(other)
                 return IrrepsArray(irreps=self.irreps, array=self.array - other)
             raise ValueError(f"IrrepsArray({self.irreps}) - scalar is not equivariant.")
 
@@ -208,8 +215,8 @@ class IrrepsArray:
         list = [x if y is None else (-y if x is None else x - y) for x, y in zip(self.list, other.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array - other.array, list=list)
 
-    def __mul__(self, other) -> "IrrepsArray":
-        jnp = _infer_backend((self.array, other.array))
+    def __mul__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+        jnp = _infer_backend(self.array)
 
         if isinstance(other, IrrepsArray):
             if self.irreps.lmax > 0 and other.irreps.lmax > 0:
@@ -224,11 +231,11 @@ class IrrepsArray:
         list = [None if x is None else x * other[..., None] for x in self.list]
         return IrrepsArray(irreps=self.irreps, array=self.array * other, list=list)
 
-    def __rmul__(self, other) -> "IrrepsArray":
+    def __rmul__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":
         return self * other
 
-    def __truediv__(self, other) -> "IrrepsArray":
-        jnp = _infer_backend((self.array, other.array))
+    def __truediv__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+        jnp = _infer_backend(self.array)
 
         if isinstance(other, IrrepsArray):
             if len(other.irreps) == 0 or other.irreps.lmax > 0 or self.irreps.num_irreps != other.irreps.num_irreps:
@@ -245,8 +252,8 @@ class IrrepsArray:
         list = [None if x is None else x / other[..., None] for x in self.list]
         return IrrepsArray(irreps=self.irreps, array=self.array / other, list=list)
 
-    def __rtruediv__(self, other) -> "IrrepsArray":
-        jnp = _infer_backend((self.array, other.array))
+    def __rtruediv__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":
+        jnp = _infer_backend((self.array, other))
 
         other = jnp.asarray(other)
         if self.irreps.lmax > 0:
