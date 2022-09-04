@@ -127,8 +127,8 @@ def tensor_product(
         irrep_normalization (str, optional): Irrep normalization, ``"component"`` or ``"norm"``. Defaults to ``"component"``.
 
     Returns:
-        IrrepsArray: Tensor product of the two inputs. The irreps are sorted (``0e, 0o, 1o, 1e, 2e, 2o, ...``)
-            but not simplified, see example below.
+        IrrepsArray: Tensor product of the two inputs.
+            The irreps are sorted (``0e, 0o, 1o, 1e, 2e, 2o, ...``) but not simplified, see example below.
 
     Examples:
         >>> jnp.set_printoptions(precision=2, suppress=True)
@@ -202,7 +202,8 @@ def elementwise_tensor_product(
         irrep_normalization (str, optional): Irrep normalization, ``"component"`` or ``"norm"``. Defaults to ``"component"``.
 
     Returns:
-        IrrepsArray: Elementwise tensor product of the two inputs. The irreps are not sorted and not simplified.
+        IrrepsArray: Elementwise tensor product of the two inputs.
+            The irreps are not sorted and not simplified.
 
     Examples:
         >>> jnp.set_printoptions(precision=2, suppress=True)
