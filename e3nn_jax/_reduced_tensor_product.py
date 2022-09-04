@@ -7,6 +7,7 @@ import numpy as np
 import e3nn_jax as e3nn
 from e3nn_jax import perm
 from e3nn_jax.util.math_numpy import basis_intersection, round_to_sqrt_rational
+from e3nn_jax.util import prod
 
 
 def reduced_tensor_product_basis(
@@ -79,11 +80,22 @@ def reduced_tensor_product_basis(
 def _reduced_tensor_product_basis(
     irreps: Tuple[e3nn.Irreps], formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], epsilon: float
 ) -> np.ndarray:
-    def _recursion(bases):
+    dims = tuple(irps.dim for irps in irreps)
+
+    def _recursion(bases: List[Tuple[FrozenSet[int], e3nn.IrrepsArray]]) -> e3nn.IrrepsArray:
         if len(bases) == 1:
             f, b = bases[0]
             assert f == frozenset(range(len(irreps)))
             return b
+
+        if len(bases) == 2:
+            (fa, a) = bases[0]
+            (fb, b) = bases[1]
+            f = frozenset(fa | fb)
+            ab = reduce_basis_product(a, b)
+            p = reduce_subgroup_permutation(f, formulas, dims)
+            ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon, round_fn=round_to_sqrt_rational)
+            return ab
 
         # greedy algorithm
         min_p = np.inf
@@ -91,19 +103,21 @@ def _reduced_tensor_product_basis(
 
         for i in range(len(bases)):
             for j in range(i + 1, len(bases)):
-                (fa, a) = bases[i]
-                (fb, b) = bases[j]
+                (fa, _) = bases[i]
+                (fb, _) = bases[j]
                 f = frozenset(fa | fb)
-                p = reduce_subgroup_permutation(f, formulas, tuple(irps.dim for irps in irreps))
-                if p.shape[0] < min_p:
-                    min_p = p.shape[0]
-                    best = (i, j, a, b, f, p)
+                p_dim = reduce_subgroup_permutation(f, formulas, dims, return_dim=True)
+                if p_dim < min_p:
+                    min_p = p_dim
+                    best = (i, j, f)
 
-        i, j, a, b, f, p = best
+        i, j, f = best
         del bases[j]
         del bases[i]
-        ab = reduce_basis_product(a, b)
-        ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon, round_fn=round_to_sqrt_rational)
+        sub_irreps = tuple(irreps[i] for i in f)
+        sub_formulas = sub_formula_fn(f, formulas)
+        ab = _reduced_tensor_product_basis(sub_irreps, sub_formulas, epsilon)
+        ab = ab.reshape(tuple(dims[i] if i in f else 1 for i in range(len(dims))) + (-1,))
         return _recursion([(f, ab)] + bases)
 
     initial_bases = [
@@ -111,7 +125,7 @@ def _reduced_tensor_product_basis(
             irps,
             np.reshape(np.eye(irps.dim), (1,) * i + (irps.dim,) + (1,) * (len(irreps) - i - 1) + (irps.dim,)),
         )
-        for i, irps in zip(range(len(irreps)), irreps)
+        for i, irps in enumerate(irreps)
     ]
     return _recursion([(frozenset({i}), base) for i, base in enumerate(initial_bases)])
 
@@ -205,25 +219,41 @@ def constrain_rotation_basis_by_permutation_basis(
     return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1])
 
 
-@functools.lru_cache(maxsize=None)
-def reduce_subgroup_permutation(
-    sub_f0: FrozenSet[int], formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], dims: Tuple[int, ...]
-) -> np.ndarray:
-    sub_f0 = sorted(sub_f0)
-    sub_formulas = frozenset(
+def sub_formula_fn(
+    sub_f0: FrozenSet[int], formulas: FrozenSet[Tuple[int, Tuple[int, ...]]]
+) -> FrozenSet[Tuple[int, Tuple[int, ...]]]:
+    sor = sorted(sub_f0)
+    return frozenset(
         {
-            (s, tuple(sub_f0.index(i) for i in p if i in sub_f0))
+            (s, tuple(sor.index(i) for i in p if i in sub_f0))
             for s, p in formulas
             if all(i in sub_f0 or i == j for j, i in enumerate(p))
         }
     )
-    permutation_basis = reduce_permutation(sub_formulas, tuple(dims[i] for i in sub_f0))
+
+
+def reduce_subgroup_permutation(
+    sub_f0: FrozenSet[int], formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], dims: Tuple[int, ...], return_dim: bool = False
+) -> np.ndarray:
+    sub_formulas = sub_formula_fn(sub_f0, formulas)
+    sub_dims = tuple(dims[i] for i in sub_f0)
+    base = reduce_permutation_base(sub_formulas, sub_dims)
+    if return_dim:
+        return len(base)
+    permutation_basis = reduce_permutation_matrix(base, sub_dims)
     return np.reshape(permutation_basis, (-1,) + tuple(dims[i] if i in sub_f0 else 1 for i in range(len(dims))))
 
 
 @functools.lru_cache(maxsize=None)
-def reduce_permutation(formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], dims: Tuple[int, ...]) -> np.ndarray:
-    full_base = list(itertools.product(*(range(d) for d in dims)))  # (0, 0, 0), (0, 0, 1), (0, 0, 2), ... (3, 3, 3)
+def full_base_fn(dims: Tuple[int, ...]) -> List[Tuple[int, ...]]:
+    return list(itertools.product(*(range(d) for d in dims)))
+
+
+@functools.lru_cache(maxsize=None)
+def reduce_permutation_base(
+    formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], dims: Tuple[int, ...]
+) -> FrozenSet[FrozenSet[FrozenSet[Tuple[int, Tuple[int, ...]]]]]:
+    full_base = full_base_fn(dims)  # (0, 0, 0), (0, 0, 1), (0, 0, 2), ... (3, 3, 3)
     # len(full_base) degrees of freedom in an unconstrained tensor
 
     # but there is constraints given by the group `formulas`
@@ -241,13 +271,20 @@ def reduce_permutation(formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], dims: T
 
     # len(base) is the number of degrees of freedom in the tensor.
 
+    return frozenset(base)
+
+
+@functools.lru_cache(maxsize=None)
+def reduce_permutation_matrix(
+    base: FrozenSet[FrozenSet[FrozenSet[Tuple[int, Tuple[int, ...]]]]], dims: Tuple[int, ...]
+) -> np.ndarray:
     base = sorted(
         [sorted([sorted(xs) for xs in x]) for x in base]
     )  # requested for python 3.7 but not for 3.8 (probably a bug in 3.7)
 
     # First we compute the change of basis (projection) between full_base and base
     d_sym = len(base)
-    Q = np.zeros((d_sym, len(full_base)))
+    Q = np.zeros((d_sym, prod(dims)))
 
     for i, x in enumerate(base):
         x = max(x, key=lambda xs: sum(s for s, x in xs))
