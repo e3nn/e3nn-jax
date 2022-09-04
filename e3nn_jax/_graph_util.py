@@ -82,7 +82,8 @@ def radius_graph(pos, r_max, *, batch=None, size=None, loop=False, fill_src=-1, 
         loop (bool): whether to include self-loops
 
     Returns:
-        `Tuple[jax.numpy.ndarray, jax.numpy.ndarray]`: source and destination indices
+        - jax.numpy.ndarray: source indices
+        - jax.numpy.ndarray: destination indices
 
     Example:
         >>> key = jax.random.PRNGKey(0)
