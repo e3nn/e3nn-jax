@@ -291,6 +291,27 @@ class IrrepsArray:
             yield self[i]
 
     def __getitem__(self, index) -> "IrrepsArray":
+        r"""Get a subarray of the IrrepsArray
+
+        Args:
+            index: index of the subarray
+
+        Returns:
+            IrrepsArray: subarray
+
+        Examples:
+            >>> x = IrrepsArray("0e + 1o", jnp.arange(2 * 4).reshape(2, 4))
+            >>> x[0]
+            1x0e+1x1o [0 1 2 3]
+            >>> x[1, "0e"]
+            1x0e [4]
+            >>> x[:, 1:]
+            1x1o
+            [[1 2 3]
+             [5 6 7]]
+            >>> IrrepsArray("5x0e", jnp.arange(5))[1:3]
+            2x0e [1 2]
+        """
         if not isinstance(index, tuple):
             index = (index,)
 
@@ -378,6 +399,7 @@ class IrrepsArray:
             if not (is_ellipse(index[-1]) or is_none_slice(index[-1])):
                 raise IndexError(f"Indexing with {index[-1]} in the irreps dimension is not supported.")
 
+        # Support of x[index, :]
         return IrrepsArray(
             self.irreps,
             array=self.array[index],
@@ -385,18 +407,39 @@ class IrrepsArray:
         )
 
     def reshape(self, shape) -> "IrrepsArray":
+        r"""Reshape the array
+
+        Args:
+            shape (tuple): new shape
+
+        Returns:
+            IrrepsArray: new IrrepsArray
+
+        Example:
+            >>> IrrepsArray("2x0e + 1o", jnp.ones((6, 5))).reshape((2, 3, 5))
+            2x0e+1x1o
+            [[[1. 1. 1. 1. 1.]
+              [1. 1. 1. 1. 1.]
+              [1. 1. 1. 1. 1.]]
+            <BLANKLINE>
+             [[1. 1. 1. 1. 1.]
+              [1. 1. 1. 1. 1.]
+              [1. 1. 1. 1. 1.]]]
+        """
         assert shape[-1] == self.irreps.dim or shape[-1] == -1
         shape = shape[:-1]
         list = [None if x is None else x.reshape(shape + (mul, ir.dim)) for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array.reshape(shape + (self.irreps.dim,)), list=list)
 
     def replace_none_with_zeros(self) -> "IrrepsArray":
+        r"""Replace all None in ``.list`` with zeros"""
         jnp = _infer_backend(self.array)
 
         list = [jnp.zeros(self.shape[:-1] + (mul, ir.dim)) if x is None else x for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array, list=list)
 
     def remove_nones(self) -> "IrrepsArray":
+        r"""Remove all None in ``.list`` and ``.irreps``"""
         if any(x is None for x in self.list):
             irreps = [mul_ir for mul_ir, x in zip(self.irreps, self.list) if x is not None]
             list = [x for x in self.list if x is not None]
@@ -404,9 +447,21 @@ class IrrepsArray:
         return self
 
     def simplify(self) -> "IrrepsArray":
+        r"""Simplify the irreps
+
+        Example:
+            >>> IrrepsArray("0e + 0e + 0e", jnp.ones(3)).simplify()
+            3x0e [1. 1. 1.]
+        """
         return self.convert(self.irreps.simplify())
 
     def sorted(self) -> "IrrepsArray":
+        r"""Sort the irreps
+
+        Example:
+            >>> IrrepsArray("0e + 1o + 2x0e", jnp.arange(6)).sorted()
+            1x0e+2x0e+1x1o [0 4 5 1 2 3]
+        """
         irreps, p, inv = self.irreps.sort()
         return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1])
 
@@ -414,8 +469,8 @@ class IrrepsArray:
         r"""Repeat the irreps by the last axis of the array.
 
         Example:
-            >>> irreps = IrrepsArray("0e + 1e", jnp.zeros((3, 4)))
-            >>> irreps.repeat_irreps_by_last_axis().irreps
+            >>> x = IrrepsArray("0e + 1e", jnp.zeros((3, 4)))
+            >>> x.repeat_irreps_by_last_axis().irreps
             1x0e+1x1e+1x0e+1x1e+1x0e+1x1e
         """
         assert len(self.shape) >= 2
@@ -427,9 +482,9 @@ class IrrepsArray:
         r"""Repeat the multiplicity by the last axis of the array.
 
         Example:
-            >>> irreps = IrrepsArray("0e + 1e", jnp.zeros((3, 4)))
-            >>> irreps.repeat_mul_by_last_axis().irreps
-            3x0e+3x1e
+            >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
+            >>> x.repeat_mul_by_last_axis()
+            2x0e+2x1e [0 4 1 2 3 5 6 7]
         """
         assert len(self.shape) >= 2
         irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
@@ -443,9 +498,12 @@ class IrrepsArray:
         r"""Create a new axis in the previous last position by factoring the multiplicities.
 
         Example:
-            >>> irreps = IrrepsArray("6x0e + 3x1e", jnp.zeros((3, 6 + 9)))
-            >>> irreps.factor_mul_to_last_axis().irreps
+            >>> x = IrrepsArray("6x0e + 3x1e", jnp.arange(15))
+            >>> x.factor_mul_to_last_axis()
             2x0e+1x1e
+            [[ 0  1  6  7  8]
+             [ 2  3  9 10 11]
+             [ 4  5 12 13 14]]
         """
         if factor is None:
             factor = math.gcd(*(mul for mul, _ in self.irreps))
@@ -470,7 +528,13 @@ class IrrepsArray:
             k (int): parity operation
 
         Returns:
-            IrrepsArray
+            `IrrepsArray`: rotated data
+
+        Example:
+            >>> np.set_printoptions(precision=3, suppress=True)
+            >>> x = IrrepsArray("2e", jnp.array([0.1, 0, 1.0, 1, 1]))
+            >>> x.transform_by_angles(jnp.pi, 0, 0)
+            1x2e [ 0.1  0.   1.  -1.   1. ]
         """
         # Optimization: we use only the list of arrays, not the array data
         D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _, ir in self.irreps}}
@@ -532,9 +596,13 @@ class IrrepsArray:
             ValueError: if the irreps are not compatible
 
         Example:
-        >>> id = IrrepsArray.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
-        >>> jax.tree_util.tree_map(lambda x: x.shape, id.convert("20x0e")).list
-        [(1, 20, 1)]
+            >>> x = IrrepsArray.from_list("6x0e + 4x0e", [None, jnp.ones((4, 1))], ())
+            >>> x.convert("5x0e + 5x0e").list
+            [None, DeviceArray([[0.],
+                         [1.],
+                         [1.],
+                         [1.],
+                         [1.]], dtype=float32)]
         """
         jnp = _infer_backend(self.array)
 
