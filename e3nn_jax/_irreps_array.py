@@ -26,12 +26,21 @@ def _infer_backend(pytree):
 
 
 class IrrepsArray:
-    r"""Class storing an array and its irreps
+    r"""Class storing an array of data (``.array``) and its representation in terms of
+    irreducible representations (``.irreps``).
 
     Args:
-        irreps (`Irreps`): Irreps of the array
-        array (`jax.numpy.ndarray`): Array of shape ``(..., irreps.dim)``
-        list (optional ``List[jnp.ndarray]``): List of arrays of shape ``(..., mul, ir.dim)``
+        irreps (`Irreps`): representation of the data
+        array (`jax.numpy.ndarray`): the data, an array of shape ``(..., irreps.dim)``
+        list (optional `List[Optional[jax.numpy.ndarray]]`): the same data in a list format.
+            It can contain ``None`` to represent zeros otherwise the shape has to be ``(..., mul, ir.dim)``.
+
+    Example:
+        >>> import e3nn_jax as e3nn
+        >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
+        >>> y = e3nn.IrrepsArray.from_list("1o + 2x0e", [None, jnp.ones((2, 1))], ())
+        >>> x + y
+        1x1o+2x0e [1. 1. 1. 2. 2.]
     """
 
     irreps: Irreps

@@ -166,6 +166,24 @@ class FunctionalLinear:
 
 
 class Linear(hk.Module):
+    r"""Equivariant Linear Haiku Module
+
+    Args:
+        irreps_out (`e3nn_jax.Irreps`): output representations
+        channel_out (optional int): if specified, the last axis is assumed to be the channel axis
+            and is mixed with the irreps.
+
+    Example:
+        >>> import e3nn_jax as e3nn
+        >>> @hk.without_apply_rng
+        ... @hk.transform
+        ... def linear(x):
+        ...     return e3nn.Linear("0e + 1o")(x)
+        >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
+        >>> params = linear.init(jax.random.PRNGKey(0), x)
+        >>> y = linear.apply(params, x)
+    """
+
     def __init__(
         self,
         irreps_out: Irreps,
@@ -176,13 +194,6 @@ class Linear(hk.Module):
         path_normalization: Union[str, float] = None,
         gradient_normalization: Union[str, float] = None,
     ):
-        r"""Equivariant Linear Haiku Module
-
-        Args:
-            irreps_out (`e3nn_jax.Irreps`): output representations
-            channel_out (optional int): if specified, the last axis is assumed to be the channel axis
-                and is mixed with the irreps.
-        """
         super().__init__()
 
         self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None
