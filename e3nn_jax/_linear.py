@@ -1,4 +1,4 @@
-from typing import Any, List, NamedTuple, Optional, Tuple, Union
+from typing import List, NamedTuple, Optional, Tuple, Union
 
 import haiku as hk
 import jax

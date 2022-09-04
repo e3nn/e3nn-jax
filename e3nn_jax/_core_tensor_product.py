@@ -4,7 +4,7 @@ import collections
 import itertools
 from functools import lru_cache, partial
 from math import sqrt
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
