@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Callable, Optional
 
 import jax
 import jax.numpy as jnp
@@ -40,7 +41,13 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
 
 
 @overload_for_irreps_without_array((0,))
-def gate(input: IrrepsArray, even_act=None, odd_act=None, even_gate_act=None, odd_gate_act=None) -> IrrepsArray:
+def gate(
+    input: IrrepsArray,
+    even_act: Optional[Callable[[float], float]] = None,
+    odd_act: Optional[Callable[[float], float]] = None,
+    even_gate_act: Optional[Callable[[float], float]] = None,
+    odd_gate_act: Optional[Callable[[float], float]] = None,
+) -> IrrepsArray:
     r"""Gate activation function.
 
     The input is split into scalars that are activated separately, scalars that are used as gates, and non-scalars that are
@@ -53,7 +60,10 @@ def gate(input: IrrepsArray, even_act=None, odd_act=None, even_gate_act=None, od
 
     Args:
         input (IrrepsArray): Input data.
-        acts: The list of activation functions. Its length must be equal to the number of scalar blocks in the input.
+        even_act (Callable[[float], float], optional): Activation function for even scalars.
+        odd_act (Callable[[float], float], optional): Activation function for odd scalars.
+        even_gate_act (Callable[[float], float], optional): Activation function for even gate scalars.
+        odd_gate_act (Callable[[float], float], optional): Activation function for odd gate scalars.
 
     Returns:
         IrrepsArray: Output data.

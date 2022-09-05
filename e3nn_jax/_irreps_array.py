@@ -26,7 +26,9 @@ def _infer_backend(pytree):
 
 
 class IrrepsArray:
-    r"""Class enforcing equivariant operations by storing an array of data (``.array``)
+    r"""Data along with its irreps.
+
+    The IrrepsArray class enforce equivariance by storing an array of data (``.array``)
     along with its representation (``.irreps``).
 
     Args:
@@ -64,6 +66,7 @@ class IrrepsArray:
     def __init__(
         self, irreps: IntoIrreps, array: jnp.ndarray, list: List[Optional[jnp.ndarray]] = None, _perform_checks: bool = True
     ):
+        """Create an IrrepsArray."""
         self.irreps = Irreps(irreps)
         self.array = array
         self._list = list
@@ -88,7 +91,7 @@ class IrrepsArray:
 
     @staticmethod
     def from_list(irreps: IntoIrreps, list, leading_shape: Tuple[int]) -> "IrrepsArray":
-        r"""Create an IrrepsArray from a list of arrays
+        r"""Create an IrrepsArray from a list of arrays.
 
         Args:
             irreps (Irreps): irreps
@@ -128,12 +131,13 @@ class IrrepsArray:
 
     @staticmethod
     def zeros(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
-        r"""Create an IrrepsArray of zeros"""
+        r"""Create an IrrepsArray of zeros."""
         irreps = Irreps(irreps)
         return IrrepsArray(irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,)), list=[None] * len(irreps))
 
     @staticmethod
     def ones(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
+        r"""Create an IrrepsArray of ones."""
         irreps = Irreps(irreps)
         return IrrepsArray(
             irreps=irreps,
@@ -143,7 +147,7 @@ class IrrepsArray:
 
     @property
     def list(self) -> List[Optional[jnp.ndarray]]:
-        r"""List of arrays matching each item of the ``.irreps``
+        r"""List of arrays matching each item of the ``.irreps``.
 
         Example:
             >>> x = IrrepsArray("2x0e + 0e", jnp.arange(3))
@@ -177,12 +181,12 @@ class IrrepsArray:
 
     @property
     def shape(self):
-        r"""Shape. Equivalent to ``self.array.shape``"""
+        r"""Shape. Equivalent to ``self.array.shape``."""
         return self.array.shape
 
     @property
     def ndim(self):
-        r"""Number of dimensions. Equivalent to ``self.array.ndim``"""
+        r"""Number of dimensions. Equivalent to ``self.array.ndim``."""
         return len(self.shape)
 
     # def __jax_array__(self):
@@ -325,7 +329,7 @@ class IrrepsArray:
             yield self[i]
 
     def __getitem__(self, index) -> "IrrepsArray":
-        r"""Get a subarray of the IrrepsArray
+        r"""Get a subarray of the IrrepsArray.
 
         Args:
             index: index of the subarray
@@ -428,7 +432,7 @@ class IrrepsArray:
         )
 
     def reshape(self, shape) -> "IrrepsArray":
-        r"""Reshape the array
+        r"""Reshape the array.
 
         Args:
             shape (tuple): new shape
@@ -453,14 +457,14 @@ class IrrepsArray:
         return IrrepsArray(irreps=self.irreps, array=self.array.reshape(shape + (self.irreps.dim,)), list=list)
 
     def replace_none_with_zeros(self) -> "IrrepsArray":
-        r"""Replace all None in ``.list`` with zeros"""
+        r"""Replace all None in ``.list`` with zeros."""
         jnp = _infer_backend(self.array)
 
         list = [jnp.zeros(self.shape[:-1] + (mul, ir.dim)) if x is None else x for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array, list=list)
 
     def remove_nones(self) -> "IrrepsArray":
-        r"""Remove all None in ``.list`` and ``.irreps``"""
+        r"""Remove all None in ``.list`` and ``.irreps``."""
         if any(x is None for x in self.list):
             irreps = [mul_ir for mul_ir, x in zip(self.irreps, self.list) if x is not None]
             list = [x for x in self.list if x is not None]
@@ -468,7 +472,7 @@ class IrrepsArray:
         return self
 
     def simplify(self) -> "IrrepsArray":
-        r"""Simplify the irreps
+        r"""Simplify the irreps.
 
         Examples:
             >>> IrrepsArray("0e + 0e + 0e", jnp.ones(3)).simplify()
@@ -480,7 +484,7 @@ class IrrepsArray:
         return self.convert(self.irreps.simplify())
 
     def unify(self) -> "IrrepsArray":
-        r"""Unify the irreps
+        r"""Unify the irreps.
 
         Example:
             >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).unify()
@@ -489,7 +493,7 @@ class IrrepsArray:
         return self.convert(self.irreps.unify())
 
     def sorted(self) -> "IrrepsArray":
-        r"""Sort the irreps
+        r"""Sort the irreps.
 
         Example:
             >>> IrrepsArray("0e + 1o + 2x0e", jnp.arange(6)).sorted()
@@ -524,7 +528,7 @@ class IrrepsArray:
         list = [None if x is None else x.reshape(self.shape[:-2] + (mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)]
         return IrrepsArray.from_list(irreps, list, self.shape[:-2])
 
-    def factor_irreps_to_last_axis(self) -> "IrrepsArray":
+    def factor_irreps_to_last_axis(self) -> "IrrepsArray":  # noqa: D102
         raise NotImplementedError
 
     def factor_mul_to_last_axis(self, factor=None) -> "IrrepsArray":
@@ -552,7 +556,7 @@ class IrrepsArray:
         return IrrepsArray.from_list(irreps, list, self.shape[:-1] + (factor,))
 
     def transform_by_angles(self, alpha: float, beta: float, gamma: float, k: int = 0) -> "IrrepsArray":
-        r"""Rotate the data by angles according to the irreps
+        r"""Rotate the data by angles according to the irreps.
 
         Args:
             alpha (float): third rotation angle around the second axis (in radians)
@@ -578,7 +582,7 @@ class IrrepsArray:
         return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1])
 
     def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsArray":
-        r"""Rotate data by a rotation given by a quaternion
+        r"""Rotate data by a rotation given by a quaternion.
 
         Args:
             q (`jax.numpy.ndarray`): quaternion
@@ -590,7 +594,7 @@ class IrrepsArray:
         return self.transform_by_angles(*quaternion_to_angles(q), k)
 
     def transform_by_axis_angle(self, axis: jnp.ndarray, angle: float, k: int = 0) -> "IrrepsArray":
-        r"""Rotate data by a rotation given by an axis and an angle
+        r"""Rotate data by a rotation given by an axis and an angle.
 
         Args:
             axis (`jax.numpy.ndarray`): axis
@@ -603,7 +607,7 @@ class IrrepsArray:
         return self.transform_by_angles(*axis_angle_to_angles(axis, angle), k)
 
     def transform_by_matrix(self, R: jnp.ndarray) -> "IrrepsArray":
-        r"""Rotate data by a rotation given by a matrix
+        r"""Rotate data by a rotation given by a matrix.
 
         Args:
             R (`jax.numpy.ndarray`): rotation matrix
@@ -617,7 +621,7 @@ class IrrepsArray:
         return self.transform_by_angles(*matrix_to_angles(R), k)
 
     def convert(self, irreps: IntoIrreps) -> "IrrepsArray":
-        r"""Convert the list property into an equivalent irreps
+        r"""Convert the list property into an equivalent irreps.
 
         Args:
             irreps (Irreps): new irreps
@@ -714,7 +718,7 @@ class IrrepsArray:
         return IrrepsArray(irreps=irreps, array=self.array, list=new_list)
 
     def split(self, indices: Union[List[int], List[Irreps]]) -> List["IrrepsArray"]:
-        """Split the array into subarrays
+        """Split the array into subarrays.
 
         Examples:
             >>> IrrepsArray("0e + 1e", jnp.array([1.0, 2, 3, 4])).split(["0e", "1e"])
@@ -742,6 +746,7 @@ class IrrepsArray:
         return [IrrepsArray(irreps, array) for irreps, array in zip(irrepss, array_parts)]
 
     def broadcast_to(self, shape) -> "IrrepsArray":
+        """Broadcast the array to a new shape."""
         jnp = _infer_backend(self.array)
 
         assert isinstance(shape, tuple)
@@ -755,12 +760,12 @@ class IrrepsArray:
         return IrrepsArray(irreps=self.irreps, array=array, list=list)
 
     @staticmethod
-    def cat(args, axis=-1) -> "IrrepsArray":
+    def cat(args, axis=-1) -> "IrrepsArray":  # noqa: D102
         warnings.warn("IrrepsArray.cat is deprecated, use e3nn.concatenate instead", DeprecationWarning)
         return concatenate(args, axis=axis)
 
     @staticmethod
-    def randn(irreps, key, leading_shape=(), *, normalization=None):
+    def randn(irreps, key, leading_shape=(), *, normalization=None):  # noqa: D102
         warnings.warn("IrrepsArray.randn is deprecated, use e3nn.normal instead", DeprecationWarning)
         return normal(irreps, key, leading_shape=leading_shape, normalization=normalization)
 
@@ -860,7 +865,7 @@ def sum_(array: IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None, kee
 
 
 def concatenate(arrays: List[IrrepsArray], axis: int = -1) -> IrrepsArray:
-    r"""Concatenate a list of IrrepsArray
+    r"""Concatenate a list of IrrepsArray.
 
     Args:
         arrays (list of `IrrepsArray`): list of data to concatenate
@@ -910,7 +915,7 @@ def concatenate(arrays: List[IrrepsArray], axis: int = -1) -> IrrepsArray:
 
 
 def stack(arrays: List[IrrepsArray], axis=0) -> IrrepsArray:
-    r"""Stack a list of IrrepsArray
+    r"""Stack a list of IrrepsArray.
 
     Args:
         arrays (list of `IrrepsArray`): list of data to stack

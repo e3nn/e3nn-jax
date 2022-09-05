@@ -16,7 +16,7 @@ IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
 
 @dataclasses.dataclass(init=False, frozen=True)
 class Irrep:
-    r"""Irreducible representation of :math:`O(3)`
+    r"""Irreducible representation of :math:`O(3)`.
 
     This class does not contain any data, it is a structure that describe the representation.
     It is typically used as argument of other classes of the library to define the input and output
@@ -55,6 +55,7 @@ class Irrep:
     p: int
 
     def __init__(self, l: IntoIrrep, p=None):
+        """Initialize an Irrep."""
         if p is None:
             if isinstance(l, Irrep):
                 p = l.p
@@ -85,12 +86,13 @@ class Irrep:
         object.__setattr__(self, "p", p)
 
     def __repr__(self):
+        """Representation of the Irrep."""
         p = {+1: "e", -1: "o"}[self.p]
         return f"{self.l}{p}"
 
     @classmethod
     def iterator(cls, lmax=None):
-        r"""Iterator through all the irreps of :math:`O(3)`
+        r"""Iterator through all the irreps of :math:`O(3)`.
 
         Examples:
             >>> it = Irrep.iterator()
@@ -105,7 +107,7 @@ class Irrep:
                 break
 
     def D_from_angles(self, alpha, beta, gamma, k=0):
-        r"""Matrix :math:`p^k D^l(\alpha, \beta, \gamma)`
+        r"""Matrix :math:`p^k D^l(\alpha, \beta, \gamma)`.
 
         (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`, see `wigner_D`.
 
@@ -131,7 +133,7 @@ class Irrep:
         return wigner_D(self.l, alpha, beta, gamma) * self.p ** k[..., None, None]
 
     def D_from_quaternion(self, q, k=0):
-        r"""Matrix of the representation, see `Irrep.D_from_angles`
+        r"""Matrix of the representation, see `Irrep.D_from_angles`.
 
         Args:
             q (`jax.numpy.ndarray`): shape :math:`(..., 4)`
@@ -143,7 +145,7 @@ class Irrep:
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
     def D_from_matrix(self, R):
-        r"""Matrix of the representation
+        r"""Matrix of the representation.
 
         Args:
             R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
@@ -173,7 +175,7 @@ class Irrep:
         return 2 * self.l + 1
 
     def is_scalar(self) -> bool:
-        """Equivalent to ``l == 0 and p == 1``"""
+        """Equivalent to ``l == 0 and p == 1``."""
         return self.l == 0 and self.p == 1
 
     def __mul__(self, other):
@@ -190,7 +192,8 @@ class Irrep:
             yield Irrep(l, p)
 
     def __rmul__(self, other):
-        r"""
+        r"""Integer times the irrep.
+
         >>> 3 * Irrep('1e')
         3x1e
         """
@@ -198,19 +201,24 @@ class Irrep:
         return Irreps([(other, self)])
 
     def __add__(self, other):
+        r"""Sum of two irreps."""
         return Irreps(self) + Irreps(other)
 
     def __radd__(self, other):
+        r"""Sum of two irreps."""
         return Irreps(other) + Irreps(self)
 
     def __iter__(self):
+        r"""Deconstruct the irrep into ``l`` and ``p``."""
         yield self.l
         yield self.p
 
     def __lt__(self, other):
+        r"""Compare the order of two irreps."""
         return (self.l, -self.p * (-1) ** self.l) < (other.l, -other.p * (-1) ** other.l)
 
     def __eq__(self, other: object) -> bool:
+        """Compare two irreps."""
         other = Irrep(other)
         return (self.l, self.p) == (other.l, other.p)
 
@@ -220,10 +228,12 @@ jax.tree_util.register_pytree_node(Irrep, lambda ir: ((), ir), lambda ir, _: ir)
 
 @dataclasses.dataclass(init=False, frozen=True)
 class MulIrrep:
+    r"""An Irrep with a multiplicity."""
     mul: int
     ir: Irrep
 
     def __init__(self, mul, ir=None):
+        r"""An irrep with a multiplicity."""
         if ir is None:
             mul, ir = mul
 
@@ -232,17 +242,21 @@ class MulIrrep:
 
     @property
     def dim(self) -> int:
+        """The dimension of the representations."""
         return self.mul * self.ir.dim
 
     def __repr__(self):
+        """Representation of the irrep."""
         return f"{self.mul}x{self.ir}"
 
     def __iter__(self):
+        """Deconstruct the mulirrep into ``mul`` and ``ir``."""
         yield self.mul
         yield self.ir
 
     def __lt__(self, other):
-        return (self.mul, self.ir) < (other.mul, other.ir)
+        """Compare the order of two mulirreps."""
+        return (self.ir, self.mul) < (other.ir, other.mul)
 
 
 jax.tree_util.register_pytree_node(MulIrrep, lambda mulir: ((), mulir), lambda mulir, _: mulir)
@@ -265,7 +279,7 @@ IntoIrreps = Union[
 
 
 class Irreps(tuple):
-    r"""Direct sum of irreducible representations of :math:`O(3)`
+    r"""Direct sum of irreducible representations of :math:`O(3)`.
 
     This class does not contain any data, it is a structure that describe the representation.
     It is typically used as argument of other classes of the library to define the input and output
@@ -304,6 +318,7 @@ class Irreps(tuple):
     """
 
     def __new__(cls, irreps: IntoIrreps = None):
+        r"""Create a new Irreps object."""
         if isinstance(irreps, Irreps):
             return super().__new__(cls, irreps)
 
@@ -357,7 +372,7 @@ class Irreps(tuple):
 
     @staticmethod
     def spherical_harmonics(lmax, p=-1):
-        r"""representation of the spherical harmonics
+        r"""Representation of the spherical harmonics.
 
         Args:
             lmax (int): maximum :math:`l`
@@ -430,12 +445,14 @@ class Irreps(tuple):
             raise ValueError("Normalization needs to be 'norm' or 'component'")
 
     def __getitem__(self, i) -> Union[MulIrrep, "Irreps"]:
+        r"""Indexing."""
         x = super().__getitem__(i)
         if isinstance(i, slice):
             return Irreps(x)
         return x
 
     def __contains__(self, ir) -> bool:
+        r"""Check if an irrep is in the representation."""
         ir = Irrep(ir)
         return ir in (irrep for _, irrep in self)
 
@@ -451,33 +468,40 @@ class Irreps(tuple):
         ir = Irrep(ir)
         return sum(mul for mul, irrep in self if ir == irrep)
 
-    def index(self, _object):
+    def index(self, _object):  # noqa: D102
         raise NotImplementedError
 
     def __add__(self, irreps):
+        r"""Add two representations."""
         irreps = Irreps(irreps)
         return Irreps(super().__add__(irreps))
 
     def __radd__(self, irreps):
+        r"""Add two representations."""
         return Irreps(irreps) + self
 
     def __mul__(self, other):
-        r"""
-        >>> (Irreps('2x1e') * 3).simplify()
-        6x1e
+        r"""Repeat the representation a given number of times.
+
+        Example:
+            >>> (Irreps('2x1e') * 3).simplify()
+            6x1e
         """
         if isinstance(other, Irreps):
             raise NotImplementedError("Use o3.TensorProduct for this, see the documentation")
         return Irreps(super().__mul__(other))
 
     def __rmul__(self, other):
-        r"""
-        >>> 2 * Irreps('0e + 1e')
-        1x0e+1x1e+1x0e+1x1e
+        r"""Repeat the representation a given number of times.
+
+        Example:
+            >>> 2 * Irreps('0e + 1e')
+            1x0e+1x1e+1x0e+1x1e
         """
         return Irreps(super().__rmul__(other))
 
     def __eq__(self, other: object) -> bool:
+        r"""Check if two representations are equal."""
         if isinstance(other, str):
             try:
                 other = Irreps(other)
@@ -486,6 +510,7 @@ class Irreps(tuple):
         return super().__eq__(other)
 
     def __hash__(self) -> int:
+        r"""Hash of the representation."""
         return super().__hash__()
 
     def unify(self):
@@ -586,6 +611,7 @@ class Irreps(tuple):
 
     @property
     def dim(self) -> int:
+        r"""Dimension of the irreps."""
         return sum(mul * ir.dim for mul, ir in self)
 
     @property
@@ -595,20 +621,23 @@ class Irreps(tuple):
 
     @property
     def ls(self) -> List[int]:
+        """List of the l values."""
         return [l for mul, (l, p) in self for _ in range(mul)]
 
     @property
     def lmax(self) -> int:
+        """Maximum l value."""
         if len(self) == 0:
             raise ValueError("Cannot get lmax of empty Irreps")
         return max(self.ls)
 
     def __repr__(self):
+        """Representation of the irreps."""
         return "+".join(f"{mul_ir}" for mul_ir in self)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_angles(self, array, alpha, beta, gamma, k=0):
-        r"""Rotate the data by angles according to the irreps
+        r"""Rotate the data by angles according to the irreps.
 
         Args:
             array (`jax.numpy.ndarray`): data compatible with the irreps.
@@ -630,7 +659,7 @@ class Irreps(tuple):
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_quaternion(self, array, q, k=0):
-        r"""Rotate data by a rotation given by a quaternion
+        r"""Rotate data by a rotation given by a quaternion.
 
         Args:
             array (`jax.numpy.ndarray`): data compatible with the irreps.
@@ -657,7 +686,7 @@ class Irreps(tuple):
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_axis_angle(self, array, axis, angle, k=0):
-        r"""Rotate data by an axis and an angle
+        r"""Rotate data by an axis and an angle.
 
         Args:
             array (`jax.numpy.ndarray`): data compatible with the irreps.
@@ -676,7 +705,7 @@ class Irreps(tuple):
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def transform_by_matrix(self, array, R):
-        r"""Rotate data by a rotation given by a matrix
+        r"""Rotate data by a rotation given by a matrix.
 
         Args:
             array (`jax.numpy.ndarray`): data compatible with the irreps.
@@ -696,7 +725,7 @@ class Irreps(tuple):
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_angles(self, alpha, beta, gamma, k=0):
-        r"""Compute the D matrix from the angles
+        r"""Compute the D matrix from the angles.
 
         Args:
             alpha (float): third rotation angle around the second axis (in radians)
@@ -711,7 +740,7 @@ class Irreps(tuple):
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_quaternion(self, q, k=0):
-        r"""Matrix of the representation
+        r"""Matrix of the representation.
 
         Args:
             q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
@@ -724,7 +753,7 @@ class Irreps(tuple):
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_matrix(self, R):
-        r"""Matrix of the representation
+        r"""Matrix of the representation.
 
         Args:
             R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
