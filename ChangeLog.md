@@ -99,7 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - add `loop` argument to `radius_graph`
 
-## Changed
+### Changed
 - use `dataclasses.dataclass` instead of custom `dataclass`
 - Get Clebsch-Gordan coefficients from qutip and a change of basis
 - Add `start_zero` and `end_zero` arguments to function `soft_one_hot_linspace`
@@ -109,13 +109,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IrrepsData` can be given as argument of `spherical_harmonics`
 - added broadcasting of `IrrepsData`, `elementwise_tensor_product`, `FullyConnectedTensorProduct`, `full_tensor_product`
 
-## Changed
+### Changed
 - `BatchNorm` supports None
 - `BatchNorm` supports change default value of `eps` from `1e-5` to `1e-4`
 - `gate` change default odd activation to (1 - exp(x^2)) * x
 
 ## [0.4.2] - 2022-03-23
-## Changed
+### Changed
 - `gate` list of activations argument is now optional
 - `experimental.transformer.Transformer` simplified interface using `IrrepsData` and swap two arguments order
 
@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IrrepsData.remove_nones`
 - `IrrepsData.ones`
 
-## Changed
+### Changed
 - `experimental.point_convolution.Convolution` simplified interface using `IrrepsData`
 
 ## [0.4.0] - 2022-03-19
