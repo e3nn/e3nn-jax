@@ -118,7 +118,7 @@ def tensor_product(
     custom_einsum_jvp: bool = None,
     fused: bool = None,
 ):
-    """Tensor product of two sets of irreps
+    """Tensor product reduced into irreps.
 
     Args:
         input1 (IrrepsArray): First input
@@ -192,7 +192,7 @@ def elementwise_tensor_product(
     filter_ir_out=None,
     irrep_normalization: str = None,
 ) -> IrrepsArray:
-    r"""Elementwise tensor product of two `IrrepsArray`
+    r"""Elementwise tensor product of two `IrrepsArray`.
 
     Args:
         input1 (IrrepsArray): First input

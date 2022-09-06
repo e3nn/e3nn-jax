@@ -403,25 +403,7 @@ class Irreps(tuple):
             i += mul_ir.dim
         return s
 
-    def randn(self, key, size, *, normalization=None):
-        r"""Random tensor.
-
-        Args:
-            *size (list of int): size of the output tensor, needs to contains a ``-1``
-            normalization : {'component', 'norm'}
-
-        Returns:
-            `jax.numpy.ndarray`: array of shape ``size`` where ``-1`` is replaced by ``self.dim``
-
-        Examples:
-            >>> key = jax.random.PRNGKey(0)
-            >>> Irreps("5x0e + 10x1o").randn(key, (5, -1, 5), normalization='norm').shape
-            (5, 35, 5)
-
-            >>> random_tensor = Irreps("2o").randn(key, (2, -1, 3), normalization='norm')
-            >>> jnp.max(jnp.abs(jnp.linalg.norm(random_tensor, axis=1) - 1)) < 1e-5
-            DeviceArray(True, dtype=bool)
-        """
+    def randn(self, key, size, *, normalization=None):  # noqa: D102
         warnings.warn("Irreps.randn is deprecated, use e3nn.normal instead", DeprecationWarning)
         di = size.index(-1)
         lsize = size[:di]
@@ -456,7 +438,7 @@ class Irreps(tuple):
         ir = Irrep(ir)
         return ir in (irrep for _, irrep in self)
 
-    def count(self, ir) -> int:
+    def count(self, ir: IntoIrrep) -> int:
         r"""Multiplicity of ``ir``.
 
         Args:
@@ -464,6 +446,10 @@ class Irreps(tuple):
 
         Returns:
             `int`: total multiplicity of ``ir``
+
+        Examples:
+            >>> Irreps("2x0e + 3x1o").count("1o")
+            3
         """
         ir = Irrep(ir)
         return sum(mul for mul, irrep in self if ir == irrep)
@@ -611,22 +597,42 @@ class Irreps(tuple):
 
     @property
     def dim(self) -> int:
-        r"""Dimension of the irreps."""
+        r"""Dimension of the irreps.
+
+        Example:
+            >>> Irreps("3x0e + 2x1e").num_irreps
+            9
+        """
         return sum(mul * ir.dim for mul, ir in self)
 
     @property
     def num_irreps(self) -> int:
-        """Sum of the multiplicities."""
+        """Sum of the multiplicities.
+
+        Example:
+            >>> Irreps("3x0e + 2x1e").num_irreps
+            5
+        """
         return sum(mul for mul, _ in self)
 
     @property
     def ls(self) -> List[int]:
-        """List of the l values."""
+        """List of the l values.
+
+        Example:
+            >>> Irreps("3x0e + 2x1e").ls
+            [0, 0, 0, 1, 1]
+        """
         return [l for mul, (l, p) in self for _ in range(mul)]
 
     @property
     def lmax(self) -> int:
-        """Maximum l value."""
+        """Maximum l value.
+
+        Example:
+            >>> Irreps("3x0e + 2x1e").lmax
+            1
+        """
         if len(self) == 0:
             raise ValueError("Cannot get lmax of empty Irreps")
         return max(self.ls)
@@ -636,19 +642,7 @@ class Irreps(tuple):
         return "+".join(f"{mul_ir}" for mul_ir in self)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_angles(self, array, alpha, beta, gamma, k=0):
-        r"""Rotate the data by angles according to the irreps.
-
-        Args:
-            array (`jax.numpy.ndarray`): data compatible with the irreps.
-            alpha (float): third rotation angle around the second axis (in radians)
-            beta (float): second rotation angle around the first axis (in radians)
-            gamma (float): first rotation angle around the second axis (in radians)
-            k (int): parity operation
-
-        Returns:
-            `jax.numpy.ndarray`
-        """
+    def transform_by_angles(self, array, alpha, beta, gamma, k=0):  # noqa: D102
         warnings.warn(
             "Irreps.transform_by_angles is deprecated, use IrrepsArray.transform_by_angles instead", DeprecationWarning
         )
@@ -658,26 +652,7 @@ class Irreps(tuple):
         return jnp.einsum("ij,...j", D, array)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_quaternion(self, array, q, k=0):
-        r"""Rotate data by a rotation given by a quaternion.
-
-        Args:
-            array (`jax.numpy.ndarray`): data compatible with the irreps.
-            q (`jax.numpy.ndarray`): quaternion
-            k (int): parity operation
-
-        Returns:
-            `jax.numpy.ndarray`
-
-        Examples:
-            >>> irreps = Irreps("0e + 1o + 2e")
-            >>> irreps.transform_by_quaternion(
-            ...     jnp.array([1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]),
-            ...     jnp.array([1.0, 0.0, 0.0, 0.0]),
-            ...     1
-            ... ) + 0.0
-            DeviceArray([ 1.,  0., -1.,  0.,  0.,  0.,  1.,  0.,  0.], dtype=float32)
-        """
+    def transform_by_quaternion(self, array, q, k=0):  # noqa: D102
         warnings.warn(
             "Irreps.transform_by_quaternion is deprecated, use IrrepsArray.transform_by_quaternion instead", DeprecationWarning
         )
@@ -685,18 +660,7 @@ class Irreps(tuple):
         return self.transform_by_angles(array, *quaternion_to_angles(q), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_axis_angle(self, array, axis, angle, k=0):
-        r"""Rotate data by an axis and an angle.
-
-        Args:
-            array (`jax.numpy.ndarray`): data compatible with the irreps.
-            axis (`jax.numpy.ndarray`): axis
-            angle (float): angle (in radians)
-            k (int): parity operation
-
-        Returns:
-            `jax.numpy.ndarray`
-        """
+    def transform_by_axis_angle(self, array, axis, angle, k=0):  # noqa: D102
         warnings.warn(
             "Irreps.transform_by_axis_angle is deprecated, use IrrepsArray.transform_by_axis_angle instead", DeprecationWarning
         )
@@ -704,16 +668,7 @@ class Irreps(tuple):
         return self.transform_by_angles(array, *axis_angle_to_angles(axis, angle), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_matrix(self, array, R):
-        r"""Rotate data by a rotation given by a matrix.
-
-        Args:
-            array (`jax.numpy.ndarray`): data compatible with the irreps.
-            R (`jax.numpy.ndarray`): rotation matrix
-
-        Returns:
-            `jax.numpy.ndarray`
-        """
+    def transform_by_matrix(self, array, R):  # noqa: D102
         warnings.warn(
             "Irreps.transform_by_matrix is deprecated, use IrrepsArray.transform_by_matrix instead", DeprecationWarning
         )

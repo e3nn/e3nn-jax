@@ -197,16 +197,16 @@ class IrrepsArray:
     # Note: - __jax_array__ seems to be incompatible with register_pytree_node
     #       - __jax_array__ cause problem for the multiplication: jnp.array * IrrepsArray -> jnp.array
 
-    def __repr__(self):
+    def __repr__(self):  # noqa: D105
         r = str(self.array)
         if "\n" in r:
             return f"{self.irreps}\n{r}"
         return f"{self.irreps} {r}"
 
-    def __len__(self):
+    def __len__(self):  # noqa: D105
         return len(self.array)
 
-    def __eq__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+    def __eq__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
         if isinstance(other, IrrepsArray):
@@ -233,7 +233,7 @@ class IrrepsArray:
             raise ValueError(f"IrrepsArray({self.irreps}) == scalar(shape={other.shape}) is not equivariant.")
         return IrrepsArray(irreps=self.irreps, array=self.array == other)
 
-    def __add__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+    def __add__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
         if not isinstance(other, IrrepsArray):
@@ -248,7 +248,7 @@ class IrrepsArray:
         list = [x if y is None else (y if x is None else x + y) for x, y in zip(self.list, other.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array + other.array, list=list)
 
-    def __sub__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+    def __sub__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
         if not isinstance(other, IrrepsArray):
@@ -262,7 +262,7 @@ class IrrepsArray:
         list = [x if y is None else (-y if x is None else x - y) for x, y in zip(self.list, other.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array - other.array, list=list)
 
-    def __mul__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+    def __mul__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
         if isinstance(other, IrrepsArray):
@@ -278,10 +278,10 @@ class IrrepsArray:
         list = [None if x is None else x * other[..., None] for x in self.list]
         return IrrepsArray(irreps=self.irreps, array=self.array * other, list=list)
 
-    def __rmul__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":
+    def __rmul__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":  # noqa: D105
         return self * other
 
-    def __truediv__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":
+    def __truediv__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
         if isinstance(other, IrrepsArray):
@@ -299,7 +299,7 @@ class IrrepsArray:
         list = [None if x is None else x / other[..., None] for x in self.list]
         return IrrepsArray(irreps=self.irreps, array=self.array / other, list=list)
 
-    def __rtruediv__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":
+    def __rtruediv__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend((self.array, other))
 
         other = jnp.asarray(other)
@@ -310,7 +310,7 @@ class IrrepsArray:
 
         return IrrepsArray(irreps=self.irreps, array=other / self.array, list=[other[..., None] / x for x in self.list])
 
-    def __pow__(self, exponent) -> "IrrepsArray":
+    def __pow__(self, exponent) -> "IrrepsArray":  # noqa: D105
         if all(ir == "0e" for _, ir in self.irreps):
             return IrrepsArray(irreps=self.irreps, array=self.array**exponent, list=[x**exponent for x in self.list])
 
@@ -322,21 +322,13 @@ class IrrepsArray:
 
         raise ValueError(f"IrrepsArray({self.irreps}) ** scalar is not equivariant.")
 
-    def __iter__(self):
+    def __iter__(self):  # noqa: D105
         if self.ndim <= 1:
             raise ValueError("Can't iterate over IrrepsArray with ndim <= 1")
         for i in range(len(self)):
             yield self[i]
 
-    def __getitem__(self, index) -> "IrrepsArray":
-        r"""Get a subarray of the IrrepsArray.
-
-        Args:
-            index: index of the subarray
-
-        Returns:
-            IrrepsArray: subarray
-        """
+    def __getitem__(self, index) -> "IrrepsArray":  # noqa: D105
         if not isinstance(index, tuple):
             index = (index,)
 

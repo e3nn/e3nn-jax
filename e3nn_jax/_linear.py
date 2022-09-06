@@ -144,8 +144,7 @@ class FunctionalLinear:
         return self.aggregate_paths(paths, input.shape[:-1])
 
     def matrix(self, ws: List[jnp.ndarray]) -> jnp.ndarray:
-        r"""
-        Compute the matrix representation of the linear operator.
+        r"""Compute the matrix representation of the linear operator.
 
         Args:
             ws: List of weights.
@@ -166,7 +165,7 @@ class FunctionalLinear:
 
 
 class Linear(hk.Module):
-    r"""Equivariant Linear Haiku Module
+    r"""Equivariant Linear Haiku Module.
 
     Args:
         irreps_out (`e3nn_jax.Irreps`): output representations
