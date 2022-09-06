@@ -133,6 +133,7 @@ def _reduced_tensor_product_basis(
 
 @functools.lru_cache(maxsize=None)
 def germinate_formulas(formula: str) -> Tuple[str, FrozenSet[Tuple[int, Tuple[int, ...]]]]:
+    """Convert the formula (generators) into a group."""
     formulas = [(-1 if f.startswith("-") else 1, f.replace("-", "")) for f in formula.split("=")]
     s0, f0 = formulas[0]
     assert s0 == 1
@@ -165,7 +166,7 @@ def reduce_basis_product(
     basis2: e3nn.IrrepsArray,
     filter_ir_out: Optional[List[e3nn.Irrep]] = None,
 ) -> e3nn.IrrepsArray:
-    """Reduce the product of two basis"""
+    """Reduce the product of two basis."""
     new_irreps: List[Tuple[int, e3nn.Irrep]] = []
     new_list = []
 

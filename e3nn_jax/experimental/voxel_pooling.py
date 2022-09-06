@@ -6,7 +6,7 @@ import jax.numpy as jnp
 
 
 def interpolate_trilinear(input: jnp.ndarray, x: float, y: float, z: float) -> jnp.ndarray:
-    r"""interpolate voxels in coordinate (x, y, z).
+    r"""Interpolate voxels in coordinate (x, y, z).
 
     Args:
         input: [..., x, y, z]
@@ -55,7 +55,7 @@ def interpolate_trilinear(input: jnp.ndarray, x: float, y: float, z: float) -> j
 
 
 def interpolate_nearest(input: jnp.ndarray, x: float, y: float, z: float) -> jnp.ndarray:
-    r"""interpolate voxels in coordinate (x, y, z).
+    r"""Interpolate voxels in coordinate (x, y, z).
 
     Args:
         input: [..., x, y, z]

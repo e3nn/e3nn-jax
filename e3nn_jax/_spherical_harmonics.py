@@ -1,5 +1,3 @@
-r"""Spherical Harmonics as polynomials of x, y, z
-"""
 import fractions
 import math
 from functools import partial
@@ -22,7 +20,7 @@ def sh(
     *,
     algorithm: Tuple[str] = None,
 ) -> jnp.ndarray:
-    r"""Spherical harmonics
+    r"""Spherical harmonics.
 
     .. image:: https://user-images.githubusercontent.com/333780/79220728-dbe82c00-7e54-11ea-82c7-b3acbd9b2246.gif
 
@@ -76,7 +74,7 @@ def spherical_harmonics(
     *,
     algorithm: Tuple[str] = None,
 ) -> IrrepsArray:
-    r"""Spherical harmonics
+    r"""Spherical harmonics.
 
     .. image:: https://user-images.githubusercontent.com/333780/79220728-dbe82c00-7e54-11ea-82c7-b3acbd9b2246.gif
 
@@ -324,7 +322,7 @@ def biggest_power_of_two(n):
 
 @partial(jax.jit, static_argnums=(0,))
 def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
-    r"""Associated Legendre polynomials
+    r"""Associated Legendre polynomials.
 
     en.wikipedia.org/wiki/Associated_Legendre_polynomials
 
@@ -411,7 +409,7 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
 
 
 def _sh_alpha(l: int, alpha: jnp.ndarray) -> jnp.ndarray:
-    r"""
+    r"""Alpha dependence of spherical harmonics.
 
     Args:
         l: l value

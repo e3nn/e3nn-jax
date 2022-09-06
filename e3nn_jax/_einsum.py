@@ -1,6 +1,3 @@
-"""
-einsum that optimize its derivatives contractions
-"""
 from functools import partial
 from typing import Tuple
 

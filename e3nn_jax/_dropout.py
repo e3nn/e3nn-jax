@@ -6,7 +6,7 @@ from e3nn_jax import Irreps, IrrepsArray
 
 
 class Dropout(hk.Module):
-    """Equivariant Dropout
+    """Equivariant Dropout.
 
     :math:`A_{zai}` is the input and :math:`B_{zai}` is the output where
     - ``z`` is the batch index
@@ -37,7 +37,7 @@ class Dropout(hk.Module):
         return f"{self.__class__.__name__} (p={self.p})"
 
     def __call__(self, rng, x: IrrepsArray, is_training=True) -> IrrepsArray:
-        """equivariant dropout
+        """Evaluate equivariant dropout.
 
         Args:
             rng (`jax.random.PRNGKey`): the random number generator

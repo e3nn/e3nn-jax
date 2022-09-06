@@ -15,9 +15,6 @@ def identity(n: int) -> TY_PERM:
 
 
 def compose(p1: TY_PERM, p2: TY_PERM) -> TY_PERM:
-    r"""
-    compute p1 . p2
-    """
     assert is_perm(p1) and is_perm(p2)
     assert len(p1) == len(p2)
     # p: i |-> p[i]
@@ -27,9 +24,6 @@ def compose(p1: TY_PERM, p2: TY_PERM) -> TY_PERM:
 
 
 def inverse(p: TY_PERM) -> TY_PERM:
-    r"""
-    compute the inverse permutation
-    """
     return tuple(p.index(i) for i in range(len(p)))
 
 

@@ -95,7 +95,8 @@ class Transformer(hk.Module):
     def __call__(
         self, edge_src, edge_dst, edge_scalar_attr, edge_weight_cutoff, edge_attr: IrrepsArray, node_feat: IrrepsArray
     ) -> IrrepsArray:
-        r"""
+        r"""Equivariant Transformer.
+
         Args:
             edge_src (array of int32): source index of the edges
             edge_dst (array of int32): destination index of the edges

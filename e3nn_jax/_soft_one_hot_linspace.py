@@ -2,7 +2,9 @@ import jax.numpy as jnp
 
 
 def sus(x):
-    r"""Soft Unit Step function. ``-inf->0, 0->0, 2->0.6, +inf->1``
+    r"""Soft Unit Step function.
+
+    ``-inf->0, 0->0, 2->0.6, +inf->1``
 
     .. math::
         \text{sus}(x) = \begin{cases}
@@ -25,7 +27,7 @@ def soft_one_hot_linspace(
     start_zero: bool = None,
     end_zero: bool = None,
 ):
-    r"""Projection on a basis of functions"""
+    r"""Projection on a basis of functions."""
     if cutoff is not None:
         assert start_zero is None
         assert end_zero is None

@@ -4,9 +4,7 @@ import numpy as np
 
 
 def su2_generators(j: float) -> np.ndarray:
-    """
-    Return the generators of the SU(2) group of dimension `2j+1`.
-    """
+    """Return the generators of the SU(2) group of dimension `2j+1`."""
     m = np.arange(-j, j)
     raising = np.diag(-np.sqrt(j * (j + 1) - m * (m + 1)), k=-1)
 
@@ -25,21 +23,7 @@ def su2_generators(j: float) -> np.ndarray:
 
 
 def su2_clebsch_gordan(j1: float, j2: float, j3: float) -> np.ndarray:
-    """Calculates the Clebsch-Gordon matrix
-    for SU(2) coupling j1 and j2 to give j3.
-    Parameters
-    ----------
-    j1 : float
-        Total angular momentum 1.
-    j2 : float
-        Total angular momentum 2.
-    j3 : float
-        Total angular momentum 3.
-    Returns
-    -------
-    cg_matrix : numpy.array
-        Requested Clebsch-Gordan matrix.
-    """
+    """Calculates the Clebsch-Gordon matrix."""
     assert isinstance(j1, (int, float))
     assert isinstance(j2, (int, float))
     assert isinstance(j3, (int, float))
@@ -53,27 +37,7 @@ def su2_clebsch_gordan(j1: float, j2: float, j3: float) -> np.ndarray:
 
 
 def _su2_cg(idx1, idx2, idx3):
-    """Calculates the Clebsch-Gordon coefficient
-    for SU(2) coupling (j1,m1) and (j2,m2) to give (j3,m3).
-    Parameters
-    ----------
-    j1 : float
-        Total angular momentum 1.
-    j2 : float
-        Total angular momentum 2.
-    j3 : float
-        Total angular momentum 3.
-    m1 : float
-        z-component of angular momentum 1.
-    m2 : float
-        z-component of angular momentum 2.
-    m3 : float
-        z-component of angular momentum 3.
-    Returns
-    -------
-    cg_coeff : float
-        Requested Clebsch-Gordan coefficient.
-    """
+    """Calculates the Clebsch-Gordon coefficient."""
     from fractions import Fraction
 
     j1, m1 = idx1

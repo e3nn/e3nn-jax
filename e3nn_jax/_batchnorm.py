@@ -118,7 +118,8 @@ def _batch_norm(
 
 
 class BatchNorm(hk.Module):
-    """Batch normalization for orthonormal representations
+    """Equivariant Batch Normalization.
+
     It normalizes by the norm of the representations.
     Note that the norm is invariant only for orthonormal representations.
     Irreducible representations `e3nn_jax.wigner_D` are orthonormal.
@@ -169,7 +170,7 @@ class BatchNorm(hk.Module):
         return f"{self.__class__.__name__} ({self.irreps}, eps={self.eps}, momentum={self.momentum})"
 
     def __call__(self, input: IrrepsArray, is_training: bool = True) -> IrrepsArray:
-        r"""evaluate the batch normalization
+        r"""Evaluate the batch normalization.
 
         Args:
             input: input tensor of shape ``(batch, [spatial], irreps.dim)``

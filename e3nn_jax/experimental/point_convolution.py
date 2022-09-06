@@ -8,7 +8,7 @@ import jax.numpy as jnp
 
 
 class Convolution(hk.Module):
-    r"""Equivariant Point Convolution
+    r"""Equivariant Point Convolution.
 
     Args:
         irreps_node_output : `e3nn_jax.Irreps`

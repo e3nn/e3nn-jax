@@ -1,33 +1,28 @@
-r"""Allows for clean lookup of Irreducible representations of :math:`O(3)`
+r"""Allows for clean lookup of Irreducible representations of :math:`O(3)`.
 
-Examples
---------
-Create a scalar representation (:math:`l=0`) of even parity.
+Examples:
+    Create a scalar representation (:math:`l=0`) of even parity.
 
->>> from e3nn_jax import irrep
->>> irrep.l0e == Irrep("0e")
-True
+    >>> from e3nn_jax import irrep
+    >>> irrep.l0e == Irrep("0e")
+    True
 
->>> from e3nn_jax.irrep import l1o, l2o
->>> l1o + l2o == Irrep("1o") + Irrep("2o")
-True
+    >>> from e3nn_jax.irrep import l1o, l2o
+    >>> l1o + l2o == Irrep("1o") + Irrep("2o")
+    True
 """
 
 from .._irreps import Irrep
 
 
 def __getattr__(name: str):
-    r"""Creates an Irreps obeject by reflection
+    r"""Creates an Irreps obeject by reflection.
 
-    Parameters
-    ----------
-    name : string
-        the o3 object name prefixed by l. Example: l1o == Irrep("1o")
+    Args:
+        name (str): the o3 object name prefixed by l. Example: ``l1o == Irrep("1o")``
 
-    Returns
-    -------
-    `e3nn_jax.Irrep`
-        irreducible representation of :math:`O(3)`
+    Returns:
+        Irrep: the Irrep object
     """
 
     prefix, *ir = name

@@ -157,7 +157,8 @@ class Convolution(hk.Module):
         return k
 
     def __call__(self, input: IrrepsArray) -> IrrepsArray:
-        r"""
+        r"""Evaluate the convolution.
+
         Args:
             input: Input data of shape ``[batch, x, y, z, irreps_in.dim]``
 

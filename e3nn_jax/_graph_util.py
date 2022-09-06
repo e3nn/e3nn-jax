@@ -23,7 +23,7 @@ def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
 def index_add(
     indices: jnp.ndarray, input: Union[jnp.ndarray, e3nn.IrrepsArray], *, out_dim: int = None, map_back: bool = False
 ) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
-    r"""perform the operation
+    r"""Perform the operation.
 
     ```
     out = zeros(out_dim, ...)
@@ -72,7 +72,7 @@ def index_add(
 
 
 def radius_graph(pos, r_max, *, batch=None, size=None, loop=False, fill_src=-1, fill_dst=-1):
-    r"""naive and inefficient version of ``torch_cluster.radius_graph``
+    r"""Naive and inefficient version of ``torch_cluster.radius_graph``.
 
     Args:
         pos (`jax.numpy.ndarray`): array of shape ``(n, 3)``
