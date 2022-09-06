@@ -600,7 +600,7 @@ class Irreps(tuple):
         r"""Dimension of the irreps.
 
         Example:
-            >>> Irreps("3x0e + 2x1e").num_irreps
+            >>> Irreps("3x0e + 2x1e").dim
             9
         """
         return sum(mul * ir.dim for mul, ir in self)
