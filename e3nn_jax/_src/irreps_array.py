@@ -9,8 +9,8 @@ import jax.scipy
 import numpy as np
 
 import e3nn_jax as e3nn
-from . import Irreps, axis_angle_to_angles, config, matrix_to_angles, quaternion_to_angles
-from ._irreps import IntoIrreps
+from e3nn_jax import Irreps, axis_angle_to_angles, config, matrix_to_angles, quaternion_to_angles
+from e3nn_jax._src.irreps import IntoIrreps
 
 
 def _infer_backend(pytree):

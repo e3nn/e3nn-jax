@@ -1,7 +1,7 @@
 __version__ = "0.9.0"
 
-from ._config import config
-from ._rotation import (
+from e3nn_jax._src.config import config
+from e3nn_jax._src.rotation import (
     rand_matrix,
     identity_angles,
     rand_angles,
@@ -31,17 +31,17 @@ from ._rotation import (
     angles_to_xyz,
     xyz_to_angles,
 )
-from ._su2 import su2_clebsch_gordan, su2_generators
-from ._so3 import clebsch_gordan, wigner_D, generators
-from ._instruction import Instruction
-from ._irreps import Irrep, MulIrrep, Irreps
-from ._irreps_array import IrrepsArray, concatenate, stack, mean, norm, normal
-from ._irreps_array import sum_ as sum
-from ._spherical_harmonics import spherical_harmonics, sh, legendre
-from ._soft_one_hot_linspace import sus, soft_one_hot_linspace
-from ._linear import FunctionalLinear, Linear
-from ._core_tensor_product import FunctionalTensorProduct
-from ._tensor_products import (
+from e3nn_jax._src.su2 import su2_clebsch_gordan, su2_generators
+from e3nn_jax._src.so3 import clebsch_gordan, wigner_D, generators
+from e3nn_jax._src.instruction import Instruction
+from e3nn_jax._src.irreps import Irrep, MulIrrep, Irreps
+from e3nn_jax._src.irreps_array import IrrepsArray, concatenate, stack, mean, norm, normal
+from e3nn_jax._src.irreps_array import sum_ as sum
+from e3nn_jax._src.spherical_harmonics import spherical_harmonics, sh, legendre
+from e3nn_jax._src.soft_one_hot_linspace import sus, soft_one_hot_linspace
+from e3nn_jax._src.linear import FunctionalLinear, Linear
+from e3nn_jax._src.core_tensor_product import FunctionalTensorProduct
+from e3nn_jax._src.tensor_products import (
     FunctionalFullyConnectedTensorProduct,
     FullyConnectedTensorProduct,
     full_tensor_product,
@@ -50,15 +50,15 @@ from ._tensor_products import (
     FunctionalTensorSquare,
     TensorSquare,
 )
-from ._grad import grad
-from ._activation import scalar_activation, normalize_function
-from ._gate import gate
-from ._batchnorm import BatchNorm
-from ._dropout import Dropout
-from ._nn import MultiLayerPerceptron
-from ._graph_util import index_add, radius_graph
-from ._poly_envelope import poly_envelope
-from ._reduced_tensor_product import reduced_tensor_product_basis
+from e3nn_jax._src.grad import grad
+from e3nn_jax._src.activation import scalar_activation, normalize_function
+from e3nn_jax._src.gate import gate
+from e3nn_jax._src.batchnorm import BatchNorm
+from e3nn_jax._src.dropout import Dropout
+from e3nn_jax._src.mlp import MultiLayerPerceptron
+from e3nn_jax._src.graph_util import index_add, radius_graph
+from e3nn_jax._src.poly_envelope import poly_envelope
+from e3nn_jax._src.reduced_tensor_product import reduced_tensor_product_basis
 
 __all__ = [
     "config",  # not in docs

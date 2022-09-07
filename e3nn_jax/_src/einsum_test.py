@@ -1,5 +1,5 @@
 import jax
-from e3nn_jax._einsum import einsum
+from e3nn_jax._src.einsum import einsum
 from jax.test_util import check_grads
 
 

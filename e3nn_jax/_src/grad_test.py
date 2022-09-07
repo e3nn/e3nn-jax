@@ -1,6 +1,6 @@
 import e3nn_jax as e3nn
 import numpy as np
-from e3nn_jax.util.test import assert_equivariant
+from e3nn_jax.util import assert_equivariant
 from jax import random
 
 

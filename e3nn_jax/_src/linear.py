@@ -7,7 +7,7 @@ import jax.numpy as jnp
 from e3nn_jax import Irreps, IrrepsArray, config
 from math import sqrt
 
-from ._core_tensor_product import _sum_tensors
+from e3nn_jax._src.core_tensor_product import _sum_tensors
 
 
 class Instruction(NamedTuple):

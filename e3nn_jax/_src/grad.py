@@ -1,10 +1,9 @@
 from typing import Callable, List
 
+import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
-
-import e3nn_jax as e3nn
-from e3nn_jax.util import prod
+from e3nn_jax._src.util.prod import prod
 
 
 def grad(

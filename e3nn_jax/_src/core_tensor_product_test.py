@@ -1,8 +1,8 @@
+import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
 import pytest
-import e3nn_jax as e3nn
-from e3nn_jax.util import prod
+from e3nn_jax._src.util.prod import prod
 
 
 @pytest.mark.parametrize("custom_einsum_jvp", [False, True])

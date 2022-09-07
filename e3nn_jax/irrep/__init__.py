@@ -12,7 +12,7 @@ Examples:
     True
 """
 
-from .._irreps import Irrep
+from e3nn_jax import Irrep
 
 
 def __getattr__(name: str):

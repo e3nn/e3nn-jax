@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import jax.scipy
 import numpy as np
 
-from ._su2 import su2_clebsch_gordan, su2_generators
+from e3nn_jax._src.su2 import su2_clebsch_gordan, su2_generators
 
 
 def naive_broadcast_decorator(func):

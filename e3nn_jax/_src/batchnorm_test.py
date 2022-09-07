@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import haiku as hk
 import e3nn_jax as e3nn
-from e3nn_jax.util.test import assert_equivariant
+from e3nn_jax.util import assert_equivariant
 import pytest
 
 

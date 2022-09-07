@@ -1,11 +1,11 @@
 from functools import partial
 from typing import Callable, Optional
 
+import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
-
 from e3nn_jax import IrrepsArray, elementwise_tensor_product, scalar_activation
-from e3nn_jax.util.decorators import overload_for_irreps_without_array
+from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
 
 @partial(jax.jit, static_argnums=(1, 2, 3, 4))
@@ -37,7 +37,7 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
     scalars = scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
     gates = scalar_activation(gates, [even_gate_act if ir.p == 1 else odd_gate_act for _, ir in gates.irreps])
 
-    return IrrepsArray.cat([scalars, elementwise_tensor_product(gates, gated)])
+    return e3nn.concatenate([scalars, elementwise_tensor_product(gates, gated)], axis=-1)
 
 
 @overload_for_irreps_without_array((0,))

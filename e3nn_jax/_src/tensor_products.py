@@ -5,9 +5,8 @@ from typing import List, Optional
 import haiku as hk
 import jax
 import jax.numpy as jnp
-
 from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsArray, config
-from e3nn_jax.util.decorators import overload_for_irreps_without_array
+from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
 
 def naive_broadcast_decorator(func):

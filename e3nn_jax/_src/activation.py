@@ -2,9 +2,8 @@ from typing import Callable, List, Optional
 
 import jax
 import jax.numpy as jnp
-
 from e3nn_jax import Irreps, IrrepsArray
-from e3nn_jax.util.decorators import overload_for_irreps_without_array
+from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
 
 def normalize_function(phi):

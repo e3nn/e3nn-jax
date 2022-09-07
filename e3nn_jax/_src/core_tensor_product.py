@@ -10,9 +10,9 @@ import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
-from e3nn_jax.util import prod
+from e3nn_jax._src.util.prod import prod
 
-from ._einsum import einsum as opt_einsum
+from e3nn_jax._src.einsum import einsum as opt_einsum
 
 
 class FunctionalTensorProduct:

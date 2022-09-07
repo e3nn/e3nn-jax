@@ -7,9 +7,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import sympy
-
 from e3nn_jax import Irreps, IrrepsArray, clebsch_gordan, config
-from e3nn_jax.util.sympy import sqrtQarray_to_sympy
+from e3nn_jax._src.util.sympy import sqrtQarray_to_sympy
 
 
 def sh(
