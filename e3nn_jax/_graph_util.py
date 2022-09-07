@@ -17,7 +17,7 @@ def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
     """
     assert x.ndim == 1
     unique = jnp.unique(x, size=x.shape[0])  # Pigeonhole principle
-    return jax.vmap(lambda i: jnp.where(i == unique, size=1)[0][0])(x)
+    return jax.lax.scan(lambda _, i: (None, jnp.where(i == unique, size=1)[0][0]), None, x)[1]
 
 
 def index_add(
