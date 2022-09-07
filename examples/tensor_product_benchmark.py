@@ -5,11 +5,10 @@ import math
 import time
 from functools import partial, reduce
 
+import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
 import jaxlib
-import e3nn_jax as e3nn
-from e3nn_jax import FunctionalFullyConnectedTensorProduct, Irreps, IrrepsArray
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -56,9 +55,9 @@ def main():
         print(f"{key:>18} : {val}")
     print("=" * 40)
 
-    irreps_in1 = Irreps(args.irreps_in1 if args.irreps_in1 else args.irreps)
-    irreps_in2 = Irreps(args.irreps_in2 if args.irreps_in2 else args.irreps)
-    irreps_out = Irreps(args.irreps_out if args.irreps_out else args.irreps)
+    irreps_in1 = e3nn.Irreps(args.irreps_in1 if args.irreps_in1 else args.irreps)
+    irreps_in2 = e3nn.Irreps(args.irreps_in2 if args.irreps_in2 else args.irreps)
+    irreps_out = e3nn.Irreps(args.irreps_out if args.irreps_out else args.irreps)
 
     if args.elementwise:
         pass
@@ -71,11 +70,11 @@ def main():
         c_in2 = reduce(math.gcd, [mul for mul, ir in irreps_in2])
         c_out = reduce(math.gcd, [mul for mul, ir in irreps_out])
 
-        irreps_in1_red = Irreps([(mul // c_in1, ir) for mul, ir in irreps_in1])
-        irreps_in2_red = Irreps([(mul // c_in2, ir) for mul, ir in irreps_in2])
-        irreps_out_red = Irreps([(mul // c_out, ir) for mul, ir in irreps_out])
+        irreps_in1_red = e3nn.Irreps([(mul // c_in1, ir) for mul, ir in irreps_in1])
+        irreps_in2_red = e3nn.Irreps([(mul // c_in2, ir) for mul, ir in irreps_in2])
+        irreps_out_red = e3nn.Irreps([(mul // c_out, ir) for mul, ir in irreps_out])
 
-        tp = FunctionalFullyConnectedTensorProduct(irreps_in1_red, irreps_in2_red, irreps_out_red)
+        tp = e3nn.FunctionalFullyConnectedTensorProduct(irreps_in1_red, irreps_in2_red, irreps_out_red)
 
         f = partial(
             tp.left_right,
@@ -98,7 +97,7 @@ def main():
         w_shape = (c_in1, c_in2, c_out)
         print(f"extrachannels = {w_shape}")
     else:
-        tp = FunctionalFullyConnectedTensorProduct(
+        tp = e3nn.FunctionalFullyConnectedTensorProduct(
             irreps_in1,
             irreps_in2,
             irreps_out,
@@ -140,8 +139,8 @@ def main():
         inputs = iter(
             [
                 (
-                    IrrepsArray(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
-                    IrrepsArray(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list,
+                    e3nn.IrrepsArray(irreps_in1, irreps_in1.randn(k(), (args.batch, -1))).list,
+                    e3nn.IrrepsArray(irreps_in2, irreps_in2.randn(k(), (args.batch, -1))).list,
                 )
                 for _ in range(args.n + warmup)
             ]

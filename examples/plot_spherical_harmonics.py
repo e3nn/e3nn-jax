@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import plotly.graph_objects as go
-from e3nn_jax import spherical_harmonics, angles_to_xyz
+import e3nn_jax as e3nn
 
 
 def get_cmap(x):
@@ -14,9 +14,9 @@ alpha = jnp.linspace(0, 2 * jnp.pi, 200)
 beta = jnp.linspace(0, jnp.pi, 200)
 
 alpha, beta = jnp.meshgrid(alpha, beta, indexing="ij")
-vectors = angles_to_xyz(alpha, beta)
+vectors = e3nn.angles_to_xyz(alpha, beta)
 
-signal = spherical_harmonics("8e", vectors, normalize=True, normalization="component").array
+signal = e3nn.spherical_harmonics("8e", vectors, normalize=True, normalization="component").array
 signal = signal[:, :, 8]
 
 data = [

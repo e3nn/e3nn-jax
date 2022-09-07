@@ -62,9 +62,8 @@ class Convolution(hk.Module):
         if node_attr is None:
             node_attr = e3nn.IrrepsArray.ones("0e", node_input.shape[:-1])
 
-        node_features, node_self_out = e3nn.FullyConnectedTensorProduct(node_input.irreps + self.irreps_node_output)(
-            node_input, node_attr
-        ).split([len(node_input.irreps)])
+        node = e3nn.Linear(node_input.irreps + self.irreps_node_output)(e3nn.tensor_product(node_input, node_attr))
+        node_features, node_self_out = node.split([node_input.irreps, self.irreps_node_output])
 
         edge_features = node_features[edge_src]
         del node_features
@@ -141,7 +140,7 @@ class Convolution(hk.Module):
 
         ######################################################################################
 
-        node_conv_out = e3nn.FullyConnectedTensorProduct(self.irreps_node_output)(node_features, node_attr)
+        node_conv_out = e3nn.Linear(self.irreps_node_output)(e3nn.tensor_product(node_features, node_attr))
 
         ######################################################################################
 

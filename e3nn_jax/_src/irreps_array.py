@@ -731,11 +731,12 @@ class IrrepsArray:
 
         irrepss = [Irreps(i) for i in indices]
         assert self.irreps.simplify() == sum(irrepss, Irreps()).simplify()
-        array_parts = jnp.split(
-            self.array, [sum(irreps.dim for irreps in irrepss[:i]) for i in range(1, len(irrepss))], axis=-1
-        )
-        assert len(array_parts) == len(irrepss)
-        return [IrrepsArray(irreps, array) for irreps, array in zip(irrepss, array_parts)]
+        x = self
+        array_parts = []
+        for irreps in irrepss:
+            array_parts.append(x[..., : irreps.dim])
+            x = x[..., irreps.dim :]
+        return array_parts
 
     def broadcast_to(self, shape) -> "IrrepsArray":
         """Broadcast the array to a new shape."""

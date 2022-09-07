@@ -1,10 +1,10 @@
 import time
 
+import e3nn_jax as e3nn
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
-import e3nn_jax as e3nn
 from e3nn_jax.experimental.point_convolution import Convolution
 
 
@@ -63,7 +63,7 @@ def model(pos, edge_src, edge_dst):
     return node_feat.array
 
 
-def main():
+def train(steps=2000):
     opt = optax.sgd(learning_rate=0.1, momentum=0.9)
 
     def loss_pred(params, pos, edge_src, edge_dst, labels, batch):
@@ -100,7 +100,7 @@ def main():
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
 
     wall = time.perf_counter()
-    for it in range(1, 2000):
+    for it in range(1, steps + 1):
         params, opt_state, accuracy, pred = update(params, opt_state, pos, edge_src, edge_dst, labels, batch)
 
         print(f"[{it}] accuracy = {100 * accuracy:.0f}%")
@@ -115,4 +115,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    train()

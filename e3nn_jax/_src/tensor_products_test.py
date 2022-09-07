@@ -4,16 +4,16 @@ import jax.numpy as jnp
 import numpy as np
 
 
-def test_full_tensor_product():
+def test_tensor_product():
     x1 = e3nn.IrrepsArray("1o", jnp.array([1.0, 0.0, 0.0]))
     x2 = e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0]))
-    x3 = e3nn.full_tensor_product(x1, x2, filter_ir_out=("1e",))
+    x3 = e3nn.tensor_product(x1, x2, filter_ir_out=("1e",))
     assert x3.irreps == e3nn.Irreps("1e")
     np.testing.assert_allclose(x3.array, jnp.array([0.0, 0.0, 1 / 2**0.5]))
 
 
-def test_full_tensor_product_irreps():
-    irreps = e3nn.full_tensor_product("1o", "1o", filter_ir_out=("1e",))
+def test_tensor_product_irreps():
+    irreps = e3nn.tensor_product("1o", "1o", filter_ir_out=("1e",))
     assert irreps == e3nn.Irreps("1e")
 
 

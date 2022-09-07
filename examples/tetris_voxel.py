@@ -1,9 +1,9 @@
+import e3nn_jax as e3nn
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-from e3nn_jax import gate, Irreps, IrrepsArray
 from e3nn_jax.experimental.voxel_convolution import Convolution
 from tqdm.auto import tqdm
 
@@ -43,7 +43,7 @@ def tetris():
     return voxels, labels
 
 
-def main():
+def train(steps=2000):
     # Model
     @hk.without_apply_rng
     @hk.transform
@@ -51,16 +51,16 @@ def main():
         mul0 = 16
         mul1 = 4
 
-        g = lambda x: gate(x, [jax.nn.gelu, jnp.tanh, jax.nn.sigmoid])
+        g = e3nn.gate
         for _ in range(1 + 3):
             g = jax.vmap(g)
 
         # Shallower and wider convolutions also works
 
         # kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=5.5, num_radial_basis=3, steps=(1.0, 1.0, 1.0))
-        kw = dict(irreps_sh=Irreps("0e + 1o"), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
+        kw = dict(irreps_sh=e3nn.Irreps("0e + 1o"), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
 
-        x = IrrepsArray("0e", x[..., None])
+        x = e3nn.IrrepsArray("0e", x[..., None])
 
         # for _ in range(2):
         for _ in range(5):
@@ -104,7 +104,7 @@ def main():
     opt_state = opt.init(params)
 
     # Train
-    for _ in tqdm(range(2000)):
+    for _ in tqdm(range(steps)):
         params, opt_state, loss, accuracy, pred = update(params, opt_state, x, y)
         if accuracy == 1.0:
             break
@@ -116,4 +116,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    train()

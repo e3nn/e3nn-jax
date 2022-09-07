@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 
 import jax
 import jax.numpy as jnp
@@ -71,7 +71,16 @@ def index_add(
     return output
 
 
-def radius_graph(pos, r_max, *, batch=None, size=None, loop=False, fill_src=-1, fill_dst=-1):
+def radius_graph(
+    pos: Union[e3nn.IrrepsArray, jnp.ndarray],
+    r_max: float,
+    *,
+    batch: jnp.ndarray = None,
+    size: int = None,
+    loop: bool = False,
+    fill_src: int = -1,
+    fill_dst: int = -1,
+):
     r"""Naive and inefficient version of ``torch_cluster.radius_graph``.
 
     Args:
@@ -92,6 +101,9 @@ def radius_graph(pos, r_max, *, batch=None, size=None, loop=False, fill_src=-1, 
         >>> radius_graph(pos, 0.8, batch=batch)
         (DeviceArray([ 3,  7, 10, 11, 12, 18], dtype=int32), DeviceArray([ 7,  3, 11, 10, 18, 12], dtype=int32))
     """
+    if isinstance(pos, e3nn.IrrepsArray):
+        pos = pos.array
+
     r = jax.vmap(jax.vmap(lambda x, y: jnp.linalg.norm(x - y), (None, 0), 0), (0, None), 0)(pos, pos)
     if loop:
         mask = r < r_max

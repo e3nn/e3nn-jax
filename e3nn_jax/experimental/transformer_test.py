@@ -3,6 +3,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 from e3nn_jax.experimental.transformer import Transformer
+from e3nn_jax.util import assert_equivariant
 
 
 def test_transformer(keys):
@@ -10,7 +11,7 @@ def test_transformer(keys):
     @hk.transform
     def model(pos, src, dst, node_feat):
         edge_attr = e3nn.spherical_harmonics("0e + 1e + 2e", pos[dst] - pos[src], True)
-        edge_distance = jnp.linalg.norm(pos[dst] - pos[src], axis=-1)
+        edge_distance = e3nn.norm(pos[dst] - pos[src]).array[..., 0]
         edge_weight_cutoff = e3nn.sus(3.0 * (2.0 - edge_distance))
         edge_scalar_attr = e3nn.soft_one_hot_linspace(
             edge_distance, start=0.0, end=2.0, number=5, basis="smooth_finite", cutoff=True
@@ -25,11 +26,14 @@ def test_transformer(keys):
 
     apply = jax.jit(model.apply)
 
-    pos = jnp.array(
-        [
-            [0.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0],
-        ]
+    pos = e3nn.IrrepsArray(
+        "1e",
+        jnp.array(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+            ]
+        ),
     )
     src, dst = e3nn.radius_graph(pos, 2.0)
     node_feat = e3nn.normal("2x0e + 2x1e + 2x2e", next(keys), (pos.shape[0],))
@@ -37,4 +41,6 @@ def test_transformer(keys):
     w = model.init(next(keys), pos, src, dst, node_feat)
     apply(w, pos, src, dst, node_feat)
 
-    # TODO test equivariance
+    assert_equivariant(
+        lambda pos, node_feat: apply(w, pos, src, dst, node_feat), jax.random.PRNGKey(0), args_in=[pos, node_feat], atol=1e-4
+    )
