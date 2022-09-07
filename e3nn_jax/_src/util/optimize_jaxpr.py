@@ -14,7 +14,7 @@ def curry(f):
 
 @curry
 @curry
-def closed_jaxpr_transform_to_fn_transform(closed_jaxpr_transform, fn, *args):
+def closed_jaxpr_transform_to_fn_transform(closed_jaxpr_transform, fn, *args):  # pragma: no cover
     f = lu.wrap_init(fn)
 
     in_flat, in_tree = jax.tree_util.tree_flatten(args)
@@ -26,7 +26,7 @@ def closed_jaxpr_transform_to_fn_transform(closed_jaxpr_transform, fn, *args):
     return jax.tree_util.tree_unflatten(out_tree(), out_flat)
 
 
-def replace_var(jaxpr: Jaxpr, old: Var, new: Var) -> List[JaxprEqn]:
+def replace_var(jaxpr: Jaxpr, old: Var, new: Var) -> List[JaxprEqn]:  # pragma: no cover
     def re(vars):
         return [new if var == old else var for var in vars]
 
@@ -44,7 +44,7 @@ def replace_var(jaxpr: Jaxpr, old: Var, new: Var) -> List[JaxprEqn]:
     )
 
 
-def remove_deadcode(jaxpr: Jaxpr, output_indices=None) -> ClosedJaxpr:
+def remove_deadcode(jaxpr: Jaxpr, output_indices=None) -> ClosedJaxpr:  # pragma: no cover
     if output_indices is None:
         output_indices = range(len(jaxpr.outvars))
 
@@ -84,7 +84,7 @@ def remove_deadcode(jaxpr: Jaxpr, output_indices=None) -> ClosedJaxpr:
     return (jaxpr, input_indices)
 
 
-def remove_duplicate_constants(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:
+def remove_duplicate_constants(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:  # pragma: no cover
     for i, cst1 in enumerate(closed_jaxpr.consts):
         for j, cst2 in enumerate(closed_jaxpr.consts[:i]):
             if type(cst1) is np.ndarray and type(cst2) is np.ndarray:
@@ -108,7 +108,7 @@ def remove_duplicate_constants(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:
     return closed_jaxpr
 
 
-def remove_duplicate_equations(jaxpr: Jaxpr, skip_first=0) -> ClosedJaxpr:
+def remove_duplicate_equations(jaxpr: Jaxpr, skip_first=0) -> ClosedJaxpr:  # pragma: no cover
     def atom_key(a: Atom):
         if type(a) is Literal:
             return a.val
@@ -165,7 +165,7 @@ def remove_duplicate_equations(jaxpr: Jaxpr, skip_first=0) -> ClosedJaxpr:
     return jaxpr
 
 
-def optimize_jaxpr(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:
+def optimize_jaxpr(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:  # pragma: no cover
     closed_jaxpr = remove_duplicate_constants(closed_jaxpr)
     jaxpr = closed_jaxpr.jaxpr
     jaxpr, input_indices = remove_deadcode(jaxpr)
