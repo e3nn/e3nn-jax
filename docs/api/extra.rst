@@ -24,3 +24,6 @@ Extra Stuff
 
 
 .. autofunction:: e3nn_jax.reduced_tensor_product_basis
+
+
+.. autofunction:: e3nn_jax.reduced_symmetric_tensor_product_basis

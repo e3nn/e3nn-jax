@@ -27,3 +27,9 @@ def test_reduce_tensor_elasticity_tensor_parity():
     np.testing.assert_allclose(Q.array, np.einsum("ijklx->jiklx", Q.array), atol=1e-6, rtol=1e-6)
     np.testing.assert_allclose(Q.array, np.einsum("ijklx->ijlkx", Q.array), atol=1e-6, rtol=1e-6)
     np.testing.assert_allclose(Q.array, np.einsum("ijklx->klijx", Q.array), atol=1e-6, rtol=1e-6)
+
+
+def test_reduced_symmetric_tensor_product_basis():
+    Q = e3nn.reduced_symmetric_tensor_product_basis("1e", 5)
+    P = e3nn.reduced_tensor_product_basis("ijklm=jiklm=jklmi", i="1e")
+    np.testing.assert_equal(Q.array, P.array)

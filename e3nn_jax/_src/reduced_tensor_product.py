@@ -26,7 +26,7 @@ def reduced_tensor_product_basis(
 
     Returns:
         IrrepsArray: The change of basis
-            The shape is ``(d1, ..., dn, irreps.dim)``
+            The shape is ``(d1, ..., dn, irreps_out.dim)``
             where ``di`` is the dimension of the index ``i`` and ``n`` is the number of indices in the formula.
 
     Example:
@@ -74,6 +74,28 @@ def reduced_tensor_product_basis(
     irreps = tuple(irreps[i] for i in f0)
 
     return _reduced_tensor_product_basis(irreps, formulas, epsilon)
+
+
+def reduced_symmetric_tensor_product_basis(
+    irreps: e3nn.Irreps,
+    order: int,
+    *,
+    epsilon: float = 1e-5,
+):
+    r"""Reduce a symmetric tensor product.
+
+    Args:
+        irreps (Irreps): the irreps of each index.
+        order (int): the order of the tensor product. i.e. the number of indices.
+
+    Returns:
+        IrrepsArray: The change of basis
+            The shape is ``(d, ..., d, irreps_out.dim)``
+            where ``d`` is the dimension of ``irreps``.
+    """
+    irreps = e3nn.Irreps(irreps)
+    formulas: FrozenSet[Tuple[int, Tuple[int, ...]]] = frozenset((1, p) for p in itertools.permutations(range(order)))
+    return _reduced_tensor_product_basis(tuple([irreps] * order), formulas, epsilon)
 
 
 @functools.lru_cache(maxsize=None)

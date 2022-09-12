@@ -58,7 +58,7 @@ from e3nn_jax._src.dropout import Dropout
 from e3nn_jax._src.mlp import MultiLayerPerceptron
 from e3nn_jax._src.graph_util import index_add, radius_graph
 from e3nn_jax._src.poly_envelope import poly_envelope
-from e3nn_jax._src.reduced_tensor_product import reduced_tensor_product_basis
+from e3nn_jax._src.reduced_tensor_product import reduced_tensor_product_basis, reduced_symmetric_tensor_product_basis
 
 __all__ = [
     "config",  # not in docs
@@ -132,4 +132,5 @@ __all__ = [
     "radius_graph",
     "poly_envelope",
     "reduced_tensor_product_basis",
+    "reduced_symmetric_tensor_product_basis",
 ]
