@@ -389,7 +389,7 @@ class Irreps(tuple):
         """
         return Irreps([(1, (l, p**l)) for l in range(lmax + 1)])
 
-    def slices(self):
+    def slices(self) -> List[slice]:
         r"""List of slices corresponding to indices for each irrep.
 
         Examples:
@@ -499,7 +499,7 @@ class Irreps(tuple):
         r"""Hash of the representation."""
         return super().__hash__()
 
-    def unify(self):
+    def unify(self) -> "Irreps":
         r"""Regroup same irrep together.
 
         Returns:
@@ -523,7 +523,7 @@ class Irreps(tuple):
                 out.append((mul, ir))
         return Irreps(out)
 
-    def remove_zero_multiplicities(self):
+    def remove_zero_multiplicities(self) -> "Irreps":
         """Remove any irreps with multiplicities of zero.
 
         Examples:
@@ -532,7 +532,7 @@ class Irreps(tuple):
         """
         return Irreps([(mul, ir) for mul, ir in self if mul > 0])
 
-    def simplify(self):
+    def simplify(self) -> "Irreps":
         """Simplify the representations.
 
         Examples:
@@ -553,7 +553,7 @@ class Irreps(tuple):
         """
         return self.remove_zero_multiplicities().unify()
 
-    def sort(self):
+    def sort(self) -> Tuple["Irreps", Tuple[int, ...], Tuple[int, ...]]:
         r"""Sort the representations.
 
         Returns:
@@ -577,11 +577,11 @@ class Irreps(tuple):
         irreps = Irreps([(mul, ir) for ir, _, mul in out])
         return Ret(irreps, p, inv)
 
-    def filter(self, ir_list):
+    def filter(self, keep_ir: Union["Irreps", List[Irrep]]) -> "Irreps":
         r"""Filter the irreps.
 
         Args:
-            ir_list (list of `Irrep`): list of irrep to keep
+            keep_ir (list of `Irrep`): list of irrep to keep
 
         Returns:
             `Irreps`: filtered irreps
@@ -589,11 +589,16 @@ class Irreps(tuple):
         Examples:
             >>> Irreps("1e + 2e + 0e").filter(["0e", "1e"])
             1x1e+1x0e
+
+            >>> Irreps("1e + 2e + 0e").filter("2e + 2x1e")
+            1x1e+1x2e
         """
-        if isinstance(ir_list, (str, Irrep)):
-            ir_list = [ir_list]
-        ir_list = {Irrep(ir) for ir in ir_list}
-        return Irreps([(mul, ir) for mul, ir in self if ir in ir_list])
+        if isinstance(keep_ir, str):
+            keep_ir = Irreps(keep_ir)
+        if isinstance(keep_ir, Irrep):
+            keep_ir = [keep_ir]
+        keep_ir = {Irrep(ir) for ir in keep_ir}
+        return Irreps([(mul, ir) for mul, ir in self if ir in keep_ir])
 
     @property
     def dim(self) -> int:

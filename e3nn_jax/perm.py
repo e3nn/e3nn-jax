@@ -3,7 +3,7 @@ from typing import Tuple, Set
 import random
 import math
 
-TY_PERM = Tuple[int]
+TY_PERM = Tuple[int, ...]
 
 
 def is_perm(p: TY_PERM):

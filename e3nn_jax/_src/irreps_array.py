@@ -494,6 +494,21 @@ class IrrepsArray:
         irreps, p, inv = self.irreps.sort()
         return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1])
 
+    def filtered(self, keep_ir: Union[e3nn.Irreps, List[e3nn.Irrep]]) -> "IrrepsArray":
+        r"""Filter the irreps.
+
+        Args:
+            keep_ir (list of `Irrep`): list of irrep to keep
+
+        Example:
+            >>> IrrepsArray("0e + 2x1o + 2x0e", jnp.arange(9)).filtered(["1o"])
+            2x1o [1 2 3 4 5 6]
+        """
+        irreps = self.irreps.filter(keep_ir)
+        return IrrepsArray.from_list(
+            irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in irreps], self.shape[:-1]
+        )
+
     def repeat_irreps_by_last_axis(self) -> "IrrepsArray":
         r"""Repeat the irreps by the last axis of the array.
 
