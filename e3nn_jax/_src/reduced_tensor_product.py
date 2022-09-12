@@ -14,7 +14,7 @@ def reduced_tensor_product_basis(
     *,
     epsilon: float = 1e-5,
     **irreps,
-):
+) -> e3nn.IrrepsArray:
     r"""Reduce a tensor product of multiple irreps subject to some permutation symmetry given by a formula.
 
     Args:
@@ -81,7 +81,7 @@ def reduced_symmetric_tensor_product_basis(
     order: int,
     *,
     epsilon: float = 1e-5,
-):
+) -> e3nn.IrrepsArray:
     r"""Reduce a symmetric tensor product.
 
     Args:
@@ -101,7 +101,7 @@ def reduced_symmetric_tensor_product_basis(
 @functools.lru_cache(maxsize=None)
 def _reduced_tensor_product_basis(
     irreps: Tuple[e3nn.Irreps], formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], epsilon: float
-) -> np.ndarray:
+) -> e3nn.IrrepsArray:
     dims = tuple(irps.dim for irps in irreps)
 
     def _recursion(bases: List[Tuple[FrozenSet[int], e3nn.IrrepsArray]]) -> e3nn.IrrepsArray:
