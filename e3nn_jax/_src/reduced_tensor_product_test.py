@@ -33,3 +33,9 @@ def test_reduced_symmetric_tensor_product_basis():
     Q = e3nn.reduced_symmetric_tensor_product_basis("1e", 5)
     P = e3nn.reduced_tensor_product_basis("ijklm=jiklm=jklmi", i="1e")
     np.testing.assert_equal(Q.array, P.array)
+
+
+def test_tensor_product_basis():
+    Q = e3nn.reduced_tensor_product_basis(["1e", "1o", "2e"])
+    P = e3nn.reduced_tensor_product_basis("ijk", i="1e", j="1o", k="2e")
+    np.testing.assert_equal(Q.array, P.array)

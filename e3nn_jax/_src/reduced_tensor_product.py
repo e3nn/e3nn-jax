@@ -1,6 +1,6 @@
 import functools
 import itertools
-from typing import FrozenSet, List, Optional, Tuple
+from typing import FrozenSet, List, Optional, Tuple, Union
 
 import e3nn_jax as e3nn
 import numpy as np
@@ -10,19 +10,20 @@ from e3nn_jax._src.util.prod import prod
 
 
 def reduced_tensor_product_basis(
-    formula: str,
+    formula_or_irreps_list: Union[str, List[e3nn.Irreps]],
     *,
     epsilon: float = 1e-5,
-    **irreps,
+    **irreps_dict,
 ) -> e3nn.IrrepsArray:
     r"""Reduce a tensor product of multiple irreps subject to some permutation symmetry given by a formula.
 
     Args:
-        formula (str): a formula of the form ``ijk=jik=ikj`` or ``ijk=-jki``.
+        formula_or_irreps_list (str or list of Irreps): a formula of the form ``ijk=jik=ikj`` or ``ijk=-jki``.
             The left hand side is the original formula and the right hand side are the signed permutations.
+            If no index symmetry is present, a list of irreps can be given instead.
 
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
-        irreps (dict): the irreps of each index of the formula. For instance ``i="1x1o"``.
+        irreps_dict (dict): the irreps of each index of the formula. For instance ``i="1x1o"``.
 
     Returns:
         IrrepsArray: The change of basis
@@ -45,35 +46,42 @@ def reduced_tensor_product_basis(
           [-0.707  0.     0.   ]
           [ 0.     0.     0.   ]]]
     """
+    if isinstance(formula_or_irreps_list, (tuple, list)):
+        irreps_list = formula_or_irreps_list
+        irreps_tuple = tuple(e3nn.Irreps(irreps) for irreps in irreps_list)
+        formulas: FrozenSet[Tuple[int, Tuple[int, ...]]] = frozenset({(1, tuple(range(len(irreps_tuple))))})
+        return _reduced_tensor_product_basis(irreps_tuple, formulas, epsilon)
+
+    formula = formula_or_irreps_list
     f0, formulas = germinate_formulas(formula)
 
-    irreps = {i: e3nn.Irreps(irs) for i, irs in irreps.items()}
+    irreps_dict = {i: e3nn.Irreps(irs) for i, irs in irreps_dict.items()}
 
-    for i in irreps:
+    for i in irreps_dict:
         if len(i) != 1:
             raise TypeError(f"got an unexpected keyword argument '{i}'")
 
     for _sign, p in formulas:
         f = "".join(f0[i] for i in p)
         for i, j in zip(f0, f):
-            if i in irreps and j in irreps and irreps[i] != irreps[j]:
+            if i in irreps_dict and j in irreps_dict and irreps_dict[i] != irreps_dict[j]:
                 raise RuntimeError(f"irreps of {i} and {j} should be the same")
-            if i in irreps:
-                irreps[j] = irreps[i]
-            if j in irreps:
-                irreps[i] = irreps[j]
+            if i in irreps_dict:
+                irreps_dict[j] = irreps_dict[i]
+            if j in irreps_dict:
+                irreps_dict[i] = irreps_dict[j]
 
     for i in f0:
-        if i not in irreps:
+        if i not in irreps_dict:
             raise RuntimeError(f"index {i} has no irreps associated to it")
 
-    for i in irreps:
+    for i in irreps_dict:
         if i not in f0:
             raise RuntimeError(f"index {i} has an irreps but does not appear in the fomula")
 
-    irreps = tuple(irreps[i] for i in f0)
+    irreps_tuple = tuple(irreps_dict[i] for i in f0)
 
-    return _reduced_tensor_product_basis(irreps, formulas, epsilon)
+    return _reduced_tensor_product_basis(irreps_tuple, formulas, epsilon)
 
 
 def reduced_symmetric_tensor_product_basis(
@@ -100,14 +108,14 @@ def reduced_symmetric_tensor_product_basis(
 
 @functools.lru_cache(maxsize=None)
 def _reduced_tensor_product_basis(
-    irreps: Tuple[e3nn.Irreps], formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], epsilon: float
+    irreps_tuple: Tuple[e3nn.Irreps], formulas: FrozenSet[Tuple[int, Tuple[int, ...]]], epsilon: float
 ) -> e3nn.IrrepsArray:
-    dims = tuple(irps.dim for irps in irreps)
+    dims = tuple(irps.dim for irps in irreps_tuple)
 
     def _recursion(bases: List[Tuple[FrozenSet[int], e3nn.IrrepsArray]]) -> e3nn.IrrepsArray:
         if len(bases) == 1:
             f, b = bases[0]
-            assert f == frozenset(range(len(irreps)))
+            assert f == frozenset(range(len(irreps_tuple)))
             return b
 
         if len(bases) == 2:
@@ -136,7 +144,7 @@ def _reduced_tensor_product_basis(
         i, j, f = best
         del bases[j]
         del bases[i]
-        sub_irreps = tuple(irreps[i] for i in f)
+        sub_irreps = tuple(irreps_tuple[i] for i in f)
         sub_formulas = sub_formula_fn(f, formulas)
         ab = _reduced_tensor_product_basis(sub_irreps, sub_formulas, epsilon)
         ab = ab.reshape(tuple(dims[i] if i in f else 1 for i in range(len(dims))) + (-1,))
@@ -145,9 +153,9 @@ def _reduced_tensor_product_basis(
     initial_bases = [
         e3nn.IrrepsArray(
             irps,
-            np.reshape(np.eye(irps.dim), (1,) * i + (irps.dim,) + (1,) * (len(irreps) - i - 1) + (irps.dim,)),
+            np.reshape(np.eye(irps.dim), (1,) * i + (irps.dim,) + (1,) * (len(irreps_tuple) - i - 1) + (irps.dim,)),
         )
-        for i, irps in enumerate(irreps)
+        for i, irps in enumerate(irreps_tuple)
     ]
     return _recursion([(frozenset({i}), base) for i, base in enumerate(initial_bases)])
 
