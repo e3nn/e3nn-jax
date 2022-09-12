@@ -1,15 +1,19 @@
 from typing import Callable, Optional, Tuple
 
 import e3nn_jax as e3nn
+import jax
 import jax.numpy as jnp
 import numpy as np
 
 
-def equivariance_error(
+def equivariance_test(
     fun: Callable[[e3nn.IrrepsArray], e3nn.IrrepsArray],
     rng_key: jnp.ndarray,
     *args,
 ):
+    jax_enable_x64 = jax.config.read("jax_enable_x64")
+    jax.config.update("jax_enable_x64", True)
+
     assert all(isinstance(arg, e3nn.IrrepsArray) for arg in args)
 
     R = -e3nn.rand_matrix(rng_key, ())  # random rotation and inversion
@@ -17,7 +21,8 @@ def equivariance_error(
     out1 = fun(*[arg.transform_by_matrix(R) for arg in args])
     out2 = fun(*args).transform_by_matrix(R)
 
-    return out1 - out2
+    jax.config.update("jax_enable_x64", jax_enable_x64)
+    return out1, out2
 
 
 def assert_equivariant(
@@ -34,9 +39,11 @@ def assert_equivariant(
     if args_in is None:
         args_in = [e3nn.normal(irreps, rng_key, ()) for irreps in irreps_in]
 
+    out1, out2 = equivariance_test(fun, rng_key, *args_in)
+
     np.testing.assert_allclose(
-        equivariance_error(fun, rng_key, *args_in).array,
-        0.0,
+        out1.array,
+        out2.array,
         atol=atol,
         rtol=rtol,
     )
