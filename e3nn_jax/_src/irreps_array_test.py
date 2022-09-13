@@ -3,6 +3,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from e3nn_jax._src.util.prod import prod
 
 
 def test_convert():
@@ -106,3 +107,49 @@ def test_operators():
     jax.config.update("jax_enable_x64", True)
     np.testing.assert_allclose(e3nn.norm(x / e3nn.norm(x)).array, 1)
     jax.config.update("jax_enable_x64", False)
+
+
+def test_at_set():
+    x = e3nn.IrrepsArray("0e + 1e", jnp.arange(3 * 4 * 4).reshape((3, 4, 4)))
+
+    y = x.at[0, 1].set(0)
+    assert y.shape == x.shape
+    np.testing.assert_allclose(y[0, 1].array, 0)
+    np.testing.assert_allclose(y[0, 1].list[0], 0)
+    np.testing.assert_allclose(y[0, 1].list[1], 0)
+    np.testing.assert_allclose(y[0, 2].array, x[0, 2].array)
+    np.testing.assert_allclose(y[0, 2].list[0], x[0, 2].list[0])
+    np.testing.assert_allclose(y[0, 2].list[1], x[0, 2].list[1])
+
+    v = e3nn.IrrepsArray("0e + 1e", jnp.arange(4 * 4).reshape((4, 4)))
+    y = x.at[1].set(v)
+    assert y.shape == x.shape
+    np.testing.assert_allclose(y[1].array, v.array)
+    np.testing.assert_allclose(y[1].list[0], v.list[0])
+    np.testing.assert_allclose(y[1].list[1], v.list[1])
+    np.testing.assert_allclose(y[0].array, x[0].array)
+    np.testing.assert_allclose(y[0].list[0], x[0].list[0])
+    np.testing.assert_allclose(y[0].list[1], x[0].list[1])
+
+
+def test_at_add():
+    def f(*shape):
+        return 1.0 + jnp.arange(prod(shape)).reshape(shape)
+
+    x = e3nn.IrrepsArray.from_list(
+        "1e + 0e + 0e + 0e",
+        [None, None, f(2, 1, 1), f(2, 1, 1)],
+        (2,),
+    )
+    v = e3nn.IrrepsArray.from_list("1e + 0e + 0e + 0e", [None, f(1, 1), None, f(1, 1)], ())
+    y1 = x.at[0].add(v)
+    y2 = e3nn.IrrepsArray(x.irreps, x.array.at[0].add(v.array))
+    np.testing.assert_array_equal(y1.array, y2.array)
+    assert y1.list[0] is None
+    assert y1.list[1] is not None
+    assert y1.list[2] is not None
+    assert y1.list[3] is not None
+    np.testing.assert_allclose(0, y2.list[0])
+    np.testing.assert_array_equal(y1.list[1], y2.list[1])
+    np.testing.assert_array_equal(y1.list[2], y2.list[2])
+    np.testing.assert_array_equal(y1.list[3], y2.list[3])

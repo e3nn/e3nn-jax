@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.reduced_symmetric_tensor_product_basis(irreps: Irreps, order: int)`
 - `e3nn.IrrepsArray.filtered(keep: List[Irrep])`
 - `e3nn.reduced_tensor_product_basis(formula_or_irreps_list: Union[str, List[e3nn.Irreps]], ...)`
+- `IrrepsArray.at[i].set(v)` and `IrrepsArray.at[i].add(v)`
 
 ## [0.9.0] - 2022-09-04
 ### Added

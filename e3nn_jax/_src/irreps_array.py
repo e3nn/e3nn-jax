@@ -1,7 +1,7 @@
 import math
 import operator
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -23,6 +23,14 @@ def _infer_backend(pytree):
     if any_jax:
         return jnp
     return np
+
+
+def _is_ellipse(x):
+    return type(x) == type(Ellipsis)
+
+
+def _is_none_slice(x):
+    return isinstance(x, slice) and x == slice(None)
 
 
 class IrrepsArray:
@@ -90,7 +98,7 @@ class IrrepsArray:
                             )
 
     @staticmethod
-    def from_list(irreps: IntoIrreps, list, leading_shape: Tuple[int]) -> "IrrepsArray":
+    def from_list(irreps: IntoIrreps, list: List[Optional[jnp.ndarray]], leading_shape: Tuple[int]) -> "IrrepsArray":
         r"""Create an IrrepsArray from a list of arrays.
 
         Args:
@@ -332,15 +340,9 @@ class IrrepsArray:
         if not isinstance(index, tuple):
             index = (index,)
 
-        def is_ellipse(x):
-            return type(x) == type(Ellipsis)
-
-        def is_none_slice(x):
-            return isinstance(x, slice) and x == slice(None)
-
         # Support of x[..., "1e + 2e"]
         if isinstance(index[-1], (e3nn.Irrep, e3nn.MulIrrep, Irreps, str)):
-            if not (any(map(is_ellipse, index[:-1])) or len(index) == self.ndim):
+            if not (any(map(_is_ellipse, index[:-1])) or len(index) == self.ndim):
                 raise ValueError("Irreps index must be the last index")
 
             irreps = Irreps(index[-1])
@@ -358,7 +360,7 @@ class IrrepsArray:
 
         # Support of x[..., 3:32]
         if (
-            (any(map(is_ellipse, index[:-1])) or len(index) == self.ndim)
+            (any(map(_is_ellipse, index[:-1])) or len(index) == self.ndim)
             and isinstance(index[-1], slice)
             and index[-1].step is None
             and isinstance(index[-1].start, (int, type(None)))
@@ -412,8 +414,8 @@ class IrrepsArray:
                 self.irreps[irreps_start:irreps_stop], self.array[..., start:stop], self.list[irreps_start:irreps_stop]
             )[index[:-1] + (slice(None),)]
 
-        if len(index) == self.ndim or any(map(is_ellipse, index)):
-            if not (is_ellipse(index[-1]) or is_none_slice(index[-1])):
+        if len(index) == self.ndim or any(map(_is_ellipse, index)):
+            if not (_is_ellipse(index[-1]) or _is_none_slice(index[-1])):
                 raise IndexError(f"Indexing with {index[-1]} in the irreps dimension is not supported.")
 
         # Support of x[index, :]
@@ -422,6 +424,10 @@ class IrrepsArray:
             array=self.array[index],
             list=[None if x is None else x[index + (slice(None),)] for x in self.list],
         )
+
+    @property
+    def at(self):
+        return _IndexUpdateHelper(self)
 
     def reshape(self, shape) -> "IrrepsArray":
         r"""Reshape the array.
@@ -1054,3 +1060,127 @@ def normal(
         return IrrepsArray.from_list(irreps, list, leading_shape)
     else:
         raise ValueError("Normalization needs to be 'norm' or 'component'")
+
+
+class _IndexUpdateHelper:
+    def __init__(self, irreps_array) -> None:
+        self.irreps_array = irreps_array
+
+    def __getitem__(self, index):
+        return _IndexUpdateRef(self.irreps_array, index)
+
+
+class _IndexUpdateRef:
+    def __init__(self, irreps_array, index) -> None:
+        self.irreps_array = irreps_array
+        self.index = index
+
+    def set(self, values: Any) -> IrrepsArray:
+        index = self.index
+        self = self.irreps_array
+
+        if not isinstance(index, tuple):
+            index = (index,)
+
+        # Support of x[..., "1e + 2e"]
+        if isinstance(index[-1], (e3nn.Irrep, e3nn.MulIrrep, Irreps, str)):
+            raise NotImplementedError('x.at[..., "1e + 2e"] is not implemented')
+
+        # Support of x[..., 3:32]
+        if (
+            (any(map(_is_ellipse, index[:-1])) or len(index) == self.ndim)
+            and isinstance(index[-1], slice)
+            and index[-1].step is None
+            and isinstance(index[-1].start, (int, type(None)))
+            and isinstance(index[-1].stop, (int, type(None)))
+            and (index[-1].start is not None or index[-1].stop is not None)
+        ):
+            raise NotImplementedError("x.at[..., 3:32] is not implemented")
+
+        if len(index) == self.ndim or any(map(_is_ellipse, index)):
+            if not (_is_ellipse(index[-1]) or _is_none_slice(index[-1])):
+                raise IndexError(f"Indexing with {index[-1]} in the irreps dimension is not supported.")
+
+        # Support of x.at[index, :].set(0)
+        if isinstance(values, (int, float)) and values == 0:
+            return IrrepsArray(
+                self.irreps,
+                array=self.array.at[index].set(0),
+                list=[None if x is None else x.at[index + (slice(None),)].set(0) for x in self.list],
+            )
+
+        # Support of x.at[index, :].set(IrrArray(...))
+        if isinstance(values, IrrepsArray):
+            if self.irreps.simplify() != values.irreps.simplify():
+                raise ValueError("The irreps of the array and the values to set must be the same.")
+
+            values = values.convert(self.irreps)
+
+            def fn(x, y, mul, ir):
+                if x is not None and y is not None:
+                    return x.at[index + (slice(None),)].set(y)
+                if x is not None and y is None:
+                    return x.at[index + (slice(None),)].set(0)
+                if x is None and y is not None:
+                    return jnp.zeros(self.shape[:-1] + (mul, ir.dim), dtype=self.array.dtype).at[index + (slice(None),)].set(y)
+                if x is None and y is None:
+                    return None
+
+            return IrrepsArray(
+                self.irreps,
+                array=self.array.at[index].set(values.array),
+                list=[fn(x, y, mul, ir) for (mul, ir), x, y in zip(self.irreps, self.list, values.list)],
+            )
+
+        raise NotImplementedError(f"x.add[i].set(v) with v={type(values)} is not implemented.")
+
+    def add(self, values: Any) -> IrrepsArray:
+        index = self.index
+        self = self.irreps_array
+
+        if not isinstance(index, tuple):
+            index = (index,)
+
+        # Support of x[..., "1e + 2e"]
+        if isinstance(index[-1], (e3nn.Irrep, e3nn.MulIrrep, Irreps, str)):
+            raise NotImplementedError('x.at[..., "1e + 2e"] is not implemented')
+
+        # Support of x[..., 3:32]
+        if (
+            (any(map(_is_ellipse, index[:-1])) or len(index) == self.ndim)
+            and isinstance(index[-1], slice)
+            and index[-1].step is None
+            and isinstance(index[-1].start, (int, type(None)))
+            and isinstance(index[-1].stop, (int, type(None)))
+            and (index[-1].start is not None or index[-1].stop is not None)
+        ):
+            raise NotImplementedError("x.at[..., 3:32] is not implemented")
+
+        if len(index) == self.ndim or any(map(_is_ellipse, index)):
+            if not (_is_ellipse(index[-1]) or _is_none_slice(index[-1])):
+                raise IndexError(f"Indexing with {index[-1]} in the irreps dimension is not supported.")
+
+        # Support of x.at[index, :].add(IrrArray(...))
+        if isinstance(values, IrrepsArray):
+            if self.irreps.simplify() != values.irreps.simplify():
+                raise ValueError("The irreps of the array and the values to add must be the same.")
+
+            values = values.convert(self.irreps)
+
+            def fn(x, y, mul, ir):
+                if x is not None and y is not None:
+                    return x.at[index + (slice(None),)].add(y)
+                if x is not None and y is None:
+                    return x
+                if x is None and y is not None:
+                    return jnp.zeros(self.shape[:-1] + (mul, ir.dim), dtype=self.array.dtype).at[index + (slice(None),)].set(y)
+                if x is None and y is None:
+                    return None
+
+            return IrrepsArray(
+                self.irreps,
+                array=self.array.at[index].add(values.array),
+                list=[fn(x, y, mul, ir) for (mul, ir), x, y in zip(self.irreps, self.list, values.list)],
+            )
+
+        raise NotImplementedError(f"x.add[i].add(v) with v={type(values)} is not implemented.")
