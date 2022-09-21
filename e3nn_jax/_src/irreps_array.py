@@ -1,14 +1,14 @@
+import functools
 import math
 import operator
 import warnings
 from typing import Any, List, Optional, Tuple, Union
 
+import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
 import jax.scipy
 import numpy as np
-
-import e3nn_jax as e3nn
 from e3nn_jax import Irreps, axis_angle_to_angles, config, matrix_to_angles, quaternion_to_angles
 from e3nn_jax._src.irreps import IntoIrreps
 
@@ -556,7 +556,7 @@ class IrrepsArray:
              [ 4  5 12 13 14]]
         """
         if factor is None:
-            factor = math.gcd(*(mul for mul, _ in self.irreps))
+            factor = functools.reduce(math.gcd, (mul for mul, _ in self.irreps))
 
         if not all(mul % factor == 0 for mul, _ in self.irreps):
             raise ValueError(f"factor {factor} does not divide all multiplicities")
