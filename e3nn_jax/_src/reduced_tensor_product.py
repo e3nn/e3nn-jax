@@ -1,3 +1,4 @@
+# Partially based on https://github.com/songk42/ReducedTensorProduct.jl
 import functools
 import itertools
 from typing import FrozenSet, List, Optional, Tuple, Union

@@ -444,14 +444,15 @@ def _legendre_spherical_harmonics(lmax: int, x: jnp.ndarray, normalize: bool, no
     sh_y = legendre(lmax, x[..., 1], 1.0)  # [(lmax + 1) * (lmax + 2) // 2, ...]
     sh_y = jnp.moveaxis(sh_y, 0, -1)  # [..., (lmax + 1) * (lmax + 2) // 2]
 
-    f = np.array(
+    sh_y = sh_y * np.array(
         [
             math.sqrt(fractions.Fraction((2 * l + 1) * math.factorial(l - m), 4 * math.factorial(l + m)) / math.pi)
             for l in range(lmax + 1)
             for m in range(l + 1)
         ]
     )
-    sh_y = f * sh_y
+
+    sh = jnp.zeros(x.shape[:-1] + ((lmax + 1) ** 2,))
 
     def f(l, sh):
         def g(m, sh):
@@ -468,5 +469,5 @@ def _legendre_spherical_harmonics(lmax: int, x: jnp.ndarray, normalize: bool, no
 
         return jax.lax.fori_loop(-l, l + 1, g, sh)
 
-    sh = jnp.zeros(x.shape[:-1] + ((lmax + 1) ** 2,))
-    return jax.lax.fori_loop(0, lmax + 1, f, sh)
+    sh = jax.lax.fori_loop(0, lmax + 1, f, sh)
+    return sh
