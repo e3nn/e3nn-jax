@@ -3,7 +3,6 @@ from math import factorial
 from typing import Callable
 
 import jax
-from jax import jit
 from jax import numpy as jnp
 
 
@@ -31,7 +30,7 @@ def solve_polynomial(constraints) -> jnp.ndarray:
         c = jnp.linalg.solve(A, B)
 
         jax.config.update("jax_enable_x64", jax_enable_x64)
-    return jit(lambda x: jnp.polyval(c[::-1], x))
+    return jax.jit(lambda x: jnp.polyval(c[::-1], x))
 
 
 def poly_envelope(n0: int, n1: int) -> Callable[[float], float]:
