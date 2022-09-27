@@ -195,6 +195,7 @@ def _custom_jvp_spherical_harmonics(
     return _spherical_harmonics(ls, x, normalization, algorithm)
 
 
+@_custom_jvp_spherical_harmonics.defjvp
 def _jvp(
     ls: Tuple[int, ...], normalization: str, algorithm: Tuple[str], primals: Tuple[jnp.ndarray], tangents: Tuple[jnp.ndarray]
 ) -> List[jnp.ndarray]:
@@ -227,9 +228,6 @@ def _jvp(
         raise ValueError("Unknown algorithm: must be 'dense' or 'sparse'")
 
     return out, [h(l, r) if l > 0 else jnp.zeros_like(r) for l, r in zip(ls, res)]
-
-
-_custom_jvp_spherical_harmonics.defjvp(_jvp)
 
 
 def _recursive_spherical_harmonics(
