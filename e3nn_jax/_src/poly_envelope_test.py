@@ -12,6 +12,7 @@ def test_u():
     p = 6
 
     np.testing.assert_allclose(u(p, x), poly_envelope(p - 1, 2)(x))
+    jax.config.update("jax_enable_x64", False)
 
 
 @pytest.mark.parametrize("n1", [0, 1, 3, 4])
@@ -33,3 +34,4 @@ def test_poly_envelope(n0, n1):
     for _ in range(n1):
         d = jax.grad(d)
         np.testing.assert_allclose(d(1.0), 0.0, atol=1e-9)
+    jax.config.update("jax_enable_x64", False)
