@@ -8,6 +8,7 @@ from jax import numpy as jnp
 
 
 def u(p: int, x: jnp.ndarray) -> jnp.ndarray:
+    r"""Equivalent to :func:`poly_envelope` with ``n0 = p-1`` and ``n1 = 2``."""
     return 1 - (p + 1) * (p + 2) / 2 * x**p + p * (p + 2) * x ** (p + 1) - p * (p + 1) / 2 * x ** (p + 2)
 
 
