@@ -454,6 +454,20 @@ class Irreps(tuple):
         ir = Irrep(ir)
         return sum(mul for mul, irrep in self if ir == irrep)
 
+    def is_scalar(self) -> bool:
+        r"""Check if the representation is scalar.
+
+        Returns:
+            `bool`: ``True`` if the representation is scalar
+
+        Examples:
+            >>> Irreps("2x0e + 3x1o").is_scalar()
+            False
+            >>> Irreps("2x0e + 2x0e").is_scalar()
+            True
+        """
+        return {ir for _, ir in self} == {Irrep("0e")}
+
     def index(self, _object):  # noqa: D102
         raise NotImplementedError
 
