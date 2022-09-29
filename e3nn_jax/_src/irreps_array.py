@@ -1173,7 +1173,7 @@ class _IndexUpdateRef:
                 if x is not None and y is None:
                     return x
                 if x is None and y is not None:
-                    return jnp.zeros(self.shape[:-1] + (mul, ir.dim), dtype=self.array.dtype).at[index + (slice(None),)].set(y)
+                    return jnp.zeros(self.shape[:-1] + (mul, ir.dim), dtype=self.array.dtype).at[index + (slice(None),)].add(y)
                 if x is None and y is None:
                     return None
 
