@@ -38,7 +38,7 @@ from e3nn_jax._src.irreps import Irrep, MulIrrep, Irreps
 from e3nn_jax._src.irreps_array import IrrepsArray, concatenate, stack, mean, norm, normal
 from e3nn_jax._src.irreps_array import sum_ as sum
 from e3nn_jax._src.spherical_harmonics import spherical_harmonics, sh, legendre
-from e3nn_jax._src.radial import sus, soft_one_hot_linspace, bessel
+from e3nn_jax._src.radial import sus, soft_one_hot_linspace, bessel, poly_envelope
 from e3nn_jax._src.linear import FunctionalLinear, Linear
 from e3nn_jax._src.core_tensor_product import FunctionalTensorProduct
 from e3nn_jax._src.tensor_products import (
@@ -57,7 +57,6 @@ from e3nn_jax._src.batchnorm import BatchNorm
 from e3nn_jax._src.dropout import Dropout
 from e3nn_jax._src.mlp import MultiLayerPerceptron
 from e3nn_jax._src.graph_util import index_add, radius_graph
-from e3nn_jax._src.poly_envelope import poly_envelope
 from e3nn_jax._src.reduced_tensor_product import reduced_tensor_product_basis, reduced_symmetric_tensor_product_basis
 
 __all__ = [
