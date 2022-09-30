@@ -39,3 +39,17 @@ def test_fully_connected_tensor_product(keys):
     x3 = f.apply(w, x1, x2)
     assert x3.irreps == e3nn.Irreps("10x0e + 1e")
     assert x3.shape[:-1] == (20, 10)
+
+
+def test_tensor_square(keys):
+    @hk.without_apply_rng
+    @hk.transform
+    def f(x):
+        return e3nn.TensorSquare("1e")(x)
+
+    x = e3nn.normal("2x1e", next(keys), (10,))
+
+    w = f.init(next(keys), x)
+    y = f.apply(w, x)
+    assert y.irreps == e3nn.Irreps("1e")
+    assert y.shape == (10, 3)
