@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `Irrep.generators` and `Irreps.generators` functions to get the generators of the representations.
+- `e3nn.bessel` function
+
+### Changed
+- **breaking change** `e3nn.soft_one_hot_linspace` does not support `bessel` anymore. Use `e3nn.bessel` instead.
 
 ## [0.9.2] - 2022-09-29
 ### Fixed

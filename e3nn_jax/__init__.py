@@ -38,7 +38,7 @@ from e3nn_jax._src.irreps import Irrep, MulIrrep, Irreps
 from e3nn_jax._src.irreps_array import IrrepsArray, concatenate, stack, mean, norm, normal
 from e3nn_jax._src.irreps_array import sum_ as sum
 from e3nn_jax._src.spherical_harmonics import spherical_harmonics, sh, legendre
-from e3nn_jax._src.soft_one_hot_linspace import sus, soft_one_hot_linspace
+from e3nn_jax._src.radial import sus, soft_one_hot_linspace, bessel
 from e3nn_jax._src.linear import FunctionalLinear, Linear
 from e3nn_jax._src.core_tensor_product import FunctionalTensorProduct
 from e3nn_jax._src.tensor_products import (
@@ -111,6 +111,7 @@ __all__ = [
     "legendre",  # not in docs
     "sus",
     "soft_one_hot_linspace",
+    "bessel",
     "FunctionalLinear",  # not in docs
     "Linear",
     "FunctionalTensorProduct",
