@@ -29,7 +29,7 @@ pip install -r requirements.txt
 To check that the tests are running:
 ```bash
 pip install pytest
-pytest tests/tensor_products_test.py
+pytest e3nn_jax/_src/tensor_products_test.py
 ```
 
 # What is different from the PyTorch version?
