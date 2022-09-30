@@ -752,7 +752,7 @@ class Irreps(tuple):
         return self.D_from_angles(*matrix_to_angles(R), k)
 
     def generators(self) -> jnp.ndarray:
-        """Generators of the representation.
+        r"""Generators of the representation.
 
         Returns:
             `jax.numpy.ndarray`: array of shape :math:`(3, \mathrm{dim}, \mathrm{dim})`
