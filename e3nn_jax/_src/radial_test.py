@@ -65,4 +65,10 @@ def test_poly_envelope(n0, n1):
     for _ in range(n1):
         d = jax.grad(d)
         np.testing.assert_allclose(d(1.0), 0.0, atol=1e-9)
+
+    x = jnp.linspace(1.0, 1e6, 100)
+    y = f(x)
+
+    np.testing.assert_allclose(y, 0.0, atol=1e-9)
+
     jax.config.update("jax_enable_x64", False)
