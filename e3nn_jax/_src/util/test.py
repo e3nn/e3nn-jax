@@ -42,9 +42,7 @@ def assert_equivariant(
 
     out1, out2 = equivariance_test(fun, rng_key, *args_in)
 
-    np.testing.assert_allclose(
-        out1.array,
-        out2.array,
-        atol=atol,
-        rtol=rtol,
-    )
+    def assert_(x, y):
+        np.testing.assert_allclose(x, y, atol=atol, rtol=rtol)
+
+    jax.tree_util.tree_map(assert_, out1, out2)
