@@ -9,7 +9,7 @@ import jax
 import jax.numpy as jnp
 import jax.scipy
 
-from e3nn_jax import axis_angle_to_angles, config, matrix_to_angles, perm, quaternion_to_angles, wigner_D
+from e3nn_jax import axis_angle_to_angles, config, matrix_to_angles, perm, quaternion_to_angles, wigner_D, generators
 
 IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
 
@@ -168,6 +168,17 @@ class Irrep:
         R = d[..., None, None] * R
         k = (1 - d) / 2
         return self.D_from_angles(*matrix_to_angles(R), k)
+
+    def generators(self):
+        r"""Generators of the representation of :math:`SO(3)`.
+
+        Returns:
+            `jax.numpy.ndarray`: array of shape :math:`(3, 2l+1, 2l+1)`
+
+        See Also:
+            `e3nn.generators`
+        """
+        return generators(self.l)
 
     @property
     def dim(self) -> int:
@@ -739,6 +750,14 @@ class Irreps(tuple):
         R = d[..., None, None] * R
         k = (1 - d) / 2
         return self.D_from_angles(*matrix_to_angles(R), k)
+
+    def generators(self) -> jnp.ndarray:
+        """Generators of the representation.
+
+        Returns:
+            `jax.numpy.ndarray`: array of shape :math:`(3, \mathrm{dim}, \mathrm{dim})`
+        """
+        return jax.vmap(jax.scipy.linalg.block_diag)(*[ir.generators() for mul, ir in self for _ in range(mul)])
 
 
 jax.tree_util.register_pytree_node(Irreps, lambda irreps: ((), irreps), lambda irreps, _: irreps)

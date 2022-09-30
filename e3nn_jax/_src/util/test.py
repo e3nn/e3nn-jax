@@ -28,6 +28,7 @@ def equivariance_test(
 def assert_equivariant(
     fun: Callable[[e3nn.IrrepsArray], e3nn.IrrepsArray],
     rng_key: jnp.ndarray,
+    *,
     args_in: Optional[Tuple[e3nn.IrrepsArray, ...]] = None,
     irreps_in: Optional[Tuple[e3nn.Irreps, ...]] = None,
     atol: float = 1e-6,
