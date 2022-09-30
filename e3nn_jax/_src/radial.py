@@ -36,14 +36,13 @@ def soft_one_hot_linspace(
         y_i(x) = \frac{1}{Z} f_i(x)
 
     where :math:`x` is the input and :math:`f_i` is the ith basis function.
-    :math:`Z` is a constant defined (if possible) such that,
+    :math:`Z` is a constant defined such that,
 
     .. math::
 
         \langle \sum_{i=1}^N y_i(x)^2 \rangle_x \approx 1
 
     See the last plot below.
-    Note that ``bessel`` basis cannot be normalized.
 
     Args:
         input (jnp.ndarray): input of shape ``[...]``
