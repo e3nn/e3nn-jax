@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **breaking change** `e3nn.soft_one_hot_linspace` does not support `bessel` anymore. Use `e3nn.bessel` instead.
+- `e3nn.gate` is now more flexible of the input format, see examples in the docstring.
 
 ### Removed
 - **breaking change** `IrrepsArray.split`

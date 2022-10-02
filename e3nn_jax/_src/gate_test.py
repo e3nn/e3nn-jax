@@ -1,20 +1,24 @@
+import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
+import pytest
+from e3nn_jax.util import assert_equivariant
+
+gate = jax.jit(jax.vmap(e3nn.gate))
 
 
-import e3nn_jax as e3nn
+@pytest.mark.parametrize(
+    "irreps",
+    [
+        "0e + 0e + 1e",  # simple case: one extra scalar, one gate scalar, one vector
+        "0e + 1e",  # no extra scalars
+        "0e + 0o",  # no vectors
+        "3x0o + 1e + 2e",  # extra scalars and gates are together
+        "2x2e + 0e + 4x0o + 0e + 1e",  # vectors are all around
+    ],
+)
+def test_gate(keys, irreps: e3nn.Irreps):
+    x = e3nn.normal(irreps, next(keys), (128,))
+    assert jnp.exp(jnp.abs(jnp.log(jnp.mean(gate(x).array ** 2)))) < 1.2
 
-
-def test_gate(keys):
-    f = jax.jit(jax.vmap(e3nn.gate))
-
-    x = e3nn.normal("16x0o + 32x0o + 16x1e + 16x1o", next(keys), (10,))
-    y = f(x)
-
-    assert jnp.abs(jnp.log(jnp.mean(y.array**2))) < 0.2
-
-    R = -e3nn.rand_matrix(next(keys), ())
-    y1 = y.transform_by_matrix(R)
-    y2 = f(x.transform_by_matrix(R))
-
-    assert jnp.allclose(y1.array, y2.array, atol=1e-6)
+    assert_equivariant(gate, next(keys), args_in=(x,))

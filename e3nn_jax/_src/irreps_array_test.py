@@ -6,6 +6,12 @@ import pytest
 from e3nn_jax._src.util.prod import prod
 
 
+def test_empty():
+    x = e3nn.IrrepsArray.from_list("", [], (2, 2))
+    assert x.irreps == e3nn.Irreps([])
+    assert x.shape == (2, 2, 0)
+
+
 def test_convert():
     id = e3nn.IrrepsArray.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
     assert jax.tree_util.tree_map(lambda x: x.shape, id.convert("0x0e + 20x0e + 0x0e")).list == [None, (1, 20, 1), None]
@@ -160,3 +166,8 @@ def test_slice_by_mul():
     y = x.slice_by_mul[2:4]
     assert y.irreps == "0e + 1e"
     np.testing.assert_allclose(y.array, jnp.array([2.0, 3.0, 4.0, 5.0]))
+
+    y = x.slice_by_mul[:0]
+    assert y.irreps == ""
+    assert y.array.shape == (0,)
+    assert len(y.list) == 0

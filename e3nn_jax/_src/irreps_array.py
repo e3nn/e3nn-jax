@@ -22,7 +22,7 @@ def _infer_backend(pytree):
         return np
     if any_jax:
         return jnp
-    return np
+    return jnp
 
 
 def _is_ellipse(x):

@@ -4,40 +4,33 @@ from typing import Callable, Optional
 import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
-from e3nn_jax import IrrepsArray, elementwise_tensor_product, scalar_activation
+from e3nn_jax import IrrepsArray, scalar_activation
 from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
 
 @partial(jax.jit, static_argnums=(1, 2, 3, 4))
 def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) -> IrrepsArray:
-    scalars, gated = input, None
-    for j, (_, ir) in enumerate(input.irreps):
-        if ir.l > 0:
-            scalars, gated = input.slice_by_chunk[:j], input.slice_by_chunk[j:]
-            break
-    assert scalars.irreps.lmax == 0
+    act = {1: even_act, -1: odd_act}
+    gate_act = {1: even_gate_act, -1: odd_gate_act}
 
-    # No gates:
-    if gated is None:
-        return scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
+    scalars = input.filtered(["0e", "0o"])
+    vectors = input.filtered(lambda mul_ir: mul_ir.ir.l > 0)
+    del input
 
-    # Get the scalar gates:
-    gates = None
-    for i in range(len(scalars.irreps)):
-        if scalars.irreps[i:].num_irreps == gated.irreps.num_irreps:
-            scalars, gates = scalars.slice_by_chunk[:i], scalars.slice_by_chunk[i:]
-            break
+    if vectors.shape[-1] == 0:
+        return scalar_activation(scalars, [act[ir.p] for _, ir in scalars.irreps])
 
-    if gates is None:
-        raise ValueError(
-            f"Gate: did not manage to split the input into scalars, gates and gated. "
-            f"({input.irreps}) = ({scalars.irreps}) + ({gated.irreps})."
-        )
+    if scalars.irreps.dim < vectors.irreps.num_irreps:
+        raise ValueError("The input must have at least as many scalars as the number of non-scalar irreps")
 
-    scalars = scalar_activation(scalars, [even_act if ir.p == 1 else odd_act for _, ir in scalars.irreps])
-    gates = scalar_activation(gates, [even_gate_act if ir.p == 1 else odd_gate_act for _, ir in gates.irreps])
+    scalars_extra = scalars.slice_by_mul[: scalars.irreps.dim - vectors.irreps.num_irreps]
+    scalars_gates = scalars.slice_by_mul[scalars.irreps.dim - vectors.irreps.num_irreps :]
+    del scalars
 
-    return e3nn.concatenate([scalars, elementwise_tensor_product(gates, gated)], axis=-1)
+    scalars_extra = scalar_activation(scalars_extra, [act[ir.p] for _, ir in scalars_extra.irreps])
+    scalars_gates = scalar_activation(scalars_gates, [gate_act[ir.p] for _, ir in scalars_gates.irreps])
+
+    return e3nn.concatenate([scalars_extra, scalars_gates * vectors], axis=-1)
 
 
 @overload_for_irreps_without_array((0,))
@@ -55,7 +48,6 @@ def gate(
 
     List of assumptions:
 
-    - The scalars are on the left side of the input.
     - The gate scalars are on the right side of the scalars.
 
     Args:
@@ -69,8 +61,8 @@ def gate(
         IrrepsArray: Output data.
 
     Examples:
-        The 3 even scalars are used as gates.
-        >>> gate("12x0e + 3x0e + 2x1e + 1x2e")
+        The 3 last scalars are used as gates.
+        >>> gate("15x0e + 2x1e + 1x2e")
         12x0e+2x1e+1x2e
 
         Odd scalars used as gates change the parity of the gated quantities:
