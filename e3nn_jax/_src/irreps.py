@@ -3,13 +3,12 @@ import dataclasses
 import itertools
 import warnings
 from functools import partial
-from typing import List, Tuple, Union
+from typing import Callable, List, Tuple, Union
 
 import jax
 import jax.numpy as jnp
 import jax.scipy
-
-from e3nn_jax import axis_angle_to_angles, config, matrix_to_angles, perm, quaternion_to_angles, wigner_D, generators
+from e3nn_jax import axis_angle_to_angles, config, generators, matrix_to_angles, perm, quaternion_to_angles, wigner_D
 
 IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
 
@@ -602,11 +601,11 @@ class Irreps(tuple):
         irreps = Irreps([(mul, ir) for ir, _, mul in out])
         return Ret(irreps, p, inv)
 
-    def filter(self, keep_ir: Union["Irreps", List[Irrep]]) -> "Irreps":
+    def filter(self, keep_ir: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]]) -> "Irreps":
         r"""Filter the irreps.
 
         Args:
-            keep_ir (list of `Irrep`): list of irrep to keep
+            keep_ir (Irreps or list of `Irrep` or function): list of irrep to keep
 
         Returns:
             `Irreps`: filtered irreps
@@ -622,8 +621,49 @@ class Irreps(tuple):
             keep_ir = Irreps(keep_ir)
         if isinstance(keep_ir, Irrep):
             keep_ir = [keep_ir]
+        if callable(keep_ir):
+            return Irreps([mul_ir for mul_ir in self if keep_ir(mul_ir)])
         keep_ir = {Irrep(ir) for ir in keep_ir}
         return Irreps([(mul, ir) for mul, ir in self if ir in keep_ir])
+
+    @property
+    def slice_by_mul(self):
+        r"""Return the slice with respect to the multiplicities.
+
+        Examples:
+            >>> Irreps("1e + 2e + 3x0e").slice_by_mul[1:3]
+            2e+0e
+
+            >>> Irreps("1e + 2e + 3x0e").slice_by_mul[1:]
+            2e+3x0e
+        """
+        return _MulIndexSliceHelper(self)
+
+    @property
+    def slice_by_dim(self):
+        r"""Return the slice with respect to the dimensions.
+
+        Examples:
+            >>> Irreps("1e + 2e + 3x0e").slice_by_dim[:3]
+            1e
+
+            >>> Irreps("1e + 2e + 3x0e").slice_by_dim[3:8]
+            2e
+        """
+        return _DimIndexSliceHelper(self)
+
+    @property
+    def slice_by_chunk(self):
+        r"""Return the slice with respect to the chunks.
+
+        Examples:
+            >>> Irreps("2x1e + 2e + 3x0e").slice_by_chunk[0]
+            2x1e
+
+            >>> Irreps("1e + 2e + 3x0e").slice_by_chunk[1:]
+            2e+3x0e
+        """
+        return _ChunkIndexSliceHelper(self)
 
     @property
     def dim(self) -> int:
@@ -761,3 +801,61 @@ class Irreps(tuple):
 
 
 jax.tree_util.register_pytree_node(Irreps, lambda irreps: ((), irreps), lambda irreps, _: irreps)
+
+
+class _MulIndexSliceHelper:
+    irreps: Irreps
+
+    def __init__(self, irreps) -> None:
+        self.irreps = irreps
+
+    def __getitem__(self, index: slice) -> Irreps:
+        start, stop, stride = index.indices(self.irreps.num_irreps)
+        if stride != 1:
+            raise NotImplementedError("Stride is not implemented for slice_by_mul")
+
+        out = []
+        i = 0
+        for mul, ir in self.irreps:
+            if start <= i and i + mul <= stop:
+                out.append((mul, ir))
+            elif start < i + mul and i < stop:
+                out.append((min(stop, i + mul) - max(start, i), ir))
+            i += mul
+        return Irreps(out)
+
+
+class _DimIndexSliceHelper:
+    irreps: Irreps
+
+    def __init__(self, irreps) -> None:
+        self.irreps = irreps
+
+    def __getitem__(self, index: slice) -> Irreps:
+        start, stop, stride = index.indices(self.irreps.dim)
+        if stride != 1:
+            raise NotImplementedError("Stride is not implemented for slice_by_dim")
+
+        out = []
+        i = 0
+        for mul, ir in self.irreps:
+            if start <= i and i + mul * ir.dim <= stop:
+                out.append((mul, ir))
+            elif start < i + mul * ir.dim and i < stop:
+                dim = min(stop, i + mul * ir.dim) - max(start, i)
+                if dim % ir.dim != 0:
+                    raise ValueError("Cannot split an irreducible representation")
+                out.append((dim // ir.dim, ir))
+            i += mul * ir.dim
+        return Irreps(out)
+
+
+class _ChunkIndexSliceHelper:
+    irreps: Irreps
+
+    def __init__(self, irreps) -> None:
+        self.irreps = irreps
+
+    def __getitem__(self, index: slice) -> Irreps:
+        start, stop, stride = index.indices(self.irreps.num_irreps)
+        return Irreps(self.irreps[start:stop:stride])

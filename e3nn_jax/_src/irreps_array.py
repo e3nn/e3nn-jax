@@ -2,7 +2,7 @@ import functools
 import math
 import operator
 import warnings
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import e3nn_jax as e3nn
 import jax
@@ -500,11 +500,11 @@ class IrrepsArray:
         irreps, p, inv = self.irreps.sort()
         return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1])
 
-    def filtered(self, keep_ir: Union[e3nn.Irreps, List[e3nn.Irrep]]) -> "IrrepsArray":
+    def filtered(self, keep_ir: Union[e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]]) -> "IrrepsArray":
         r"""Filter the irreps.
 
         Args:
-            keep_ir (list of `Irrep`): list of irrep to keep
+            keep_ir (Irreps or list of `Irrep` or function): list of irrep to keep
 
         Example:
             >>> IrrepsArray("0e + 2x1o + 2x0e", jnp.arange(9)).filtered(["1o"])
@@ -514,6 +514,33 @@ class IrrepsArray:
         return IrrepsArray.from_list(
             irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in irreps], self.shape[:-1]
         )
+
+    @property
+    def slice_by_mul(self):
+        r"""Return the slice with respect to the multiplicities.
+
+        See also:
+            :meth:`e3nn.Irreps.slice_by_mul`
+        """
+        return _MulIndexSliceHelper(self)
+
+    @property
+    def slice_by_dim(self):
+        r"""Same as ``__getitem__`` in the irreps dimension.
+
+        See also:
+            :meth:`e3nn.Irreps.slice_by_dim`
+        """
+        return _DimIndexSliceHelper(self)
+
+    @property
+    def slice_by_chunk(self):
+        r"""Return the slice with respect to the chunks.
+
+        See also:
+            :meth:`e3nn.Irreps.slice_by_chunk`
+        """
+        return _ChunkIndexSliceHelper(self)
 
     def repeat_irreps_by_last_axis(self) -> "IrrepsArray":
         r"""Repeat the irreps by the last axis of the array.
@@ -729,35 +756,6 @@ class IrrepsArray:
         assert all(x is None or x.shape[-2:] == (mul, ir.dim) for x, (mul, ir) in zip(new_list, irreps))
 
         return IrrepsArray(irreps=irreps, array=self.array, list=new_list)
-
-    def split(self, indices: Union[List[int], List[Irreps]]) -> List["IrrepsArray"]:
-        """Split the array into subarrays.
-
-        Examples:
-            >>> IrrepsArray("0e + 1e", jnp.array([1.0, 2, 3, 4])).split(["0e", "1e"])
-            [1x0e [1.], 1x1e [2. 3. 4.]]
-
-            >>> IrrepsArray("0e + 1e", jnp.array([1.0, 2, 3, 4])).split([1])
-            [1x0e [1.], 1x1e [2. 3. 4.]]
-        """
-        jnp = _infer_backend(self.array)
-
-        if all(isinstance(i, int) for i in indices):
-            array_parts = jnp.split(self.array, [self.irreps[:i].dim for i in indices], axis=-1)
-            assert len(array_parts) == len(indices) + 1
-            return [
-                IrrepsArray(irreps=self.irreps[i:j], array=array, list=self.list[i:j])
-                for (i, j), array in zip(zip([0] + indices, indices + [len(self.irreps)]), array_parts)
-            ]
-
-        irrepss = [Irreps(i) for i in indices]
-        assert self.irreps.simplify() == sum(irrepss, Irreps()).simplify()
-        x = self
-        array_parts = []
-        for irreps in irrepss:
-            array_parts.append(x[..., : irreps.dim])
-            x = x[..., irreps.dim :]
-        return array_parts
 
     def broadcast_to(self, shape) -> "IrrepsArray":
         """Broadcast the array to a new shape."""
@@ -1184,3 +1182,55 @@ class _IndexUpdateRef:
             )
 
         raise NotImplementedError(f"x.add[i].add(v) with v={type(values)} is not implemented.")
+
+
+class _MulIndexSliceHelper:
+    irreps_array: IrrepsArray
+
+    def __init__(self, irreps_array) -> None:
+        self.irreps_array = irreps_array
+
+    def __getitem__(self, index: slice) -> Irreps:
+        start, stop, stride = index.indices(self.irreps_array.irreps.num_irreps)
+        if stride != 1:
+            raise NotImplementedError("Stride is not implemented slice_by_mul")
+
+        irreps = []
+        list = []
+        i = 0
+        for (mul, ir), x in zip(self.irreps_array.irreps, self.irreps_array.list):
+            if start <= i and i + mul <= stop:
+                irreps.append((mul, ir))
+                list.append(x)
+            elif start < i + mul and i < stop:
+                irreps.append((min(stop, i + mul) - max(start, i), ir))
+                list.append(x[..., max(start, i) - i : min(stop, i + mul) - i, :])
+
+            i += mul
+        return IrrepsArray.from_list(irreps, list, self.irreps_array.shape[:-1])
+
+
+class _DimIndexSliceHelper:
+    irreps_array: IrrepsArray
+
+    def __init__(self, irreps_array) -> None:
+        self.irreps_array = irreps_array
+
+    def __getitem__(self, index: slice) -> Irreps:
+        return self.irreps_array[..., index]
+
+
+class _ChunkIndexSliceHelper:
+    irreps_array: IrrepsArray
+
+    def __init__(self, irreps_array) -> None:
+        self.irreps_array = irreps_array
+
+    def __getitem__(self, index: slice) -> Irreps:
+        start, stop, stride = index.indices(len(self.irreps_array.irreps))
+
+        return IrrepsArray.from_list(
+            self.irreps_array.irreps[start:stop:stride],
+            self.irreps_array.list[start:stop:stride],
+            self.irreps_array.shape[:-1],
+        )

@@ -13,7 +13,7 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
     scalars, gated = input, None
     for j, (_, ir) in enumerate(input.irreps):
         if ir.l > 0:
-            scalars, gated = input.split([j])
+            scalars, gated = input.slice_by_chunk[:j], input.slice_by_chunk[j:]
             break
     assert scalars.irreps.lmax == 0
 
@@ -25,7 +25,7 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
     gates = None
     for i in range(len(scalars.irreps)):
         if scalars.irreps[i:].num_irreps == gated.irreps.num_irreps:
-            scalars, gates = scalars.split([i])
+            scalars, gates = scalars.slice_by_chunk[:i], scalars.slice_by_chunk[i:]
             break
 
     if gates is None:

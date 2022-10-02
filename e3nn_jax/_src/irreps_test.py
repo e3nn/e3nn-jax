@@ -107,3 +107,21 @@ def test_ordering():
         n_test -= 1
         if n_test == 0:
             break
+
+
+def test_slice_by_mul():
+    assert Irreps("10x0e").slice_by_mul[1:4] == Irreps("3x0e")
+    assert Irreps("10x0e + 10x1e").slice_by_mul[5:15] == Irreps("5x0e + 5x1e")
+    assert Irreps("10x0e + 2e + 10x1e").slice_by_mul[5:15] == Irreps("5x0e + 2e + 4x1e")
+
+
+def test_slice_by_dim():
+    assert Irreps("10x0e").slice_by_dim[1:4] == Irreps("3x0e")
+    assert Irreps("10x0e + 10x1e").slice_by_dim[5:13] == Irreps("5x0e + 1e")
+    assert Irreps("10x0e + 2e + 10x1e").slice_by_dim[5:18] == Irreps("5x0e + 2e + 1e")
+
+
+def test_slice_by_chunk():
+    assert Irreps("10x0e").slice_by_chunk[:1] == Irreps("10x0e")
+    assert Irreps("10x0e + 10x1e").slice_by_chunk[1:2] == Irreps("10x1e")
+    assert Irreps("10x0e + 5x1e + 5x1e").slice_by_chunk[1:2] == Irreps("5x1e")

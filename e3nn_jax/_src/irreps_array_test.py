@@ -153,3 +153,10 @@ def test_at_add():
     np.testing.assert_array_equal(y1.list[1], y2.list[1])
     np.testing.assert_array_equal(y1.list[2], y2.list[2])
     np.testing.assert_array_equal(y1.list[3], y2.list[3])
+
+
+def test_slice_by_mul():
+    x = e3nn.IrrepsArray("3x0e + 4x1e", jnp.arange(3 + 4 * 3))
+    y = x.slice_by_mul[2:4]
+    assert y.irreps == "0e + 1e"
+    np.testing.assert_allclose(y.array, jnp.array([2.0, 3.0, 4.0, 5.0]))
