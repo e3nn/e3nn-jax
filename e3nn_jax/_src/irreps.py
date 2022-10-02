@@ -3,7 +3,7 @@ import dataclasses
 import itertools
 import warnings
 from functools import partial
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Tuple, Union, NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -577,7 +577,7 @@ class Irreps(tuple):
         """
         return self.remove_zero_multiplicities().unify()
 
-    def sort(self) -> Tuple["Irreps", Tuple[int, ...], Tuple[int, ...]]:
+    def sort(self) -> NamedTuple("Sort", irreps="Irreps", p=Tuple[int, ...], inv=Tuple[int, ...]):
         r"""Sort the representations.
 
         Returns:
