@@ -362,21 +362,12 @@ class IrrepsArray:
         if (
             (any(map(_is_ellipse, index[:-1])) or len(index) == self.ndim)
             and isinstance(index[-1], slice)
-            and index[-1].step is None
             and isinstance(index[-1].start, (int, type(None)))
             and isinstance(index[-1].stop, (int, type(None)))
+            and index[-1].step is None
             and (index[-1].start is not None or index[-1].stop is not None)
         ):
-            start = index[-1].start if index[-1].start is not None else 0
-            stop = index[-1].stop if index[-1].stop is not None else self.shape[-1]
-
-            if start < 0:
-                start += self.shape[-1]
-            if stop < 0:
-                stop += self.shape[-1]
-
-            start = min(max(0, start), self.shape[-1])
-            stop = min(max(0, stop), self.shape[-1])
+            start, stop, _ = index[-1].indices(self.shape[-1])
 
             irreps_start = None
             irreps_stop = None
@@ -1088,9 +1079,9 @@ class _IndexUpdateRef:
         if (
             (any(map(_is_ellipse, index[:-1])) or len(index) == self.ndim)
             and isinstance(index[-1], slice)
-            and index[-1].step is None
             and isinstance(index[-1].start, (int, type(None)))
             and isinstance(index[-1].stop, (int, type(None)))
+            and index[-1].step is None
             and (index[-1].start is not None or index[-1].stop is not None)
         ):
             raise NotImplementedError("x.at[..., 3:32] is not implemented")
@@ -1190,7 +1181,13 @@ class _MulIndexSliceHelper:
     def __init__(self, irreps_array) -> None:
         self.irreps_array = irreps_array
 
-    def __getitem__(self, index: slice) -> Irreps:
+    def __getitem__(self, index: Union[slice, int]) -> Irreps:
+        try:
+            index = operator.index(index)
+            index = slice(index, index + 1)
+        except TypeError:
+            pass
+
         start, stop, stride = index.indices(self.irreps_array.irreps.num_irreps)
         if stride != 1:
             raise NotImplementedError("Stride is not implemented slice_by_mul")
@@ -1216,7 +1213,7 @@ class _DimIndexSliceHelper:
     def __init__(self, irreps_array) -> None:
         self.irreps_array = irreps_array
 
-    def __getitem__(self, index: slice) -> Irreps:
+    def __getitem__(self, index: Union[slice, int]) -> Irreps:
         return self.irreps_array[..., index]
 
 
@@ -1226,7 +1223,13 @@ class _ChunkIndexSliceHelper:
     def __init__(self, irreps_array) -> None:
         self.irreps_array = irreps_array
 
-    def __getitem__(self, index: slice) -> Irreps:
+    def __getitem__(self, index: Union[slice, int]) -> Irreps:
+        try:
+            index = operator.index(index)
+            index = slice(index, index + 1)
+        except TypeError:
+            pass
+
         start, stop, stride = index.indices(len(self.irreps_array.irreps))
 
         return IrrepsArray.from_list(

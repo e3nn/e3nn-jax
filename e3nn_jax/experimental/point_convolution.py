@@ -57,13 +57,17 @@ class Convolution(hk.Module):
         edge_scalar_attr: jnp.ndarray = None,
     ) -> e3nn.IrrepsArray:
         assert isinstance(node_input, e3nn.IrrepsArray)
+        assert node_input.ndim == 2  # [num_nodes, irreps]
+
         assert isinstance(edge_attr, e3nn.IrrepsArray)
+        assert edge_attr.ndim == 2  # [num_edges, irreps]
 
         if node_attr is None:
             node_attr = e3nn.IrrepsArray.ones("0e", node_input.shape[:-1])
 
         node = e3nn.Linear(node_input.irreps + self.irreps_node_output)(e3nn.tensor_product(node_input, node_attr))
-        node_features, node_self_out = node.split([node_input.irreps, self.irreps_node_output])
+        # node_features, node_self_out = node.split([node_input.irreps, self.irreps_node_output])
+        node_features, node_self_out = node[:, : node_input.irreps.dim], node[:, node_input.irreps.dim :]
 
         edge_features = node_features[edge_src]
         del node_features
