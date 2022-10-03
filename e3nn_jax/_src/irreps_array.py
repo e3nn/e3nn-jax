@@ -343,13 +343,17 @@ class IrrepsArray:
         # Support of x[..., "1e + 2e"]
         if isinstance(index[-1], (e3nn.Irrep, e3nn.MulIrrep, Irreps, str)):
             if not (any(map(_is_ellipse, index[:-1])) or len(index) == self.ndim):
-                raise ValueError("Irreps index must be the last index")
+                raise IndexError(
+                    f"Error in IrrepsArray.__getitem__, Irreps index must be the last index, try x[..., {index[-1]}]."
+                )
 
             irreps = Irreps(index[-1])
 
             ii = [i for i in range(len(self.irreps)) if self.irreps[i : i + len(irreps)] == irreps]
             if len(ii) != 1:
-                raise ValueError(f"Can't slice with {irreps} because it doesn't appear exactly once in {self.irreps}")
+                raise IndexError(
+                    f"Error in IrrepsArray.__getitem__, Can't slice with {irreps} because it doesn't appear exactly once in {self.irreps}."
+                )
             i = ii[0]
 
             return IrrepsArray(
@@ -399,7 +403,7 @@ class IrrepsArray:
                         )[index]
 
             if irreps_start is None or irreps_stop is None:
-                raise ValueError(f"Can't slice with {index[-1]} because it doesn't match with {self.irreps}")
+                raise IndexError(f"Error in IrrepsArray.__getitem__, unable to slice {self.irreps} with {start}:{stop}.")
 
             return IrrepsArray(
                 self.irreps[irreps_start:irreps_stop], self.array[..., start:stop], self.list[irreps_start:irreps_stop]
@@ -407,7 +411,13 @@ class IrrepsArray:
 
         if len(index) == self.ndim or any(map(_is_ellipse, index)):
             if not (_is_ellipse(index[-1]) or _is_none_slice(index[-1])):
-                raise IndexError(f"Indexing with {index[-1]} in the irreps dimension is not supported.")
+                if isinstance(index[-1], int):
+                    raise IndexError(
+                        f"Error in IrrepsArray.__getitem__, integer index in the irreps dimension is not supported, try x[..., {index[-1]}:{index[-1] + 1}] instead."
+                    )
+                raise IndexError(
+                    f"Error in IrrepsArray.__getitem__, indexing the irreps dimension with [..., {index[-1]}] is not supported."
+                )
 
         # Support of x[index, :]
         return IrrepsArray(
@@ -1181,16 +1191,12 @@ class _MulIndexSliceHelper:
     def __init__(self, irreps_array) -> None:
         self.irreps_array = irreps_array
 
-    def __getitem__(self, index: Union[slice, int]) -> Irreps:
-        try:
-            index = operator.index(index)
-            index = slice(index, index + 1)
-        except TypeError:
-            pass
-
+    def __getitem__(self, index: slice) -> Irreps:
+        if not isinstance(index, slice):
+            raise IndexError("IrrepsArray.slice_by_mul only supports slices.")
         start, stop, stride = index.indices(self.irreps_array.irreps.num_irreps)
         if stride != 1:
-            raise NotImplementedError("Stride is not implemented slice_by_mul")
+            raise NotImplementedError("IrrepsArray.slice_by_mul does not support strides.")
 
         irreps = []
         list = []
@@ -1213,7 +1219,9 @@ class _DimIndexSliceHelper:
     def __init__(self, irreps_array) -> None:
         self.irreps_array = irreps_array
 
-    def __getitem__(self, index: Union[slice, int]) -> Irreps:
+    def __getitem__(self, index: slice) -> Irreps:
+        if not isinstance(index, slice):
+            raise IndexError("IrrepsArray.slice_by_dim only supports slices.")
         return self.irreps_array[..., index]
 
 
@@ -1223,13 +1231,9 @@ class _ChunkIndexSliceHelper:
     def __init__(self, irreps_array) -> None:
         self.irreps_array = irreps_array
 
-    def __getitem__(self, index: Union[slice, int]) -> Irreps:
-        try:
-            index = operator.index(index)
-            index = slice(index, index + 1)
-        except TypeError:
-            pass
-
+    def __getitem__(self, index: slice) -> Irreps:
+        if not isinstance(index, slice):
+            raise IndexError("IrrepsArray.slice_by_chunk only supports slices.")
         start, stop, stride = index.indices(len(self.irreps_array.irreps))
 
         return IrrepsArray.from_list(

@@ -1,7 +1,6 @@
 import collections
 import dataclasses
 import itertools
-import operator
 import warnings
 from functools import partial
 from typing import Callable, List, NamedTuple, Tuple, Union
@@ -632,7 +631,7 @@ class Irreps(tuple):
         r"""Return the slice with respect to the multiplicities.
 
         Examples:
-            >>> Irreps("2x1e + 2e").slice_by_mul[2]
+            >>> Irreps("2x1e + 2e").slice_by_mul[2:]
             1x2e
 
             >>> Irreps("1e + 2e + 3x0e").slice_by_mul[1:3]
@@ -653,9 +652,6 @@ class Irreps(tuple):
 
             >>> Irreps("1e + 2e + 3x0e").slice_by_dim[3:8]
             1x2e
-
-            >>> Irreps("1e + 2e + 3x0e").slice_by_dim[-1]
-            1x0e
         """
         return _DimIndexSliceHelper(self)
 
@@ -664,7 +660,7 @@ class Irreps(tuple):
         r"""Return the slice with respect to the chunks.
 
         Examples:
-            >>> Irreps("2x1e + 2e + 3x0e").slice_by_chunk[0]
+            >>> Irreps("2x1e + 2e + 3x0e").slice_by_chunk[:1]
             2x1e
 
             >>> Irreps("1e + 2e + 3x0e").slice_by_chunk[1:]
@@ -816,16 +812,13 @@ class _MulIndexSliceHelper:
     def __init__(self, irreps) -> None:
         self.irreps = irreps
 
-    def __getitem__(self, index: Union[slice, int]) -> Irreps:
-        try:
-            index = operator.index(index)
-            index = slice(index, index + 1)
-        except TypeError:
-            pass
+    def __getitem__(self, index: slice) -> Irreps:
+        if not isinstance(index, slice):
+            raise IndexError("Irreps.slice_by_mul only supports slices.")
 
         start, stop, stride = index.indices(self.irreps.num_irreps)
         if stride != 1:
-            raise NotImplementedError("Stride is not implemented for slice_by_mul")
+            raise NotImplementedError("Irreps.slice_by_mul does not support strides.")
 
         out = []
         i = 0
@@ -844,16 +837,13 @@ class _DimIndexSliceHelper:
     def __init__(self, irreps) -> None:
         self.irreps = irreps
 
-    def __getitem__(self, index: Union[slice, int]) -> Irreps:
-        try:
-            index = operator.index(index)
-            index = slice(index, index + 1)
-        except TypeError:
-            pass
+    def __getitem__(self, index: slice) -> Irreps:
+        if not isinstance(index, slice):
+            raise IndexError("Irreps.slice_by_dim only supports slices.")
 
         start, stop, stride = index.indices(self.irreps.dim)
         if stride != 1:
-            raise NotImplementedError("Stride is not implemented for slice_by_dim")
+            raise NotImplementedError("Irreps.slice_by_dim does not support strides.")
 
         out = []
         i = 0
@@ -863,7 +853,9 @@ class _DimIndexSliceHelper:
             elif start < i + mul * ir.dim and i < stop:
                 dim = min(stop, i + mul * ir.dim) - max(start, i)
                 if dim % ir.dim != 0:
-                    raise ValueError("Cannot split an irreducible representation")
+                    raise ValueError(
+                        f"Error in Irreps.slice_by_dim: {start}:{stop} is not a valid slice for irreps {self.irreps} because it does not split {mul}x{ir} in an equivariant way."
+                    )
                 out.append((dim // ir.dim, ir))
             i += mul * ir.dim
         return Irreps(out)
@@ -875,5 +867,8 @@ class _ChunkIndexSliceHelper:
     def __init__(self, irreps) -> None:
         self.irreps = irreps
 
-    def __getitem__(self, index: Union[slice, int]) -> Irreps:
+    def __getitem__(self, index: slice) -> Irreps:
+        if not isinstance(index, slice):
+            raise IndexError("Irreps.slice_by_chunk only supports slices.")
+
         return Irreps(self.irreps[index])
