@@ -854,7 +854,8 @@ class _DimIndexSliceHelper:
                 dim = min(stop, i + mul * ir.dim) - max(start, i)
                 if dim % ir.dim != 0:
                     raise ValueError(
-                        f"Error in Irreps.slice_by_dim: {start}:{stop} is not a valid slice for irreps {self.irreps} because it does not split {mul}x{ir} in an equivariant way."
+                        f"Error in Irreps.slice_by_dim: {start}:{stop} is not a valid slice for irreps {self.irreps} "
+                        f"because it does not split {mul}x{ir} in an equivariant way."
                     )
                 out.append((dim // ir.dim, ir))
             i += mul * ir.dim

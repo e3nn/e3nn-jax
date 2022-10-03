@@ -352,7 +352,8 @@ class IrrepsArray:
             ii = [i for i in range(len(self.irreps)) if self.irreps[i : i + len(irreps)] == irreps]
             if len(ii) != 1:
                 raise IndexError(
-                    f"Error in IrrepsArray.__getitem__, Can't slice with {irreps} because it doesn't appear exactly once in {self.irreps}."
+                    f"Error in IrrepsArray.__getitem__, Can't slice with {irreps} "
+                    f"because it doesn't appear exactly once in {self.irreps}."
                 )
             i = ii[0]
 
@@ -413,10 +414,12 @@ class IrrepsArray:
             if not (_is_ellipse(index[-1]) or _is_none_slice(index[-1])):
                 if isinstance(index[-1], int):
                     raise IndexError(
-                        f"Error in IrrepsArray.__getitem__, integer index in the irreps dimension is not supported, try x[..., {index[-1]}:{index[-1] + 1}] instead."
+                        f"Error in IrrepsArray.__getitem__, integer index in the irreps dimension is not supported, "
+                        f"try x[..., {index[-1]}:{index[-1] + 1}] instead."
                     )
                 raise IndexError(
-                    f"Error in IrrepsArray.__getitem__, indexing the irreps dimension with [..., {index[-1]}] is not supported."
+                    f"Error in IrrepsArray.__getitem__, indexing the irreps dimension with [..., {index[-1]}] "
+                    "is not supported."
                 )
 
         # Support of x[index, :]
