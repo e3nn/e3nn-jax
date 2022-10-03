@@ -58,10 +58,10 @@ def test_indexing():
     np.testing.assert_allclose(x[..., 1, -5:].array, x[:3, 1, "2e"].array)
 
     x = e3nn.IrrepsArray.zeros("2x1e + 2x1e", (3, 3))
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         x[..., "2x1e"]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         x[..., :2]
 
     x = e3nn.IrrepsArray("2x1e + 2x1e", jnp.array([0.1, 0.2, 0.3, 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3]))
