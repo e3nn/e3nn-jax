@@ -1,12 +1,10 @@
-from typing import List, NamedTuple, Optional, Tuple, Union
+from math import sqrt
+from typing import Callable, List, NamedTuple, Optional, Tuple, Union
 
 import haiku as hk
 import jax
 import jax.numpy as jnp
-
 from e3nn_jax import Irreps, IrrepsArray, config
-from math import sqrt
-
 from e3nn_jax._src.core_tensor_product import _sum_tensors
 
 
@@ -192,6 +190,7 @@ class Linear(hk.Module):
         biases: bool = False,
         path_normalization: Union[str, float] = None,
         gradient_normalization: Union[str, float] = None,
+        get_parameter: Optional[Callable[[str, Instruction], jnp.ndarray]] = None,
     ):
         super().__init__()
 
@@ -202,6 +201,16 @@ class Linear(hk.Module):
         self.biases = biases
         self.path_normalization = path_normalization
         self.gradient_normalization = gradient_normalization
+        if get_parameter is None:
+
+            def get_parameter(name: str, instruction: Instruction):
+                return hk.get_parameter(
+                    name,
+                    shape=instruction.path_shape,
+                    init=hk.initializers.RandomNormal(stddev=instruction.weight_std),
+                )
+
+        self.get_parameter = get_parameter
 
     def __call__(self, input: IrrepsArray) -> IrrepsArray:
         if self.irreps_in is not None:
@@ -222,17 +231,9 @@ class Linear(hk.Module):
             gradient_normalization=self.gradient_normalization,
         )
         w = [
-            hk.get_parameter(
-                f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}",
-                shape=ins.path_shape,
-                init=hk.initializers.RandomNormal(stddev=ins.weight_std),
-            )
+            self.get_parameter(f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", ins)
             if ins.i_in == -1
-            else hk.get_parameter(
-                f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
-                shape=ins.path_shape,
-                init=hk.initializers.RandomNormal(stddev=ins.weight_std),
-            )
+            else self.get_parameter(f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}", ins)
             for ins in lin.instructions
         ]
         f = lambda x: lin(w, x)
