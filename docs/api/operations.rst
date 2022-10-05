@@ -28,3 +28,6 @@ Operations
 .. autoclass:: e3nn_jax.TensorSquare
     :members:
 
+
+.. autoclass:: e3nn_jax.SymmetricTensorProduct
+    :members:

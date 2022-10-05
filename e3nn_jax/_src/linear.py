@@ -167,8 +167,8 @@ class Linear(hk.Module):
 
     Args:
         irreps_out (`e3nn_jax.Irreps`): output representations
-        channel_out (optional int): if specified, the last axis is assumed to be the channel axis
-            and is mixed with the irreps.
+        channel_out (optional int): if specified, the last axis before the irreps
+            is assumed to be the channel axis and is mixed with the irreps.
 
     Example:
         >>> import e3nn_jax as e3nn
