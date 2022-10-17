@@ -559,28 +559,19 @@ class IrrepsArray:
         array = self.array.reshape(self.shape[:-2] + (irreps.dim,))
         return IrrepsArray(irreps, array)
 
-    def repeat_mul_by_last_axis(self) -> "IrrepsArray":
-        r"""Repeat the multiplicity by the last axis of the array.
-
-        Example:
-            >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
-            >>> x.repeat_mul_by_last_axis()
-            2x0e+2x1e [0 4 1 2 3 5 6 7]
-        """
-        assert len(self.shape) >= 2
-        irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
-        list = [None if x is None else x.reshape(self.shape[:-2] + (mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)]
-        return IrrepsArray.from_list(irreps, list, self.shape[:-2])
-
     def factor_irreps_to_last_axis(self) -> "IrrepsArray":  # noqa: D102
         raise NotImplementedError
 
-    def factor_mul_to_last_axis(self, factor=None) -> "IrrepsArray":
+    # Move multiplicity to the previous last axis and back
+
+    def mul_to_axis(self, factor=None) -> "IrrepsArray":
         r"""Create a new axis in the previous last position by factoring the multiplicities.
+
+        Increase the dimension of the array by 1.
 
         Example:
             >>> x = IrrepsArray("6x0e + 3x1e", jnp.arange(15))
-            >>> x.factor_mul_to_last_axis()
+            >>> x.mul_to_axis()
             2x0e+1x1e
             [[ 0  1  6  7  8]
              [ 2  3  9 10 11]
@@ -598,6 +589,24 @@ class IrrepsArray:
             for (mul, ir), x in zip(irreps, self.list)
         ]
         return IrrepsArray.from_list(irreps, list, self.shape[:-1] + (factor,))
+
+    def axis_to_mul(self) -> "IrrepsArray":
+        r"""Repeat the multiplicity by the previous last axis of the array.
+
+        Decrease the dimension of the array by 1.
+
+        Example:
+            >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
+            >>> x.axis_to_mul()
+            2x0e+2x1e [0 4 1 2 3 5 6 7]
+        """
+        assert len(self.shape) >= 2
+        irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
+        list = [None if x is None else x.reshape(self.shape[:-2] + (mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)]
+        return IrrepsArray.from_list(irreps, list, self.shape[:-2])
+
+    repeat_mul_by_last_axis = axis_to_mul
+    factor_mul_to_last_axis = mul_to_axis
 
     def transform_by_angles(self, alpha: float, beta: float, gamma: float, k: int = 0) -> "IrrepsArray":
         r"""Rotate the data by angles according to the irreps.

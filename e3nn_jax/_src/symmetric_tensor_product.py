@@ -94,12 +94,15 @@ class SymmetricTensorProduct(hk.Module):
                             (mul, x.shape[0]),
                         )  # [multiplicity, num_channel]
 
-                        c_tensor = jnp.einsum("...ki,kc->c...i", u, w)  # [num_channel, (irreps_x.dim)^order, ir_out.dim]
-
                         if ir_out not in out:
-                            out[ir_out] = ("special", jnp.einsum("...jki,kc,cj->c...i", u, w, x.array))
+                            out[ir_out] = (
+                                "special",
+                                jnp.einsum("...jki,kc,cj->c...i", u, w, x.array),
+                            )  # [num_channel, (irreps_x.dim)^(oder-1), ir_out.dim]
                         else:
-                            out[ir_out] += c_tensor
+                            out[ir_out] += jnp.einsum(
+                                "...ki,kc->c...i", u, w
+                            )  # [num_channel, (irreps_x.dim)^order, ir_out.dim]
 
                 # ((w3 x + w2) x + w1) x
                 #  \----------------/
