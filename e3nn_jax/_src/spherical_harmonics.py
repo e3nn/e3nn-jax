@@ -53,7 +53,7 @@ def sh(
 
     Args:
         irreps_out (`Irreps` or int or Sequence[int]): the output irreps
-        input (`jax.numpy.ndarray`): cartesian coordinates
+        input (`jax.numpy.ndarray`): cartesian coordinates, shape (..., 3)
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_jvp])
@@ -434,17 +434,17 @@ def _sh_alpha(l: int, alpha: jnp.ndarray) -> jnp.ndarray:
     )
 
 
-def _sh_beta(lmax: int, cos_beta: jnp.ndarray) -> jnp.ndarray:
+def _sh_beta(lmax: int, cos_betas):
     r"""Beta dependence of spherical harmonics.
 
     Args:
         lmax: l value
-        cos_beta: input array of shape ``(...)``
+        cos_betas: input array of shape ``(...)``
 
     Returns:
         Array of shape ``(..., (lmax + 1) * (lmax + 2) // 2 + 1)``
     """
-    sh_y = legendre(lmax, cos_beta, 1.0)  # [(lmax + 1) * (lmax + 2) // 2, ...]
+    sh_y = legendre(lmax, cos_betas, 1.0)  # [(lmax + 1) * (lmax + 2) // 2, ...]
     sh_y = jnp.moveaxis(sh_y, 0, -1)  # [..., (lmax + 1) * (lmax + 2) // 2]
 
     sh_y = sh_y * np.array(
