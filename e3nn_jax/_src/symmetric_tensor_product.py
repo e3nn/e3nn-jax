@@ -12,7 +12,7 @@ import jax.numpy as jnp
 class SymmetricTensorProduct(hk.Module):
     r"""Symmetric tensor product contraction with parameters
 
-    Equivalent to the following code:
+    Equivalent to the following code executed in parallel on the channel dimension:
 
     ```python
     e3nn.Linear(irreps_out)(
@@ -24,6 +24,8 @@ class SymmetricTensorProduct(hk.Module):
         ])
     )
     ```
+
+    Each channel has its own parameters.
 
     Args:
         orders (tuple of int): orders of the tensor product
