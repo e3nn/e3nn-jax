@@ -12,18 +12,16 @@ import jax.numpy as jnp
 class SymmetricTensorProduct(hk.Module):
     r"""Symmetric tensor product contraction with parameters
 
-    Equivalent to the following code executed in parallel on the channel dimension:
+    Equivalent to the following code executed in parallel on the channel dimension::
 
-    ```python
-    e3nn.Linear(irreps_out)(
-        e3nn.concatenate([
-            x,
-            tensor_product(x, x),  # additionally keeping only the symmetric terms
-            tensor_product(tensor_product(x, x), x),
-            ...
-        ])
-    )
-    ```
+        e3nn.Linear(irreps_out)(
+            e3nn.concatenate([
+                x,
+                tensor_product(x, x),  # additionally keeping only the symmetric terms
+                tensor_product(tensor_product(x, x), x),
+                ...
+            ])
+        )
 
     Each channel has its own parameters.
 
