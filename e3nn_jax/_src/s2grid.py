@@ -160,16 +160,16 @@ def FromS2Grid(x, res=None, lmax=None, normalization="component", lmax_in=None):
     r"""Transform signal on the sphere into spherical tensor
     The inverse transformation of `ToS2Grid`
     Args:
-        x: `torch.Tensor`
-            tensor of shape ``[..., beta, alpha]``
+        x: `jnp.ndarray`
+            signal of shape ``(..., beta, alpha)``
         res: int, tuple of int
             resolution in ``beta`` and in ``alpha``
         lmax: int
         normalization: {'norm', 'component', 'integral'}
         lmax_in: int, optional
     Returns:
-        `torch.Tensor`
-            tensor of shape ``(..., (l+1)^2)``
+        `jnp.ndarray`
+            array of coefficients, of shape ``(..., (l+1)^2)``
     """
     assert normalization in ["norm", "component", "integral"], "normalization needs to be 'norm', 'component' or 'integral'"
 
@@ -179,14 +179,13 @@ def FromS2Grid(x, res=None, lmax=None, normalization="component", lmax_in=None):
         lmax, res_beta, res_alpha = _complete_lmax_res(lmax, *res)
 
     if lmax_in is None:
-        lmax_in = lmax
+        lmax_in = lmax # what is lmax_in?
 
     betas, alphas, shb, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha)
     # alphas: (res_alpha, ); betas: (res_beta, )
     # sh_alpha: (res_alpha, 2*l+1); sh_beta: (res_beta, (l+1)(l+2)/2)
 
     # normalize such that it is the inverse of ToS2Grid
-    # is n the normalization constant?
     n = None
     if normalization == "component":
         n = (
@@ -201,7 +200,6 @@ def FromS2Grid(x, res=None, lmax=None, normalization="component", lmax_in=None):
     assert res_beta == x.shape[-2]
     assert res_alpha == x.shape[-1]
 
-    # m = conversion matrix between linear and matrix? see _expand_matrix's docstring
     m = _expand_matrix(range(lmax + 1))  # [l, m, i]
     shb = _rollout_sh(shb, lmax)
     
@@ -213,12 +211,9 @@ def FromS2Grid(x, res=None, lmax=None, normalization="component", lmax_in=None):
     size = x.shape[:-2]
     x = x.reshape(-1, res_beta, res_alpha)
 
-    # sa, sm = sha.shape
-    # if sm <= sa and sa % 2 == 1:
-    #     int_a = rfft(x, sm // 2) # Fourier-transformed x
-    # else:
     # integrate over alpha
-    int_a = jnp.einsum("am,zba->zbm", sha, x)
+    int_a = rfft(x, lmax) # Fourier-transformed x
+    # int_a = jnp.einsum("am,zba->zbm", sha, x) # [..., res_beta, 2*l+1]
     # integrate over beta
     int_b = jnp.einsum("mbi,zbm->zi", shb, int_a)
     return int_b.reshape(*size, int_b.shape[1])
@@ -229,17 +224,18 @@ def ToS2Grid(coeffs, lmax=None, res=None, normalization="component"):
     The inverse transformation of `FromS2Grid`
     
     Args:
-        coeffs: `torch.Tensor`
-            tensor of shape ``(..., (l+1)^2)`` - coefficients of the spherical harmonics
+        coeffs: `jnp.ndarray`
+            coefficients of the spherical harmonics - array of shape ``(..., (lmax+1)**2)``
         lmax: int
         res: int, tuple of int
             resolution in ``beta`` and in ``alpha``
         normalization : {'norm', 'component', 'integral'}
     Returns:
-        `torch.Tensor`
-            tensor of shape ``[..., beta, alpha]``
+        `jnp.array`
+            signal of shape ``(..., beta, alpha)``
     """
     assert normalization in ["norm", "component", "integral"], "normalization needs to be 'norm', 'component' or 'integral'"
+    assert coeffs.shape[-1] == (lmax + 1)**2, "size of coefficient matrix doesn't match lmax"
 
     if isinstance(res, int) or res is None:
         lmax, res_beta, res_alpha = _complete_lmax_res(lmax, res, None)
@@ -265,7 +261,7 @@ def ToS2Grid(coeffs, lmax=None, res=None, normalization="component"):
         n = jnp.ones(lmax + 1)
     m = _expand_matrix(range(lmax + 1))  # [l, m, i]
     # put beta component in summable form
-    shb = _rollout_sh(shb, l)
+    shb = _rollout_sh(shb, lmax)
     shb = jnp.einsum("lmj,bj,lmi,l->mbi", m, shb, m, n)  # [m, b, i]
 
     size = coeffs.shape[:-1]
@@ -281,6 +277,26 @@ def ToS2Grid(coeffs, lmax=None, res=None, normalization="component"):
     signal = jnp.einsum("am,zbm->zba", sha, signal_b)
     return signal.reshape(*size, *signal.shape[1:])
 
+
+def rfft(x, l):
+    r"""Real fourier transform
+    Args:
+        x: `jnp.ndarray`
+            input array of shape ``(..., res_beta, res_alpha)``
+        l: int
+            value of `l` for which the transform is being run
+    Returns:
+        `jnp.ndarray`
+            transformed values - array of shape ``(..., res_beta, 2*l+1)``
+    """
+    x_reshaped = x.reshape((-1, x.shape[-1]))
+    x_transformed_c = jnp.fft.rfft(x_reshaped) # (..., 2*l+1)
+    x_transformed = jnp.concatenate([
+        jnp.flip(jnp.imag(x_transformed_c[..., 1:]), -1) * -np.sqrt(2),
+        jnp.real(x_transformed_c[..., :1]),
+        jnp.real(x_transformed_c[..., 1:]) * np.sqrt(2)
+    ], axis=-1)
+    return x_transformed.reshape((*x.shape[:-1], 2*l+1))
 
 
 def _expand_matrix(ls):
