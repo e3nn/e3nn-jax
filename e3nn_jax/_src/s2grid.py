@@ -156,7 +156,7 @@ def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int):
     return betas, alphas, sh_beta, sh_alpha
 
 
-def FromS2Grid(x, res=None, lmax=None, normalization="component", lmax_in=None):
+def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=None):
     r"""Transform signal on the sphere into spherical tensor
     The inverse transformation of `ToS2Grid`
     Args:
@@ -171,39 +171,34 @@ def FromS2Grid(x, res=None, lmax=None, normalization="component", lmax_in=None):
         `jnp.ndarray`
             array of coefficients, of shape ``(..., (l+1)^2)``
     """
-    assert normalization in ["norm", "component", "integral"], "normalization needs to be 'norm', 'component' or 'integral'"
-
-    if isinstance(res, int) or res is None:
-        lmax, res_beta, res_alpha = _complete_lmax_res(lmax, res, None)
-    else:
-        lmax, res_beta, res_alpha = _complete_lmax_res(lmax, *res)
+    res_beta, res_alpha = x.shape[-2:]
 
     if lmax_in is None:
         lmax_in = lmax # what is lmax_in?
 
-    betas, alphas, shb, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha)
-    # alphas: (res_alpha, ); betas: (res_beta, )
+    _, _, shb, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha)
     # sh_alpha: (res_alpha, 2*l+1); sh_beta: (res_beta, (l+1)(l+2)/2)
 
     # normalize such that it is the inverse of ToS2Grid
     n = None
+    # lmax_in = max frequency in input; lmax = max freq in output
     if normalization == "component":
         n = (
             jnp.sqrt(4 * jnp.pi)
             * jnp.asarray([jnp.sqrt(2 * l + 1) for l in range(lmax + 1)])
             * jnp.sqrt(lmax_in + 1)
         )
-    if normalization == "norm":
+    elif normalization == "norm":
         n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1) * jnp.sqrt(lmax_in + 1)
-    if normalization == "integral":
+    elif normalization == "integral":
         n = 4 * jnp.pi * jnp.ones(lmax + 1)
-    assert res_beta == x.shape[-2]
-    assert res_alpha == x.shape[-1]
+    else:
+        raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
     m = _expand_matrix(range(lmax + 1))  # [l, m, i]
     shb = _rollout_sh(shb, lmax)
     
-    assert res_beta % 2 == 0
+    assert res_beta % 2 == 0, "res_beta needs to be even for quadrature weights to be computed properly"
     qw = _quadrature_weights(res_beta // 2) * res_beta**2 / res_alpha  # [b]
     # beta integrand
     shb = jnp.einsum("lmj,bj,lmi,l,b->mbi", m, shb, m, n, qw)  # [m, b, i]
@@ -219,7 +214,7 @@ def FromS2Grid(x, res=None, lmax=None, normalization="component", lmax_in=None):
     return int_b.reshape(*size, int_b.shape[1])
 
 
-def ToS2Grid(coeffs, lmax=None, res=None, normalization="component"):
+def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
     r"""Transform spherical tensor into signal on the sphere
     The inverse transformation of `FromS2Grid`
     
@@ -234,15 +229,14 @@ def ToS2Grid(coeffs, lmax=None, res=None, normalization="component"):
         `jnp.array`
             signal of shape ``(..., beta, alpha)``
     """
-    assert normalization in ["norm", "component", "integral"], "normalization needs to be 'norm', 'component' or 'integral'"
-    assert coeffs.shape[-1] == (lmax + 1)**2, "size of coefficient matrix doesn't match lmax"
+    lmax = int(np.sqrt(coeffs.shape[-1])) - 1
 
     if isinstance(res, int) or res is None:
         lmax, res_beta, res_alpha = _complete_lmax_res(lmax, res, None)
     else:
         lmax, res_beta, res_alpha = _complete_lmax_res(lmax, *res)
 
-    betas, alphas, shb, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha)
+    _, _, shb, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha)
 
     n = None
     if normalization == "component":
@@ -253,12 +247,15 @@ def ToS2Grid(coeffs, lmax=None, res=None, normalization="component"):
             * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)])
             / jnp.sqrt(lmax + 1)
         )
-    if normalization == "norm":
+    elif normalization == "norm":
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1/(2L+1)
         n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1) / jnp.sqrt(lmax + 1)
-    if normalization == "integral":
+    elif normalization == "integral":
         n = jnp.ones(lmax + 1)
+    else:
+        raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
+
     m = _expand_matrix(range(lmax + 1))  # [l, m, i]
     # put beta component in summable form
     shb = _rollout_sh(shb, lmax)
@@ -278,7 +275,7 @@ def ToS2Grid(coeffs, lmax=None, res=None, normalization="component"):
     return signal.reshape(*size, *signal.shape[1:])
 
 
-def rfft(x, l):
+def rfft(x: jnp.ndarray, l: int):
     r"""Real fourier transform
     Args:
         x: `jnp.ndarray`
