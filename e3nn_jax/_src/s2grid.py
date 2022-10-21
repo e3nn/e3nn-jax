@@ -269,7 +269,7 @@ def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
 
     # sa, sm = sha.shape
     # if sa >= sm and sa % 2 == 1:
-    #     c = irfft(c, sa)
+    #     signal = irfft(signal_b, sa)
     # else:
     signal = jnp.einsum("am,zbm->zba", sha, signal_b)
     return signal.reshape(*size, *signal.shape[1:])
@@ -289,9 +289,9 @@ def rfft(x: jnp.ndarray, l: int):
     x_reshaped = x.reshape((-1, x.shape[-1]))
     x_transformed_c = jnp.fft.rfft(x_reshaped) # (..., 2*l+1)
     x_transformed = jnp.concatenate([
-        jnp.flip(jnp.imag(x_transformed_c[..., 1:]), -1) * -np.sqrt(2),
+        jnp.flip(jnp.imag(x_transformed_c[..., 1:l+1]), -1) * -np.sqrt(2),
         jnp.real(x_transformed_c[..., :1]),
-        jnp.real(x_transformed_c[..., 1:]) * np.sqrt(2)
+        jnp.real(x_transformed_c[..., 1:l+1]) * np.sqrt(2)
     ], axis=-1)
     return x_transformed.reshape((*x.shape[:-1], 2*l+1))
 
