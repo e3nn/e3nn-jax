@@ -7,7 +7,7 @@ import jax.numpy as jnp
 
 
 def sus(x):
-    r"""Soft Unit Step function.
+    r"""Smooth Unit Step function.
 
     ``-inf->0, 0->0, 2->0.6, +inf->1``
 
@@ -19,6 +19,26 @@ def sus(x):
 
     """
     return jnp.where(x > 0.0, jnp.exp(-1.0 / jnp.where(x > 0.0, x, 1.0)), 0.0)
+
+
+def soft_envelope(
+    x: jnp.ndarray,
+    x_max: float = 1.0,
+    arg_multiplicator: float = 2.0,
+    value_at_origin: float = 1.2,
+) -> jnp.ndarray:
+    r"""Smooth envelope function.
+
+    Args:
+        x (jnp.ndarray): input of shape ``[...]``
+        x_max (float): cutoff value
+
+    Returns:
+        jnp.ndarray: smooth (:math:`C^\infty`) envelope function of shape ``[...]``
+    """
+    with jax.ensure_compile_time_eval():
+        cste = value_at_origin / sus(arg_multiplicator)
+    return cste * sus(arg_multiplicator * (1.0 - x / x_max))
 
 
 def soft_one_hot_linspace(
@@ -171,6 +191,12 @@ def soft_one_hot_linspace(
 
 def bessel(x: jnp.ndarray, n: int, x_max: float = 1.0) -> jnp.ndarray:
     r"""Bessel basis functions.
+
+    They obey the following normalization:
+
+    .. math::
+
+        \int_0^c r^2 B_n(r, c) B_m(r, c) dr = \delta_{nm}
 
     Args:
         x (jnp.ndarray): input of shape ``[...]``
