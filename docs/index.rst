@@ -350,6 +350,7 @@ API
 
     api/irreps
     api/irreps_array
+    api/tensor_products
     api/operations
     api/math
     api/nn

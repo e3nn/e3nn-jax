@@ -241,6 +241,9 @@ class IrrepsArray:
             raise ValueError(f"IrrepsArray({self.irreps}) == scalar(shape={other.shape}) is not equivariant.")
         return IrrepsArray(irreps=self.irreps, array=self.array == other)
 
+    def __neg__(self: "IrrepsArray") -> "IrrepsArray":
+        return IrrepsArray(irreps=self.irreps, array=-self.array, list=[-x if x is not None else None for x in self.list])
+
     def __add__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
@@ -276,7 +279,8 @@ class IrrepsArray:
         if isinstance(other, IrrepsArray):
             if self.irreps.lmax > 0 and other.irreps.lmax > 0:
                 raise ValueError(
-                    "x * y with both x and y non scalar and ambiguous. Use e3nn.elementwise_tensor_product instead."
+                    "x * y with both x and y non scalar and ambiguous. "
+                    "Use e3nn.elementwise_tensor_product or e3nn.tensor_product instead."
                 )
             return e3nn.elementwise_tensor_product(self, other)
 
