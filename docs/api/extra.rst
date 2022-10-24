@@ -5,12 +5,6 @@ Extra Stuff
 .. autofunction:: e3nn_jax.sus
 
 
-.. autofunction:: e3nn_jax.soft_one_hot_linspace
-
-
-.. autofunction:: e3nn_jax.bessel
-
-
 .. autofunction:: e3nn_jax.scalar_activation
 
 
@@ -21,15 +15,3 @@ Extra Stuff
 
 
 .. autofunction:: e3nn_jax.radius_graph
-
-
-.. autofunction:: e3nn_jax.poly_envelope
-
-
-.. autofunction:: e3nn_jax.soft_envelope
-
-
-.. autofunction:: e3nn_jax.reduced_tensor_product_basis
-
-
-.. autofunction:: e3nn_jax.reduced_symmetric_tensor_product_basis

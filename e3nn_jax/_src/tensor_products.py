@@ -313,7 +313,16 @@ def FunctionalTensorSquare(irreps_in: Irreps, irreps_out: Irreps, irrep_normaliz
 
 
 class TensorSquare(hk.Module):
-    def __init__(self, irreps_out, *, irreps_in=None, init=None):
+    """Tensor product of a tensor with itself.
+
+    The difference with :func:`e3nn_jax.reduced_symmetric_tensor_product_basis` and :func:`e3nn_jax.SymmetricTensorProduct`
+    is the proper normalization.
+
+    Args:
+        irreps_out (Irreps): Irreps of the output
+    """
+
+    def __init__(self, irreps_out: Irreps, *, irreps_in=None, init=None):
         super().__init__()
 
         self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None

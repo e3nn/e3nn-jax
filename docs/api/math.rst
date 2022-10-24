@@ -1,5 +1,5 @@
-Primitive Math Functions
-========================
+Basic functions for Rotations
+=============================
 
 
 .. autofunction:: e3nn_jax.rand_matrix

@@ -353,6 +353,7 @@ API
     api/operations
     api/math
     api/nn
+    api/radial
     api/extra
 
 .. _jax: https://github.com/google/jax

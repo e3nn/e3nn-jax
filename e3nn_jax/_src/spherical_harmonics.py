@@ -21,35 +21,7 @@ def sh(
 ) -> jnp.ndarray:
     r"""Spherical harmonics.
 
-    .. image:: https://user-images.githubusercontent.com/333780/79220728-dbe82c00-7e54-11ea-82c7-b3acbd9b2246.gif
-
-    | Polynomials defined on the 3d space :math:`Y^l: \mathbb{R}^3 \longrightarrow \mathbb{R}^{2l+1}`
-    | Usually restricted on the sphere (with ``normalize=True``) :math:`Y^l: S^2 \longrightarrow \mathbb{R}^{2l+1}`
-    | who satisfies the following properties:
-
-    * are polynomials of the cartesian coordinates ``x, y, z``
-    * is equivariant :math:`Y^l(R x) = D^l(R) Y^l(x)`
-    * are orthogonal :math:`\int_{S^2} Y^l_m(x) Y^j_n(x) dx = \text{cste} \; \delta_{lj} \delta_{mn}`
-
-    The value of the constant depends on the choice of normalization.
-
-    It obeys the following property:
-
-    .. math::
-
-        Y^{l+1}_i(x) &= \text{cste}(l) \; & C_{ijk} Y^l_j(x) x_k
-
-        \partial_k Y^{l+1}_i(x) &= \text{cste}(l) \; (l+1) & C_{ijk} Y^l_j(x)
-
-    Where :math:`C` are the `clebsch_gordan`.
-
-    .. note::
-
-        This function match with this table of standard real spherical harmonics from Wikipedia_
-        when ``normalize=True``, ``normalization='integral'`` and is called with the argument in the order ``y,z,x``
-        (instead of ``x,y,z``).
-
-    .. _Wikipedia: https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics
+    Same function as :func:`e3nn_jax.spherical_harmonics` but with a simple interface.
 
     Args:
         irreps_out (`Irreps` or int or Sequence[int]): the output irreps

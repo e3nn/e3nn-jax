@@ -1,5 +1,5 @@
-Operations
-==========
+Equivariant Operations
+======================
 
 
 .. autofunction:: e3nn_jax.spherical_harmonics
@@ -15,6 +15,21 @@ Operations
     :members:
 
 
+.. autoclass:: e3nn_jax.TensorSquare
+    :members:
+
+
+.. autoclass:: e3nn_jax.SymmetricTensorProduct
+    :members:
+
+
+
+.. autofunction:: e3nn_jax.reduced_tensor_product_basis
+
+
+.. autofunction:: e3nn_jax.reduced_symmetric_tensor_product_basis
+
+
 .. autofunction:: e3nn_jax.elementwise_tensor_product
 
 
@@ -23,11 +38,3 @@ Operations
 
 
 .. autofunction:: e3nn_jax.sh
-
-
-.. autoclass:: e3nn_jax.TensorSquare
-    :members:
-
-
-.. autoclass:: e3nn_jax.SymmetricTensorProduct
-    :members:

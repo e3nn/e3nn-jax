@@ -29,6 +29,18 @@ def soft_envelope(
 ) -> jnp.ndarray:
     r"""Smooth envelope function.
 
+    .. jupyter-execute::
+        :hide-code:
+
+        import jax.numpy as jnp
+        import e3nn_jax as e3nn
+        import matplotlib.pyplot as plt
+
+    .. jupyter-execute::
+
+        x = jnp.linspace(0.0, 1.0, 100)
+        plt.plot(x, e3nn.soft_envelope(x))
+
     Args:
         x (jnp.ndarray): input of shape ``[...]``
         x_max (float): cutoff value
