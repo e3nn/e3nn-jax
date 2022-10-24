@@ -188,6 +188,7 @@ def tensor_product(
 def elementwise_tensor_product(
     input1: IrrepsArray,
     input2: IrrepsArray,
+    *,
     filter_ir_out=None,
     irrep_normalization: str = None,
 ) -> IrrepsArray:
@@ -260,6 +261,79 @@ def elementwise_tensor_product(
     )
 
     return naive_broadcast_decorator(tp.left_right)(input1, input2)
+
+
+def tensor_square(
+    input: IrrepsArray,
+    *,
+    irrep_normalization: Optional[str] = None,
+    custom_einsum_jvp: bool = None,
+    fused: bool = None,
+) -> IrrepsArray:
+    if irrep_normalization is None:
+        irrep_normalization = config("irrep_normalization")
+
+    assert irrep_normalization in ["component", "norm", "none"]
+
+    irreps_out = []
+
+    instructions = []
+    for i_1, (mul_1, ir_1) in enumerate(input.irreps):
+        for i_2, (mul_2, ir_2) in enumerate(input.irreps):
+            for ir_out in ir_1 * ir_2:
+
+                if irrep_normalization == "component":
+                    alpha = ir_out.dim
+                elif irrep_normalization == "norm":
+                    alpha = ir_1.dim * ir_2.dim
+                elif irrep_normalization == "none":
+                    alpha = 1
+                else:
+                    raise ValueError(f"irrep_normalization={irrep_normalization}")
+
+                if i_1 < i_2:
+                    i_out = len(irreps_out)
+                    irreps_out.append((mul_1 * mul_2, ir_out))
+                    instructions += [(i_1, i_2, i_out, "uvuv", False, alpha)]
+                elif i_1 == i_2:
+                    i = i_1
+                    mul = mul_1
+
+                    if mul > 1:
+                        i_out = len(irreps_out)
+                        irreps_out.append((mul * (mul - 1) // 2, ir_out))
+                        instructions += [(i, i, i_out, "uvu<v", False, alpha)]
+
+                    if ir_out.l % 2 == 0:
+                        if irrep_normalization == "component":
+                            if ir_out.l == 0:
+                                alpha = ir_out.dim / (ir_1.dim + 2)
+                            else:
+                                alpha = ir_out.dim / 2
+                        if irrep_normalization == "norm":
+                            if ir_out.l == 0:
+                                alpha = ir_out.dim * ir_1.dim
+                            else:
+                                alpha = ir_1.dim * (ir_1.dim + 2) / 2
+
+                        i_out = len(irreps_out)
+                        irreps_out.append((mul, ir_out))
+                        instructions += [(i, i, i_out, "uuu", False, alpha)]
+
+    irreps_out = Irreps(irreps_out)
+    irreps_out, p, _ = irreps_out.sort()
+
+    instructions = [(i_1, i_2, p[i_out], mode, train, alpha) for i_1, i_2, i_out, mode, train, alpha in instructions]
+
+    tp = FunctionalTensorProduct(
+        input.irreps,
+        input.irreps,
+        irreps_out,
+        instructions,
+        irrep_normalization="none",
+    )
+
+    return naive_broadcast_decorator(partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp))(input, input)
 
 
 def FunctionalTensorSquare(irreps_in: Irreps, irreps_out: Irreps, irrep_normalization: str = None, **kwargs):

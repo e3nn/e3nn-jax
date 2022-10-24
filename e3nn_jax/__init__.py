@@ -49,6 +49,7 @@ from e3nn_jax._src.tensor_products import (
     elementwise_tensor_product,
     FunctionalTensorSquare,
     TensorSquare,
+    tensor_square,
 )
 from e3nn_jax._src.grad import grad
 from e3nn_jax._src.activation import scalar_activation, normalize_function
@@ -121,7 +122,8 @@ __all__ = [
     "tensor_product",
     "elementwise_tensor_product",
     "FunctionalTensorSquare",  # not in docs
-    "TensorSquare",
+    "TensorSquare",  # not in docs
+    "tensor_square",
     "grad",
     "scalar_activation",
     "normalize_function",

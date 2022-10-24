@@ -7,8 +7,7 @@ Tensor Products
 .. autofunction:: e3nn_jax.tensor_product
 
 
-.. autoclass:: e3nn_jax.TensorSquare
-    :members:
+.. autofunction:: e3nn_jax.tensor_square
 
 
 .. autoclass:: e3nn_jax.SymmetricTensorProduct
