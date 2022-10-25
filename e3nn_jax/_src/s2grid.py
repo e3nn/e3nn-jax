@@ -207,8 +207,7 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
     x = x.reshape(-1, res_beta, res_alpha)
 
     # integrate over alpha
-    int_a = rfft(x, lmax) # Fourier-transformed x
-    # int_a = jnp.einsum("am,zba->zbm", sha, x) # [..., res_beta, 2*l+1]
+    int_a = rfft(x, lmax) # [..., res_beta, 2*l+1]
     # integrate over beta
     int_b = jnp.einsum("mbi,zbm->zi", shb, int_a)
     return int_b.reshape(*size, int_b.shape[1])
@@ -267,11 +266,7 @@ def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
     # multiply spherical harmonics by their coefficients
     signal_b = jnp.einsum("mbi,zi->zbm", shb, coeffs)  # [batch, beta, m]
 
-    # sa, sm = sha.shape
-    # if sa >= sm and sa % 2 == 1:
-    #     signal = irfft(signal_b, sa)
-    # else:
-    signal = jnp.einsum("am,zbm->zba", sha, signal_b)
+    signal = irfft(signal_b, res_alpha) * res_alpha
     return signal.reshape(*size, *signal.shape[1:])
 
 
@@ -294,6 +289,29 @@ def rfft(x: jnp.ndarray, l: int):
         jnp.real(x_transformed_c[..., 1:l+1]) * np.sqrt(2)
     ], axis=-1)
     return x_transformed.reshape((*x.shape[:-1], 2*l+1))
+
+
+def irfft(x: jnp.ndarray, res: int):
+    r"""Inverse of the real fourier transform
+    Args:
+        x: `jnp.ndarray`
+            array of shape ``(..., 2*l + 1)``
+        res: int
+            output resolution, has to be an odd number
+    Returns:
+        `jnp.ndarray`
+            positions on the sphere, array of shape ``(..., res, 3)``
+    """
+    assert res % 2 == 1
+
+    l = (x.shape[-1] - 1) // 2
+    x_reshaped = jnp.concatenate([
+        x[..., l:l+1],
+        (x[..., l+1:] + jnp.flip(x[..., :l], -1) * -1j) / np.sqrt(2),
+        jnp.zeros((*x.shape[:-1], l))
+    ], axis=-1).reshape((-1, x.shape[-1]))
+    x_transformed = jnp.fft.irfft(x_reshaped, res)
+    return x_transformed.reshape((*x.shape[:-1], x_transformed.shape[-1]))
 
 
 def _expand_matrix(ls):
