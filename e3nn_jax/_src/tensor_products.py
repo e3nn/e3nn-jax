@@ -268,9 +268,21 @@ def tensor_square(
     input: IrrepsArray,
     *,
     irrep_normalization: Optional[str] = None,
+    normalized_input: bool = False,
     custom_einsum_jvp: bool = None,
     fused: bool = None,
 ) -> IrrepsArray:
+    r"""Tensor product of a `IrrepsArray` with itself.
+
+    Args:
+        input (IrrepsArray): Input to be squared
+        irrep_normalization (str, optional): Irrep normalization, ``"component"`` or ``"norm"``.
+        normalized_input (bool, optional): If True, the input is assumed to be striclty normalized.
+            Note that this is different from ``irrep_normalization="norm"`` for which the input is
+            of norm 1 in average. Defaults to False.
+        custom_einsum_jvp (bool, optional): If True, use a custom implementation of the jvp of einsum.
+        fused (bool, optional): If True, use a fused implementation of the tensor product.
+    """
     if irrep_normalization is None:
         irrep_normalization = config("irrep_normalization")
 
@@ -283,14 +295,17 @@ def tensor_square(
         for i_2, (mul_2, ir_2) in enumerate(input.irreps):
             for ir_out in ir_1 * ir_2:
 
-                if irrep_normalization == "component":
-                    alpha = ir_out.dim
-                elif irrep_normalization == "norm":
+                if normalized_input:
                     alpha = ir_1.dim * ir_2.dim
-                elif irrep_normalization == "none":
-                    alpha = 1
                 else:
-                    raise ValueError(f"irrep_normalization={irrep_normalization}")
+                    if irrep_normalization == "component":
+                        alpha = ir_out.dim
+                    elif irrep_normalization == "norm":
+                        alpha = ir_1.dim * ir_2.dim
+                    elif irrep_normalization == "none":
+                        alpha = 1
+                    else:
+                        raise ValueError(f"irrep_normalization={irrep_normalization}")
 
                 if i_1 < i_2:
                     i_out = len(irreps_out)
@@ -306,16 +321,24 @@ def tensor_square(
                         instructions += [(i, i, i_out, "uvu<v", False, alpha)]
 
                     if ir_out.l % 2 == 0:
-                        if irrep_normalization == "component":
-                            if ir_out.l == 0:
-                                alpha = ir_out.dim / (ir_1.dim + 2)
-                            else:
-                                alpha = ir_out.dim / 2
-                        if irrep_normalization == "norm":
+                        if normalized_input:
                             if ir_out.l == 0:
                                 alpha = ir_out.dim * ir_1.dim
                             else:
                                 alpha = ir_1.dim * (ir_1.dim + 2) / 2
+                        else:
+                            if irrep_normalization == "component":
+                                if ir_out.l == 0:
+                                    alpha = ir_out.dim / (ir_1.dim + 2)
+                                else:
+                                    alpha = ir_out.dim / 2
+                            elif irrep_normalization == "norm":
+                                if ir_out.l == 0:
+                                    alpha = ir_1.dim * ir_2.dim / (ir_1.dim + 2)
+                                else:
+                                    alpha = ir_1.dim * ir_2.dim / 2
+                            else:
+                                raise ValueError(f"irrep_normalization={irrep_normalization}")
 
                         i_out = len(irreps_out)
                         irreps_out.append((mul, ir_out))

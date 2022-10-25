@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - **breaking change** `e3nn.normal` has a new argument to get normalized vectors.
+- **breaking change** `e3nn.tensor_square` now distinguishes between `normalization=norm` and `normalized_input=True`.
 
 ## [0.10.1] - 2022-10-24
 ### Added

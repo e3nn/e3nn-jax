@@ -67,6 +67,10 @@ def test_tensor_square_normalization(keys):
         rtol=0.1,
     )
 
-    x = e3nn.normal("2x0e + 2x0o + 1o + 1e", keys[0], (10_000,), normalization="norm")
+    x = e3nn.normal("2x0e + 2x0o + 1o + 1e", keys[1], (10_000,), normalize=True)
+    y = e3nn.tensor_square(x, normalized_input=True)
+    np.testing.assert_allclose(e3nn.mean(e3nn.norm(y, squared=True), axis=0).array, 1.0, rtol=0.1)
+
+    x = e3nn.normal("2x0e + 2x0o + 1o + 1e", keys[1], (10_000,), normalization="norm")
     y = e3nn.tensor_square(x, irrep_normalization="norm")
     np.testing.assert_allclose(e3nn.mean(e3nn.norm(y, squared=True), axis=0).array, 1.0, rtol=0.1)
