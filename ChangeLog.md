@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- s2grid: `e3nn.from_s2grid` and `e3nn.to_s2grid` thanks to @songk42 for the contribution
+
 ### Changed
 - **breaking change** `e3nn.normal` has a new argument to get normalized vectors.
 - **breaking change** `e3nn.tensor_square` now distinguishes between `normalization=norm` and `normalized_input=True`.
