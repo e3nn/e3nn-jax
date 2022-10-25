@@ -73,7 +73,7 @@ def _quadrature_weights(b):
 def _complete_lmax_res(lmax, res_beta, res_alpha):
     """
     determine alpha/beta resolutions if they're not specified
-    
+
     try to use FFT
     i.e. 2 * lmax + 1 == res_alpha
     """
@@ -174,7 +174,7 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
     res_beta, res_alpha = x.shape[-2:]
 
     if lmax_in is None:
-        lmax_in = lmax # what is lmax_in?
+        lmax_in = lmax  # what is lmax_in?
 
     _, _, shb, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha)
     # sh_alpha: (res_alpha, 2*l+1); sh_beta: (res_beta, (l+1)(l+2)/2)
@@ -183,11 +183,7 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
     n = None
     # lmax_in = max frequency in input; lmax = max freq in output
     if normalization == "component":
-        n = (
-            jnp.sqrt(4 * jnp.pi)
-            * jnp.asarray([jnp.sqrt(2 * l + 1) for l in range(lmax + 1)])
-            * jnp.sqrt(lmax_in + 1)
-        )
+        n = jnp.sqrt(4 * jnp.pi) * jnp.asarray([jnp.sqrt(2 * l + 1) for l in range(lmax + 1)]) * jnp.sqrt(lmax_in + 1)
     elif normalization == "norm":
         n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1) * jnp.sqrt(lmax_in + 1)
     elif normalization == "integral":
@@ -197,7 +193,7 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
 
     m = _expand_matrix(range(lmax + 1))  # [l, m, i]
     shb = _rollout_sh(shb, lmax)
-    
+
     assert res_beta % 2 == 0, "res_beta needs to be even for quadrature weights to be computed properly"
     qw = _quadrature_weights(res_beta // 2) * res_beta**2 / res_alpha  # [b]
     # beta integrand
@@ -207,7 +203,7 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
     x = x.reshape(-1, res_beta, res_alpha)
 
     # integrate over alpha
-    int_a = rfft(x, lmax) # [..., res_beta, 2*l+1]
+    int_a = rfft(x, lmax)  # [..., res_beta, 2*l+1]
     # integrate over beta
     int_b = jnp.einsum("mbi,zbm->zi", shb, int_a)
     return int_b.reshape(*size, int_b.shape[1])
@@ -216,7 +212,7 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
 def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
     r"""Transform spherical tensor into signal on the sphere
     The inverse transformation of `FromS2Grid`
-    
+
     Args:
         coeffs: `jnp.ndarray`
             coefficients of the spherical harmonics - array of shape ``(..., (lmax+1)**2)``
@@ -241,11 +237,7 @@ def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
     if normalization == "component":
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1
-        n = (
-            jnp.sqrt(4 * jnp.pi)
-            * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)])
-            / jnp.sqrt(lmax + 1)
-        )
+        n = jnp.sqrt(4 * jnp.pi) * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)]) / jnp.sqrt(lmax + 1)
     elif normalization == "norm":
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1/(2L+1)
@@ -282,13 +274,16 @@ def rfft(x: jnp.ndarray, l: int):
             transformed values - array of shape ``(..., res_beta, 2*l+1)``
     """
     x_reshaped = x.reshape((-1, x.shape[-1]))
-    x_transformed_c = jnp.fft.rfft(x_reshaped) # (..., 2*l+1)
-    x_transformed = jnp.concatenate([
-        jnp.flip(jnp.imag(x_transformed_c[..., 1:l+1]), -1) * -np.sqrt(2),
-        jnp.real(x_transformed_c[..., :1]),
-        jnp.real(x_transformed_c[..., 1:l+1]) * np.sqrt(2)
-    ], axis=-1)
-    return x_transformed.reshape((*x.shape[:-1], 2*l+1))
+    x_transformed_c = jnp.fft.rfft(x_reshaped)  # (..., 2*l+1)
+    x_transformed = jnp.concatenate(
+        [
+            jnp.flip(jnp.imag(x_transformed_c[..., 1 : l + 1]), -1) * -np.sqrt(2),
+            jnp.real(x_transformed_c[..., :1]),
+            jnp.real(x_transformed_c[..., 1 : l + 1]) * np.sqrt(2),
+        ],
+        axis=-1,
+    )
+    return x_transformed.reshape((*x.shape[:-1], 2 * l + 1))
 
 
 def irfft(x: jnp.ndarray, res: int):
@@ -305,11 +300,10 @@ def irfft(x: jnp.ndarray, res: int):
     assert res % 2 == 1
 
     l = (x.shape[-1] - 1) // 2
-    x_reshaped = jnp.concatenate([
-        x[..., l:l+1],
-        (x[..., l+1:] + jnp.flip(x[..., :l], -1) * -1j) / np.sqrt(2),
-        jnp.zeros((*x.shape[:-1], l))
-    ], axis=-1).reshape((-1, x.shape[-1]))
+    x_reshaped = jnp.concatenate(
+        [x[..., l : l + 1], (x[..., l + 1 :] + jnp.flip(x[..., :l], -1) * -1j) / np.sqrt(2), jnp.zeros((*x.shape[:-1], l))],
+        axis=-1,
+    ).reshape((-1, x.shape[-1]))
     x_transformed = jnp.fft.irfft(x_reshaped, res)
     return x_transformed.reshape((*x.shape[:-1], x_transformed.shape[-1]))
 
@@ -344,11 +338,11 @@ def _rollout_sh(m, lmax):
     Returns:
         jnp.ndarray of shape (..., (lmax+1)**2)
     """
-    assert m.shape[-1] == (lmax+1) * (lmax+2) // 2
-    m_full = np.zeros((*m.shape[:-1], (lmax+1)**2))
-    for l in range(lmax+1):
+    assert m.shape[-1] == (lmax + 1) * (lmax + 2) // 2
+    m_full = np.zeros((*m.shape[:-1], (lmax + 1) ** 2))
+    for l in range(lmax + 1):
         i_mid = l**2 + l
-        for i in range(l+1):
-            m_full[..., i_mid + i] = m[..., l*(l+1)//2 + i]
-            m_full[..., i_mid - i] = m[..., l*(l+1)//2 + i]
+        for i in range(l + 1):
+            m_full[..., i_mid + i] = m[..., l * (l + 1) // 2 + i]
+            m_full[..., i_mid - i] = m[..., l * (l + 1) // 2 + i]
     return m_full
