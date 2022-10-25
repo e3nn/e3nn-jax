@@ -1,10 +1,6 @@
-from functools import partial
-import jax.numpy as jnp
 import jax
 import numpy as np
-from e3nn_jax._src.s2grid import spherical_harmonics_s2_grid, from_s2grid, to_s2grid, rfft, irfft
-from e3nn_jax._src.spherical_harmonics import _legendre_spherical_harmonics
-
+from e3nn_jax._src.s2grid import from_s2grid, irfft, rfft, to_s2grid
 
 key = jax.random.PRNGKey(0)
 

@@ -29,12 +29,9 @@ The discrete representation is therefore
 .. math:: \{ h_{ij} = f(x_{ij}) \}_{ij}
 """
 
-import jax
 import jax.numpy as jnp
 import numpy as np
-from typing import Dict, List, Sequence, Tuple, Union
-from e3nn_jax._src.rotation import angles_to_xyz
-from e3nn_jax._src.spherical_harmonics import _legendre_spherical_harmonics, _sh_alpha, _sh_beta
+from e3nn_jax._src.spherical_harmonics import _sh_alpha, _sh_beta
 
 
 def _quadrature_weights(b):
