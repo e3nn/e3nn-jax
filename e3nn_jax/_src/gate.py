@@ -62,14 +62,17 @@ def gate(
 
     Examples:
         The 3 last scalars are used as gates.
+
         >>> gate("15x0e + 2x1e + 1x2e")
         12x0e+2x1e+1x2e
 
         Odd scalars used as gates change the parity of the gated quantities:
+
         >>> gate("12x0e + 3x0o + 2x1e + 1x2e")
         12x0e+2x1o+1x2o
 
         Without anything to gate, all the scalars are activated:
+
         >>> gate("12x0e + 3x0o")
         12x0e+3x0o
     """
