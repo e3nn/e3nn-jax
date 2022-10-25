@@ -1026,7 +1026,12 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
 
 
 def normal(
-    irreps: IntoIrreps, key: jnp.ndarray, leading_shape: Tuple[int, ...] = (), *, normalization: Optional[str] = None
+    irreps: IntoIrreps,
+    key: jnp.ndarray,
+    leading_shape: Tuple[int, ...] = (),
+    *,
+    normalize: bool = False,
+    normalization: Optional[str] = None,
 ) -> IrrepsArray:
     r"""Random array with normal distribution.
 
@@ -1034,7 +1039,10 @@ def normal(
         irreps (Irreps): irreps of the output array
         key (jnp.ndarray): random key
         leading_shape (tuple of int): shape of the leading dimensions
+        normalize (bool): if True, normalize the output array
         normalization (str): normalization of the output array, ``"component"`` or ``"norm"``
+            This parameter is ignored if ``normalize=False``.
+            This parameter only affects the variance distribution.
 
     Returns:
         IrrepsArray: random array
@@ -1054,6 +1062,14 @@ def normal(
 
         >>> x = e3nn.normal("0e + 5e", jax.random.PRNGKey(0), (), normalization="norm")
         >>> x
+        1x0e+1x5e [-1.25  0.11 -0.24 -0.4   0.37  0.07  0.15 -0.38  0.35 -0.4   0.03 -0.18]
+        >>> e3nn.norm(x, squared=True)
+        1x0e+1x0e [1.57 0.85]
+
+        Generate normalized random array
+
+        >>> x = e3nn.normal("0e + 5e", jax.random.PRNGKey(0), (), normalize=True)
+        >>> x
         1x0e+1x5e [-1.    0.12 -0.26 -0.43  0.4   0.08  0.16 -0.41  0.37 -0.44  0.03 -0.19]
         >>> e3nn.norm(x, squared=True)
         1x0e+1x0e [1. 1.]
@@ -1063,9 +1079,7 @@ def normal(
     if normalization is None:
         normalization = config("irrep_normalization")
 
-    if normalization == "component":
-        return IrrepsArray(irreps, jax.random.normal(key, leading_shape + (irreps.dim,)))
-    elif normalization == "norm":
+    if normalize:
         list = []
         for mul, ir in irreps:
             key, k = jax.random.split(key)
@@ -1074,7 +1088,18 @@ def normal(
             list.append(r)
         return IrrepsArray.from_list(irreps, list, leading_shape)
     else:
-        raise ValueError("Normalization needs to be 'norm' or 'component'")
+        if normalization == "component":
+            return IrrepsArray(irreps, jax.random.normal(key, leading_shape + (irreps.dim,)))
+        elif normalization == "norm":
+            list = []
+            for mul, ir in irreps:
+                key, k = jax.random.split(key)
+                r = jax.random.normal(k, leading_shape + (mul, ir.dim))
+                r = r / jnp.sqrt(ir.dim)
+                list.append(r)
+            return IrrepsArray.from_list(irreps, list, leading_shape)
+        else:
+            raise ValueError("Normalization needs to be 'norm' or 'component'")
 
 
 class _IndexUpdateHelper:
