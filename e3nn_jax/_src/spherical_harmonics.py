@@ -25,7 +25,7 @@ def sh(
 
     Args:
         irreps_out (`Irreps` or int or Sequence[int]): the output irreps
-        input (`jax.numpy.ndarray`): cartesian coordinates
+        input (`jax.numpy.ndarray`): cartesian coordinates, shape (..., 3)
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_jvp])
@@ -404,14 +404,17 @@ def _sh_alpha(l: int, alpha: jnp.ndarray) -> jnp.ndarray:
     )
 
 
-def _legendre_spherical_harmonics(lmax: int, x: jnp.ndarray, normalize: bool, normalization: str) -> jnp.ndarray:
-    alpha = jnp.arctan2(x[..., 0], x[..., 2])
-    sh_alpha = _sh_alpha(lmax, alpha)  # [..., 2 * l + 1]
+def _sh_beta(lmax: int, cos_betas):
+    r"""Beta dependence of spherical harmonics.
 
-    n = jnp.linalg.norm(x, axis=-1, keepdims=True)
-    x = x / jnp.where(n > 0, n, 1.0)
+    Args:
+        lmax: l value
+        cos_betas: input array of shape ``(...)``
 
-    sh_y = legendre(lmax, x[..., 1], 1.0)  # [(lmax + 1) * (lmax + 2) // 2, ...]
+    Returns:
+        Array of shape ``(..., (lmax + 1) * (lmax + 2) // 2 + 1)``
+    """
+    sh_y = legendre(lmax, cos_betas, 1.0)  # [(lmax + 1) * (lmax + 2) // 2, ...]
     sh_y = jnp.moveaxis(sh_y, 0, -1)  # [..., (lmax + 1) * (lmax + 2) // 2]
 
     sh_y = sh_y * np.array(
@@ -421,6 +424,17 @@ def _legendre_spherical_harmonics(lmax: int, x: jnp.ndarray, normalize: bool, no
             for m in range(l + 1)
         ]
     )
+    return sh_y
+
+
+def _legendre_spherical_harmonics(lmax: int, x: jnp.ndarray, normalize: bool, normalization: str) -> jnp.ndarray:
+    alpha = jnp.arctan2(x[..., 0], x[..., 2])
+    sh_alpha = _sh_alpha(lmax, alpha)  # [..., 2 * l + 1]
+
+    n = jnp.linalg.norm(x, axis=-1, keepdims=True)
+    x = x / jnp.where(n > 0, n, 1.0)
+
+    sh_y = _sh_beta(lmax, x[..., 1])  # [..., (lmax + 1) * (lmax + 2) // 2]
 
     sh = jnp.zeros(x.shape[:-1] + ((lmax + 1) ** 2,))
 
