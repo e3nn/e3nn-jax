@@ -2,6 +2,7 @@ import e3nn_jax as e3nn
 import haiku as hk
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 
 def test_tensor_product():
@@ -35,8 +36,10 @@ def test_fully_connected_tensor_product(keys):
     x1 = e3nn.normal("5x0e + 1e", next(keys), (10,))
     x2 = e3nn.normal("3x1e + 2x0e", next(keys), (20, 1))
 
-    w = f.init(next(keys), x1, x2)
-    x3 = f.apply(w, x1, x2)
+    with pytest.deprecated_call():
+        w = f.init(next(keys), x1, x2)
+        x3 = f.apply(w, x1, x2)
+
     assert x3.irreps == e3nn.Irreps("10x0e + 1e")
     assert x3.shape[:-1] == (20, 10)
 
@@ -53,3 +56,17 @@ def test_tensor_square(keys):
     y = f.apply(w, x)
     assert y.irreps == e3nn.Irreps("1e")
     assert y.shape == (10, 3)
+
+
+def test_tensor_square_normalization(keys):
+    x = e3nn.normal("2x0e + 2x0o + 1o + 1e", keys[0], (10_000,))
+    y = e3nn.tensor_square(x, irrep_normalization="component")
+    np.testing.assert_allclose(
+        e3nn.mean(e3nn.norm(y, squared=True), axis=0).array,
+        np.array([ir.dim for mul, ir in y.irreps for _ in range(mul)]),
+        rtol=0.1,
+    )
+
+    x = e3nn.normal("2x0e + 2x0o + 1o + 1e", keys[0], (10_000,), normalization="norm")
+    y = e3nn.tensor_square(x, irrep_normalization="norm")
+    np.testing.assert_allclose(e3nn.mean(e3nn.norm(y, squared=True), axis=0).array, 1.0, rtol=0.1)

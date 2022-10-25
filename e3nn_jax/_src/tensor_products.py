@@ -263,6 +263,7 @@ def elementwise_tensor_product(
     return naive_broadcast_decorator(tp.left_right)(input1, input2)
 
 
+@overload_for_irreps_without_array((0,))
 def tensor_square(
     input: IrrepsArray,
     *,

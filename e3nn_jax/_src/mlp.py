@@ -12,6 +12,7 @@ class MultiLayerPerceptron(hk.Module):
         list_neurons (list of int): number of neurons in each layer (excluding the input layer)
         act (optional callable): activation function
         gradient_normalization (str or float): normalization of the gradient
+
             - "element": normalization done in initialization variance of the weights, (the default in pytorch)
                 gives the same importance to each neuron, a layer with more neurons will have a higher importance
                 than a layer with less neurons
