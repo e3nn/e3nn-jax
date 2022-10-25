@@ -6,7 +6,7 @@ from e3nn_jax import Irreps, IrrepsArray
 
 
 class Dropout(hk.Module):
-    """Equivariant Dropout.
+    r"""Equivariant Dropout.
 
     :math:`A_{zai}` is the input and :math:`B_{zai}` is the output where
     - ``z`` is the batch index
