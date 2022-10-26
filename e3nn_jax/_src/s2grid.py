@@ -155,18 +155,17 @@ def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int):
 
 def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=None):
     r"""Transform signal on the sphere into spherical tensor
-    The inverse transformation of `ToS2Grid`
+
+    The inverse transformation of :func:`e3nn_jax.to_s2grid`
+
     Args:
-        x: `jnp.ndarray`
-            signal of shape ``(..., beta, alpha)``
-        res: int, tuple of int
-            resolution in ``beta`` and in ``alpha``
-        lmax: int
-        normalization: {'norm', 'component', 'integral'}
-        lmax_in: int, optional
+        x (`jax.numpy.ndarray`): signal on the sphere of shape ``(..., beta, alpha)``
+        lmax (int): maximum degree of the spherical tensor
+        normalization (str): normalization of the spherical tensor {'norm', 'component', 'integral'}
+        lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
+
     Returns:
-        `jnp.ndarray`
-            array of coefficients, of shape ``(..., (l+1)^2)``
+        `jnp.ndarray`: array of coefficients, of shape ``(..., (lmax+1)^2)``
     """
     res_beta, res_alpha = x.shape[-2:]
 
@@ -208,18 +207,16 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
 
 def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
     r"""Transform spherical tensor into signal on the sphere
-    The inverse transformation of `FromS2Grid`
+
+    The inverse transformation of :func:`e3nn_jax.from_s2grid`
 
     Args:
-        coeffs: `jnp.ndarray`
-            coefficients of the spherical harmonics - array of shape ``(..., (lmax+1)**2)``
-        lmax: int
-        res: int, tuple of int
-            resolution in ``beta`` and in ``alpha``
-        normalization : {'norm', 'component', 'integral'}
+        coeffs (`jax.numpy.ndarray`): array of coefficients, of shape ``(..., (lmax+1)^2)``
+        res (tuple, optional): resolution of the grid on the sphere ``(beta, alpha)``
+        normalization (str): normalization of the spherical tensor {'norm', 'component', 'integral'}
+
     Returns:
-        `jnp.array`
-            signal of shape ``(..., beta, alpha)``
+        `jnp.ndarray`: signal on the sphere of shape ``(..., beta, alpha)``
     """
     lmax = int(np.sqrt(coeffs.shape[-1])) - 1
 
