@@ -115,12 +115,12 @@ This mean one scalar and two vectors.
 ``0e`` stands for the even irrep ``L=0`` and ``1o`` stands for the odd irrep ``L=1``.
 The suffixes ``e`` and ``o`` stand for even and odd -- the representation of parity.
 
-The class `e3nn_jax.Irreps` has many methods to manipulate the representations.
+The class `Irreps` has many methods to manipulate the representations.
 
 IrrepsArray
 -----------
 
-`e3nn_jax.IrrepsArray` contains an ``irreps`` attribute of class `e3nn_jax.Irreps` and an ``array`` attribute of class `jax.numpy.ndarray`.
+`IrrepsArray` contains an ``irreps`` attribute of class `Irreps` and an ``array`` attribute of class `jax.numpy.ndarray`.
 
 .. jupyter-execute::
 
@@ -150,7 +150,7 @@ The irrep index is always the last index.
     assert x.irreps.dim == x.shape[-1]
     x.shape
 
-`e3nn_jax.IrrepsArray` handles
+`IrrepsArray` handles
 
 * binary operations:
 
@@ -309,14 +309,14 @@ Note the ``normalize`` option. If ``normalize`` is ``False``, the function is an
         a**2 * e3nn.sh(2, x, False),
     )
 
-The function `e3nn_jax.sh` is a wrapper of `e3nn_jax.spherical_harmonics` for which inputs and outputs are `e3nn_jax.IrrepsArray`.
+The function `e3nn_jax.sh` is a wrapper of `e3nn_jax.spherical_harmonics` for which inputs and outputs are `IrrepsArray`.
 
 
 Gradient
 --------
 
 The gradient of an equivariant function is also equivariant.
-If a function inputs and outputs `e3nn_jax.IrrepsArray`, we can compute its gradient using `e3nn_jax.grad`.
+If a function inputs and outputs `IrrepsArray`, we can compute its gradient using `e3nn_jax.grad`.
 
 .. jupyter-execute::
 

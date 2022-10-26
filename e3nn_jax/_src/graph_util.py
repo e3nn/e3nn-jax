@@ -38,12 +38,12 @@ def index_add(
 
     Args:
         indices (`jax.numpy.ndarray`): array of indices
-        input (`jax.numpy.ndarray` or `e3nn_jax.IrrepsArray`): array of data
+        input (`jax.numpy.ndarray` or `IrrepsArray`): array of data
         out_dim (int): size of the output
         map_back (bool): whether to map back to the input position
 
     Returns:
-        `jax.numpy.ndarray` or ``e3nn_jax.IrrepsArray``: output
+        `jax.numpy.ndarray` or ``IrrepsArray``: output
 
     Example:
        >>> i = jnp.array([0, 2, 2, 0])

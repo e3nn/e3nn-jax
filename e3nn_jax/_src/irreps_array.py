@@ -41,7 +41,7 @@ class IrrepsArray:
 
     Args:
         irreps (Irreps): representation of the data
-        array (jax.numpy.ndarray): the data, an array of shape ``(..., irreps.dim)``
+        array (`jax.numpy.ndarray`): the data, an array of shape ``(..., irreps.dim)``
         list (list of jax.numpy.ndarray or None, optional): the same data in a list format.
             It can contain ``None`` to represent zeros otherwise the shape has to be ``(..., mul, ir.dim)``.
 

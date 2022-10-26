@@ -11,7 +11,7 @@ class Convolution(hk.Module):
     r"""Equivariant Point Convolution.
 
     Args:
-        irreps_node_output : `e3nn_jax.Irreps`
+        irreps_node_output : `Irreps`
             representation of the output node features
 
         fc_neurons : list of int

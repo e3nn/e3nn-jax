@@ -166,7 +166,7 @@ class Linear(hk.Module):
     r"""Equivariant Linear Haiku Module.
 
     Args:
-        irreps_out (`e3nn_jax.Irreps`): output representations
+        irreps_out (`Irreps`): output representations
         channel_out (optional int): if specified, the last axis before the irreps
             is assumed to be the channel axis and is mixed with the irreps.
 

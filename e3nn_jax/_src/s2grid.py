@@ -110,9 +110,9 @@ def s2_grid(res_beta: int, res_alpha: int):
             :math:`M`
 
     Returns:
-        betas: `jnp.ndarray`
+        betas: `jax.numpy.ndarray`
             array of shape ``(res_beta)``
-        alphas: `jnp.ndarray`
+        alphas: `jax.numpy.ndarray`
             array of shape ``(res_alpha)``
     """
 
@@ -138,13 +138,13 @@ def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int):
             :math:`M`
 
     Returns:
-        betas: `jnp.ndarray`
+        betas: `jax.numpy.ndarray`
             array of shape ``(res_beta)``
-        alphas: `jnp.ndarray`
+        alphas: `jax.numpy.ndarray`
             array of shape ``(res_alpha)``
-        sh_beta: `jnp.ndarray`
+        sh_beta: `jax.numpy.ndarray`
             array of shape ``(res_beta, (lmax + 1)(lmax + 2)/2)``
-        sh_alpha: `jnp.ndarray`
+        sh_alpha: `jax.numpy.ndarray`
             array of shape ``(res_alpha, 2 * lmax + 1)``
     """
     betas, alphas = s2_grid(res_beta, res_alpha)
@@ -161,11 +161,11 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
     Args:
         x (`jax.numpy.ndarray`): signal on the sphere of shape ``(..., beta, alpha)``
         lmax (int): maximum degree of the spherical tensor
-        normalization (str): normalization of the spherical tensor {'norm', 'component', 'integral'}
+        normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
         lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
 
     Returns:
-        `jnp.ndarray`: array of coefficients, of shape ``(..., (lmax+1)^2)``
+        `jax.numpy.ndarray`: array of coefficients, of shape ``(..., (lmax+1)^2)``
     """
     res_beta, res_alpha = x.shape[-2:]
 
@@ -213,10 +213,10 @@ def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
     Args:
         coeffs (`jax.numpy.ndarray`): array of coefficients, of shape ``(..., (lmax+1)^2)``
         res (tuple, optional): resolution of the grid on the sphere ``(beta, alpha)``
-        normalization (str): normalization of the spherical tensor {'norm', 'component', 'integral'}
+        normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
 
     Returns:
-        `jnp.ndarray`: signal on the sphere of shape ``(..., beta, alpha)``
+        `jax.numpy.ndarray`: signal on the sphere of shape ``(..., beta, alpha)``
     """
     lmax = int(np.sqrt(coeffs.shape[-1])) - 1
 
@@ -259,12 +259,12 @@ def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
 def rfft(x: jnp.ndarray, l: int):
     r"""Real fourier transform
     Args:
-        x: `jnp.ndarray`
+        x: `jax.numpy.ndarray`
             input array of shape ``(..., res_beta, res_alpha)``
         l: int
             value of `l` for which the transform is being run
     Returns:
-        `jnp.ndarray`
+        `jax.numpy.ndarray`
             transformed values - array of shape ``(..., res_beta, 2*l+1)``
     """
     x_reshaped = x.reshape((-1, x.shape[-1]))
@@ -283,12 +283,12 @@ def rfft(x: jnp.ndarray, l: int):
 def irfft(x: jnp.ndarray, res: int):
     r"""Inverse of the real fourier transform
     Args:
-        x: `jnp.ndarray`
+        x: `jax.numpy.ndarray`
             array of shape ``(..., 2*l + 1)``
         res: int
             output resolution, has to be an odd number
     Returns:
-        `jnp.ndarray`
+        `jax.numpy.ndarray`
             positions on the sphere, array of shape ``(..., res, 3)``
     """
     assert res % 2 == 1
