@@ -6,13 +6,22 @@ key = jax.random.PRNGKey(0)
 
 
 def test_s2grid_transforms():
-    res_alpha = 11
-    res_beta = 8
-    l = 3
+    res_alpha = 51
+    res_beta = 30
+    l = 10
 
+    # SOFT quadrature
+    quadrature = "soft"
     c = jax.random.uniform(key, shape=(5, (l + 1) ** 2))
-    res = to_s2grid(c, (res_beta, res_alpha))
-    c_prime = from_s2grid(res, l)
+    res = to_s2grid(c, (res_beta, res_alpha), quadrature=quadrature)
+    c_prime = from_s2grid(res, l, quadrature=quadrature)
+    np.testing.assert_allclose(c, c_prime, rtol=1e-5, atol=1e-5)
+
+    # Gauss-Legendre quadrature
+    quadrature = "gausslegendre"
+    c = jax.random.uniform(key, shape=(5, (l + 1) ** 2))
+    res = to_s2grid(c, (res_beta, res_alpha), quadrature=quadrature)
+    c_prime = from_s2grid(res, l, quadrature=quadrature)
     np.testing.assert_allclose(c, c_prime, rtol=1e-5, atol=1e-5)
 
 

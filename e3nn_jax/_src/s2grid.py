@@ -34,7 +34,7 @@ import numpy as np
 from e3nn_jax._src.spherical_harmonics import _sh_alpha, _sh_beta
 
 
-def _quadrature_weights(b):
+def _quadrature_weights_soft(b):
     r"""
     function copied from ``lie_learn.spaces.S3``
     Compute quadrature weights for the grid used by Kostelec & Rockmore [1, 2].
@@ -73,6 +73,11 @@ def _complete_lmax_res(lmax, res_beta, res_alpha):
 
     try to use FFT
     i.e. 2 * lmax + 1 == res_alpha
+
+    Args:
+        lmax (int)
+        res_beta (int): :math:`N`
+        res_alpha (int): :math:`M`
     """
     if res_beta is None:
         if lmax is not None:
@@ -101,59 +106,57 @@ def _complete_lmax_res(lmax, res_beta, res_alpha):
     return lmax, res_beta, res_alpha
 
 
-def s2_grid(res_beta: int, res_alpha: int):
+def s2_grid(res_beta: int, res_alpha: int, *, quadrature: str):
     r"""grid on the sphere
     Args:
-        res_beta: int
-            :math:`N`
-        res_alpha: int
-            :math:`M`
+        res_beta (int): :math:`N`
+        res_alpha (int): :math:`M`
+        quadrature (str): "soft" or "gausslegendre"
 
     Returns:
-        betas: `jax.numpy.ndarray`
-            array of shape ``(res_beta)``
-        alphas: `jax.numpy.ndarray`
+        z (`numpy.ndarray`): array of shape ``(res_beta)``
+        alphas: `numpy.ndarray`
             array of shape ``(res_alpha)``
     """
 
-    i = jnp.arange(res_beta)
-    betas = (i + 0.5) / res_beta * jnp.pi
+    if quadrature == "soft":
+        i = np.arange(res_beta)
+        betas = (i + 0.5) / res_beta * jnp.pi
+        z = np.cos(betas)
+    elif quadrature == "gausslegendre":
+        z, _ = np.polynomial.legendre.leggauss(res_beta)
+    else:
+        raise Exception("quadrature needs to be 'soft' or 'gausslegendre'")
 
     i = jnp.arange(res_alpha)
     alphas = i / res_alpha * 2 * jnp.pi
-    return betas, alphas
+    return z, alphas
 
 
-def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int):
+def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str):
     r"""spherical harmonics evaluated on the grid on the sphere
     .. math::
         f(x) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot Y^l(x)
         f(\beta, \alpha) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot S^l(\alpha) P^l(\cos(\beta))
     Args:
-        lmax: int
-            :math:`l_{\mathit{max}}`
-        res_beta: int
-            :math:`N`
-        res_alpha: int
-            :math:`M`
+        lmax (int): :math:`l_{\mathit{max}}`
+        res_beta (int): :math:`N`
+        res_alpha (int): :math:`M`
+        quadrature (str): "soft" or "gausslegendre"
 
     Returns:
-        betas: `jax.numpy.ndarray`
-            array of shape ``(res_beta)``
-        alphas: `jax.numpy.ndarray`
-            array of shape ``(res_alpha)``
-        sh_beta: `jax.numpy.ndarray`
-            array of shape ``(res_beta, (lmax + 1)(lmax + 2)/2)``
-        sh_alpha: `jax.numpy.ndarray`
-            array of shape ``(res_alpha, 2 * lmax + 1)``
+        z (`jax.numpy.ndarray`): array of shape ``(res_beta)``
+        alphas (`jax.numpy.ndarray`): array of shape ``(res_alpha)``
+        sh_z (`jax.numpy.ndarray`): array of shape ``(res_beta, (lmax + 1)(lmax + 2)/2)``
+        sh_alpha (`jax.numpy.ndarray`): array of shape ``(res_alpha, 2 * lmax + 1)``
     """
-    betas, alphas = s2_grid(res_beta, res_alpha)
+    z, alphas = s2_grid(res_beta, res_alpha, quadrature=quadrature)
     sh_alpha = _sh_alpha(lmax, alphas)  # [..., 2 * l + 1]
-    sh_beta = _sh_beta(lmax, jnp.cos(betas))  # [..., (lmax + 1) * (lmax + 2) // 2]
-    return betas, alphas, sh_beta, sh_alpha
+    sh_z = _sh_beta(lmax, z)  # [..., (lmax + 1) * (lmax + 2) // 2]
+    return z, alphas, sh_z, sh_alpha
 
 
-def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=None):
+def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=None, *, quadrature: str):
     r"""Transform signal on the sphere into spherical tensor
 
     The inverse transformation of :func:`e3nn_jax.to_s2grid`
@@ -163,6 +166,7 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
         lmax (int): maximum degree of the spherical tensor
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
         lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
+        quadrature (str): "soft" or "gausslegendre"
 
     Returns:
         `jax.numpy.ndarray`: array of coefficients, of shape ``(..., (lmax+1)^2)``
@@ -172,8 +176,8 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
     if lmax_in is None:
         lmax_in = lmax  # what is lmax_in?
 
-    _, _, shb, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha)
-    # sh_alpha: (res_alpha, 2*l+1); sh_beta: (res_beta, (l+1)(l+2)/2)
+    _, _, shz, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha, quadrature=quadrature)
+    # sh_alpha: (res_alpha, 2*l+1); sh_z: (res_beta, (l+1)(l+2)/2)
 
     # normalize such that it is the inverse of ToS2Grid
     n = None
@@ -188,24 +192,30 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
         raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
     m = _expand_matrix(range(lmax + 1))  # [l, m, i]
-    shb = _rollout_sh(shb, lmax)
+    shz = _rollout_sh(shz, lmax)
 
-    assert res_beta % 2 == 0, "res_beta needs to be even for quadrature weights to be computed properly"
-    qw = _quadrature_weights(res_beta // 2) * res_beta**2 / res_alpha  # [b]
+    if quadrature == "soft":
+        assert res_beta % 2 == 0, "res_beta needs to be even for quadrature weights to be computed properly"
+        qw = _quadrature_weights_soft(res_beta // 2) * res_beta**2  # [b]
+    elif quadrature == "gausslegendre":
+        _, qw = np.polynomial.legendre.leggauss(res_beta)
+        qw /= 2
+    else:
+        raise Exception("quadrature needs to be 'soft' or 'gausslegendre'")
     # beta integrand
-    shb = jnp.einsum("lmj,bj,lmi,l,b->mbi", m, shb, m, n, qw)  # [m, b, i]
+    shz = jnp.einsum("lmj,bj,lmi,l,b->mbi", m, shz, m, n, qw)  # [m, b, i]
 
     size = x.shape[:-2]
     x = x.reshape(-1, res_beta, res_alpha)
 
     # integrate over alpha
-    int_a = rfft(x, lmax)  # [..., res_beta, 2*l+1]
+    int_a = rfft(x, lmax) / res_alpha  # [..., res_beta, 2*l+1]
     # integrate over beta
-    int_b = jnp.einsum("mbi,zbm->zi", shb, int_a)
+    int_b = jnp.einsum("mbi,zbm->zi", shz, int_a)
     return int_b.reshape(*size, int_b.shape[1])
 
 
-def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
+def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component", *, quadrature: str):
     r"""Transform spherical tensor into signal on the sphere
 
     The inverse transformation of :func:`e3nn_jax.from_s2grid`
@@ -214,6 +224,7 @@ def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
         coeffs (`jax.numpy.ndarray`): array of coefficients, of shape ``(..., (lmax+1)^2)``
         res (tuple, optional): resolution of the grid on the sphere ``(beta, alpha)``
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
+        quadrature (str): "soft" or "gausslegendre"
 
     Returns:
         `jax.numpy.ndarray`: signal on the sphere of shape ``(..., beta, alpha)``
@@ -225,7 +236,7 @@ def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
     else:
         lmax, res_beta, res_alpha = _complete_lmax_res(lmax, *res)
 
-    _, _, shb, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha)
+    _, _, shz, sha = spherical_harmonics_s2_grid(lmax, res_beta, res_alpha, quadrature=quadrature)
 
     n = None
     if normalization == "component":
@@ -243,14 +254,14 @@ def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component"):
 
     m = _expand_matrix(range(lmax + 1))  # [l, m, i]
     # put beta component in summable form
-    shb = _rollout_sh(shb, lmax)
-    shb = jnp.einsum("lmj,bj,lmi,l->mbi", m, shb, m, n)  # [m, b, i]
+    shz = _rollout_sh(shz, lmax)
+    shz = jnp.einsum("lmj,bj,lmi,l->mbi", m, shz, m, n)  # [m, b, i]
 
     size = coeffs.shape[:-1]
     coeffs = coeffs.reshape(-1, coeffs.shape[-1])
 
     # multiply spherical harmonics by their coefficients
-    signal_b = jnp.einsum("mbi,zi->zbm", shb, coeffs)  # [batch, beta, m]
+    signal_b = jnp.einsum("mbi,zi->zbm", shz, coeffs)  # [batch, beta, m]
 
     signal = irfft(signal_b, res_alpha) * res_alpha
     return signal.reshape(*size, *signal.shape[1:])
