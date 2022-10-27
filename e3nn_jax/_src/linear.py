@@ -137,7 +137,7 @@ class FunctionalLinear:
         ws = []
         cursor = 0
         for i in self.instructions:
-            ws += [weights[:, cursor : cursor + np.prod(i.path_shape)].reshape(i.path_shape)]
+            ws += [weights[cursor : cursor + np.prod(i.path_shape)].reshape(i.path_shape)]
             cursor += np.prod(i.path_shape)
         return ws
 
