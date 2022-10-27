@@ -37,7 +37,10 @@ def su2_clebsch_gordan(j1: float, j2: float, j3: float) -> np.ndarray:
 
 
 def _su2_cg(idx1, idx2, idx3):
-    """Calculates the Clebsch-Gordon coefficient."""
+    """Calculates the Clebsch-Gordon coefficient.
+
+    Copied from the ``clebsch`` function in ``qutip``.
+    """
     from fractions import Fraction
 
     j1, m1 = idx1
