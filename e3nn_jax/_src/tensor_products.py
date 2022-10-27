@@ -116,7 +116,7 @@ def tensor_product(
     irrep_normalization: Optional[str] = None,
     custom_einsum_jvp: bool = None,
     fused: bool = None,
-):
+) -> IrrepsArray:
     """Tensor product reduced into irreps.
 
     Args:

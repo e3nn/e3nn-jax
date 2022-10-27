@@ -4,6 +4,7 @@ from typing import Callable, List, NamedTuple, Optional, Tuple, Union
 import haiku as hk
 import jax
 import jax.numpy as jnp
+import numpy as np
 from e3nn_jax import Irreps, IrrepsArray, config
 from e3nn_jax._src.core_tensor_product import _sum_tensors
 
@@ -113,6 +114,10 @@ class FunctionalLinear:
         self.instructions = instructions
         self.output_mask = output_mask
 
+    @property
+    def num_weights(self) -> int:
+        return sum(np.prod(i.path_shape) for i in self.instructions)
+
     def aggregate_paths(self, paths, output_shape) -> IrrepsArray:
         output = [
             _sum_tensors(
@@ -128,10 +133,21 @@ class FunctionalLinear:
         ]
         return IrrepsArray.from_list(self.irreps_out, output, output_shape)
 
-    def __call__(self, ws: List[jnp.ndarray], input: IrrepsArray) -> IrrepsArray:
+    def split_weights(self, weights: jnp.ndarray) -> List[jnp.ndarray]:
+        ws = []
+        cursor = 0
+        for i in self.instructions:
+            ws += [weights[:, cursor : cursor + np.prod(i.path_shape)].reshape(i.path_shape)]
+            cursor += np.prod(i.path_shape)
+        return ws
+
+    def __call__(self, ws: Union[List[jnp.ndarray], jnp.ndarray], input: IrrepsArray) -> IrrepsArray:
         input = input.convert(self.irreps_in)
         if input.ndim != 1:
             raise ValueError(f"FunctionalLinear does not support broadcasting, input shape is {input.shape}")
+
+        if not isinstance(ws, list):
+            ws = self.split_weights(ws)
 
         paths = [
             ins.path_weight * w
