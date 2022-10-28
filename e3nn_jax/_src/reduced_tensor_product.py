@@ -1,4 +1,9 @@
-# Partially based on https://github.com/songk42/ReducedTensorProduct.jl
+"""
+History of the different versions of the code:
+- Initially developed by Mario Geiger in `e3nn`
+- Ported in julia by Song Kim https://github.com/songk42/ReducedTensorProduct.jl
+- Ported in `e3nn-jax` by Mario Geiger
+"""
 import functools
 import itertools
 from typing import FrozenSet, List, Optional, Tuple, Union
