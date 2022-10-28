@@ -176,7 +176,7 @@ def _jvp(
 
     js = tuple(max(0, l - 1) for l in ls)
     output = _custom_jvp_spherical_harmonics(ls + js, x, normalization, algorithm)
-    out, res = output[: len(ls)], output[len(ls) :]
+    primal, res = output[: len(ls)], output[len(ls) :]
 
     def h(l: int, r: jnp.ndarray) -> jnp.ndarray:
         w = clebsch_gordan(l - 1, l, 1)
@@ -184,6 +184,7 @@ def _jvp(
             w *= ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
         else:
             w *= l**0.5 * (2 * l + 1)
+        w = w.astype(x.dtype)
 
         if "dense" in algorithm:
             return jnp.einsum("...i,...k,ijk->...j", r, x_dot, w)
@@ -199,7 +200,8 @@ def _jvp(
             )
         raise ValueError("Unknown algorithm: must be 'dense' or 'sparse'")
 
-    return out, [h(l, r) if l > 0 else jnp.zeros_like(r) for l, r in zip(ls, res)]
+    tangent = [h(l, r) if l > 0 else jnp.zeros_like(r) for l, r in zip(ls, res)]
+    return primal, tangent
 
 
 def _recursive_spherical_harmonics(
@@ -261,6 +263,7 @@ def _recursive_spherical_harmonics(
             x = 1
 
         w = (x / float(norm)) * clebsch_gordan(l1, l2, l)
+        w = w.astype(input.dtype)
 
         if "dense" in algorithm:
             context[l] = jnp.einsum("...i,...j,ijk->...k", context[l1], context[l2], w)
