@@ -30,6 +30,8 @@ def reduced_tensor_product_basis(
             If no index symmetry is present, a list of irreps can be given instead.
 
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
+        keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
+
         irreps_dict (dict): the irreps of each index of the formula. For instance ``i="1x1o"``.
 
     Returns:
@@ -98,14 +100,18 @@ def reduced_symmetric_tensor_product_basis(
     irreps: e3nn.Irreps,
     order: int,
     *,
-    keep_ir: Optional[List[e3nn.Irrep]] = None,
     epsilon: float = 1e-5,
+    keep_ir: Optional[List[e3nn.Irrep]] = None,
 ) -> e3nn.IrrepsArray:
     r"""Reduce a symmetric tensor product.
 
     Args:
         irreps (Irreps): the irreps of each index.
         order (int): the order of the tensor product. i.e. the number of indices.
+        epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
+        keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
+
+
 
     Returns:
         IrrepsArray: The change of basis
@@ -133,11 +139,11 @@ def _reduced_tensor_product_basis(
         (
             frozenset({i}),
             e3nn.IrrepsArray(
-                irps,
-                np.reshape(np.eye(irps.dim), (1,) * i + (irps.dim,) + (1,) * (len(irreps_tuple) - i - 1) + (irps.dim,)),
+                irreps,
+                np.reshape(np.eye(irreps.dim), (1,) * i + (irreps.dim,) + (1,) * (len(irreps_tuple) - i - 1) + (irreps.dim,)),
             ),
         )
-        for i, irps in enumerate(irreps_tuple)
+        for i, irreps in enumerate(irreps_tuple)
     ]
 
     while True:
@@ -151,9 +157,9 @@ def _reduced_tensor_product_basis(
             (fa, a) = bases[0]
             (fb, b) = bases[1]
             f = frozenset(fa | fb)
-            ab = reduce_basis_product(a, b, keep_ir)
+            ab = reduce_basis_product(a, b, keep_ir, round_fn=round_to_sqrt_rational)
             if len(subrepr_permutation(f, perm_repr)) == 1:
-                return ab
+                return ab.sorted().simplify()
             p = reduce_subgroup_permutation(f, perm_repr, dims)
             ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon, round_fn=round_to_sqrt_rational)
             return ab.sorted().simplify()
@@ -216,6 +222,7 @@ def reduce_basis_product(
     basis1: e3nn.IrrepsArray,
     basis2: e3nn.IrrepsArray,
     filter_ir_out: Optional[List[e3nn.Irrep]] = None,
+    round_fn=lambda x: x,
 ) -> e3nn.IrrepsArray:
     """Reduce the product of two basis."""
     basis1 = basis1.sorted().simplify()
@@ -236,6 +243,7 @@ def reduce_basis_product(
                     x2,
                     np.sqrt(ir.dim) * e3nn.clebsch_gordan(ir1.l, ir2.l, ir.l),
                 )
+                x = round_fn(x)
                 x = np.reshape(x, x.shape[:-3] + (mul1 * mul2, ir.dim))
                 new_irreps.append((mul1 * mul2, ir))
                 new_list.append(x)
@@ -245,7 +253,11 @@ def reduce_basis_product(
 
 
 def constrain_rotation_basis_by_permutation_basis(
-    rotation_basis: e3nn.IrrepsArray, permutation_basis: np.ndarray, *, epsilon=1e-5, round_fn=lambda x: x
+    rotation_basis: e3nn.IrrepsArray,
+    permutation_basis: np.ndarray,
+    *,
+    epsilon=1e-5,
+    round_fn=lambda x: x,
 ) -> e3nn.IrrepsArray:
     """Constrain a rotation basis by a permutation basis.
 
@@ -263,6 +275,7 @@ def constrain_rotation_basis_by_permutation_basis(
     new_irreps: List[Tuple[int, e3nn.Irrep]] = []
     new_list: List[np.ndarray] = []
 
+    rotation_basis = rotation_basis.sorted().simplify()
     for (mul, ir), rot_basis in zip(rotation_basis.irreps, rotation_basis.list):
         R = rot_basis[..., 0]
         R = np.reshape(R, (-1, mul)).T  # (mul, dim)
@@ -270,7 +283,7 @@ def constrain_rotation_basis_by_permutation_basis(
 
         if P.shape[0] > 0:
             new_irreps.append((P.shape[0], ir))
-            new_list.append(np.einsum("vu,...ui->...vi", P, rot_basis))
+            new_list.append(round_fn(np.einsum("vu,...ui->...vi", P, rot_basis)))
 
     return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1])
 
