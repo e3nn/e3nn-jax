@@ -29,9 +29,11 @@ The discrete representation is therefore
 .. math:: \{ h_{ij} = f(x_{ij}) \}_{ij}
 """
 
+import e3nn_jax
+from e3nn_jax._src.irreps_array import IrrepsArray
+from e3nn_jax._src.spherical_harmonics import _sh_alpha, _sh_beta
 import jax.numpy as jnp
 import numpy as np
-from e3nn_jax._src.spherical_harmonics import _sh_alpha, _sh_beta
 
 
 def _quadrature_weights_soft(b):
@@ -156,7 +158,9 @@ def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int, *, qua
     return z, alphas, sh_z, sh_alpha
 
 
-def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=None, *, quadrature: str):
+def from_s2grid(
+    x: jnp.ndarray, lmax: int, normalization="component", lmax_in=None, *, quadrature: str, p_val: int, p_arg: int
+):
     r"""Transform signal on the sphere into spherical tensor
 
     The inverse transformation of :func:`e3nn_jax.to_s2grid`
@@ -169,7 +173,7 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
         quadrature (str): "soft" or "gausslegendre"
 
     Returns:
-        `e3nn_jax.IrrepsArray`: array of Irreps, of shape ``(..., (lmax+1)^2)``
+        `e3nn_jax.IrrepsArray`: output spherical tensor, with coefficient array of shape ``(..., (lmax+1)^2)``
     """
     res_beta, res_alpha = x.shape[-2:]
 
@@ -200,7 +204,7 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
         qw /= 2
     else:
         raise Exception("quadrature needs to be 'soft' or 'gausslegendre'")
-    
+
     # prepare beta integrand
     m = _expand_matrix(range(lmax + 1))  # [l, m, i]
     shz = _rollout_sh(shz, lmax)
@@ -213,16 +217,20 @@ def from_s2grid(x: jnp.ndarray, lmax: int, normalization="component", lmax_in=No
     int_a = rfft(x, lmax) / res_alpha  # [..., res_beta, 2*l+1]
     # integrate over beta
     int_b = jnp.einsum("mbi,zbm->zi", shz, int_a)
-    return int_b.reshape(*size, int_b.shape[1])
+
+    # convert to IrrepsArray
+    coeffs = int_b.reshape(*size, int_b.shape[1])
+    irreps = [(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)]
+    return IrrepsArray(irreps, coeffs)
 
 
-def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component", *, quadrature: str):
+def to_s2grid(tensor: e3nn_jax.IrrepsArray, res=None, normalization="component", *, quadrature: str):
     r"""Transform spherical tensor into signal on the sphere
 
     The inverse transformation of :func:`e3nn_jax.from_s2grid`
 
     Args:
-        coeffs (`jax.numpy.ndarray`): array of coefficients, of shape ``(..., (lmax+1)^2)``
+        tensor (`e3nn_jax.IrrepsArray`): spherical tensor, with coefficient array of shape ``(..., (lmax+1)^2)``
         res (tuple, optional): resolution of the grid on the sphere ``(beta, alpha)``
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
         quadrature (str): "soft" or "gausslegendre"
@@ -230,6 +238,7 @@ def to_s2grid(coeffs: jnp.ndarray, res=None, normalization="component", *, quadr
     Returns:
         `jax.numpy.ndarray`: signal on the sphere of shape ``(..., beta, alpha)``
     """
+    coeffs = tensor.array
     lmax = int(np.sqrt(coeffs.shape[-1])) - 1
 
     if isinstance(res, int) or res is None:
