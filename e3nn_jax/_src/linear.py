@@ -235,7 +235,7 @@ class Linear(hk.Module):
         input = input.remove_nones().simplify()
         output_irreps = self.irreps_out.simplify()
         if self.channel_out is not None:
-            input = input.repeat_mul_by_last_axis()
+            input = input.axis_to_mul()
             output_irreps = Irreps([(self.channel_out * mul, ir) for mul, ir in output_irreps])
 
         lin = FunctionalLinear(
@@ -258,5 +258,5 @@ class Linear(hk.Module):
         output = f(input)
 
         if self.channel_out is not None:
-            output = output.factor_mul_to_last_axis(self.channel_out)
+            output = output.mul_to_axis(self.channel_out)
         return output.convert(self.irreps_out)

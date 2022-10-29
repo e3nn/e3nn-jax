@@ -568,10 +568,14 @@ class IrrepsArray:
 
     # Move multiplicity to the previous last axis and back
 
-    def mul_to_axis(self, factor=None) -> "IrrepsArray":
+    def mul_to_axis(self, factor: Optional[int] = None, axis: int = -2) -> "IrrepsArray":
         r"""Create a new axis in the previous last position by factoring the multiplicities.
 
         Increase the dimension of the array by 1.
+
+        Args:
+            factor (int or None): factor the multiplicities by this number
+            axis (int): the new axis will be placed before this axis
 
         Example:
             >>> x = IrrepsArray("6x0e + 3x1e", jnp.arange(15))
@@ -581,6 +585,10 @@ class IrrepsArray:
              [ 2  3  9 10 11]
              [ 4  5 12 13 14]]
         """
+        axis = _standardize_axis(axis, self.ndim + 1)
+        if axis == self.ndim:
+            raise ValueError("axis cannot be the last axis. The last axis is reserved for the irreps dimension.")
+
         if factor is None:
             factor = functools.reduce(math.gcd, (mul for mul, _ in self.irreps))
 
@@ -588,26 +596,39 @@ class IrrepsArray:
             raise ValueError(f"factor {factor} does not divide all multiplicities")
 
         irreps = Irreps([(mul // factor, ir) for mul, ir in self.irreps])
-        list = [
+        new_list = [
             None if x is None else x.reshape(self.shape[:-1] + (factor, mul, ir.dim))
             for (mul, ir), x in zip(irreps, self.list)
         ]
-        return IrrepsArray.from_list(irreps, list, self.shape[:-1] + (factor,))
+        new_list = [None if x is None else jnp.moveaxis(x, -3, axis) for x in new_list]
+        return IrrepsArray.from_list(irreps, new_list, self.shape[:-1] + (factor,))
 
-    def axis_to_mul(self) -> "IrrepsArray":
+    def axis_to_mul(self, axis: int = -2) -> "IrrepsArray":
         r"""Repeat the multiplicity by the previous last axis of the array.
 
         Decrease the dimension of the array by 1.
+
+        Args:
+            axis (int): axis to convert into multiplicity
 
         Example:
             >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
             >>> x.axis_to_mul()
             2x0e+2x1e [0 4 1 2 3 5 6 7]
         """
-        assert len(self.shape) >= 2
-        irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
-        list = [None if x is None else x.reshape(self.shape[:-2] + (mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)]
-        return IrrepsArray.from_list(irreps, list, self.shape[:-2])
+        assert self.ndim >= 2
+        axis = _standardize_axis(axis, self.ndim)[0]
+
+        if axis == self.ndim - 1:
+            raise ValueError("The last axis is the irreps dimension and therefore cannot be converted to multiplicity.")
+
+        new_list = [None if x is None else jnp.moveaxis(x, axis, -3) for x in self.list]
+        new_irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
+        new_list = [
+            None if x is None else x.reshape(self.shape[:-2] + (new_mul, ir.dim))
+            for (new_mul, ir), x in zip(new_irreps, new_list)
+        ]
+        return IrrepsArray.from_list(new_irreps, new_list, self.shape[:-2])
 
     repeat_mul_by_last_axis = axis_to_mul
     factor_mul_to_last_axis = mul_to_axis
@@ -806,17 +827,17 @@ jax.tree_util.register_pytree_node(
 )
 
 
-def _standardize_axis(axis: Union[None, int, Tuple[int, ...]], ndim: int) -> Tuple[int, ...]:
+def _standardize_axis(axis: Union[None, int, Tuple[int, ...]], result_ndim: int) -> Tuple[int, ...]:
     if axis is None:
-        return tuple(range(ndim))
+        return tuple(range(result_ndim))
     try:
         axis = (operator.index(axis),)
     except TypeError:
         axis = tuple(operator.index(i) for i in axis)
 
-    if not all(-ndim <= i < ndim for i in axis):
+    if not all(-result_ndim <= i < result_ndim for i in axis):
         raise ValueError("axis out of range")
-    axis = tuple(i % ndim for i in axis)
+    axis = tuple(i % result_ndim for i in axis)
 
     return tuple(sorted(set(axis)))
 
