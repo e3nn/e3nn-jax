@@ -129,11 +129,23 @@ def _reduced_tensor_product_basis(
 ) -> e3nn.IrrepsArray:
     dims = tuple(irps.dim for irps in irreps_tuple)
 
-    def _recursion(bases: List[Tuple[FrozenSet[int], e3nn.IrrepsArray]]) -> e3nn.IrrepsArray:
+    bases = [
+        (
+            frozenset({i}),
+            e3nn.IrrepsArray(
+                irps,
+                np.reshape(np.eye(irps.dim), (1,) * i + (irps.dim,) + (1,) * (len(irreps_tuple) - i - 1) + (irps.dim,)),
+            ),
+        )
+        for i, irps in enumerate(irreps_tuple)
+    ]
+
+    while True:
         if len(bases) == 1:
             f, b = bases[0]
             assert f == frozenset(range(len(irreps_tuple)))
-            return b if keep_ir is None else b.filtered(keep_ir)
+            b = b if keep_ir is None else b.filtered(keep_ir)
+            return b.sorted().simplify()
 
         if len(bases) == 2:
             (fa, a) = bases[0]
@@ -144,7 +156,7 @@ def _reduced_tensor_product_basis(
                 return ab
             p = reduce_subgroup_permutation(f, perm_repr, dims)
             ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon, round_fn=round_to_sqrt_rational)
-            return ab
+            return ab.sorted().simplify()
 
         # greedy algorithm
         min_p = np.inf
@@ -167,16 +179,7 @@ def _reduced_tensor_product_basis(
         sub_perm_repr = subrepr_permutation(f, perm_repr)
         ab = _reduced_tensor_product_basis(sub_irreps, sub_perm_repr, None, epsilon)
         ab = ab.reshape(tuple(dims[i] if i in f else 1 for i in range(len(dims))) + (-1,))
-        return _recursion([(f, ab)] + bases)
-
-    initial_bases = [
-        e3nn.IrrepsArray(
-            irps,
-            np.reshape(np.eye(irps.dim), (1,) * i + (irps.dim,) + (1,) * (len(irreps_tuple) - i - 1) + (irps.dim,)),
-        )
-        for i, irps in enumerate(irreps_tuple)
-    ]
-    return _recursion([(frozenset({i}), base) for i, base in enumerate(initial_bases)])
+        bases = [(f, ab)] + bases
 
 
 @functools.lru_cache(maxsize=None)
@@ -215,6 +218,9 @@ def reduce_basis_product(
     filter_ir_out: Optional[List[e3nn.Irrep]] = None,
 ) -> e3nn.IrrepsArray:
     """Reduce the product of two basis."""
+    basis1 = basis1.sorted().simplify()
+    basis2 = basis2.sorted().simplify()
+
     new_irreps: List[Tuple[int, e3nn.Irrep]] = []
     new_list = []
 
