@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - s2grid: `e3nn.from_s2grid` and `e3nn.to_s2grid` thanks to @songk42 for the contribution
+- argument `max_order: int` to function `reduced_tensor_product_basis` to be able to limit the polynomial order of the basis
 
 ### Changed
 - **breaking change** `e3nn.normal` has a new argument to get normalized vectors.
