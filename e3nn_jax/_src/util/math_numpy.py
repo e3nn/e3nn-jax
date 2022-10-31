@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 
 
@@ -90,18 +92,22 @@ def gram_schmidt(A: np.ndarray, *, epsilon=1e-5, round_fn=lambda x: x) -> np.nda
     return np.stack(Q) if len(Q) > 0 else np.empty((0, A.shape[1]))
 
 
-def basis_intersection(basis1: np.ndarray, basis2: np.ndarray, *, epsilon=1e-5, round_fn=lambda x: x) -> np.ndarray:
+def basis_intersection(
+    basis1: np.ndarray, basis2: np.ndarray, *, epsilon=1e-5, round_fn=lambda x: x
+) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the intersection of two bases
 
     Args:
-        basis1 (np.ndarray): A basis
-        basis2 (np.ndarray): Another basis
+        basis1 (np.ndarray): A basis, shape ``(n1, d)``
+        basis2 (np.ndarray): Another basis, shape ``(n2, d)``
         epsilon (float, optional): Tolerance for the norm of the vectors. Defaults to 1e-4.
         round_fn (function, optional): Function to round the vectors. Defaults to lambda x: x.
 
     Returns:
         np.ndarray: A projection matrix that projects vectors of the first basis in the intersection of the two bases.
+            Shape ``(dim_intersection, n1)``
         np.ndarray: A projection matrix that projects vectors of the second basis in the intersection of the two bases.
+            Shape ``(dim_intersection, n2)``
 
     Example:
         >>> basis1 = np.array([[1, 0, 0], [0, 0, 1.0]])
@@ -113,6 +119,24 @@ def basis_intersection(basis1: np.ndarray, basis2: np.ndarray, *, epsilon=1e-5, 
     assert basis1.ndim == 2
     assert basis2.ndim == 2
     assert basis1.shape[1] == basis2.shape[1]
+
+    mask_zeros_1 = np.all(basis1 == 0, axis=0)  # [d]
+    mask_incompatible = np.any(basis2[:, mask_zeros_1] != 0, axis=1)  # [n2]
+
+    if np.any(mask_incompatible):
+        x1, x2 = basis_intersection(basis1, basis2[~mask_incompatible], epsilon=epsilon, round_fn=round_fn)
+        x2_ = np.zeros((x2.shape[0], basis2.shape[0]), dtype=x2.dtype)
+        x2_[:, ~mask_incompatible] = x2
+        return x1, x2_
+
+    mask_zeros_2 = np.all(basis2 == 0, axis=0)  # [d]
+    mask_incompatible = np.any(basis1[:, mask_zeros_2] != 0, axis=1)  # [n1]
+
+    if np.any(mask_incompatible):
+        x1, x2 = basis_intersection(basis1[~mask_incompatible], basis2, epsilon=epsilon, round_fn=round_fn)
+        x1_ = np.zeros((x1.shape[0], basis1.shape[0]), dtype=x1.dtype)
+        x1_[:, ~mask_incompatible] = x1
+        return x1_, x2
 
     p = np.concatenate(
         [
