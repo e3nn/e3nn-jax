@@ -127,11 +127,35 @@ def reduced_symmetric_tensor_product_basis(
     return _reduced_tensor_product_basis(tuple([irreps] * order), perm_repr, keep_ir, epsilon, max_order)[0].simplify()
 
 
+def _simplify(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
+    new_irreps = []
+    new_orders = []
+    new_list = []
+    for (mul, ir), order, x in zip(irreps_array.irreps, orders, irreps_array.list):
+        if len(new_irreps) > 0 and new_irreps[-1][1] == ir and new_orders[-1] == order:
+            new_irreps[-1][0] += mul
+            new_list[-1] = np.concatenate([new_list[-1], x], axis=-2)
+        else:
+            new_irreps.append([mul, ir])
+            new_orders.append(order)
+            new_list.append(x)
+    return e3nn.IrrepsArray.from_list(new_irreps, new_list, irreps_array.shape[:-1]), tuple(new_orders)
+
+
 def _sort(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
-    _, _, inv = irreps_array.irreps.sort()
-    irreps_array = irreps_array.sorted()
-    orders = [orders[i] for i in inv]
-    return irreps_array, tuple(orders)
+    out = [(ir, o, i, mul) for i, ((mul, ir), o) in enumerate(zip(irreps_array.irreps, orders))]
+    out = sorted(out)
+    inv = tuple(i for _, _, i, _ in out)
+    new_irreps = [irreps_array.irreps[i] for i in inv]
+    new_list = [irreps_array.list[i] for i in inv]
+    new_orders = [orders[i] for i in inv]
+    return e3nn.IrrepsArray.from_list(new_irreps, new_list, irreps_array.shape[:-1]), tuple(new_orders)
+
+
+def _sort_simplify(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
+    irreps_array, orders = _sort(irreps_array, orders)
+    irreps_array, orders = _simplify(irreps_array, orders)
+    return irreps_array, orders
 
 
 def _filter_ir(
@@ -182,7 +206,7 @@ def _reduced_tensor_product_basis(
                 (b, ord) = _filter_order(b, ord, max_order)
             if keep_ir is not None:
                 (b, ord) = _filter_ir(b, ord, keep_ir)
-            return _sort(b, ord)
+            return _sort_simplify(b, ord)
 
         if len(bases) == 2:
             (fa, a, oa) = bases[0]
@@ -190,12 +214,12 @@ def _reduced_tensor_product_basis(
             f = frozenset(fa | fb)
             ab, ord = reduce_basis_product(a, oa, b, ob, max_order, keep_ir, round_fn=round_to_sqrt_rational)
             if len(subrepr_permutation(f, perm_repr)) == 1:
-                return _sort(ab, ord)
+                return _sort_simplify(ab, ord)
             p = reduce_subgroup_permutation(f, perm_repr, dims)
             ab, ord = constrain_rotation_basis_by_permutation_basis(
                 ab, p, ord, epsilon=epsilon, round_fn=round_to_sqrt_rational
             )
-            return _sort(ab, ord)
+            return _sort_simplify(ab, ord)
 
         # greedy algorithm
         min_p = np.inf
@@ -261,8 +285,8 @@ def reduce_basis_product(
     round_fn=lambda x: x,
 ) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
     """Reduce the product of two basis."""
-    basis1, order1 = _sort(basis1, order1)
-    basis2, order2 = _sort(basis2, order2)
+    basis1, order1 = _sort_simplify(basis1, order1)
+    basis2, order2 = _sort_simplify(basis2, order2)
 
     new_irreps: List[Tuple[int, e3nn.Irrep]] = []
     new_list = []
@@ -270,11 +294,10 @@ def reduce_basis_product(
 
     for (mul1, ir1), x1, o1 in zip(basis1.irreps, basis1.list, order1):
         for (mul2, ir2), x2, o2 in zip(basis2.irreps, basis2.list, order2):
+            if max_order is not None and o1 + o2 > max_order:
+                continue
+
             for ir in ir1 * ir2:
-
-                if max_order is not None and o1 + o2 > max_order:
-                    continue
-
                 if filter_ir_out is not None and ir not in filter_ir_out:
                     continue
 
@@ -291,7 +314,7 @@ def reduce_basis_product(
                 new_orders.append(o1 + o2)
 
     new = e3nn.IrrepsArray.from_list(new_irreps, new_list, np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]))
-    return _sort(new, tuple(new_orders))
+    return _sort_simplify(new, tuple(new_orders))
 
 
 def constrain_rotation_basis_by_permutation_basis(
