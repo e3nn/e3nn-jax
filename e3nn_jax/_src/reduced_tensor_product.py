@@ -349,7 +349,12 @@ def constrain_rotation_basis_by_permutation_basis(
         mul = rot_basis.shape[-2]
         R = rot_basis[..., 0]
         R = np.reshape(R, (-1, mul)).T  # (mul, dim)
-        P, _ = basis_intersection(R, perm, epsilon=epsilon, round_fn=round_fn)
+
+        # optimization:
+        perm_opt = perm[~np.all(perm[:, ~np.all(R == 0, axis=0)] == 0, axis=1)]
+        # NOTE: this optimization work only because perm rows don't share non-zero elements
+
+        P, _ = basis_intersection(R, perm_opt, epsilon=epsilon, round_fn=round_fn)
 
         for p in P:
             new_irreps.append((1, ir))

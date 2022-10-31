@@ -120,22 +120,6 @@ def basis_intersection(
     assert basis2.ndim == 2
     assert basis1.shape[1] == basis2.shape[1]
 
-    mask_zero1 = np.all(basis1 == 0, axis=0)  # [d]
-    mask_incompatible = np.all(basis2[:, ~mask_zero1] == 0, axis=1)  # [n2]
-    if np.any(mask_incompatible):
-        x1, x2 = basis_intersection(basis1, basis2[~mask_incompatible], epsilon=epsilon, round_fn=round_fn)
-        x2_ = np.zeros((x2.shape[0], basis2.shape[0]), dtype=x2.dtype)
-        x2_[:, ~mask_incompatible] = x2
-        return x1, x2_
-
-    mask_zero2 = np.all(basis2 == 0, axis=0)  # [d]
-    mask_incompatible = np.all(basis1[:, ~mask_zero2] == 0, axis=1)  # [n1]
-    if np.any(mask_incompatible):
-        x1, x2 = basis_intersection(basis1[~mask_incompatible], basis2, epsilon=epsilon, round_fn=round_fn)
-        x1_ = np.zeros((x1.shape[0], basis1.shape[0]), dtype=x1.dtype)
-        x1_[:, ~mask_incompatible] = x1
-        return x1_, x2
-
     p = np.concatenate(
         [
             np.concatenate([basis1 @ basis1.T, -basis1 @ basis2.T], axis=1),
