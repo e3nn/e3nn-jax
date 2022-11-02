@@ -6,10 +6,12 @@ History of the different versions of the code:
 """
 import functools
 import itertools
+import os
 from typing import FrozenSet, List, Optional, Tuple, Union
 
-import e3nn_jax as e3nn
 import numpy as np
+
+import e3nn_jax as e3nn
 from e3nn_jax import perm
 from e3nn_jax._src.util.math_numpy import basis_intersection, round_to_sqrt_rational
 from e3nn_jax._src.util.prod import prod
@@ -97,6 +99,10 @@ def reduced_tensor_product_basis(
     return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon, max_order)[0].simplify()
 
 
+def _symmetric_perm_repr(n: int):
+    return frozenset((1, p) for p in itertools.permutations(range(n)))
+
+
 def reduced_symmetric_tensor_product_basis(
     irreps: e3nn.Irreps,
     order: int,
@@ -119,11 +125,12 @@ def reduced_symmetric_tensor_product_basis(
             The shape is ``(d, ..., d, irreps_out.dim)``
             where ``d`` is the dimension of ``irreps``.
     """
+    # TODO add antisymmetric tensor product
     if keep_ir is not None:
         keep_ir = frozenset(e3nn.Irrep(ir) for ir in keep_ir)
 
     irreps = e3nn.Irreps(irreps)
-    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = frozenset((1, p) for p in itertools.permutations(range(order)))
+    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _symmetric_perm_repr(order)
     return _reduced_tensor_product_basis(tuple([irreps] * order), perm_repr, keep_ir, epsilon, max_order)[0].simplify()
 
 
@@ -176,6 +183,35 @@ def _filter_order(irreps_array: e3nn.IrrepsArray, orders, max_order: int) -> Tup
     return irreps_array, tuple(orders)
 
 
+def _check_database(
+    irreps_tuple: Tuple[e3nn.Irreps],
+    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]],
+    keep_ir: Optional[FrozenSet[e3nn.Irrep]],
+    max_order: Optional[int] = None,
+) -> Optional[Tuple[e3nn.IrrepsArray, Tuple[int, ...]]]:
+    path = os.path.join(os.path.dirname(__file__), "rtp.npz")
+    if not os.path.exists(path):
+        return None
+
+    if max_order is not None:
+        return None
+
+    key = None
+    if perm_repr == _symmetric_perm_repr(len(irreps_tuple)):
+        key = f"symmetric_{irreps_tuple[0]}_{len(irreps_tuple)}_"
+
+    if key is None:
+        return None
+
+    with np.load(path) as f:
+        for k in f:
+            if k.startswith(key):
+                out = e3nn.IrrepsArray(e3nn.Irreps(k.split("_")[-1]), f[k]).filtered(keep_ir)
+                return out, (0,) * len(out.irreps)
+
+    return None
+
+
 @functools.lru_cache(maxsize=None)
 def _reduced_tensor_product_basis(
     irreps_tuple: Tuple[e3nn.Irreps],
@@ -184,6 +220,10 @@ def _reduced_tensor_product_basis(
     epsilon: float,
     max_order: Optional[int] = None,
 ) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
+    out = _check_database(irreps_tuple, perm_repr, keep_ir, max_order)
+    if out is not None:
+        return out
+
     dims = tuple(irreps.dim for irreps in irreps_tuple)
 
     bases = [
