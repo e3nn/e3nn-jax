@@ -1,11 +1,13 @@
 import jax
 import numpy as np
+import pytest
 from e3nn_jax._src.s2grid import from_s2grid, irfft, rfft, to_s2grid
 from e3nn_jax._src.irreps_array import Irreps, IrrepsArray
 
 key = jax.random.PRNGKey(0)
 
 
+# @pytest.mark.parametrize("quadrature,expected")
 def test_s2grid_transforms(quadrature):
     assert quadrature in ["soft", "gausslegendre"], "quadrature must be 'soft' or 'gausslegendre"
     res_alpha = 51

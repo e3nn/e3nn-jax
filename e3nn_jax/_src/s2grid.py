@@ -29,8 +29,7 @@ The discrete representation is therefore
 .. math:: \{ h_{ij} = f(x_{ij}) \}_{ij}
 """
 
-import e3nn_jax
-from e3nn_jax._src.irreps_array import IrrepsArray
+import e3nn_jax as e3nn
 from e3nn_jax._src.spherical_harmonics import _sh_alpha, _sh_beta
 import jax.numpy as jnp
 import numpy as np
@@ -161,7 +160,7 @@ def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int, *, qua
 def from_s2grid(
     x: jnp.ndarray, lmax: int, normalization="component", lmax_in=None, *, quadrature: str, p_val: int, p_arg: int
 ):
-    r"""Transform signal on the sphere into spherical tensor
+    r"""Transform signal on the sphere into spherical tensors with degree :math:`l` between 0 and lmax, and parity :math:`p = p_{val}p_{arg}^l`
 
     The inverse transformation of :func:`e3nn_jax.to_s2grid`
 
@@ -171,6 +170,8 @@ def from_s2grid(
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
         lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
         quadrature (str): "soft" or "gausslegendre"
+        p_val (int): one argument for determining the parity of the resulting spherical tensors
+        p_arg (int): the other argument for determining spherical tensor parity
 
     Returns:
         `e3nn_jax.IrrepsArray`: output spherical tensor, with coefficient array of shape ``(..., (lmax+1)^2)``
@@ -221,10 +222,10 @@ def from_s2grid(
     # convert to IrrepsArray
     coeffs = int_b.reshape(*size, int_b.shape[1])
     irreps = [(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)]
-    return IrrepsArray(irreps, coeffs)
+    return e3nn.IrrepsArray(irreps, coeffs)
 
 
-def to_s2grid(tensor: e3nn_jax.IrrepsArray, res=None, normalization="component", *, quadrature: str):
+def to_s2grid(tensor: e3nn.IrrepsArray, res=None, normalization="component", *, quadrature: str):
     r"""Transform spherical tensor into signal on the sphere
 
     The inverse transformation of :func:`e3nn_jax.from_s2grid`
@@ -240,6 +241,7 @@ def to_s2grid(tensor: e3nn_jax.IrrepsArray, res=None, normalization="component",
     """
     coeffs = tensor.array
     lmax = int(np.sqrt(coeffs.shape[-1])) - 1
+    assert set(tensor.irreps.ls) == set(range(lmax+1)), "l values of tensor should range from 0 to lmax"
 
     if isinstance(res, int) or res is None:
         lmax, res_beta, res_alpha = _complete_lmax_res(lmax, res, None)
