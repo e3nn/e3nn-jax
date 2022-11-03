@@ -160,7 +160,9 @@ def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int, *, qua
 def from_s2grid(
     x: jnp.ndarray, lmax: int, normalization="component", lmax_in=None, *, quadrature: str, p_val: int, p_arg: int
 ):
-    r"""Transform signal on the sphere into spherical tensors with degree :math:`l` between 0 and lmax, and parity :math:`p = p_{val}p_{arg}^l`
+    r"""Transform signal on the sphere into spherical tensors.
+
+    The output has degree :math:`l` between 0 and lmax, and parity :math:`p = p_{val}p_{arg}^l`
 
     The inverse transformation of :func:`e3nn_jax.to_s2grid`
 
