@@ -170,7 +170,7 @@ def from_s2grid(
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
         lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
         quadrature (str): "soft" or "gausslegendre"
-        p_val (int): ``+1`` or ``-1``, the parity of the value of the input signal 
+        p_val (int): ``+1`` or ``-1``, the parity of the value of the input signal
         p_arg (int): ``+1`` or ``-1``, the parity of the argument of the input signal
 
     Returns:
@@ -241,7 +241,14 @@ def to_s2grid(tensor: e3nn.IrrepsArray, res=None, normalization="component", *, 
     """
     coeffs = tensor.array
     lmax = int(np.sqrt(coeffs.shape[-1])) - 1
-    assert set(tensor.irreps.ls) == set(range(lmax+1)), "l values of tensor should range from 0 to lmax"
+    # check l values of irreps
+    assert tensor.irreps.ls == list(range(lmax + 1)), "l values of tensor should range from 0 to lmax"
+    # check parities of irreps
+    if not (
+        {ir.p for mul, ir in tensor.irreps if ir.l % 2 == 0} in [{1}, {-1}, {}]
+        and {ir.p for mul, ir in tensor.irreps if ir.l % 2 == 1} in [{1}, {-1}, {}]
+    ):
+        raise ValueError("irrep parities should be of the form (p_val * p_arg**l) for all l, where p_val and p_arg are ±1")
 
     if isinstance(res, int) or res is None:
         lmax, res_beta, res_alpha = _complete_lmax_res(lmax, res, None)
