@@ -170,8 +170,8 @@ def from_s2grid(
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
         lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
         quadrature (str): "soft" or "gausslegendre"
-        p_val (int): one argument for determining the parity of the resulting spherical tensors
-        p_arg (int): the other argument for determining spherical tensor parity
+        p_val (int): ``+1`` or ``-1``, the parity of the value of the input signal 
+        p_arg (int): ``+1`` or ``-1``, the parity of the argument of the input signal
 
     Returns:
         `e3nn_jax.IrrepsArray`: output spherical tensor, with coefficient array of shape ``(..., (lmax+1)^2)``
