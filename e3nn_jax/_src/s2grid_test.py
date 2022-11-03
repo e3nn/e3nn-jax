@@ -7,7 +7,7 @@ from e3nn_jax._src.irreps_array import Irreps, IrrepsArray
 key = jax.random.PRNGKey(0)
 
 
-# @pytest.mark.parametrize("quadrature,expected")
+@pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
 def test_s2grid_transforms(quadrature):
     assert quadrature in ["soft", "gausslegendre"], "quadrature must be 'soft' or 'gausslegendre"
     res_alpha = 51
@@ -33,9 +33,3 @@ def test_fft():
     x_t = rfft(x, l)
     x_p = irfft(x_t, res_alpha)
     np.testing.assert_allclose(x, x_p, rtol=1e-5)
-
-
-if __name__ == "__main__":
-    test_s2grid_transforms("soft")
-    test_s2grid_transforms("gausslegendre")
-    test_fft()
