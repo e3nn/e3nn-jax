@@ -21,7 +21,12 @@ def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
 
 
 def index_add(
-    indices: jnp.ndarray, input: Union[jnp.ndarray, e3nn.IrrepsArray], *, out_dim: int = None, map_back: bool = False
+    indices: jnp.ndarray = None,
+    input: Union[jnp.ndarray, e3nn.IrrepsArray] = None,
+    *,
+    n_elements: jnp.ndarray = None,
+    out_dim: int = None,
+    map_back: bool = False,
 ) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
     r"""Perform the operation.
 
@@ -51,6 +56,16 @@ def index_add(
        >>> index_add(i, x, out_dim=4)
        DeviceArray([-9.,  0.,  5.,  0.], dtype=float32)
     """
+    if indices is None and n_elements is None:
+        raise ValueError("Either indices or n_elements must be specified")
+    if indices is not None and n_elements is not None:
+        raise ValueError("Only one of indices or n_elements must be specified")
+
+    if indices is None:
+        out_dim = n_elements.shape[0]
+        num_elements = input.shape[0]
+        indices = jnp.repeat(jnp.arange(out_dim), n_elements, total_repeat_length=num_elements)
+
     assert indices.shape[0] == input.shape[0]
 
     if out_dim is None and map_back is False:
