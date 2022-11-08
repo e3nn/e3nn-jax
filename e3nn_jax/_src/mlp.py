@@ -26,11 +26,20 @@ class MultiLayerPerceptron(hk.Module):
         act: Optional[Callable],
         *,
         gradient_normalization: Union[str, float] = None,
+        output_activation: Union[Callable, bool] = True,
     ):
         super().__init__()
 
         self.list_neurons = list_neurons
         self.act = act
+
+        if output_activation is True:
+            self.output_activation = self.act
+        elif output_activation is False:
+            self.output_activation = None
+        else:
+            assert callable(output_activation)
+            self.output_activation = output_activation
 
         if gradient_normalization is None:
             gradient_normalization = config("gradient_normalization")
@@ -40,8 +49,9 @@ class MultiLayerPerceptron(hk.Module):
 
     def __call__(self, x):
         act = None if self.act is None else normalize_function(self.act)
+        last_act = None if self.output_activation is None else normalize_function(self.output_activation)
 
-        for h in self.list_neurons:
+        for i, h in enumerate(self.list_neurons):
             alpha = 1 / x.shape[-1]
             d = hk.Linear(
                 h,
@@ -49,7 +59,11 @@ class MultiLayerPerceptron(hk.Module):
                 w_init=hk.initializers.RandomNormal(stddev=jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)),
             )
             x = jnp.sqrt(alpha) ** self.gradient_normalization * d(x)
-            if act is not None:
-                x = act(x)
+            if i < len(self.list_neurons) - 1:
+                if act is not None:
+                    x = act(x)
+            else:
+                if last_act is not None:
+                    x = last_act(x)
 
         return x
