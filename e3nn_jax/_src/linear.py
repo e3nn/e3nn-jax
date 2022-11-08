@@ -234,11 +234,11 @@ class Linear(hk.Module):
 
         self.get_parameter = get_parameter
 
-    def __call__(self, weights: Optional[jnp.ndarray], input: IrrepsArray = None) -> IrrepsArray:
+    def __call__(self, weights: Optional[Union[IrrepsArray, jnp.ndarray]], input: IrrepsArray = None) -> IrrepsArray:
         """Apply the linear operator.
 
         Args:
-            weights (optional jnp.ndarray): scalar weights that are contracted with free parameters.
+            weights (optional IrrepsArray or jnp.ndarray): scalar weights that are contracted with free parameters.
                 An array of shape ``(..., num_weights)``. Broadcasting with `input` is supported.
             input (IrrepsArray): input irreps-array of shape ``(..., [channel_in,] irreps_in.dim)``.
                 Broadcasting with `weights` is supported.
@@ -285,6 +285,11 @@ class Linear(hk.Module):
                 f = jax.vmap(f)
             output = f(input)
         else:
+            if isinstance(weights, IrrepsArray):
+                if not weights.irreps.is_scalar():
+                    raise ValueError("weights must be scalar")
+                weights = weights.array
+
             shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape[:-1])
             input = input.broadcast_to(shape + (-1,))
             weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])
