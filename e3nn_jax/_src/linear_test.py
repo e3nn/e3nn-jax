@@ -1,8 +1,9 @@
+import haiku as hk
 import jax
 import jax.numpy as jnp
-import e3nn_jax as e3nn
-
 import pytest
+import numpy as np
+import e3nn_jax as e3nn
 
 
 class SlowLinear:
@@ -66,3 +67,52 @@ def test_linear_matrix(keys, irreps_in, irreps_out):
     y1 = x.array @ A
     y2 = m(ws, x).array
     assert jnp.allclose(y1, y2)
+
+
+def test_normalization_1(keys):
+    irreps_in = "10x0e + 20x0e"
+    irreps_out = "0e"
+
+    @hk.without_apply_rng
+    @hk.transform
+    def model(x):
+        return e3nn.Linear(irreps_out)(x)
+
+    x = e3nn.normal(irreps_in, next(keys), (1024,))
+    w = model.init(next(keys), x)
+    y = model.apply(w, x)
+
+    assert np.exp(np.abs(np.log(np.mean(y.array**2)))) < 1.3
+
+
+def test_normalization_2(keys):
+    irreps_in = "10x0e + 20x0e"
+    irreps_out = "0e"
+
+    @hk.without_apply_rng
+    @hk.transform
+    def model(x):
+        return e3nn.Linear(irreps_out, 5)(x)
+
+    x = e3nn.normal(irreps_in, next(keys), (1024, 9))
+    w = model.init(next(keys), x)
+    y = model.apply(w, x)
+
+    assert np.exp(np.abs(np.log(np.mean(y.array**2)))) < 1.3
+
+
+def test_normalization_3(keys):
+    irreps_in = "10x0e + 20x0e"
+    irreps_out = "0e"
+
+    @hk.without_apply_rng
+    @hk.transform
+    def model(x):
+        w = hk.get_parameter("w", (32,), init=hk.initializers.Constant(1.0))
+        return e3nn.Linear(irreps_out, 5)(w, x)
+
+    x = e3nn.normal(irreps_in, next(keys), (1024, 9))
+    w = model.init(next(keys), x)
+    y = model.apply(w, x)
+
+    assert np.exp(np.abs(np.log(np.mean(y.array**2)))) < 1.3

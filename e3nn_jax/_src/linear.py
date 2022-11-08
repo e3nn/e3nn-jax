@@ -216,19 +216,41 @@ class Linear(hk.Module):
         self.instructions = None
         self.biases = biases
         self.path_normalization = path_normalization
+
+        if gradient_normalization is None:
+            gradient_normalization = config("gradient_normalization")
+        if isinstance(gradient_normalization, str):
+            gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
         self.gradient_normalization = gradient_normalization
+
         if get_parameter is None:
 
-            def get_parameter(name: str, instruction: Instruction):
+            def get_parameter(name: str, path_shape: Tuple[int, ...], weight_std: float):
                 return hk.get_parameter(
                     name,
-                    shape=instruction.path_shape,
-                    init=hk.initializers.RandomNormal(stddev=instruction.weight_std),
+                    shape=path_shape,
+                    init=hk.initializers.RandomNormal(stddev=weight_std),
                 )
 
         self.get_parameter = get_parameter
 
-    def __call__(self, input: IrrepsArray) -> IrrepsArray:
+    def __call__(self, weights: Optional[jnp.ndarray], input: IrrepsArray = None) -> IrrepsArray:
+        """Apply the linear operator.
+
+        Args:
+            weights (optional jnp.ndarray): scalar weights that are contracted with free parameters.
+                An array of shape ``(..., num_weights)``. Broadcasting with `input` is supported.
+            input (IrrepsArray): input irreps-array of shape ``(..., [channel_in,] irreps_in.dim)``.
+                Broadcasting with `weights` is supported.
+
+        Returns:
+            IrrepsArray: output irreps-array of shape ``(..., [channel_out,] irreps_out.dim)``.
+                Properly normalized assuming that the weights and input are properly normalized.
+        """
+        if input is None:
+            input = weights
+            weights = None
+
         if self.irreps_in is not None:
             input = input.convert(self.irreps_in)
 
@@ -246,16 +268,53 @@ class Linear(hk.Module):
             path_normalization=self.path_normalization,
             gradient_normalization=self.gradient_normalization,
         )
-        w = [
-            self.get_parameter(f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", ins)
-            if ins.i_in == -1
-            else self.get_parameter(f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}", ins)
-            for ins in lin.instructions
-        ]
-        f = lambda x: lin(w, x)
-        for _ in range(input.ndim - 1):
-            f = jax.vmap(f)
-        output = f(input)
+
+        if weights is None:
+            w = [
+                self.get_parameter(f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", ins.path_shape, ins.weight_std)
+                if ins.i_in == -1
+                else self.get_parameter(
+                    f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+                    ins.path_shape,
+                    ins.weight_std,
+                )
+                for ins in lin.instructions
+            ]
+            f = lambda x: lin(w, x)
+            for _ in range(input.ndim - 1):
+                f = jax.vmap(f)
+            output = f(input)
+        else:
+            shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape[:-1])
+            input = input.broadcast_to(shape + (-1,))
+            weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])
+
+            # Should be equivalent to the last layer of e3nn.MultiLayerPerceptron
+            d = weights.shape[-1]
+            alpha = 1 / d
+            stddev = jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)
+
+            w = [
+                self.get_parameter(
+                    f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", (d,) + ins.path_shape, stddev * ins.weight_std
+                )
+                if ins.i_in == -1
+                else self.get_parameter(
+                    f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+                    (d,) + ins.path_shape,
+                    stddev * ins.weight_std,
+                )
+                for ins in lin.instructions
+            ]  # List of shape (d, *path_shape)
+            w = [
+                jnp.sqrt(alpha) ** self.gradient_normalization
+                * jax.lax.dot_general(weights, wi, (((weights.ndim - 1,), (0,)), ((), ())))
+                for wi in w
+            ]  # List of shape (..., *path_shape)
+            f = lin
+            for _ in range(input.ndim - 1):
+                f = jax.vmap(f)
+            output = f(w, input)
 
         if self.channel_out is not None:
             output = output.mul_to_axis(self.channel_out)
