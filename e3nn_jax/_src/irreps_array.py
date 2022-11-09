@@ -193,6 +193,11 @@ class IrrepsArray:
         return self.array.shape
 
     @property
+    def dtype(self):
+        r"""dtype. Equivalent to ``self.array.dtype``."""
+        return self.array.dtype
+
+    @property
     def ndim(self):
         r"""Number of dimensions. Equivalent to ``self.array.ndim``."""
         return len(self.shape)
