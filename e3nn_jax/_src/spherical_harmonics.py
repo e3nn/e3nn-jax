@@ -301,12 +301,12 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
     code inspired by: https://github.com/SHTOOLS/SHTOOLS/blob/master/src/PlmBar.f95
 
     Args:
-        lmax: maximum l value
-        x: input array of shape ``(...)``
-        phase: -1 or 1, multiplies by :math:`(-1)^m`
+        lmax (int): maximum l value
+        x (jnp.ndarray): input array of shape ``(...)``
+        phase (float): -1 or 1, multiplies by :math:`(-1)^m`
 
     Returns:
-        Associated Legendre polynomials ``P(l,m)``
+        jnp.ndarray: Associated Legendre polynomials ``P(l,m)``
         In an array of shape ``((lmax + 1) * (lmax + 2) // 2, ...)``
         ``(0,0), (1,0), (1,1), (2,0), (2,1), (2,2), ...``
     """

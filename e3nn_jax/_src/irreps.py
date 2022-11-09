@@ -475,6 +475,8 @@ class Irreps(tuple):
             False
             >>> Irreps("2x0e + 2x0e").is_scalar()
             True
+            >>> Irreps("0o").is_scalar()
+            False
         """
         return {ir for _, ir in self} == {Irrep("0e")}
 
