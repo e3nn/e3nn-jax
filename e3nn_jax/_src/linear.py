@@ -5,6 +5,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
+
 from e3nn_jax import Irreps, IrrepsArray, config
 from e3nn_jax._src.core_tensor_product import _sum_tensors
 
@@ -346,7 +347,8 @@ class Linear(hk.Module):
 
             else:
                 raise ValueError(
-                    "If weights are provided, they must be either integers and num_weights must be provided or floats and num_weights must not be provided."
+                    "If weights are provided, they must be either integers and num_weights must be provided "
+                    "or floats and num_weights must not be provided."
                 )
 
             f = lin
