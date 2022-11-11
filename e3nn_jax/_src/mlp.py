@@ -76,6 +76,7 @@ class MultiLayerPerceptron(hk.Module):
                 h,
                 with_bias=False,
                 w_init=hk.initializers.RandomNormal(stddev=jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)),
+                name=f"linear_{i}",
             )
             x = jnp.sqrt(alpha) ** self.gradient_normalization * d(x)
             if i < len(self.list_neurons) - 1:
