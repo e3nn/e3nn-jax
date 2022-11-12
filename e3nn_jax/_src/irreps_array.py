@@ -138,14 +138,22 @@ class IrrepsArray:
         return IrrepsArray(irreps=irreps, array=array, list=list)
 
     @staticmethod
-    def zeros(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
+    def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> "IrrepsArray":
         r"""Create an IrrepsArray of zeros."""
         irreps = Irreps(irreps)
-        return IrrepsArray(irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,)), list=[None] * len(irreps))
+        return IrrepsArray(
+            irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,), dtype=dtype), list=[None] * len(irreps)
+        )
+
+    @staticmethod
+    def zeros_like(irreps_array: "IrrepsArray") -> "IrrepsArray":
+        r"""Create an IrrepsArray of zeros with the same shape as another IrrepsArray."""
+        return IrrepsArray.zeros(irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype)
 
     @staticmethod
     def ones(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
         r"""Create an IrrepsArray of ones."""
+        # TODO: maybe remove this function because it is not equivariant
         irreps = Irreps(irreps)
         return IrrepsArray(
             irreps=irreps,
