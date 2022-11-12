@@ -314,7 +314,7 @@ class Linear(hk.Module):
                 ]  # List of shape (num_weights, *path_shape)
                 w = [wi[weights] for wi in w]  # List of shape (..., *path_shape)
 
-            elif weights.dtype.kind == "f" and self.num_weights is None:
+            elif weights.dtype.kind in "fc" and self.num_weights is None:
 
                 shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape[:-1])
                 input = input.broadcast_to(shape + (-1,))
