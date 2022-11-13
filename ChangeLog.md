@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2022-11-13
+### Added
+- `e3nn.Linear` now supports integer "weights" inputs.
+- `e3nn.Linear` now supports `name` argument.
+- Add `.dtype` to `IrrepsArray` to get the dtype of the underlying array.
+
+### Changed
+- `e3nn.MultiLayerPerceptron` names its layers `linear_0`, `linear_1`, etc.
+
 ## [0.11.0] - 2022-11-08
 ### Added
 - s2grid: `e3nn.from_s2grid` and `e3nn.to_s2grid` thanks to @songk42 for the contribution
