@@ -220,7 +220,7 @@ def tensor_square(
         2x0e+1x1o+1x2e [57.74  3.61 10.   20.   30.    3.    2.   -0.58  6.    4.  ]
 
         >>> e3nn.tensor_square(x, normalized_input=True)
-        2x0e+1x1o+1x2e [100.    14.    13.16  26.32  39.48   7.77   5.18  -1.5   15.54  10.36]
+        2x0e+1x1o+1x2e [100.    14.    17.32  34.64  51.96  11.62   7.75  -2.24  23.24  15.49]
     """
     if regroup_output:
         input = input.regroup()
