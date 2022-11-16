@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `e3nn.Irreps.regroup` and `e3nn.IrrepsArray.regroup` to regroup irreps. Equivalent to `sort` followed by `simplify`.
 
+### Changed
+- `e3nn.IrrepsArray.convert` is now private (`e3nn.IrrepsArray._convert`) because it's recommended to other methods instead.
+
 ## [0.11.1] - 2022-11-13
 ### Added
 - `e3nn.Linear` now supports integer "weights" inputs.
