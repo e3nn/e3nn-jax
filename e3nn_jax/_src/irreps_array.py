@@ -749,7 +749,7 @@ class IrrepsArray:
 
         Example:
             >>> x = IrrepsArray.from_list("6x0e + 4x0e", [None, jnp.ones((4, 1))], ())
-            >>> x.convert("5x0e + 5x0e").list
+            >>> x._convert("5x0e + 5x0e").list
             [None, DeviceArray([[0.],
                          [1.],
                          [1.],
