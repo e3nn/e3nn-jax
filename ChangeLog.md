@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `e3nn.IrrepsArray.convert` is now private (`e3nn.IrrepsArray._convert`) because it's recommended to other methods instead.
 
+### Removed
+- Deprecated `e3nn.TensorSquare`
+
 ## [0.11.1] - 2022-11-13
 ### Added
 - `e3nn.Linear` now supports integer "weights" inputs.
