@@ -4,11 +4,12 @@ import operator
 import warnings
 from typing import Any, Callable, List, Optional, Tuple, Union
 
-import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
 import jax.scipy
 import numpy as np
+
+import e3nn_jax as e3nn
 from e3nn_jax import Irreps, axis_angle_to_angles, config, matrix_to_angles, quaternion_to_angles
 from e3nn_jax._src.irreps import IntoIrreps
 
@@ -1140,6 +1141,7 @@ def normal(
         normalization = config("irrep_normalization")
 
     if key is None:
+        warnings.warn("e3nn.normal: the key (random seed) is not provided, use the hash of the irreps as key!")
         key = jax.random.PRNGKey(hash(irreps))
 
     if normalize:
