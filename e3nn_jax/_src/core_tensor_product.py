@@ -162,8 +162,8 @@ class FunctionalTensorProduct:
         return _left_right(
             self,
             weights,
-            input1.convert(self.irreps_in1),
-            input2.convert(self.irreps_in2),
+            input1._convert(self.irreps_in1),
+            input2._convert(self.irreps_in2),
             custom_einsum_jvp=custom_einsum_jvp,
             fused=fused,
         )
@@ -194,7 +194,7 @@ class FunctionalTensorProduct:
         return _right(
             self,
             weights,
-            input2.convert(self.irreps_in2),
+            input2._convert(self.irreps_in2),
             custom_einsum_jvp=custom_einsum_jvp,
         )
 

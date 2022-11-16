@@ -72,9 +72,9 @@ class FullyConnectedTensorProduct(hk.Module):
 
     def __call__(self, x1: IrrepsArray, x2: IrrepsArray) -> IrrepsArray:
         if self.irreps_in1 is not None:
-            x1 = x1.convert(self.irreps_in1)
+            x1 = x1._convert(self.irreps_in1)
         if self.irreps_in2 is not None:
-            x2 = x2.convert(self.irreps_in2)
+            x2 = x2._convert(self.irreps_in2)
 
         x1 = x1.remove_nones().simplify()
         x2 = x2.remove_nones().simplify()
@@ -236,8 +236,8 @@ def elementwise_tensor_product(
             irreps_in1.insert(i + 1, (mul_1 - mul_2, ir_1))
         i += 1
 
-    input1 = input1.convert(irreps_in1)
-    input2 = input2.convert(irreps_in2)
+    input1 = input1._convert(irreps_in1)
+    input2 = input2._convert(irreps_in2)
 
     irreps_out = []
     instructions = []
@@ -432,7 +432,7 @@ class TensorSquare(hk.Module):
 
     def __call__(self, input: IrrepsArray) -> IrrepsArray:
         if self.irreps_in is not None:
-            input = input.convert(self.irreps_in)
+            input = input._convert(self.irreps_in)
 
         input = input.remove_nones().simplify()
 

@@ -403,7 +403,7 @@ class IrrepsArray:
                     mul, ir = self.irreps[i - 1]
                     if (start - self.irreps[: i - 1].dim) % ir.dim == 0:
                         mul1 = (start - self.irreps[: i - 1].dim) // ir.dim
-                        return self.convert(
+                        return self._convert(
                             self.irreps[: i - 1] + e3nn.Irreps([(mul1, ir), (mul - mul1, ir)]) + self.irreps[i:]
                         )[index]
 
@@ -416,7 +416,7 @@ class IrrepsArray:
                     mul, ir = self.irreps[i - 1]
                     if (stop - self.irreps[: i - 1].dim) % ir.dim == 0:
                         mul1 = (stop - self.irreps[: i - 1].dim) // ir.dim
-                        return self.convert(
+                        return self._convert(
                             self.irreps[: i - 1] + e3nn.Irreps([(mul1, ir), (mul - mul1, ir)]) + self.irreps[i:]
                         )[index]
 
@@ -500,7 +500,7 @@ class IrrepsArray:
             >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).simplify()
             2x0e [1. 1.]
         """
-        return self.convert(self.irreps.simplify())
+        return self._convert(self.irreps.simplify())
 
     def unify(self) -> "IrrepsArray":
         r"""Unify the irreps.
@@ -509,7 +509,7 @@ class IrrepsArray:
             >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).unify()
             1x0e+0x1e+1x0e [1. 1.]
         """
-        return self.convert(self.irreps.unify())
+        return self._convert(self.irreps.unify())
 
     def sort(self) -> "IrrepsArray":
         r"""Sort the irreps.
@@ -735,7 +735,7 @@ class IrrepsArray:
         k = (1 - d) / 2
         return self.transform_by_angles(*matrix_to_angles(R), k)
 
-    def convert(self, irreps: IntoIrreps) -> "IrrepsArray":
+    def _convert(self, irreps: IntoIrreps) -> "IrrepsArray":
         r"""Convert the list property into an equivalent irreps.
 
         Args:
@@ -1212,7 +1212,7 @@ class _IndexUpdateRef:
             if self.irreps.simplify() != values.irreps.simplify():
                 raise ValueError("The irreps of the array and the values to set must be the same.")
 
-            values = values.convert(self.irreps)
+            values = values._convert(self.irreps)
 
             def fn(x, y, mul, ir):
                 if x is not None and y is not None:
@@ -1263,7 +1263,7 @@ class _IndexUpdateRef:
             if self.irreps.simplify() != values.irreps.simplify():
                 raise ValueError("The irreps of the array and the values to add must be the same.")
 
-            values = values.convert(self.irreps)
+            values = values._convert(self.irreps)
 
             def fn(x, y, mul, ir):
                 if x is not None and y is not None:
