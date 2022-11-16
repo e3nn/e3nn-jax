@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **breaking change** use `input.regroup()` in `e3nn.Linear` which can change the structure of the parameters dictionary.
 - **breaking change** `regroup_output` is `True` by default in `e3nn.tensor_product` and `e3nn.tensor_square`.
 - To facilitate debugging, if not `key` is provided to `e3nn.normal` it will use the hash of the irreps.
+- **breaking change** changed normalization of `e3nn.tensor_square` in the case of `normalized_input=True`
 
 ### Removed
 - Deprecate `e3nn.TensorSquare`

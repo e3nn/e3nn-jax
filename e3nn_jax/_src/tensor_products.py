@@ -51,7 +51,7 @@ def tensor_product(
         >>> x = e3nn.IrrepsArray("2x0e + 1o", jnp.arange(5))
         >>> y = e3nn.IrrepsArray("0o + 2o", jnp.arange(6))
         >>> e3nn.tensor_product(x, y)
-        2x0o+1x1e+1x1e+1x2e+2x2o+1x3e
+        2x0o+2x1e+1x2e+2x2o+1x3e
         [  0.     0.     0.     0.     0.    -1.9   16.65  14.83   7.35 -12.57
            0.    -0.66   4.08   0.     0.     0.     0.     0.     1.     2.
            3.     4.     5.     9.9   10.97   9.27  -1.97  12.34  15.59  12.73]
@@ -70,7 +70,7 @@ def tensor_product(
         The irreps can be determined without providing input data:
 
         >>> e3nn.tensor_product("2x1e + 2e", "2e")
-        1x0e+2x1e+1x1e+2x2e+1x2e+2x3e+1x3e+1x4e
+        1x0e+3x1e+3x2e+3x3e+1x4e
     """
     if regroup_output:
         input1 = input1.regroup()
@@ -208,6 +208,19 @@ def tensor_square(
             of norm 1 in average. Defaults to False.
         custom_einsum_jvp (bool, optional): If True, use a custom implementation of the jvp of einsum.
         fused (bool, optional): If True, use a fused implementation of the tensor product.
+
+    Returns:
+        IrrepsArray: Tensor product of the input with itself.
+
+    Examples:
+        >>> jnp.set_printoptions(precision=2, suppress=True)
+        >>> import e3nn_jax as e3nn
+        >>> x = e3nn.IrrepsArray("0e + 1o", jnp.array([10, 1, 2, 3.0]))
+        >>> e3nn.tensor_square(x)
+        2x0e+1x1o+1x2e [57.74  3.61 10.   20.   30.    3.    2.   -0.58  6.    4.  ]
+
+        >>> e3nn.tensor_square(x, normalized_input=True)
+        2x0e+1x1o+1x2e [100.    14.    13.16  26.32  39.48   7.77   5.18  -1.5   15.54  10.36]
     """
     if regroup_output:
         input = input.regroup()
@@ -225,7 +238,14 @@ def tensor_square(
             for ir_out in ir_1 * ir_2:
 
                 if normalized_input:
-                    alpha = ir_1.dim * ir_2.dim
+                    if irrep_normalization == "component":
+                        alpha = ir_1.dim * ir_2.dim * ir_out.dim
+                    elif irrep_normalization == "norm":
+                        alpha = ir_1.dim * ir_2.dim
+                    elif irrep_normalization == "none":
+                        alpha = 1
+                    else:
+                        raise ValueError(f"irrep_normalization={irrep_normalization}")
                 else:
                     if irrep_normalization == "component":
                         alpha = ir_out.dim
@@ -251,10 +271,20 @@ def tensor_square(
 
                     if ir_out.l % 2 == 0:
                         if normalized_input:
-                            if ir_out.l == 0:
-                                alpha = ir_out.dim * ir_1.dim
+                            if irrep_normalization == "component":
+                                if ir_out.l == 0:
+                                    alpha = ir_out.dim * ir_1.dim
+                                else:
+                                    alpha = ir_1.dim * (ir_1.dim + 2) / 2 * ir_out.dim
+                            elif irrep_normalization == "norm":
+                                if ir_out.l == 0:
+                                    alpha = ir_out.dim * ir_1.dim
+                                else:
+                                    alpha = ir_1.dim * (ir_1.dim + 2) / 2
+                            elif irrep_normalization == "none":
+                                alpha = 1
                             else:
-                                alpha = ir_1.dim * (ir_1.dim + 2) / 2
+                                raise ValueError(f"irrep_normalization={irrep_normalization}")
                         else:
                             if irrep_normalization == "component":
                                 if ir_out.l == 0:
@@ -266,6 +296,8 @@ def tensor_square(
                                     alpha = ir_1.dim * ir_2.dim / (ir_1.dim + 2)
                                 else:
                                     alpha = ir_1.dim * ir_2.dim / 2
+                            elif irrep_normalization == "none":
+                                alpha = 1
                             else:
                                 raise ValueError(f"irrep_normalization={irrep_normalization}")
 
