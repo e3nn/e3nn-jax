@@ -93,7 +93,7 @@ class FullyConnectedTensorProduct(hk.Module):
         ]
         f = naive_broadcast_decorator(lambda x1, x2: tp.left_right(ws, x1, x2))
         output = f(x1, x2)
-        return output.convert(self.irreps_out)
+        return output._convert(self.irreps_out)
 
 
 def full_tensor_product(
@@ -440,4 +440,4 @@ class TensorSquare(hk.Module):
         ws = [hk.get_parameter(str(ins), shape=ins.path_shape, init=self.init(ins.weight_std)) for ins in tp.instructions]
         f = naive_broadcast_decorator(lambda x: tp.left_right(ws, x, x))
         output = f(input)
-        return output.convert(self.irreps_out)
+        return output._convert(self.irreps_out)
