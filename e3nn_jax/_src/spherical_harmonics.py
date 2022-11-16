@@ -81,7 +81,7 @@ def spherical_harmonics(
         irreps_out (`Irreps` or list of int or int): output irreps
         input (`IrrepsArray` or `jax.numpy.ndarray`): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
-        normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
+        normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'component'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_jvp])
 
     Returns:
