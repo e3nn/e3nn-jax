@@ -258,7 +258,7 @@ class Linear(hk.Module):
         if self.irreps_in is not None:
             input = input._convert(self.irreps_in)
 
-        input = input.remove_nones().simplify()
+        input = input.remove_nones().regroup()
         output_irreps = self.irreps_out.simplify()
         if self.channel_out is not None:
             input = input.axis_to_mul()
