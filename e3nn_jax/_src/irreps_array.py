@@ -1085,7 +1085,7 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
 
 def normal(
     irreps: IntoIrreps,
-    key: jnp.ndarray,
+    key: jnp.ndarray = None,
     leading_shape: Tuple[int, ...] = (),
     *,
     normalize: bool = False,
@@ -1095,7 +1095,7 @@ def normal(
 
     Args:
         irreps (Irreps): irreps of the output array
-        key (jnp.ndarray): random key
+        key (jnp.ndarray): random key (if not provided, use the hash of the irreps as seed, usefull for debugging)
         leading_shape (tuple of int): shape of the leading dimensions
         normalize (bool): if True, normalize the output array
         normalization (str): normalization of the output array, ``"component"`` or ``"norm"``
@@ -1107,6 +1107,8 @@ def normal(
 
     Examples:
         >>> np.set_printoptions(precision=2, suppress=True)
+        >>> e3nn.normal("1o")
+        1x1o [ 2.01 -1.21 -1.62]
 
         Generate a random array with normalization ``"component"``
 
@@ -1136,6 +1138,9 @@ def normal(
 
     if normalization is None:
         normalization = config("irrep_normalization")
+
+    if key is None:
+        key = jax.random.PRNGKey(hash(irreps))
 
     if normalize:
         list = []
