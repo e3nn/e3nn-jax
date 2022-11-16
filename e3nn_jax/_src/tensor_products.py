@@ -30,6 +30,7 @@ def tensor_product(
     irrep_normalization: Optional[str] = None,
     custom_einsum_jvp: bool = None,
     fused: bool = None,
+    regroup_output: bool = True,
 ) -> IrrepsArray:
     """Tensor product reduced into irreps.
 
@@ -38,6 +39,7 @@ def tensor_product(
         input2 (IrrepsArray): Second input
         filter_ir_out (list of Irrep, optional): Filter the output irreps. Defaults to None.
         irrep_normalization (str, optional): Irrep normalization, ``"component"`` or ``"norm"``. Defaults to ``"component"``.
+        regroup_output (bool, optional): Regroup the outputs into irreps. Defaults to True.
 
     Returns:
         IrrepsArray: Tensor product of the two inputs.
@@ -70,6 +72,10 @@ def tensor_product(
         >>> e3nn.tensor_product("2x1e + 2e", "2e")
         1x0e+2x1e+1x1e+2x2e+1x2e+2x3e+1x3e+1x4e
     """
+    if regroup_output:
+        input1 = input1.regroup()
+        input2 = input2.regroup()
+
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
@@ -95,7 +101,12 @@ def tensor_product(
         input1.irreps, input2.irreps, irreps_out, instructions, irrep_normalization=irrep_normalization
     )
 
-    return naive_broadcast_decorator(partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp))(input1, input2)
+    output = naive_broadcast_decorator(partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp))(
+        input1, input2
+    )
+    if regroup_output:
+        output = output.regroup()
+    return output
 
 
 @overload_for_irreps_without_array((0, 1))
@@ -185,6 +196,7 @@ def tensor_square(
     normalized_input: bool = False,
     custom_einsum_jvp: bool = None,
     fused: bool = None,
+    regroup_output: bool = True,
 ) -> IrrepsArray:
     r"""Tensor product of a `IrrepsArray` with itself.
 
@@ -197,6 +209,9 @@ def tensor_square(
         custom_einsum_jvp (bool, optional): If True, use a custom implementation of the jvp of einsum.
         fused (bool, optional): If True, use a fused implementation of the tensor product.
     """
+    if regroup_output:
+        input = input.regroup()
+
     if irrep_normalization is None:
         irrep_normalization = config("irrep_normalization")
 
@@ -271,7 +286,10 @@ def tensor_square(
         irrep_normalization="none",
     )
 
-    return naive_broadcast_decorator(partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp))(input, input)
+    output = naive_broadcast_decorator(partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp))(input, input)
+    if regroup_output:
+        output = output.regroup()
+    return output
 
 
 # Deprecated functions:

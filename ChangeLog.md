@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `e3nn.Irreps.regroup` and `e3nn.IrrepsArray.regroup` to regroup irreps. Equivalent to `sort` followed by `simplify`.
+- add `regroup_output` parameter to `e3nn.tensor_product` and `e3nn.tensor_square` to regroup the output irreps.
 
 ### Changed
 - `e3nn.IrrepsArray.convert` is now private (`e3nn.IrrepsArray._convert`) because it's recommended to other methods instead.
 - **breaking change** use `input.regroup()` in `e3nn.Linear` which can change the structure of the parameters dictionary.
+- **breaking change** `regroup_output` is `True` by default in `e3nn.tensor_product` and `e3nn.tensor_square`.
 
 ### Removed
 - Deprecated `e3nn.TensorSquare`
