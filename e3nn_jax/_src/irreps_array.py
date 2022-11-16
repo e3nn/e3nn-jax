@@ -1108,8 +1108,8 @@ def normal(
 
     Examples:
         >>> np.set_printoptions(precision=2, suppress=True)
-        >>> e3nn.normal("1o")
-        1x1o [ 2.01 -1.21 -1.62]
+        >>> e3nn.normal("1o").shape
+        (3,)
 
         Generate a random array with normalization ``"component"``
 
