@@ -511,7 +511,7 @@ class IrrepsArray:
         """
         return self.convert(self.irreps.unify())
 
-    def sorted(self) -> "IrrepsArray":
+    def sort(self) -> "IrrepsArray":
         r"""Sort the irreps.
 
         Example:
@@ -521,7 +521,20 @@ class IrrepsArray:
         irreps, p, inv = self.irreps.sort()
         return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1])
 
-    def filtered(self, keep_ir: Union[e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]]) -> "IrrepsArray":
+    sorted = sort
+
+    def regroup(self) -> "IrrepsArray":
+        r"""Regroup the same irreps together.
+
+        Equivalent to :meth:`sorted` followed by :meth:`simplify`.
+
+        Example:
+            >>> IrrepsArray("0e + 1o + 2x0e", jnp.arange(6)).regroup()
+            3x0e+1x1o [0 4 5 1 2 3]
+        """
+        return self.sorted().simplify()
+
+    def filter(self, keep_ir: Union[e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]]) -> "IrrepsArray":
         r"""Filter the irreps.
 
         Args:
@@ -538,6 +551,8 @@ class IrrepsArray:
         return IrrepsArray.from_list(
             irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in irreps], self.shape[:-1]
         )
+
+    filtered = filter
 
     @property
     def slice_by_mul(self):
@@ -566,20 +581,26 @@ class IrrepsArray:
         """
         return _ChunkIndexSliceHelper(self)
 
-    def repeat_irreps_by_last_axis(self) -> "IrrepsArray":
+    def axis_to_irreps(self, axis: int = -2) -> "IrrepsArray":
         r"""Repeat the irreps by the last axis of the array.
 
         Example:
             >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
-            >>> x.repeat_irreps_by_last_axis()
+            >>> x.axis_to_irreps()
             1x0e+1x1e+1x0e+1x1e [0 1 2 3 4 5 6 7]
         """
-        assert len(self.shape) >= 2
-        irreps = (self.shape[-2] * self.irreps).simplify()
-        array = self.array.reshape(self.shape[:-2] + (irreps.dim,))
-        return IrrepsArray(irreps, array)
+        assert self.ndim >= 2
+        axis = _standardize_axis(axis, self.ndim)[0]
+        jnp = _infer_backend(self.array)
 
-    def factor_irreps_to_last_axis(self) -> "IrrepsArray":  # noqa: D102
+        new_irreps = (self.shape[axis] * self.irreps).simplify()
+        new_array = jnp.moveaxis(self.array, axis, -2)
+        new_array = jnp.reshape(new_array, self.shape[:-2] + (new_irreps.dim,))
+        return IrrepsArray(new_irreps, new_array)
+
+    repeat_irreps_by_last_axis = axis_to_irreps
+
+    def irreps_to_axis(self) -> "IrrepsArray":  # noqa: D102
         raise NotImplementedError
 
     # Move multiplicity to the previous last axis and back

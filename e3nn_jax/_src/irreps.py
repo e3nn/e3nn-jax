@@ -603,6 +603,20 @@ class Irreps(tuple):
         irreps = Irreps([(mul, ir) for ir, _, mul in out])
         return Ret(irreps, p, inv)
 
+    def regroup(self) -> "Irreps":
+        r"""Regroup the same irreps together.
+
+        Equivalent to :meth:`sort` followed by :meth:`simplify`.
+
+        Returns:
+            `Irreps`: regrouped irreps
+
+        Examples:
+            >>> Irreps("1e + 0e + 1e + 0x2e").regroup()
+            1x0e+2x1e
+        """
+        return self.sort().irreps.simplify()
+
     def filter(self, keep_ir: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]]) -> "Irreps":
         r"""Filter the irreps.
 
