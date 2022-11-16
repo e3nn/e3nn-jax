@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.12.0] - 2022-11-16
 ### Added
 - `e3nn.Irreps.regroup` and `e3nn.IrrepsArray.regroup` to regroup irreps. Equivalent to `sort` followed by `simplify`.
 - add `regroup_output` parameter to `e3nn.tensor_product` and `e3nn.tensor_square` to regroup the output irreps.
