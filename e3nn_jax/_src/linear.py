@@ -143,7 +143,7 @@ class FunctionalLinear:
         return ws
 
     def __call__(self, ws: Union[List[jnp.ndarray], jnp.ndarray], input: IrrepsArray) -> IrrepsArray:
-        input = input.convert(self.irreps_in)
+        input = input._convert(self.irreps_in)
         if input.ndim != 1:
             raise ValueError(f"FunctionalLinear does not support broadcasting, input shape is {input.shape}")
 
@@ -256,7 +256,7 @@ class Linear(hk.Module):
             weights = None
 
         if self.irreps_in is not None:
-            input = input.convert(self.irreps_in)
+            input = input._convert(self.irreps_in)
 
         input = input.remove_nones().simplify()
         output_irreps = self.irreps_out.simplify()
@@ -358,4 +358,4 @@ class Linear(hk.Module):
 
         if self.channel_out is not None:
             output = output.mul_to_axis(self.channel_out)
-        return output.convert(self.irreps_out)
+        return output._convert(self.irreps_out)
