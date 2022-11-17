@@ -376,7 +376,7 @@ class FullyConnectedTensorProduct(hk.Module):
         self.irreps_in1 = Irreps(irreps_in1) if irreps_in1 is not None else None
         self.irreps_in2 = Irreps(irreps_in2) if irreps_in2 is not None else None
 
-    def __call__(self, x1: IrrepsArray, x2: IrrepsArray) -> IrrepsArray:
+    def __call__(self, x1: IrrepsArray, x2: IrrepsArray, **kwargs) -> IrrepsArray:
         if self.irreps_in1 is not None:
             x1 = x1._convert(self.irreps_in1)
         if self.irreps_in2 is not None:
@@ -397,7 +397,7 @@ class FullyConnectedTensorProduct(hk.Module):
             )
             for ins in tp.instructions
         ]
-        f = naive_broadcast_decorator(lambda x1, x2: tp.left_right(ws, x1, x2))
+        f = naive_broadcast_decorator(lambda x1, x2: tp.left_right(ws, x1, x2, **kwargs))
         output = f(x1, x2)
         return output._convert(self.irreps_out)
 

@@ -34,6 +34,7 @@ def main():
     parser.add_argument("--extrachannels", type=t_or_f, default=False)
     parser.add_argument("--fused", type=t_or_f, default=False)
     parser.add_argument("--lists", type=t_or_f, default=False)
+    parser.add_argument("--module", type=t_or_f, default=False)
     parser.add_argument("-n", type=int, default=1000)
     parser.add_argument("--batch", type=int, default=64)
 
@@ -88,14 +89,22 @@ def main():
         @hk.without_apply_rng
         @hk.transform
         def tp(x1, x2):
-            return e3nn.Linear(irreps_out)(
-                e3nn.tensor_product(
+            if args.module:
+                return e3nn.FullyConnectedTensorProduct(irreps_out)(
                     x1,
                     x2,
                     custom_einsum_jvp=args.custom_einsum_jvp,
                     fused=args.fused,
                 )
-            )
+            else:
+                return e3nn.Linear(irreps_out)(
+                    e3nn.tensor_product(
+                        x1,
+                        x2,
+                        custom_einsum_jvp=args.custom_einsum_jvp,
+                        fused=args.fused,
+                    )
+                )
 
         inputs = (e3nn.normal(irreps_in1, k(), (args.batch,)), e3nn.normal(irreps_in2, k(), (args.batch,)))
 
