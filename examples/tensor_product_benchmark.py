@@ -1,16 +1,12 @@
 import argparse
-
-# import logging
-import math
 import time
-from functools import partial, reduce
 
-import e3nn_jax as e3nn
+import haiku as hk
 import jax
 import jax.numpy as jnp
 import jaxlib
 
-# logging.basicConfig(level=logging.DEBUG)
+import e3nn_jax as e3nn
 
 
 # https://stackoverflow.com/a/15008806/1008938
@@ -43,6 +39,12 @@ def main():
 
     args = parser.parse_args()
 
+    def k():
+        k.key, x = jax.random.split(k.key)
+        return x
+
+    k.key = jax.random.PRNGKey(0)
+
     # device = 'cuda' if (torch.cuda.is_available() and args.cuda) else 'cpu'
     # args.cuda = device == 'cuda'
     print("======= Versions: ======")
@@ -62,81 +64,49 @@ def main():
     if args.elementwise:
         raise NotImplementedError
     elif args.extrachannels:
-        raise NotImplementedError
 
-        def compose(f, g):
-            return lambda *x: g(f(*x))
+        @hk.without_apply_rng
+        @hk.transform
+        def tp(x1, x2):
+            x = e3nn.tensor_product(
+                x1[..., :, None, :],
+                x2[..., None, :, :],
+                custom_einsum_jvp=args.custom_einsum_jvp,
+                fused=args.fused,
+            )
+            x = x.reshape(x.shape[:-3] + (-1,) + x.shape[-1:])
+            x = x.axis_to_mul()
+            return e3nn.Linear(irreps_out)(x)
 
-        c_in1 = reduce(math.gcd, [mul for mul, ir in irreps_in1])
-        c_in2 = reduce(math.gcd, [mul for mul, ir in irreps_in2])
-        c_out = reduce(math.gcd, [mul for mul, ir in irreps_out])
+        inputs = (e3nn.normal(irreps_in1, k(), (args.batch,)), e3nn.normal(irreps_in2, k(), (args.batch,)))
+        inputs = (inputs[0].mul_to_axis(), inputs[1].mul_to_axis())
 
-        irreps_in1_red = e3nn.Irreps([(mul // c_in1, ir) for mul, ir in irreps_in1])
-        irreps_in2_red = e3nn.Irreps([(mul // c_in2, ir) for mul, ir in irreps_in2])
-        irreps_out_red = e3nn.Irreps([(mul // c_out, ir) for mul, ir in irreps_out])
+        f = tp.apply
 
-        tp = e3nn.FunctionalFullyConnectedTensorProduct(irreps_in1_red, irreps_in2_red, irreps_out_red)
-
-        f = partial(
-            tp.left_right,
-            custom_einsum_jvp=args.custom_einsum_jvp,
-            fused=args.fused,
-        )
-
-        f = jax.vmap(f, (0, None, None), 0)  # channel_out
-        f = jax.vmap(f, (0, None, 0), 0)  # channel_in2
-        f = jax.vmap(f, (0, 0, None), 0)  # channel_in1
-        f = compose(f, lambda z: jnp.sum(z, (0, 1)) / jnp.sqrt(z.shape[0] * z.shape[1]))
-
-        f__ = f
-
-        def f(w, x1, x2):
-            return f__(w, x1.reshape(c_in1, irreps_in1_red.dim), x2.reshape(c_in2, irreps_in2_red.dim))
-
-        tp.left_right = f
-
-        w_shape = (c_in1, c_in2, c_out)
-        print(f"extrachannels = {w_shape}")
     else:
-        tp = e3nn.FunctionalFullyConnectedTensorProduct(
-            irreps_in1,
-            irreps_in2,
-            irreps_out,
-        )
 
-        w_shape = ()
+        @hk.without_apply_rng
+        @hk.transform
+        def tp(x1, x2):
+            return e3nn.Linear(irreps_out)(
+                e3nn.tensor_product(
+                    x1,
+                    x2,
+                    custom_einsum_jvp=args.custom_einsum_jvp,
+                    fused=args.fused,
+                )
+            )
 
-        f = partial(
-            tp.left_right,
-            custom_einsum_jvp=args.custom_einsum_jvp,
-            fused=args.fused,
-        )
-    f = jax.vmap(f, (None, 0, 0), 0)
+        inputs = (e3nn.normal(irreps_in1, k(), (args.batch,)), e3nn.normal(irreps_in2, k(), (args.batch,)))
 
-    assert len(tp.instructions) > 0, "Bad irreps, no instructions"
-
-    print("Instructions:")
-    for ins in tp.instructions:
-        print(f"  {ins}")
+        f = tp.apply
 
     # from https://pytorch.org/docs/master/_modules/torch/utils/benchmark/utils/timer.html#Timer.timeit
     warmup = max(int(args.n // 100), 1)
 
-    def k():
-        k.key, x = jax.random.split(k.key)
-        return x
+    w = tp.init(k(), *inputs)
 
-    k.key = jax.random.PRNGKey(0)
-
-    ws = [jax.random.normal(k(), w_shape + ins.path_shape) for ins in tp.instructions]
-
-    if args.fused:
-        ws = jnp.concatenate([w.reshape(w_shape + (-1,)) for w in ws], axis=-1)
-        print(f"flat weight shape = {ws.shape}")
-
-    print(f"{sum(x.size for x in jax.tree_util.tree_leaves(ws))} parameters")
-
-    inputs = (e3nn.normal(irreps_in1, k(), (args.batch,)), e3nn.normal(irreps_in2, k(), (args.batch,)))
+    print(f"{sum(x.size for x in jax.tree_util.tree_leaves(w))} parameters")
 
     if args.lists:
         f_1 = f
@@ -149,7 +119,7 @@ def main():
         # tanh() forces it to realize the grad as a full size matrix rather than expanded (stride 0) ones
         f_2 = f
         f = jax.value_and_grad(
-            lambda ws, x1, x2: sum(jnp.sum(jnp.tanh(x)) for x in jax.tree_util.tree_leaves(f_2(ws, x1, x2))), 0
+            lambda w, x1, x2: sum(jnp.sum(jnp.tanh(out)) for out in jax.tree_util.tree_leaves(f_2(w, x1, x2)))
         )
 
     # compile
@@ -159,13 +129,13 @@ def main():
     print("starting...")
 
     for _ in range(warmup):
-        z = f(ws, *inputs)
+        z = f(w, *inputs)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), z)
 
     t = time.perf_counter()
 
     for _ in range(args.n):
-        z = f(ws, *inputs)
+        z = f(w, *inputs)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), z)
 
     perloop = (time.perf_counter() - t) / args.n
@@ -173,7 +143,7 @@ def main():
     print()
     print(f"{1e3 * perloop:.1f} ms")
 
-    c = jax.xla_computation(f)(ws, *inputs)
+    c = jax.xla_computation(f)(w, *inputs)
 
     backend = jax.lib.xla_bridge.get_backend()
     e = backend.compile(c)
