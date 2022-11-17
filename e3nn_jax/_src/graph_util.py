@@ -78,7 +78,7 @@ def index_add(
         out_dim = indices.shape[0]
         indices = _distinct_but_small(indices)
 
-    output = jax.tree_util.tree_map(lambda x: jnp.zeros((out_dim,) + x.shape[1:]).at[(indices,)].add(x), input)
+    output = jax.tree_util.tree_map(lambda x: jnp.zeros((out_dim,) + x.shape[1:], x.dtype).at[(indices,)].add(x), input)
 
     if map_back:
         output = output[(indices,)]
