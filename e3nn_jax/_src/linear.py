@@ -209,6 +209,7 @@ class Linear(hk.Module):
         gradient_normalization: Union[str, float] = None,
         get_parameter: Optional[Callable[[str, Instruction], jnp.ndarray]] = None,
         num_weights: Optional[int] = None,
+        weights_per_channel: bool = False,
         name: Optional[str] = None,
     ):
         super().__init__(name)
@@ -220,6 +221,7 @@ class Linear(hk.Module):
         self.biases = biases
         self.path_normalization = path_normalization
         self.num_weights = num_weights
+        self.weights_per_channel = weights_per_channel
 
         if gradient_normalization is None:
             gradient_normalization = config("gradient_normalization")
@@ -260,7 +262,9 @@ class Linear(hk.Module):
 
         input = input.remove_nones().regroup()
         output_irreps = self.irreps_out.simplify()
+
         if self.channel_out is not None:
+            assert not self.weights_per_channel
             input = input.axis_to_mul()
             output_irreps = Irreps([(self.channel_out * mul, ir) for mul, ir in output_irreps])
 
@@ -274,6 +278,7 @@ class Linear(hk.Module):
         )
 
         if weights is None:
+            assert not self.weights_per_channel  # Not implemented yet
             w = [
                 self.get_parameter(f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", ins.path_shape, ins.weight_std)
                 if ins.i_in == -1
@@ -295,6 +300,7 @@ class Linear(hk.Module):
                 weights = weights.array
 
             if weights.dtype.kind == "i" and self.num_weights is not None:
+                assert not self.weights_per_channel  # Not implemented yet
 
                 shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape)
                 input = input.broadcast_to(shape + (-1,))
@@ -314,47 +320,88 @@ class Linear(hk.Module):
                 ]  # List of shape (num_weights, *path_shape)
                 w = [wi[weights] for wi in w]  # List of shape (..., *path_shape)
 
+                f = lin
+                for _ in range(input.ndim - 1):
+                    f = jax.vmap(f)
+                output = f(w, input)
+
             elif weights.dtype.kind in "fc" and self.num_weights is None:
 
-                shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape[:-1])
-                input = input.broadcast_to(shape + (-1,))
-                weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])
+                if self.weights_per_channel:
+                    shape = jnp.broadcast_shapes(input.shape[:-2], weights.shape[:-1])
+                    input = input.broadcast_to(shape + input.shape[-2:])
+                    weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])
+                    nc = input.shape[-2]
 
-                weights = weights.astype(input.array.dtype)
+                    weights = weights.astype(input.array.dtype)
 
-                # Should be equivalent to the last layer of e3nn.MultiLayerPerceptron
-                d = weights.shape[-1]
-                alpha = 1 / d
-                stddev = jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)
+                    # Should be equivalent to the last layer of e3nn.MultiLayerPerceptron
+                    d = weights.shape[-1]
+                    alpha = 1 / d
+                    stddev = jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)
 
-                w = [
-                    self.get_parameter(
-                        f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", (d,) + ins.path_shape, stddev * ins.weight_std
-                    )
-                    if ins.i_in == -1
-                    else self.get_parameter(
-                        f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
-                        (d,) + ins.path_shape,
-                        stddev * ins.weight_std,
-                    )
-                    for ins in lin.instructions
-                ]  # List of shape (d, *path_shape)
-                w = [
-                    jnp.sqrt(alpha) ** self.gradient_normalization
-                    * jax.lax.dot_general(weights, wi.astype(input.array.dtype), (((weights.ndim - 1,), (0,)), ((), ())))
-                    for wi in w
-                ]  # List of shape (..., *path_shape)
+                    w = [
+                        self.get_parameter(
+                            f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", (d, nc) + ins.path_shape, stddev * ins.weight_std
+                        )
+                        if ins.i_in == -1
+                        else self.get_parameter(
+                            f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+                            (d, nc) + ins.path_shape,
+                            stddev * ins.weight_std,
+                        )
+                        for ins in lin.instructions
+                    ]  # List of shape (d, *path_shape)
+                    w = [
+                        jnp.sqrt(alpha) ** self.gradient_normalization
+                        * jax.lax.dot_general(weights, wi.astype(input.array.dtype), (((weights.ndim - 1,), (0,)), ((), ())))
+                        for wi in w
+                    ]  # List of shape (..., num_channels, *path_shape)
+
+                    f = lin
+                    for _ in range(input.ndim - 1):
+                        f = jax.vmap(f)
+                    output = f(w, input)
+                else:
+                    shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape[:-1])
+                    input = input.broadcast_to(shape + (-1,))
+                    weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])
+
+                    weights = weights.astype(input.array.dtype)
+
+                    # Should be equivalent to the last layer of e3nn.MultiLayerPerceptron
+                    d = weights.shape[-1]
+                    alpha = 1 / d
+                    stddev = jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)
+
+                    w = [
+                        self.get_parameter(
+                            f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}", (d,) + ins.path_shape, stddev * ins.weight_std
+                        )
+                        if ins.i_in == -1
+                        else self.get_parameter(
+                            f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+                            (d,) + ins.path_shape,
+                            stddev * ins.weight_std,
+                        )
+                        for ins in lin.instructions
+                    ]  # List of shape (d, *path_shape)
+                    w = [
+                        jnp.sqrt(alpha) ** self.gradient_normalization
+                        * jax.lax.dot_general(weights, wi.astype(input.array.dtype), (((weights.ndim - 1,), (0,)), ((), ())))
+                        for wi in w
+                    ]  # List of shape (..., *path_shape)
+
+                    f = lin
+                    for _ in range(input.ndim - 1):
+                        f = jax.vmap(f)
+                    output = f(w, input)
 
             else:
                 raise ValueError(
                     "If weights are provided, they must be either integers and num_weights must be provided "
                     "or floats and num_weights must not be provided."
                 )
-
-            f = lin
-            for _ in range(input.ndim - 1):
-                f = jax.vmap(f)
-            output = f(w, input)
 
         if self.channel_out is not None:
             output = output.mul_to_axis(self.channel_out)
