@@ -594,7 +594,7 @@ class IrrepsArray:
         axis = _standardize_axis(axis, self.ndim)[0]
         jnp = _infer_backend(self.array)
 
-        new_irreps = (self.shape[axis] * self.irreps).simplify()
+        new_irreps = self.irreps.repeat(self.shape[axis]).simplify()
         new_array = jnp.moveaxis(self.array, axis, -2)
         new_array = jnp.reshape(new_array, self.shape[:-2] + (new_irreps.dim,))
         return IrrepsArray(new_irreps, new_array)

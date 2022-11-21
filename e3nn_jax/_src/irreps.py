@@ -534,6 +534,15 @@ class Irreps(tuple):
         r"""Hash of the representation."""
         return super().__hash__()
 
+    def repeat(self, n: int) -> "Irreps":
+        r"""Repeat the representation ``n`` times.
+
+        Example:
+            >>> Irreps('0e + 1e').repeat(2)
+            1x0e+1x1e+1x0e+1x1e
+        """
+        return Irreps([(mul, ir) for mul, ir in self] * n)
+
     def unify(self) -> "Irreps":
         r"""Regroup same irrep together.
 
