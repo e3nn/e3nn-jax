@@ -535,22 +535,30 @@ class IrrepsArray:
         """
         return self.sorted().simplify()
 
-    def filter(self, keep_ir: Union[e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]]) -> "IrrepsArray":
+    def filter(
+        self,
+        keep: Union[e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]] = None,
+        *,
+        drop: Union[e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]] = None,
+    ) -> "IrrepsArray":
         r"""Filter the irreps.
 
         Args:
-            keep_ir (Irreps or list of `Irrep` or function): list of irrep to keep
+            keep (Irreps or list of `Irrep` or function): list of irrep to keep
+            exclude (Irreps or list of `Irrep` or function): list of irrep to exclude
 
         Example:
             >>> IrrepsArray("0e + 2x1o + 2x0e", jnp.arange(9)).filtered(["1o"])
             2x1o [1 2 3 4 5 6]
         """
-        if keep_ir is None:
+        if keep is None and drop is None:
             return self
+        if keep is not None and drop is not None:
+            raise ValueError("Cannot specify both keep and drop")
 
-        irreps = self.irreps.filter(keep_ir)
+        new_irreps = self.irreps.filter(keep=keep, drop=drop)
         return IrrepsArray.from_list(
-            irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in irreps], self.shape[:-1]
+            new_irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in new_irreps], self.shape[:-1]
         )
 
     filtered = filter

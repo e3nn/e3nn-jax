@@ -635,11 +635,16 @@ class Irreps(tuple):
         """
         return self.sort().irreps.simplify()
 
-    def filter(self, keep_ir: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]]) -> "Irreps":
+    def filter(
+        self,
+        keep: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]] = None,
+        *,
+        drop: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]] = None,
+    ) -> "Irreps":
         r"""Filter the irreps.
 
         Args:
-            keep_ir (Irreps or list of `Irrep` or function): list of irrep to keep
+            keep (Irreps or list of `Irrep` or function): list of irrep to keep
 
         Returns:
             `Irreps`: filtered irreps
@@ -651,14 +656,28 @@ class Irreps(tuple):
             >>> Irreps("1e + 2e + 0e").filter("2e + 2x1e")
             1x1e+1x2e
         """
-        if isinstance(keep_ir, str):
-            keep_ir = Irreps(keep_ir)
-        if isinstance(keep_ir, Irrep):
-            keep_ir = [keep_ir]
-        if callable(keep_ir):
-            return Irreps([mul_ir for mul_ir in self if keep_ir(mul_ir)])
-        keep_ir = {Irrep(ir) for ir in keep_ir}
-        return Irreps([(mul, ir) for mul, ir in self if ir in keep_ir])
+        if keep is None and drop is None:
+            return self
+        if keep is not None and drop is not None:
+            raise ValueError("Cannot specify both keep and drop")
+        if keep is not None:
+            if isinstance(keep, str):
+                keep = Irreps(keep)
+            if isinstance(keep, Irrep):
+                keep = [keep]
+            if callable(keep):
+                return Irreps([mul_ir for mul_ir in self if keep(mul_ir)])
+            keep = {Irrep(ir) for ir in keep}
+            return Irreps([(mul, ir) for mul, ir in self if ir in keep])
+        if drop is not None:
+            if isinstance(drop, str):
+                drop = Irreps(drop)
+            if isinstance(drop, Irrep):
+                drop = [drop]
+            if callable(drop):
+                return Irreps([mul_ir for mul_ir in self if not drop(mul_ir)])
+            drop = {Irrep(ir) for ir in drop}
+            return Irreps([(mul, ir) for mul, ir in self if ir not in drop])
 
     @property
     def slice_by_mul(self):
