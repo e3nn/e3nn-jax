@@ -124,7 +124,7 @@ class Irrep:
             `jax.numpy.ndarray`: of shape :math:`(..., 2l+1, 2l+1)`
 
         See Also:
-            o3.wigner_D
+            e3nn.wigner_D
             Irreps.D_from_angles
         """
         alpha, beta, gamma, k = jnp.broadcast_arrays(alpha, beta, gamma, k)
@@ -493,24 +493,33 @@ class Irreps(tuple):
         return Irreps(irreps) + self
 
     def __mul__(self, other):
-        r"""Repeat the representation a given number of times.
+        r"""Multiply the multiplicities of the irreps.
 
         Example:
-            >>> (Irreps('2x1e') * 3).simplify()
-            6x1e
+            >>> Irreps('0e + 1e') * 2
+            2x0e+2x1e
         """
         if isinstance(other, Irreps):
-            raise NotImplementedError("Use o3.TensorProduct for this, see the documentation")
-        return Irreps(super().__mul__(other))
+            raise NotImplementedError("Use e3nn.tensor_product for this, see the documentation")
+        return Irreps([(mul * other, ir) for mul, ir in self])
 
     def __rmul__(self, other):
-        r"""Repeat the representation a given number of times.
+        r"""Multiply the multiplicities of the irreps.
 
         Example:
             >>> 2 * Irreps('0e + 1e')
-            1x0e+1x1e+1x0e+1x1e
+            2x0e+2x1e
         """
-        return Irreps(super().__rmul__(other))
+        return self * other
+
+    def __floordiv__(self, other):
+        r"""Divide the multiplicities of the irreps.
+
+        Example:
+            >>> Irreps('12x0e + 14x1e') // 2
+            6x0e+7x1e
+        """
+        return Irreps([(mul // other, ir) for mul, ir in self])
 
     def __eq__(self, other: object) -> bool:
         r"""Check if two representations are equal."""
