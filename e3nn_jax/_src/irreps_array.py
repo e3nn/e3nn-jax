@@ -631,7 +631,7 @@ class IrrepsArray:
             factor = functools.reduce(math.gcd, (mul for mul, _ in self.irreps))
 
         if not all(mul % factor == 0 for mul, _ in self.irreps):
-            raise ValueError(f"factor {factor} does not divide all multiplicities")
+            raise ValueError(f"factor {factor} does not divide all multiplicities: {self.irreps}")
 
         irreps = Irreps([(mul // factor, ir) for mul, ir in self.irreps])
         new_list = [
