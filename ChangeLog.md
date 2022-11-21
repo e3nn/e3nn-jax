@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - **[BREAKING]** `3 * e3nn.Irreps("0e + 1o")` now returns `3x0e + 3x1o` instead of `1x0e + 1x1o + 1x0e + 1x1o + 1x0e + 1x1o`
+- **[BREAKING]** in Linear, renamed `num_weights` to `num_indexed_weights` because it was confusing.
 
 ### Added
 - `e3nn.Irreps("3x0e + 6x1o") // 3` returns `1x0e + 2x1o`
