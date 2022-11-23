@@ -52,8 +52,8 @@ def test_arithmetic():
 
     assert Irrep("4o") + Irrep("7e") == Irreps("4o + 7e")
 
-    assert 2 * Irreps("2x2e + 4x1o") == Irreps("2x2e + 4x1o + 2x2e + 4x1o")
-    assert Irreps("2x2e + 4x1o") * 2 == Irreps("2x2e + 4x1o + 2x2e + 4x1o")
+    assert 2 * Irreps("2x2e + 4x1o") == Irreps("4x2e + 8x1o")
+    assert Irreps("2x2e + 4x1o") * 2 == Irreps("4x2e + 8x1o")
 
     assert Irreps("1o + 4o") + Irreps("1o + 7e") == Irreps("1o + 4o + 1o + 7e")
 

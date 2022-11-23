@@ -4,11 +4,12 @@ import operator
 import warnings
 from typing import Any, Callable, List, Optional, Tuple, Union
 
-import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
 import jax.scipy
 import numpy as np
+
+import e3nn_jax as e3nn
 from e3nn_jax import Irreps, axis_angle_to_angles, config, matrix_to_angles, quaternion_to_angles
 from e3nn_jax._src.irreps import IntoIrreps
 
@@ -138,14 +139,22 @@ class IrrepsArray:
         return IrrepsArray(irreps=irreps, array=array, list=list)
 
     @staticmethod
-    def zeros(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
+    def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> "IrrepsArray":
         r"""Create an IrrepsArray of zeros."""
         irreps = Irreps(irreps)
-        return IrrepsArray(irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,)), list=[None] * len(irreps))
+        return IrrepsArray(
+            irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,), dtype=dtype), list=[None] * len(irreps)
+        )
+
+    @staticmethod
+    def zeros_like(irreps_array: "IrrepsArray") -> "IrrepsArray":
+        r"""Create an IrrepsArray of zeros with the same shape as another IrrepsArray."""
+        return IrrepsArray.zeros(irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype)
 
     @staticmethod
     def ones(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
         r"""Create an IrrepsArray of ones."""
+        # TODO: maybe remove this function because it is not equivariant
         irreps = Irreps(irreps)
         return IrrepsArray(
             irreps=irreps,
@@ -191,6 +200,11 @@ class IrrepsArray:
     def shape(self):
         r"""Shape. Equivalent to ``self.array.shape``."""
         return self.array.shape
+
+    @property
+    def dtype(self):
+        r"""dtype. Equivalent to ``self.array.dtype``."""
+        return self.array.dtype
 
     @property
     def ndim(self):
@@ -390,7 +404,7 @@ class IrrepsArray:
                     mul, ir = self.irreps[i - 1]
                     if (start - self.irreps[: i - 1].dim) % ir.dim == 0:
                         mul1 = (start - self.irreps[: i - 1].dim) // ir.dim
-                        return self.convert(
+                        return self._convert(
                             self.irreps[: i - 1] + e3nn.Irreps([(mul1, ir), (mul - mul1, ir)]) + self.irreps[i:]
                         )[index]
 
@@ -403,7 +417,7 @@ class IrrepsArray:
                     mul, ir = self.irreps[i - 1]
                     if (stop - self.irreps[: i - 1].dim) % ir.dim == 0:
                         mul1 = (stop - self.irreps[: i - 1].dim) // ir.dim
-                        return self.convert(
+                        return self._convert(
                             self.irreps[: i - 1] + e3nn.Irreps([(mul1, ir), (mul - mul1, ir)]) + self.irreps[i:]
                         )[index]
 
@@ -487,7 +501,7 @@ class IrrepsArray:
             >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).simplify()
             2x0e [1. 1.]
         """
-        return self.convert(self.irreps.simplify())
+        return self._convert(self.irreps.simplify())
 
     def unify(self) -> "IrrepsArray":
         r"""Unify the irreps.
@@ -496,9 +510,9 @@ class IrrepsArray:
             >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).unify()
             1x0e+0x1e+1x0e [1. 1.]
         """
-        return self.convert(self.irreps.unify())
+        return self._convert(self.irreps.unify())
 
-    def sorted(self) -> "IrrepsArray":
+    def sort(self) -> "IrrepsArray":
         r"""Sort the irreps.
 
         Example:
@@ -508,20 +522,46 @@ class IrrepsArray:
         irreps, p, inv = self.irreps.sort()
         return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1])
 
-    def filtered(self, keep_ir: Union[e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]]) -> "IrrepsArray":
+    sorted = sort
+
+    def regroup(self) -> "IrrepsArray":
+        r"""Regroup the same irreps together.
+
+        Equivalent to :meth:`sorted` followed by :meth:`simplify`.
+
+        Example:
+            >>> IrrepsArray("0e + 1o + 2x0e", jnp.arange(6)).regroup()
+            3x0e+1x1o [0 4 5 1 2 3]
+        """
+        return self.sorted().simplify()
+
+    def filter(
+        self,
+        keep: Union[e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]] = None,
+        *,
+        drop: Union[e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]] = None,
+    ) -> "IrrepsArray":
         r"""Filter the irreps.
 
         Args:
-            keep_ir (Irreps or list of `Irrep` or function): list of irrep to keep
+            keep (Irreps or list of `Irrep` or function): list of irrep to keep
+            exclude (Irreps or list of `Irrep` or function): list of irrep to exclude
 
         Example:
             >>> IrrepsArray("0e + 2x1o + 2x0e", jnp.arange(9)).filtered(["1o"])
             2x1o [1 2 3 4 5 6]
         """
-        irreps = self.irreps.filter(keep_ir)
+        if keep is None and drop is None:
+            return self
+        if keep is not None and drop is not None:
+            raise ValueError("Cannot specify both keep and drop")
+
+        new_irreps = self.irreps.filter(keep=keep, drop=drop)
         return IrrepsArray.from_list(
-            irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in irreps], self.shape[:-1]
+            new_irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in new_irreps], self.shape[:-1]
         )
+
+    filtered = filter
 
     @property
     def slice_by_mul(self):
@@ -550,28 +590,38 @@ class IrrepsArray:
         """
         return _ChunkIndexSliceHelper(self)
 
-    def repeat_irreps_by_last_axis(self) -> "IrrepsArray":
+    def axis_to_irreps(self, axis: int = -2) -> "IrrepsArray":
         r"""Repeat the irreps by the last axis of the array.
 
         Example:
             >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
-            >>> x.repeat_irreps_by_last_axis()
+            >>> x.axis_to_irreps()
             1x0e+1x1e+1x0e+1x1e [0 1 2 3 4 5 6 7]
         """
-        assert len(self.shape) >= 2
-        irreps = (self.shape[-2] * self.irreps).simplify()
-        array = self.array.reshape(self.shape[:-2] + (irreps.dim,))
-        return IrrepsArray(irreps, array)
+        assert self.ndim >= 2
+        axis = _standardize_axis(axis, self.ndim)[0]
+        jnp = _infer_backend(self.array)
 
-    def factor_irreps_to_last_axis(self) -> "IrrepsArray":  # noqa: D102
+        new_irreps = self.irreps.repeat(self.shape[axis]).simplify()
+        new_array = jnp.moveaxis(self.array, axis, -2)
+        new_array = jnp.reshape(new_array, self.shape[:-2] + (new_irreps.dim,))
+        return IrrepsArray(new_irreps, new_array)
+
+    repeat_irreps_by_last_axis = axis_to_irreps
+
+    def irreps_to_axis(self) -> "IrrepsArray":  # noqa: D102
         raise NotImplementedError
 
     # Move multiplicity to the previous last axis and back
 
-    def mul_to_axis(self, factor=None) -> "IrrepsArray":
+    def mul_to_axis(self, factor: Optional[int] = None, axis: int = -2) -> "IrrepsArray":
         r"""Create a new axis in the previous last position by factoring the multiplicities.
 
         Increase the dimension of the array by 1.
+
+        Args:
+            factor (int or None): factor the multiplicities by this number
+            axis (int): the new axis will be placed before this axis
 
         Example:
             >>> x = IrrepsArray("6x0e + 3x1e", jnp.arange(15))
@@ -581,33 +631,50 @@ class IrrepsArray:
              [ 2  3  9 10 11]
              [ 4  5 12 13 14]]
         """
+        axis = _standardize_axis(axis, self.ndim + 1)
+        if axis == self.ndim:
+            raise ValueError("axis cannot be the last axis. The last axis is reserved for the irreps dimension.")
+
         if factor is None:
             factor = functools.reduce(math.gcd, (mul for mul, _ in self.irreps))
 
         if not all(mul % factor == 0 for mul, _ in self.irreps):
-            raise ValueError(f"factor {factor} does not divide all multiplicities")
+            raise ValueError(f"factor {factor} does not divide all multiplicities: {self.irreps}")
 
         irreps = Irreps([(mul // factor, ir) for mul, ir in self.irreps])
-        list = [
+        new_list = [
             None if x is None else x.reshape(self.shape[:-1] + (factor, mul, ir.dim))
             for (mul, ir), x in zip(irreps, self.list)
         ]
-        return IrrepsArray.from_list(irreps, list, self.shape[:-1] + (factor,))
+        new_list = [None if x is None else jnp.moveaxis(x, -3, axis) for x in new_list]
+        return IrrepsArray.from_list(irreps, new_list, self.shape[:-1] + (factor,))
 
-    def axis_to_mul(self) -> "IrrepsArray":
+    def axis_to_mul(self, axis: int = -2) -> "IrrepsArray":
         r"""Repeat the multiplicity by the previous last axis of the array.
 
         Decrease the dimension of the array by 1.
+
+        Args:
+            axis (int): axis to convert into multiplicity
 
         Example:
             >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
             >>> x.axis_to_mul()
             2x0e+2x1e [0 4 1 2 3 5 6 7]
         """
-        assert len(self.shape) >= 2
-        irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
-        list = [None if x is None else x.reshape(self.shape[:-2] + (mul, ir.dim)) for (mul, ir), x in zip(irreps, self.list)]
-        return IrrepsArray.from_list(irreps, list, self.shape[:-2])
+        assert self.ndim >= 2
+        axis = _standardize_axis(axis, self.ndim)[0]
+
+        if axis == self.ndim - 1:
+            raise ValueError("The last axis is the irreps dimension and therefore cannot be converted to multiplicity.")
+
+        new_list = [None if x is None else jnp.moveaxis(x, axis, -3) for x in self.list]
+        new_irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
+        new_list = [
+            None if x is None else x.reshape(self.shape[:-2] + (new_mul, ir.dim))
+            for (new_mul, ir), x in zip(new_irreps, new_list)
+        ]
+        return IrrepsArray.from_list(new_irreps, new_list, self.shape[:-2])
 
     repeat_mul_by_last_axis = axis_to_mul
     factor_mul_to_last_axis = mul_to_axis
@@ -677,7 +744,7 @@ class IrrepsArray:
         k = (1 - d) / 2
         return self.transform_by_angles(*matrix_to_angles(R), k)
 
-    def convert(self, irreps: IntoIrreps) -> "IrrepsArray":
+    def _convert(self, irreps: IntoIrreps) -> "IrrepsArray":
         r"""Convert the list property into an equivalent irreps.
 
         Args:
@@ -691,7 +758,7 @@ class IrrepsArray:
 
         Example:
             >>> x = IrrepsArray.from_list("6x0e + 4x0e", [None, jnp.ones((4, 1))], ())
-            >>> x.convert("5x0e + 5x0e").list
+            >>> x._convert("5x0e + 5x0e").list
             [None, DeviceArray([[0.],
                          [1.],
                          [1.],
@@ -806,17 +873,17 @@ jax.tree_util.register_pytree_node(
 )
 
 
-def _standardize_axis(axis: Union[None, int, Tuple[int, ...]], ndim: int) -> Tuple[int, ...]:
+def _standardize_axis(axis: Union[None, int, Tuple[int, ...]], result_ndim: int) -> Tuple[int, ...]:
     if axis is None:
-        return tuple(range(ndim))
+        return tuple(range(result_ndim))
     try:
         axis = (operator.index(axis),)
     except TypeError:
         axis = tuple(operator.index(i) for i in axis)
 
-    if not all(-ndim <= i < ndim for i in axis):
+    if not all(-result_ndim <= i < result_ndim for i in axis):
         raise ValueError("axis out of range")
-    axis = tuple(i % ndim for i in axis)
+    axis = tuple(i % result_ndim for i in axis)
 
     return tuple(sorted(set(axis)))
 
@@ -1027,7 +1094,7 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
 
 def normal(
     irreps: IntoIrreps,
-    key: jnp.ndarray,
+    key: jnp.ndarray = None,
     leading_shape: Tuple[int, ...] = (),
     *,
     normalize: bool = False,
@@ -1037,7 +1104,7 @@ def normal(
 
     Args:
         irreps (Irreps): irreps of the output array
-        key (jnp.ndarray): random key
+        key (jnp.ndarray): random key (if not provided, use the hash of the irreps as seed, usefull for debugging)
         leading_shape (tuple of int): shape of the leading dimensions
         normalize (bool): if True, normalize the output array
         normalization (str): normalization of the output array, ``"component"`` or ``"norm"``
@@ -1049,6 +1116,8 @@ def normal(
 
     Examples:
         >>> np.set_printoptions(precision=2, suppress=True)
+        >>> e3nn.normal("1o").shape
+        (3,)
 
         Generate a random array with normalization ``"component"``
 
@@ -1078,6 +1147,10 @@ def normal(
 
     if normalization is None:
         normalization = config("irrep_normalization")
+
+    if key is None:
+        warnings.warn("e3nn.normal: the key (random seed) is not provided, use the hash of the irreps as key!")
+        key = jax.random.PRNGKey(hash(irreps))
 
     if normalize:
         list = []
@@ -1154,7 +1227,7 @@ class _IndexUpdateRef:
             if self.irreps.simplify() != values.irreps.simplify():
                 raise ValueError("The irreps of the array and the values to set must be the same.")
 
-            values = values.convert(self.irreps)
+            values = values._convert(self.irreps)
 
             def fn(x, y, mul, ir):
                 if x is not None and y is not None:
@@ -1205,7 +1278,7 @@ class _IndexUpdateRef:
             if self.irreps.simplify() != values.irreps.simplify():
                 raise ValueError("The irreps of the array and the values to add must be the same.")
 
-            values = values.convert(self.irreps)
+            values = values._convert(self.irreps)
 
             def fn(x, y, mul, ir):
                 if x is not None and y is not None:

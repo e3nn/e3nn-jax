@@ -41,3 +41,17 @@ pytest e3nn_jax/_src/tensor_products_test.py
 # Examples
 
 The examples are moved in the documentation.
+
+# Citing
+```
+@misc{e3nn_paper,
+    doi = {10.48550/ARXIV.2207.09453},
+    url = {https://arxiv.org/abs/2207.09453},
+    author = {Geiger, Mario and Smidt, Tess},
+    keywords = {Machine Learning (cs.LG), Artificial Intelligence (cs.AI), Neural and Evolutionary Computing (cs.NE), FOS: Computer and information sciences, FOS: Computer and information sciences}, 
+    title = {e3nn: Euclidean Neural Networks},
+    publisher = {arXiv},
+    year = {2022},
+    copyright = {Creative Commons Attribution 4.0 International}
+}
+```

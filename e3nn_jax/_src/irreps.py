@@ -124,7 +124,7 @@ class Irrep:
             `jax.numpy.ndarray`: of shape :math:`(..., 2l+1, 2l+1)`
 
         See Also:
-            o3.wigner_D
+            e3nn.wigner_D
             Irreps.D_from_angles
         """
         alpha, beta, gamma, k = jnp.broadcast_arrays(alpha, beta, gamma, k)
@@ -475,6 +475,8 @@ class Irreps(tuple):
             False
             >>> Irreps("2x0e + 2x0e").is_scalar()
             True
+            >>> Irreps("0o").is_scalar()
+            False
         """
         return {ir for _, ir in self} == {Irrep("0e")}
 
@@ -491,24 +493,33 @@ class Irreps(tuple):
         return Irreps(irreps) + self
 
     def __mul__(self, other):
-        r"""Repeat the representation a given number of times.
+        r"""Multiply the multiplicities of the irreps.
 
         Example:
-            >>> (Irreps('2x1e') * 3).simplify()
-            6x1e
+            >>> Irreps('0e + 1e') * 2
+            2x0e+2x1e
         """
         if isinstance(other, Irreps):
-            raise NotImplementedError("Use o3.TensorProduct for this, see the documentation")
-        return Irreps(super().__mul__(other))
+            raise NotImplementedError("Use e3nn.tensor_product for this, see the documentation")
+        return Irreps([(mul * other, ir) for mul, ir in self])
 
     def __rmul__(self, other):
-        r"""Repeat the representation a given number of times.
+        r"""Multiply the multiplicities of the irreps.
 
         Example:
             >>> 2 * Irreps('0e + 1e')
-            1x0e+1x1e+1x0e+1x1e
+            2x0e+2x1e
         """
-        return Irreps(super().__rmul__(other))
+        return self * other
+
+    def __floordiv__(self, other):
+        r"""Divide the multiplicities of the irreps.
+
+        Example:
+            >>> Irreps('12x0e + 14x1e') // 2
+            6x0e+7x1e
+        """
+        return Irreps([(mul // other, ir) for mul, ir in self])
 
     def __eq__(self, other: object) -> bool:
         r"""Check if two representations are equal."""
@@ -522,6 +533,15 @@ class Irreps(tuple):
     def __hash__(self) -> int:
         r"""Hash of the representation."""
         return super().__hash__()
+
+    def repeat(self, n: int) -> "Irreps":
+        r"""Repeat the representation ``n`` times.
+
+        Example:
+            >>> Irreps('0e + 1e').repeat(2)
+            1x0e+1x1e+1x0e+1x1e
+        """
+        return Irreps([(mul, ir) for mul, ir in self] * n)
 
     def unify(self) -> "Irreps":
         r"""Regroup same irrep together.
@@ -601,11 +621,30 @@ class Irreps(tuple):
         irreps = Irreps([(mul, ir) for ir, _, mul in out])
         return Ret(irreps, p, inv)
 
-    def filter(self, keep_ir: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]]) -> "Irreps":
+    def regroup(self) -> "Irreps":
+        r"""Regroup the same irreps together.
+
+        Equivalent to :meth:`sort` followed by :meth:`simplify`.
+
+        Returns:
+            `Irreps`: regrouped irreps
+
+        Examples:
+            >>> Irreps("1e + 0e + 1e + 0x2e").regroup()
+            1x0e+2x1e
+        """
+        return self.sort().irreps.simplify()
+
+    def filter(
+        self,
+        keep: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]] = None,
+        *,
+        drop: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]] = None,
+    ) -> "Irreps":
         r"""Filter the irreps.
 
         Args:
-            keep_ir (Irreps or list of `Irrep` or function): list of irrep to keep
+            keep (Irreps or list of `Irrep` or function): list of irrep to keep
 
         Returns:
             `Irreps`: filtered irreps
@@ -617,14 +656,28 @@ class Irreps(tuple):
             >>> Irreps("1e + 2e + 0e").filter("2e + 2x1e")
             1x1e+1x2e
         """
-        if isinstance(keep_ir, str):
-            keep_ir = Irreps(keep_ir)
-        if isinstance(keep_ir, Irrep):
-            keep_ir = [keep_ir]
-        if callable(keep_ir):
-            return Irreps([mul_ir for mul_ir in self if keep_ir(mul_ir)])
-        keep_ir = {Irrep(ir) for ir in keep_ir}
-        return Irreps([(mul, ir) for mul, ir in self if ir in keep_ir])
+        if keep is None and drop is None:
+            return self
+        if keep is not None and drop is not None:
+            raise ValueError("Cannot specify both keep and drop")
+        if keep is not None:
+            if isinstance(keep, str):
+                keep = Irreps(keep)
+            if isinstance(keep, Irrep):
+                keep = [keep]
+            if callable(keep):
+                return Irreps([mul_ir for mul_ir in self if keep(mul_ir)])
+            keep = {Irrep(ir) for ir in keep}
+            return Irreps([(mul, ir) for mul, ir in self if ir in keep])
+        if drop is not None:
+            if isinstance(drop, str):
+                drop = Irreps(drop)
+            if isinstance(drop, Irrep):
+                drop = [drop]
+            if callable(drop):
+                return Irreps([mul_ir for mul_ir in self if not drop(mul_ir)])
+            drop = {Irrep(ir) for ir in drop}
+            return Irreps([(mul, ir) for mul, ir in self if ir not in drop])
 
     @property
     def slice_by_mul(self):

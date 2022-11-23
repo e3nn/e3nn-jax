@@ -1,11 +1,12 @@
 import time
+from typing import List
 
-import e3nn_jax as e3nn
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
-from e3nn_jax.experimental.point_convolution import Convolution
+
+import e3nn_jax as e3nn
 
 
 def tetris():
@@ -44,14 +45,51 @@ def tetris():
     return pos, labels, batch
 
 
+class Convolution(hk.Module):
+    def __init__(
+        self,
+        irreps_node_output: e3nn.Irreps,
+        fc_neurons: List[int],
+        num_neighbors: float,
+    ):
+        super().__init__()
+        self.irreps_node_output = e3nn.Irreps(irreps_node_output)
+        self.fc_neurons = fc_neurons
+        self.num_neighbors = num_neighbors
+
+    def __call__(
+        self,
+        node_input: e3nn.IrrepsArray,
+        edge_src: jnp.ndarray,
+        edge_dst: jnp.ndarray,
+        edge_attr: e3nn.IrrepsArray,
+    ) -> e3nn.IrrepsArray:
+        node_input = e3nn.Linear(node_input.irreps)(node_input)  # [num_nodes, irreps]
+
+        edge_invariant = edge_attr.filter(keep="0e")
+        edge_equivariant = edge_attr.filter(drop="0e")
+
+        messages = e3nn.concatenate([e3nn.tensor_product(node_input[edge_src], edge_equivariant), node_input[edge_src]])
+        factors = e3nn.MultiLayerPerceptron(
+            self.fc_neurons + [messages.irreps.num_irreps], act=jax.nn.silu, output_activation=False
+        )(edge_invariant)
+        messages = e3nn.elementwise_tensor_product(messages, factors)
+
+        node_output = e3nn.IrrepsArray.zeros(messages.irreps, (node_input.shape[0],), dtype=messages.dtype)
+        node_output = node_output.at[edge_dst].add(messages) / jnp.sqrt(self.num_neighbors)
+
+        node_output = e3nn.Linear(self.irreps_node_output)(node_output)
+        return node_output
+
+
 @hk.without_apply_rng
 @hk.transform
 def model(pos, edge_src, edge_dst):
     node_feat = e3nn.IrrepsArray.ones("0e", (pos.shape[0],))
-    edge_attr = e3nn.spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True, normalization="component")
+    edge_attr = e3nn.spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True)
 
     kw = dict(
-        fc_neurons=None,
+        fc_neurons=[],
         num_neighbors=1.5,
     )
 

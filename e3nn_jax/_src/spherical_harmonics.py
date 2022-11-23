@@ -81,7 +81,7 @@ def spherical_harmonics(
         irreps_out (`Irreps` or list of int or int): output irreps
         input (`IrrepsArray` or `jax.numpy.ndarray`): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
-        normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
+        normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'component'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_jvp])
 
     Returns:
@@ -176,7 +176,7 @@ def _jvp(
 
     js = tuple(max(0, l - 1) for l in ls)
     output = _custom_jvp_spherical_harmonics(ls + js, x, normalization, algorithm)
-    out, res = output[: len(ls)], output[len(ls) :]
+    primal, res = output[: len(ls)], output[len(ls) :]
 
     def h(l: int, r: jnp.ndarray) -> jnp.ndarray:
         w = clebsch_gordan(l - 1, l, 1)
@@ -184,6 +184,7 @@ def _jvp(
             w *= ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
         else:
             w *= l**0.5 * (2 * l + 1)
+        w = w.astype(x.dtype)
 
         if "dense" in algorithm:
             return jnp.einsum("...i,...k,ijk->...j", r, x_dot, w)
@@ -199,7 +200,8 @@ def _jvp(
             )
         raise ValueError("Unknown algorithm: must be 'dense' or 'sparse'")
 
-    return out, [h(l, r) if l > 0 else jnp.zeros_like(r) for l, r in zip(ls, res)]
+    tangent = [h(l, r) if l > 0 else jnp.zeros_like(r) for l, r in zip(ls, res)]
+    return primal, tangent
 
 
 def _recursive_spherical_harmonics(
@@ -261,6 +263,7 @@ def _recursive_spherical_harmonics(
             x = 1
 
         w = (x / float(norm)) * clebsch_gordan(l1, l2, l)
+        w = w.astype(input.dtype)
 
         if "dense" in algorithm:
             context[l] = jnp.einsum("...i,...j,ijk->...k", context[l1], context[l2], w)
@@ -298,12 +301,12 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
     code inspired by: https://github.com/SHTOOLS/SHTOOLS/blob/master/src/PlmBar.f95
 
     Args:
-        lmax: maximum l value
-        x: input array of shape ``(...)``
-        phase: -1 or 1, multiplies by :math:`(-1)^m`
+        lmax (int): maximum l value
+        x (jnp.ndarray): input array of shape ``(...)``
+        phase (float): -1 or 1, multiplies by :math:`(-1)^m`
 
     Returns:
-        Associated Legendre polynomials ``P(l,m)``
+        jnp.ndarray: Associated Legendre polynomials ``P(l,m)``
         In an array of shape ``((lmax + 1) * (lmax + 2) // 2, ...)``
         ``(0,0), (1,0), (1,1), (2,0), (2,1), (2,2), ...``
     """

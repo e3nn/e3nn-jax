@@ -5,8 +5,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- **[BREAKING]** `3 * e3nn.Irreps("0e + 1o")` now returns `3x0e + 3x1o` instead of `1x0e + 1x1o + 1x0e + 1x1o + 1x0e + 1x1o`
+- **[BREAKING]** in Linear, renamed `num_weights` to `num_indexed_weights` because it was confusing.
+
+### Added
+- `e3nn.Irreps("3x0e + 6x1o") // 3` returns `1x0e + 2x1o`
+
+## [0.12.0] - 2022-11-16
+### Added
+- `e3nn.Irreps.regroup` and `e3nn.IrrepsArray.regroup` to regroup irreps. Equivalent to `sort` followed by `simplify`.
+- add `regroup_output` parameter to `e3nn.tensor_product` and `e3nn.tensor_square` to regroup the output irreps.
+
+### Changed
+- `e3nn.IrrepsArray.convert` is now private (`e3nn.IrrepsArray._convert`) because it's recommended to other methods instead.
+- **breaking change** use `input.regroup()` in `e3nn.Linear` which can change the structure of the parameters dictionary.
+- **breaking change** `regroup_output` is `True` by default in `e3nn.tensor_product` and `e3nn.tensor_square`.
+- To facilitate debugging, if not `key` is provided to `e3nn.normal` it will use the hash of the irreps.
+- **breaking change** changed normalization of `e3nn.tensor_square` in the case of `normalized_input=True`
+
+### Removed
+- Deprecate `e3nn.TensorSquare`
+
+## [0.11.1] - 2022-11-13
+### Added
+- `e3nn.Linear` now supports integer "weights" inputs.
+- `e3nn.Linear` now supports `name` argument.
+- Add `.dtype` to `IrrepsArray` to get the dtype of the underlying array.
+
+### Changed
+- `e3nn.MultiLayerPerceptron` names its layers `linear_0`, `linear_1`, etc.
+
+## [0.11.0] - 2022-11-08
 ### Added
 - s2grid: `e3nn.from_s2grid` and `e3nn.to_s2grid` thanks to @songk42 for the contribution
+- argument `max_order: int` to function `reduced_tensor_product_basis` to be able to limit the polynomial order of the basis
+- `MultiLayerPerceptron` accepts `IrrepsArray` as input and output
+- `e3nn.Linear` accepts optional weights as arguments that will be internally mixed with the free parameters. Very usefyul to implement the depthwise convolution
 
 ### Changed
 - **breaking change** `e3nn.normal` has a new argument to get normalized vectors.

@@ -8,12 +8,24 @@ TP = FullyConnected(irreps, irreps, irreps)
 irreps = 128x0e + 128x1e + 128x2e
 ```
 
+## Records on NVIDIA RTX A5000 using cuda 11.7
+
+|version        |             | time                   |
+|---------------|-------------|------------------------|----
+|jax 0.3.25     | e3nn 0.12.0 | 5.2ms                  | FullyConnectedTensorProduct
+|jax 0.3.24     | e3nn 0.12.0 | 6.8ms                  | tensor_product -> Linear
+|jax 0.3.24     | e3nn 0.12.0 | 5.2ms                  | FullyConnectedTensorProduct
+|jax 0.3.24     | e3nn 0.7.0  | 5.2ms                  | FullyConnectedTensorProduct
+|jax 0.3.24     | e3nn 0.6.0  | 5.2ms                  | FullyConnectedTensorProduct
+|jax 0.3.24     | e3nn 0.4.0  | 5.2ms                  | FullyConnectedTensorProduct
+|jax 0.3.15     | e3nn 0.12.0 | 5.2ms                  | FullyConnectedTensorProduct
+
 ## Records on NVIDIA RTX A5000 using cuda 11.6
 
 |version        |            | time                   |
 |---------------|------------|------------------------|
 |pytorch 1.11.0 | e3nn 0.5.0 | between 13ms and 14ms. |
-|jax 0.3.15     | e3nn 0.7.0 | 1.7ms                  |
+|jax 0.3.15     | e3nn 0.7.0 | 1.7ms                  | (probably not correct)
 
 x8 speedup
 

@@ -262,7 +262,7 @@ def poly_envelope(n0: int, n1: int, x_max: float = 1.0) -> Callable[[float], flo
     r"""Polynomial envelope function with ``n0`` and ``n1`` derivatives euqal to 0 at ``x=0`` and ``x=1`` respectively.
 
     Small documentation available at ``https://mariogeiger.ch/polynomial_envelope_for_gnn.pdf``.
-    This is a generalization of :math:`u_p(x)`.
+    This is a generalization of :math:`u_p(x)`, it is equivalent to :math:`u_p(x)` when ``n0 = p-1`` and ``n1 = 2``.
 
     .. jupyter-execute::
         :hide-code:

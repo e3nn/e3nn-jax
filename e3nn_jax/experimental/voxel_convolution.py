@@ -166,7 +166,7 @@ class Convolution(hk.Module):
             Output data of shape ``[batch, x, y, z, irreps_out.dim]``
         """
         if self.irreps_in is not None:
-            input = input.convert(self.irreps_in)
+            input = input._convert(self.irreps_in)
         if not isinstance(input, IrrepsArray):
             raise ValueError("Convolution: input should be of type IrrepsArray")
 

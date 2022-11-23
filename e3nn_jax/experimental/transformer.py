@@ -41,10 +41,10 @@ class TensorProductMultiLayerPerceptron(hk.Module):
             for i in self.tp.instructions
         ]
 
-        x1 = x1.convert(self.irreps_in1)
-        x2 = x2.convert(self.irreps_in2)
+        x1 = x1._convert(self.irreps_in1)
+        x2 = x2._convert(self.irreps_in2)
 
-        return self.tp.left_right(w, x1, x2).convert(self.irreps_out)
+        return self.tp.left_right(w, x1, x2)._convert(self.irreps_out)
 
 
 def _instructions_uvu(irreps_in1, irreps_in2, out_ir_list):

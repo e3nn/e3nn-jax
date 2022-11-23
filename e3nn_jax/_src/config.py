@@ -1,7 +1,8 @@
 __conf = {
     "irrep_normalization": "component",  # "component" or "norm"
-    "path_normalization": "element",  # "element" or "norm"
-    "gradient_normalization": "path",  # "element", "path" or float, "element" is the default in pytorch
+    "path_normalization": "element",  # "element" or "path"
+    "gradient_normalization": "path",  # "element", "path" or float,
+    # "element" is the default in modules provided by pytorch/haiku
     "spherical_harmonics_algorithm": "automatic",
     "spherical_harmonics_normalization": "component",
     "custom_einsum_jvp": False,
