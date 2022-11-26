@@ -8,7 +8,8 @@ key = jax.random.PRNGKey(0)
 
 
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
-def test_s2grid_transforms(quadrature):
+@pytest.mark.parametrize("naive", [False, True])
+def test_s2grid_transforms(quadrature, naive):
     assert quadrature in ["soft", "gausslegendre"], "quadrature must be 'soft' or 'gausslegendre"
     res_alpha = 51
     res_beta = 30
@@ -20,8 +21,8 @@ def test_s2grid_transforms(quadrature):
     irreps = Irreps([(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)])
     irreps_in = IrrepsArray(irreps, c)
 
-    res = to_s2grid(irreps_in, (res_beta, res_alpha), quadrature=quadrature)
-    irreps_out = from_s2grid(res, lmax, quadrature=quadrature, p_val=1, p_arg=-1)
+    res = to_s2grid(irreps_in, (res_beta, res_alpha), quadrature=quadrature, naive=naive)
+    irreps_out = from_s2grid(res, lmax, quadrature=quadrature, naive=naive, p_val=1, p_arg=-1)
     np.testing.assert_allclose(c, irreps_out.array, rtol=1e-5, atol=1e-5)
     assert irreps_in.irreps == irreps_out.irreps
 
