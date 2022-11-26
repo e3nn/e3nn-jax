@@ -291,10 +291,16 @@ class IrrepsArray:
         jnp = _infer_backend(self.array)
 
         if isinstance(other, IrrepsArray):
-            if self.irreps.lmax > 0 and other.irreps.lmax > 0:
+            if self.irreps.num_irreps != other.irreps.num_irreps:
                 raise ValueError(
-                    "x * y with both x and y non scalar and ambiguous. "
-                    "Use e3nn.elementwise_tensor_product or e3nn.tensor_product instead."
+                    f"IrrepsArray({self.irreps}) * IrrepsArray({other.irreps}) only works if the number of irreps is the same."
+                )
+            irreps_out = e3nn.elementwise_tensor_product(self.irreps, other.irreps)
+            if irreps_out.num_irreps != self.irreps.num_irreps:
+                raise ValueError(
+                    f"IrrepsArray({self.irreps}) * IrrepsArray({other.irreps}) "
+                    "is only supported for scalar * irreps and irreps * scalar. "
+                    "To perform irreps * irreps use e3nn.elementwise_tensor_product or e3nn.tensor_product."
                 )
             return e3nn.elementwise_tensor_product(self, other)
 
