@@ -131,7 +131,7 @@ def s2_grid(res_beta: int, res_alpha: int, *, quadrature: str):
 
     i = jnp.arange(res_alpha)
     alphas = i / res_alpha * 2 * jnp.pi
-    return z, alphas
+    return jnp.array(z), alphas
 
 
 def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str):
@@ -333,7 +333,6 @@ def irfft(x: jnp.ndarray, res: int):
         axis=-1,
     ).reshape((-1, x.shape[-1]))
     x_transformed = jnp.fft.irfft(x_reshaped, res)
-    print((*x.shape[:-1], x_transformed.shape[-1]))
     return x_transformed.reshape((*x.shape[:-1], x_transformed.shape[-1]))
 
 
