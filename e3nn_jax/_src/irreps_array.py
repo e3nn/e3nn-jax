@@ -69,43 +69,57 @@ class IrrepsArray:
     """
 
     irreps: Irreps
-    array: jnp.ndarray  # this field is mendatory because it contains the shape
-    _list: List[Optional[jnp.ndarray]]  # this field is lazy, it is computed only when needed
+    list: List[Optional[jnp.ndarray]]
+    _aval: jnp.ndarray  # dummy array of shape [..., mul=0, ir]
 
-    def __init__(
-        self, irreps: IntoIrreps, array: jnp.ndarray, list: List[Optional[jnp.ndarray]] = None, _perform_checks: bool = True
-    ):
+    def __init__(self, irreps: IntoIrreps, array: jnp.ndarray, list=None, *, _internal_init=None):
         """Create an IrrepsArray."""
         self.irreps = Irreps(irreps)
-        self.array = array
-        self._list = list
 
-        if _perform_checks:
-            if self.array.shape[-1] != self.irreps.dim:
+        if list is not None:
+            warnings.warn("IrrepsArray(irreps, array, list) is deprecated", DeprecationWarning)
+            _internal_init = (list, array[..., :0][..., None])
+
+        if _internal_init is not None:
+            self.list = _internal_init[0]
+            self._aval = _internal_init[1]
+        else:
+            if array.shape[-1] != self.irreps.dim:
                 raise ValueError(
-                    f"IrrepsArray: Array shape {self.array.shape} incompatible with irreps {self.irreps}. "
-                    f"{self.array.shape[-1]} != {self.irreps.dim}"
+                    f"IrrepsArray({self.irreps}, {array.shape}) the last axis of the array "
+                    "is expected to match the dimension of the irreps."
                 )
-            if self._list is not None:
-                if len(self._list) != len(self.irreps):
-                    raise ValueError(f"IrrepsArray: List length {len(self._list)} incompatible with irreps {self.irreps}.")
-                for x, (mul, ir) in zip(self._list, self.irreps):
-                    if x is not None:
-                        if x.shape != self.array.shape[:-1] + (mul, ir.dim):
-                            raise ValueError(
-                                f"IrrepsArray: List shapes {[None if x is None else x.shape for x in self._list]} "
-                                f"incompatible with array shape {self.array.shape} and irreps {self.irreps}. "
-                                f"Expecting {[self.array.shape[:-1] + (mul, ir.dim) for (mul, ir) in self.irreps]}."
-                            )
+
+            jnp = _infer_backend(array)
+
+            leading_shape = array.shape[:-1]
+            if len(self.irreps) == 1:
+                mul, ir = self.irreps[0]
+                list = [jnp.reshape(array, leading_shape + (mul, ir.dim))]
+            else:
+                list = [
+                    jnp.reshape(array[..., i], leading_shape + (mul, ir.dim))
+                    for i, (mul, ir) in zip(self.irreps.slices(), self.irreps)
+                ]
+            self.list = list
+            self._aval = array[..., :0][..., None]  # [*leading_shape, 0, 1]
 
     @staticmethod
-    def from_list(irreps: IntoIrreps, list: List[Optional[jnp.ndarray]], leading_shape: Tuple[int]) -> "IrrepsArray":
+    def from_list(
+        irreps: IntoIrreps,
+        list: List[Optional[jnp.ndarray]],
+        leading_shape: Optional[Tuple[int, ...]] = None,
+        dtype: Optional[jnp.dtype] = None,
+        *,
+        _aval=None,
+    ) -> "IrrepsArray":
         r"""Create an IrrepsArray from a list of arrays.
 
         Args:
             irreps (Irreps): irreps
             list (list of optional `jax.numpy.ndarray`): list of arrays
-            leading_shape (tuple of int): leading shape of the arrays (without the irreps)
+            leading_shape (optional, tuple of int): leading shape of the arrays (without the irreps)
+            dtype (optional): the data type
 
         Returns:
             IrrepsArray
@@ -119,6 +133,18 @@ class IrrepsArray:
         if not all(x is None or isinstance(x, jnp.ndarray) for x in list):
             raise ValueError(f"IrrepsArray.from_list: list contains non-array elements type={[type(x) for x in list]}")
 
+        if _aval is not None:
+            leading_shape = _aval.shape[:-2]
+            dtype = _aval.dtype
+
+        if leading_shape is None:
+            if all(x is None for x in list):
+                raise ValueError(
+                    "IrrepsArray.from_list: Cannot obtain the shape from the list because all elements are None, "
+                    "please provide leading_shape argument."
+                )
+            leading_shape = next(x.shape[:-2] for x in list if x is not None)
+
         if not all(x is None or x.shape == leading_shape + (mul, ir.dim) for x, (mul, ir) in zip(list, irreps)):
             raise ValueError(
                 f"IrrepsArray.from_list: list shapes {[None if x is None else x.shape for x in list]} "
@@ -126,25 +152,27 @@ class IrrepsArray:
                 f"Expecting {[leading_shape + (mul, ir.dim) for (mul, ir) in irreps]}."
             )
 
-        if irreps.dim > 0:
-            array = jnp.concatenate(
-                [
-                    jnp.zeros(leading_shape + (mul_ir.dim,)) if x is None else x.reshape(leading_shape + (mul_ir.dim,))
-                    for mul_ir, x in zip(irreps, list)
-                ],
-                axis=-1,
+        if dtype is None:
+            if all(x is None for x in list):
+                dtype = np.float32
+            else:
+                dtype = next(x.dtype for x in list if x is not None)
+
+        if not all(x is None or x.dtype == dtype for x in list):
+            raise ValueError(
+                f"IrrepsArray.from_list: list dtype {[None if x is None else x.dtype for x in list]} "
+                f"are expected to be {dtype}."
             )
-        else:
-            array = jnp.zeros(leading_shape + (0,))
-        return IrrepsArray(irreps=irreps, array=array, list=list)
+
+        if _aval is None:
+            _aval = jnp.empty(leading_shape + (0, 1), dtype)
+        return IrrepsArray(irreps=irreps, array=None, _internal_init=(list, _aval))
 
     @staticmethod
-    def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> "IrrepsArray":
+    def zeros(irreps: IntoIrreps, leading_shape, dtype=np.float32) -> "IrrepsArray":
         r"""Create an IrrepsArray of zeros."""
         irreps = Irreps(irreps)
-        return IrrepsArray(
-            irreps=irreps, array=jnp.zeros(leading_shape + (irreps.dim,), dtype=dtype), list=[None] * len(irreps)
-        )
+        return IrrepsArray.from_list(irreps, [None] * len(irreps), leading_shape, dtype)
 
     @staticmethod
     def zeros_like(irreps_array: "IrrepsArray") -> "IrrepsArray":
@@ -152,59 +180,36 @@ class IrrepsArray:
         return IrrepsArray.zeros(irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype)
 
     @staticmethod
-    def ones(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
+    def ones(irreps: IntoIrreps, leading_shape, dtype=np.float32) -> "IrrepsArray":
         r"""Create an IrrepsArray of ones."""
         # TODO: maybe remove this function because it is not equivariant
         irreps = Irreps(irreps)
-        return IrrepsArray(
-            irreps=irreps,
-            array=jnp.ones(leading_shape + (irreps.dim,)),
-            list=[jnp.ones(leading_shape + (mul, ir.dim)) for mul, ir in irreps],
-        )
+        return IrrepsArray(irreps, jnp.ones(leading_shape + (irreps.dim,), dtype))
 
     @property
-    def list(self) -> List[Optional[jnp.ndarray]]:
-        r"""List of arrays matching each item of the ``.irreps``.
-
-        Example:
-            >>> x = IrrepsArray("2x0e + 0e", jnp.arange(3))
-            >>> len(x.list)
-            2
-            >>> x.list[0]
-            DeviceArray([[0],
-                         [1]], dtype=int32)
-            >>> x.list[1]
-            DeviceArray([[2]], dtype=int32)
-
-            The follwing is always true:
-
-            >>> all(e is None or e.shape == x.shape[:-1] + (mul, ir.dim) for (mul, ir), e in zip(x.irreps, x.list))
-            True
-        """
-        jnp = _infer_backend(self.array)
-
-        if self._list is None:
-            leading_shape = self.array.shape[:-1]
-            if len(self.irreps) == 1:
-                mul, ir = self.irreps[0]
-                list = [jnp.reshape(self.array, leading_shape + (mul, ir.dim))]
-            else:
-                list = [
-                    jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
-                    for i, (mul, ir) in zip(self.irreps.slices(), self.irreps)
-                ]
-            self._list = list
-        return self._list
+    def array(self):
+        jnp = _infer_backend(self._aval)
+        leading_shape = self._aval.shape[:-2]
+        return jnp.concatenate(
+            [jnp.reshape(self._aval, leading_shape + (0,))]
+            + [
+                jnp.zeros(leading_shape + (mul * ir.dim,), dtype=self._aval.dtype)
+                if x is None
+                else jnp.reshape(x, leading_shape + (mul * ir.dim,))
+                for (mul, ir), x in zip(self.irreps, self.list)
+            ],
+            axis=-1,
+        )
 
     @property
     def shape(self):
         r"""Shape. Equivalent to ``self.array.shape``."""
-        return self.array.shape
+        return self._aval.shape[:-2] + (self.irreps.dim,)
 
     @property
     def dtype(self):
         r"""dtype. Equivalent to ``self.array.dtype``."""
-        return self.array.dtype
+        return self._aval.dtype
 
     @property
     def ndim(self):
@@ -220,16 +225,20 @@ class IrrepsArray:
     #       - __jax_array__ cause problem for the multiplication: jnp.array * IrrepsArray -> jnp.array
 
     def __repr__(self):  # noqa: D105
-        r = str(self.array)
+        try:
+            r = str(self.array)
+        except AttributeError:
+            r = str(self.list)
+
         if "\n" in r:
             return f"{self.irreps}\n{r}"
         return f"{self.irreps} {r}"
 
     def __len__(self):  # noqa: D105
-        return len(self.array)
+        return self.shape[0]
 
     def __eq__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
-        jnp = _infer_backend(self.array)
+        jnp = _infer_backend(self._aval)
 
         if isinstance(other, IrrepsArray):
             if self.irreps != other.irreps:
@@ -251,15 +260,15 @@ class IrrepsArray:
             return IrrepsArray.from_list([(mul, "0e") for mul, _ in self.irreps], list, leading_shape)
 
         other = jnp.asarray(other)
-        if self.irreps.lmax > 0 or (other.ndim > 0 and other.shape[-1] != 1):
+        if not self.irreps.is_scalar() or (other.ndim > 0 and other.shape[-1] != 1):
             raise ValueError(f"IrrepsArray({self.irreps}) == scalar(shape={other.shape}) is not equivariant.")
         return IrrepsArray(irreps=self.irreps, array=self.array == other)
 
     def __neg__(self: "IrrepsArray") -> "IrrepsArray":
-        return IrrepsArray(irreps=self.irreps, array=-self.array, list=[-x if x is not None else None for x in self.list])
+        return IrrepsArray.from_list(self.irreps, [-x if x is not None else None for x in self.list], _aval=self._aval)
 
     def __add__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
-        jnp = _infer_backend(self.array)
+        jnp = _infer_backend(self._aval)
 
         if not isinstance(other, IrrepsArray):
             if all(ir == "0e" for _, ir in self.irreps):
@@ -271,10 +280,10 @@ class IrrepsArray:
             raise ValueError(f"IrrepsArray({self.irreps}) + IrrepsArray({other.irreps}) is not equivariant.")
 
         list = [x if y is None else (y if x is None else x + y) for x, y in zip(self.list, other.list)]
-        return IrrepsArray(irreps=self.irreps, array=self.array + other.array, list=list)
+        return IrrepsArray.from_list(self.irreps, list, _aval=self._aval + other._aval)
 
     def __sub__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
-        jnp = _infer_backend(self.array)
+        jnp = _infer_backend(self._aval)
 
         if not isinstance(other, IrrepsArray):
             if all(ir == "0e" for _, ir in self.irreps):
@@ -285,10 +294,10 @@ class IrrepsArray:
         if self.irreps != other.irreps:
             raise ValueError(f"IrrepsArray({self.irreps}) - IrrepsArray({other.irreps}) is not equivariant.")
         list = [x if y is None else (-y if x is None else x - y) for x, y in zip(self.list, other.list)]
-        return IrrepsArray(irreps=self.irreps, array=self.array - other.array, list=list)
+        return IrrepsArray.from_list(self.irreps, list=list, _aval=self._aval - other._aval)
 
     def __mul__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
-        jnp = _infer_backend(self.array)
+        jnp = _infer_backend(self._aval)
 
         if isinstance(other, IrrepsArray):
             if self.irreps.num_irreps != other.irreps.num_irreps:
@@ -307,14 +316,16 @@ class IrrepsArray:
         other = jnp.asarray(other)
         if self.irreps.lmax > 0 and other.ndim > 0 and other.shape[-1] != 1:
             raise ValueError(f"IrrepsArray({self.irreps}) * scalar(shape={other.shape}) is not equivariant.")
+        if other.ndim == 0:
+            other = other[None]
         list = [None if x is None else x * other[..., None] for x in self.list]
-        return IrrepsArray(irreps=self.irreps, array=self.array * other, list=list)
+        return IrrepsArray.from_list(self.irreps, list, _aval=self._aval * other[..., :0][..., None])
 
     def __rmul__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":  # noqa: D105
         return self * other
 
     def __truediv__(self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]) -> "IrrepsArray":  # noqa: D105
-        jnp = _infer_backend(self.array)
+        jnp = _infer_backend(self._aval)
 
         if isinstance(other, IrrepsArray):
             if len(other.irreps) == 0 or other.irreps.lmax > 0 or self.irreps.num_irreps != other.irreps.num_irreps:
@@ -484,7 +495,7 @@ class IrrepsArray:
 
     def replace_none_with_zeros(self) -> "IrrepsArray":
         r"""Replace all None in ``.list`` with zeros."""
-        jnp = _infer_backend(self.array)
+        jnp = _infer_backend(self._aval)
 
         list = [jnp.zeros(self.shape[:-1] + (mul, ir.dim)) if x is None else x for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array, list=list)
@@ -606,7 +617,7 @@ class IrrepsArray:
         """
         assert self.ndim >= 2
         axis = _standardize_axis(axis, self.ndim)[0]
-        jnp = _infer_backend(self.array)
+        jnp = _infer_backend(self._aval)
 
         new_irreps = self.irreps.repeat(self.shape[axis]).simplify()
         new_array = jnp.moveaxis(self.array, axis, -2)
@@ -771,7 +782,7 @@ class IrrepsArray:
                          [1.],
                          [1.]], dtype=float32)]
         """
-        jnp = _infer_backend(self.array)
+        jnp = _infer_backend(self._aval)
 
         # Optimization: we use only the list of arrays, not the array data
         irreps = Irreps(irreps)
@@ -849,7 +860,7 @@ class IrrepsArray:
 
     def broadcast_to(self, shape) -> "IrrepsArray":
         """Broadcast the array to a new shape."""
-        jnp = _infer_backend(self.array)
+        jnp = _infer_backend(self._aval)
 
         assert isinstance(shape, tuple)
         assert shape[-1] == self.irreps.dim or shape[-1] == -1
@@ -874,8 +885,8 @@ class IrrepsArray:
 
 jax.tree_util.register_pytree_node(
     IrrepsArray,
-    lambda x: ((x.array, x.list), x.irreps),
-    lambda x, data: IrrepsArray(irreps=x, array=data[0], list=data[1], _perform_checks=False),
+    lambda x: ((x.list, x._aval), x.irreps),
+    lambda extra, leaves: IrrepsArray(extra, None, _internal_init=leaves),
 )
 
 

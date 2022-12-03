@@ -1,6 +1,5 @@
 import haiku as hk
 import jax
-import jax.numpy as jnp
 
 from e3nn_jax import Irreps, IrrepsArray
 
@@ -55,19 +54,14 @@ class Dropout(hk.Module):
         if not isinstance(x, IrrepsArray):
             raise TypeError(f"{self.__class__.__name__} only supports IrrepsArray")
 
-        noises = []
         out_list = []
         for (mul, ir), a in zip(x.irreps, x.list):
             if self.p >= 1:
                 out_list.append(None)
-                noises.append(jnp.zeros((mul * ir.dim,)))
             elif self.p <= 0:
                 out_list.append(a)
-                noises.append(jnp.ones((mul * ir.dim,)))
             else:
                 noise = jax.random.bernoulli(rng, p=1 - self.p, shape=(mul, 1)) / (1 - self.p)
                 out_list.append(noise * a)
-                noises.append(jnp.repeat(noise, ir.dim, axis=1).flatten())
 
-        noises = jnp.concatenate(noises)
-        return IrrepsArray(irreps=x.irreps, array=x.array * noises, list=out_list)
+        return IrrepsArray.from_list(x.irreps, out_list, x.shape[:-1], x.dtype)
