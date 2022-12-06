@@ -131,7 +131,7 @@ def s2_grid(res_beta: int, res_alpha: int, *, quadrature: str):
 
     i = jnp.arange(res_alpha)
     alphas = i / res_alpha * 2 * jnp.pi
-    return z, alphas
+    return jnp.array(z), alphas
 
 
 def spherical_harmonics_s2_grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str):
