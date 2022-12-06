@@ -333,6 +333,7 @@ def irfft(x: jnp.ndarray, res: int):
         axis=-1,
     ).reshape((-1, x.shape[-1]))
     x_transformed = jnp.fft.irfft(x_reshaped, res)
+    print((*x.shape[:-1], x_transformed.shape[-1]))
     return x_transformed.reshape((*x.shape[:-1], x_transformed.shape[-1]))
 
 
