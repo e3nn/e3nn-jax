@@ -23,7 +23,7 @@ def test_s2grid_transforms(quadrature, fft_to, fft_from):
     irreps_in = IrrepsArray(irreps, c)
 
     res = to_s2grid(irreps_in, (res_beta, res_alpha), quadrature=quadrature, fft=fft_to)
-    irreps_out = from_s2grid(res, lmax, quadrature=quadrature, fft=fft_from, p_val=1, p_arg=-1)
+    irreps_out = from_s2grid(res, lmax, quadrature=quadrature, fft=fft_from)
     np.testing.assert_allclose(c, irreps_out.array, rtol=1e-5, atol=1e-5)
     assert irreps_in.irreps == irreps_out.irreps
 
