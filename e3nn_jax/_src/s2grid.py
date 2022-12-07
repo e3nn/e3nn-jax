@@ -222,21 +222,18 @@ def from_s2grid(
     sh_y = _rollout_sh(sh_y, lmax)
     sh_y = jnp.einsum("lmj,bj,lmi,l,b->mbi", m, sh_y, m, n, qw)  # [m, b, i]
 
-    size = x.shape[:-2]
-    x = x.reshape(-1, res_beta, res_alpha)
-
     # integrate over alpha
     if fft:
-        int_a = rfft(x, lmax) / res_alpha
+        int_a = rfft(x, lmax) / res_alpha  # [..., res_beta, 2*l+1]
     else:
-        int_a = jnp.einsum("zba,am->zbm", x, sha) / res_alpha  # [..., res_beta, 2*l+1]
+        int_a = jnp.einsum("...ba,am->...bm", x, sha) / res_alpha  # [..., res_beta, 2*l+1]
+
     # integrate over beta
-    int_b = jnp.einsum("mbi,zbm->zi", sh_y, int_a)
+    int_b = jnp.einsum("mbi,...bm->...i", sh_y, int_a)  # [..., irreps]
 
     # convert to IrrepsArray
-    coeffs = int_b.reshape(*size, int_b.shape[1])
     irreps = [(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)]
-    return e3nn.IrrepsArray(irreps, coeffs)
+    return e3nn.IrrepsArray(irreps, int_b)
 
 
 def to_s2grid(tensor: e3nn.IrrepsArray, res=None, normalization="component", *, quadrature: str, fft=True):
@@ -254,10 +251,12 @@ def to_s2grid(tensor: e3nn.IrrepsArray, res=None, normalization="component", *, 
     Returns:
         `jax.numpy.ndarray`: signal on the sphere of shape ``(..., beta, alpha)``
     """
-    coeffs = tensor.array
-    lmax = int(np.sqrt(coeffs.shape[-1])) - 1
+    lmax = tensor.irreps.ls[-1]
+
     # check l values of irreps
-    assert tensor.irreps.ls == list(range(lmax + 1)), "l values of tensor should range from 0 to lmax"
+    if not all(mul == 1 and ir.l == l for (mul, ir), l in zip(tensor.irreps, range(lmax + 1))):
+        raise ValueError("multiplicities should be ones and irreps should range from l=0 to l=lmax")
+
     # check parities of irreps
     if not (
         {ir.p for mul, ir in tensor.irreps if ir.l % 2 == 0} in [{1}, {-1}, {}]
@@ -291,17 +290,15 @@ def to_s2grid(tensor: e3nn.IrrepsArray, res=None, normalization="component", *, 
     sh_y = _rollout_sh(sh_y, lmax)
     sh_y = jnp.einsum("lmj,bj,lmi,l->mbi", m, sh_y, m, n)  # [m, b, i]
 
-    size = coeffs.shape[:-1]
-    coeffs = coeffs.reshape(-1, coeffs.shape[-1])
-
     # multiply spherical harmonics by their coefficients
-    signal_b = jnp.einsum("mbi,zi->zbm", sh_y, coeffs)  # [batch, beta, m]
+    signal_b = jnp.einsum("mbi,...i->...bm", sh_y, tensor.array)  # [batch, beta, m]
 
     if fft:
         signal = irfft(signal_b, res_alpha) * res_alpha  # [..., res_beta, res_alpha]
     else:
-        signal = jnp.einsum("zbm,am->zba", signal_b, sha)  # [..., res_beta, res_alpha]
-    return signal.reshape(*size, *signal.shape[1:])
+        signal = jnp.einsum("...bm,am->...ba", signal_b, sha)  # [..., res_beta, res_alpha]
+
+    return signal
 
 
 def rfft(x: jnp.ndarray, l: int):
