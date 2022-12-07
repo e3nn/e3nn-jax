@@ -5,12 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.13.0] - 2022-12-07
 ### Changed
 - **[BREAKING]** `3 * e3nn.Irreps("0e + 1o")` now returns `3x0e + 3x1o` instead of `1x0e + 1x1o + 1x0e + 1x1o + 1x0e + 1x1o`
 - **[BREAKING]** in Linear, renamed `num_weights` to `num_indexed_weights` because it was confusing.
 
 ### Added
 - `e3nn.Irreps("3x0e + 6x1o") // 3` returns `1x0e + 2x1o`
+
+### Fixed
+- `s2grid` is now jitable
 
 ## [0.12.0] - 2022-11-16
 ### Added
