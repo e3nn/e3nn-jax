@@ -208,7 +208,7 @@ class FunctionalTensorProduct:
         )
 
 
-def _sum_tensors(xs, shape, empty_return_none=False):
+def _sum_tensors(xs, shape, empty_return_none=False, dtype=None):
     xs = [x for x in xs if x is not None]
     if len(xs) > 0:
         out = xs[0].reshape(shape)
@@ -217,7 +217,7 @@ def _sum_tensors(xs, shape, empty_return_none=False):
         return out
     if empty_return_none:
         return None
-    return jnp.zeros(shape)
+    return jnp.zeros(shape, dtype=dtype)
 
 
 def _flat_concatenate(xs):
@@ -293,6 +293,14 @@ def _normalize_instruction_path_weights(
     return [update(instruction) for instruction in instructions]
 
 
+def _get_dtype(*args):
+    leaves = jax.tree_util.tree_leaves(args)
+    if len(leaves) == 0:
+        return jnp.float32
+
+    return jax.eval_shape(lambda xs: sum(jnp.sum(x) for x in xs), leaves).dtype
+
+
 @partial(jax.jit, static_argnums=(0,), static_argnames=("custom_einsum_jvp", "fused"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
@@ -304,6 +312,8 @@ def _left_right(
     custom_einsum_jvp: bool = False,
     fused: bool = False,
 ):
+    dtype = _get_dtype(weights, input1, input2)
+
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
         return IrrepsArray.zeros(self.irreps_out, ())
 
@@ -332,9 +342,9 @@ def _left_right(
     assert input2.ndim == 1, f"input2 is shape {input2.shape}. Execting ndim to be 1. Use jax.vmap to map over input2"
 
     if fused:
-        return _fused_left_right(self, weights_flat, input1, input2, einsum)
+        return _fused_left_right(self, weights_flat, input1, input2, einsum, dtype)
     else:
-        return _block_left_right(self, weights_list, input1, input2, einsum)
+        return _block_left_right(self, weights_list, input1, input2, einsum, dtype)
 
 
 def _block_left_right(
@@ -343,6 +353,7 @@ def _block_left_right(
     input1: IrrepsArray,
     input2: IrrepsArray,
     einsum: Callable,
+    dtype: jnp.dtype,
 ) -> IrrepsArray:
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):
@@ -382,6 +393,7 @@ def _block_left_right(
         with jax.ensure_compile_time_eval():
             w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
             w3j = ins.path_weight * w3j
+            w3j = w3j.astype(dtype)
 
         if ins.connection_mode == "uvw":
             assert ins.has_weight
@@ -444,6 +456,7 @@ def _block_left_right(
             [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
             shape=(mul_ir_out.mul, mul_ir_out.ir.dim),
             empty_return_none=True,
+            dtype=dtype,
         )
         for i_out, mul_ir_out in enumerate(self.irreps_out)
     ]
@@ -456,6 +469,7 @@ def _fused_left_right(
     input1: IrrepsArray,
     input2: IrrepsArray,
     einsum: Callable,
+    dtype: jnp.dtype,
 ) -> IrrepsArray:
     with jax.ensure_compile_time_eval():
         num_path = weights_flat.size
@@ -472,7 +486,8 @@ def _fused_left_right(
                 self.irreps_in1.dim,
                 self.irreps_in2.dim,
                 self.irreps_out.dim,
-            )
+            ),
+            dtype=dtype,
         )
         for ins in self.instructions:
             mul_ir_in1 = self.irreps_in1[ins.i_in1]
@@ -492,7 +507,7 @@ def _fused_left_right(
                     s1 + u * d1 : s1 + (u + 1) * d1,
                     s2 + v * d2 : s2 + (v + 1) * d2,
                     so + w * do : so + (w + 1) * do,
-                ].add(ins.path_weight * w3j)
+                ].add((ins.path_weight * w3j).astype(dtype))
 
             if ins.connection_mode == "uvw":
                 assert ins.has_weight
@@ -534,7 +549,7 @@ def _fused_left_right(
         out = einsum("ijk,i,j->k", big_w3j, input1.array, input2.array)
     else:
         if has_path_with_no_weights:
-            weights_flat = jnp.concatenate([jnp.ones((1,)), weights_flat])
+            weights_flat = jnp.concatenate([jnp.ones((1,), dtype=dtype), weights_flat])
 
         out = einsum(
             "p,pijk,i,j->k",
@@ -555,13 +570,16 @@ def _right(
     *,
     custom_einsum_jvp: bool = False,
 ) -> jnp.ndarray:
+    dtype = _get_dtype(weights, input2)
+
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
         return jnp.zeros(
             (
                 self.irreps_in1.dim,
                 self.irreps_out.dim,
-            )
+            ),
+            dtype=dtype,
         )
 
     einsum = opt_einsum if custom_einsum_jvp else jnp.einsum
@@ -594,6 +612,7 @@ def _right(
 
         with jax.ensure_compile_time_eval():
             w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+            w3j = w3j.astype(dtype)
 
         if ins.connection_mode == "uvw":
             assert ins.has_weight
@@ -644,6 +663,7 @@ def _right(
                     _sum_tensors(
                         [out for ins, out in zip(self.instructions, out_list) if (ins.i_in1, ins.i_out) == (i_in1, i_out)],
                         shape=(mul_ir_in1.dim, mul_ir_out.dim),
+                        dtype=dtype,
                     )
                     for i_out, mul_ir_out in enumerate(self.irreps_out)
                     if mul_ir_out.mul > 0
