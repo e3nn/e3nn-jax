@@ -874,8 +874,8 @@ class IrrepsArray:
 
 jax.tree_util.register_pytree_node(
     IrrepsArray,
-    lambda x: ((x.array, x.list), x.irreps),
-    lambda x, data: IrrepsArray(irreps=x, array=data[0], list=data[1], _perform_checks=False),
+    lambda x: (x.array, x.irreps),
+    lambda irreps, array: IrrepsArray(irreps, array, _perform_checks=False),
 )
 
 
