@@ -60,7 +60,7 @@ from e3nn_jax._src.mlp import MultiLayerPerceptron
 from e3nn_jax._src.graph_util import index_add, radius_graph
 from e3nn_jax._src.reduced_tensor_product import reduced_tensor_product_basis, reduced_symmetric_tensor_product_basis
 from e3nn_jax._src.symmetric_tensor_product import SymmetricTensorProduct
-from e3nn_jax._src.s2grid import from_s2grid, to_s2grid
+from e3nn_jax._src.s2grid import from_s2grid, to_s2grid, s2grid
 
 
 __all__ = [
@@ -142,4 +142,5 @@ __all__ = [
     "SymmetricTensorProduct",
     "from_s2grid",
     "to_s2grid",
+    "s2grid",
 ]
