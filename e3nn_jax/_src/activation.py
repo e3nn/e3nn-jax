@@ -9,7 +9,7 @@ from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 def normalize_function(phi):
     with jax.ensure_compile_time_eval():
         k = jax.random.PRNGKey(0)
-        x = jax.random.normal(k, (1_000_000,))
+        x = jax.random.normal(k, (1_000_000,), dtype=jnp.float64)
         c = jnp.mean(phi(x) ** 2) ** 0.5
 
         if jnp.allclose(c, 1.0):
@@ -17,7 +17,7 @@ def normalize_function(phi):
         else:
 
             def rho(x):
-                return phi(x) / c
+                return phi(x) / c.astype(x.dtype)
 
             return rho
 

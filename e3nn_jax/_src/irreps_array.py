@@ -97,6 +97,10 @@ class IrrepsArray:
                                 f"incompatible with array shape {self.array.shape} and irreps {self.irreps}. "
                                 f"Expecting {[self.array.shape[:-1] + (mul, ir.dim) for (mul, ir) in self.irreps]}."
                             )
+                assert all(x.dtype == self.array.dtype for x in self._list if x is not None), (
+                    f"IrrepsArray: List dtypes {[None if x is None else x.dtype for x in self._list]} "
+                    "incompatible with array dtype {self.array.dtype}."
+                )
 
     @staticmethod
     def from_list(irreps: IntoIrreps, list: List[Optional[jnp.ndarray]], leading_shape: Tuple[int]) -> "IrrepsArray":
@@ -1105,6 +1109,7 @@ def normal(
     *,
     normalize: bool = False,
     normalization: Optional[str] = None,
+    dtype: Optional[jnp.dtype] = None,
 ) -> IrrepsArray:
     r"""Random array with normal distribution.
 
@@ -1162,18 +1167,18 @@ def normal(
         list = []
         for mul, ir in irreps:
             key, k = jax.random.split(key)
-            r = jax.random.normal(k, leading_shape + (mul, ir.dim))
+            r = jax.random.normal(k, leading_shape + (mul, ir.dim), dtype=dtype)
             r = r / jnp.linalg.norm(r, axis=-1, keepdims=True)
             list.append(r)
         return IrrepsArray.from_list(irreps, list, leading_shape)
     else:
         if normalization == "component":
-            return IrrepsArray(irreps, jax.random.normal(key, leading_shape + (irreps.dim,)))
+            return IrrepsArray(irreps, jax.random.normal(key, leading_shape + (irreps.dim,), dtype=dtype))
         elif normalization == "norm":
             list = []
             for mul, ir in irreps:
                 key, k = jax.random.split(key)
-                r = jax.random.normal(k, leading_shape + (mul, ir.dim))
+                r = jax.random.normal(k, leading_shape + (mul, ir.dim), dtype=dtype)
                 r = r / jnp.sqrt(ir.dim)
                 list.append(r)
             return IrrepsArray.from_list(irreps, list, leading_shape)
