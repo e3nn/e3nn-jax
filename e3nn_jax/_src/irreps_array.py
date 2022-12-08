@@ -73,7 +73,7 @@ class IrrepsArray:
     _list: List[Optional[jnp.ndarray]]  # this field is lazy, it is computed only when needed
 
     def __init__(
-        self, irreps: IntoIrreps, array: jnp.ndarray, list: List[Optional[jnp.ndarray]] = None, _perform_checks: bool = True
+        self, irreps: IntoIrreps, array: jnp.ndarray, list: List[Optional[jnp.ndarray]] = None, *, _perform_checks: bool = True
     ):
         """Create an IrrepsArray."""
         self.irreps = Irreps(irreps)
@@ -874,7 +874,7 @@ class IrrepsArray:
 
 jax.tree_util.register_pytree_node(
     IrrepsArray,
-    lambda x: ((x.array, x.list), x.irreps),
+    lambda x: ((x.array, x._list), x.irreps),
     lambda x, data: IrrepsArray(irreps=x, array=data[0], list=data[1], _perform_checks=False),
 )
 
