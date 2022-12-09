@@ -1,9 +1,9 @@
-from typing import Union
-
-import jax
-import jax.numpy as jnp
+import warnings
+from typing import Optional, Union
 
 import e3nn_jax as e3nn
+import jax
+import jax.numpy as jnp
 
 
 def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
@@ -18,6 +18,66 @@ def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
     assert x.ndim == 1
     unique = jnp.unique(x, size=x.shape[0])  # Pigeonhole principle
     return jax.lax.scan(lambda _, i: (None, jnp.where(i == unique, size=1)[0][0]), None, x)[1]
+
+
+def scatter_sum(
+    data: Union[jnp.ndarray, e3nn.IrrepsArray],
+    *,
+    dst: Optional[jnp.ndarray] = None,
+    nel: Optional[jnp.ndarray] = None,
+    output_size: Optional[int] = None,
+    map_back: bool = False,
+) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+    r"""Scatter sum of data.
+
+    Performs either of the following two operations:
+    ``output[dst[i]] += data[i]`` or ``output[i] = sum(data[sum(nel[:i]):sum(nel[:i+1])])``
+
+    Args:
+        data (`jax.numpy.ndarray` or `e3nn.IrrepsArray`): array of shape ``(n, ...)``
+        dst (optional, `jax.numpy.ndarray`): array of shape ``(n,)``. If not specified, ``nel`` must be specified.
+        nel (optional, `jax.numpy.ndarray`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
+        output_size (optional, int): size of output array. If not specified, ``nel`` must be specified or ``map_back`` must be ``True``.
+        map_back (bool): whether to map back to the input position
+
+    Returns:
+        `jax.numpy.ndarray` or `e3nn.IrrepsArray`: output array of shape ``(output_size, ...)``
+    """
+    if dst is None and nel is None:
+        raise ValueError("Either dst or nel must be specified")
+    if dst is not None and nel is not None:
+        raise ValueError("Only one of dst or nel must be specified")
+
+    if nel is not None:
+        if output_size is not None:
+            raise ValueError("output_size must not be specified if nel is specified")
+        output_size = nel.shape[0]
+        num_elements = data.shape[0]
+        dst = jnp.repeat(jnp.arange(output_size), nel, total_repeat_length=num_elements)
+        indices_are_sorted = True
+    else:
+        indices_are_sorted = False
+
+    assert dst.shape[0] == data.shape[0]
+
+    if output_size is None and map_back is False:
+        raise ValueError("output_size must be specified if map_back is False")
+    if output_size is not None and map_back is True:
+        raise ValueError("output_size must not be specified if map_back is True")
+
+    if output_size is None and map_back is True:
+        output_size = dst.shape[0]
+        dst = _distinct_but_small(dst)
+
+    output = jax.tree_util.tree_map(
+        lambda x: jnp.zeros((output_size,) + x.shape[1:], x.dtype).at[(dst,)].add(x, indices_are_sorted=indices_are_sorted),
+        data,
+    )
+
+    if map_back:
+        output = output[(dst,)]
+
+    return output
 
 
 def index_add(
@@ -56,34 +116,8 @@ def index_add(
        >>> index_add(i, x, out_dim=4)
        DeviceArray([-9.,  0.,  5.,  0.], dtype=float32)
     """
-    if indices is None and n_elements is None:
-        raise ValueError("Either indices or n_elements must be specified")
-    if indices is not None and n_elements is not None:
-        raise ValueError("Only one of indices or n_elements must be specified")
-
-    if indices is None:
-        out_dim = n_elements.shape[0]
-        num_elements = input.shape[0]
-        indices = jnp.repeat(jnp.arange(out_dim), n_elements, total_repeat_length=num_elements)
-
-    assert indices.shape[0] == input.shape[0]
-
-    if out_dim is None and map_back is False:
-        # out_dim = jnp.max(indices) + 1
-        raise ValueError("out_dim must be specified if map_back is False")
-    if out_dim is not None and map_back is True:
-        raise ValueError("out_dim must not be specified if map_back is True")
-
-    if out_dim is None and map_back is True:
-        out_dim = indices.shape[0]
-        indices = _distinct_but_small(indices)
-
-    output = jax.tree_util.tree_map(lambda x: jnp.zeros((out_dim,) + x.shape[1:], x.dtype).at[(indices,)].add(x), input)
-
-    if map_back:
-        output = output[(indices,)]
-
-    return output
+    warnings.warn("index_add is deprecated, use scatter_sum instead", DeprecationWarning)
+    return scatter_sum(input, dst=indices, nel=n_elements, output_size=out_dim, map_back=map_back)
 
 
 def radius_graph(
