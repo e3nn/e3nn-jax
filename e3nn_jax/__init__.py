@@ -39,7 +39,8 @@ from e3nn_jax._src.irreps_array import IrrepsArray, concatenate, stack, mean, no
 from e3nn_jax._src.irreps_array import sum_ as sum
 from e3nn_jax._src.spherical_harmonics import spherical_harmonics, sh, legendre
 from e3nn_jax._src.radial import sus, soft_one_hot_linspace, bessel, poly_envelope, soft_envelope
-from e3nn_jax._src.linear import FunctionalLinear, Linear
+from e3nn_jax._src.linear import FunctionalLinear
+from e3nn_jax._src.linear_haiku import Linear  # TODO remove
 from e3nn_jax._src.core_tensor_product import FunctionalTensorProduct
 from e3nn_jax._src.tensor_products import (
     FunctionalFullyConnectedTensorProduct,
@@ -62,6 +63,8 @@ from e3nn_jax._src.reduced_tensor_product import reduced_tensor_product_basis, r
 from e3nn_jax._src.symmetric_tensor_product import SymmetricTensorProduct
 from e3nn_jax._src.s2grid import from_s2grid, to_s2grid, s2grid
 
+# make submodules flax and haiku available
+from e3nn_jax import flax, haiku
 
 __all__ = [
     "config",  # not in docs
@@ -144,4 +147,6 @@ __all__ = [
     "from_s2grid",
     "to_s2grid",
     "s2grid",
+    "flax",
+    "haiku",
 ]
