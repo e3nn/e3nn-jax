@@ -13,8 +13,8 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
     act = {1: even_act, -1: odd_act}
     gate_act = {1: even_gate_act, -1: odd_gate_act}
 
-    scalars = input.filtered(["0e", "0o"])
-    vectors = input.filtered(lambda mul_ir: mul_ir.ir.l > 0)
+    scalars = input.filtered(keep=["0e", "0o"])
+    vectors = input.filtered(drop=["0e", "0o"])
     del input
 
     if vectors.shape[-1] == 0:

@@ -99,7 +99,7 @@ class IrrepsArray:
                             )
                 assert all(x.dtype == self.array.dtype for x in self._list if x is not None), (
                     f"IrrepsArray: List dtypes {[None if x is None else x.dtype for x in self._list]} "
-                    "incompatible with array dtype {self.array.dtype}."
+                    f"incompatible with array dtype {self.array.dtype}."
                 )
 
     @staticmethod

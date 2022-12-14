@@ -10,9 +10,9 @@ import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
-from e3nn_jax._src.util.prod import prod
-
 from e3nn_jax._src.einsum import einsum as opt_einsum
+from e3nn_jax._src.util.dtype import get_pytree_dtype
+from e3nn_jax._src.util.prod import prod
 
 
 class FunctionalTensorProduct:
@@ -293,14 +293,6 @@ def _normalize_instruction_path_weights(
     return [update(instruction) for instruction in instructions]
 
 
-def _get_dtype(*args):
-    leaves = jax.tree_util.tree_leaves(args)
-    if len(leaves) == 0:
-        return jnp.float32
-
-    return jax.eval_shape(lambda xs: sum(jnp.sum(x) for x in xs), leaves).dtype
-
-
 @partial(jax.jit, static_argnums=(0,), static_argnames=("custom_einsum_jvp", "fused"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
@@ -312,7 +304,7 @@ def _left_right(
     custom_einsum_jvp: bool = False,
     fused: bool = False,
 ):
-    dtype = _get_dtype(weights, input1, input2)
+    dtype = get_pytree_dtype(weights, input1, input2)
 
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
         return IrrepsArray.zeros(self.irreps_out, ())
@@ -570,7 +562,7 @@ def _right(
     *,
     custom_einsum_jvp: bool = False,
 ) -> jnp.ndarray:
-    dtype = _get_dtype(weights, input2)
+    dtype = get_pytree_dtype(weights, input2)
 
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
