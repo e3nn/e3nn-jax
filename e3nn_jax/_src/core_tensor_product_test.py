@@ -1,8 +1,8 @@
-import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax._src.util.prod import prod
+
+import e3nn_jax as e3nn
 
 
 @pytest.mark.parametrize("custom_einsum_jvp", [False, True])
@@ -172,19 +172,3 @@ def test_normalization(keys, irrep_normalization, path_normalization, gradient_n
         assert jnp.exp(jnp.abs(jnp.log(jnp.mean(v**2)))) < 2.0
     if irrep_normalization == "norm":
         assert jnp.exp(jnp.abs(jnp.log(jnp.mean(jnp.sum(v**2, axis=1))))) < 2.0
-
-
-def test_square_normalization(keys):
-    irreps = e3nn.Irreps("2x0e + 3x1e + 2x2e + 3e")
-    tp = e3nn.FunctionalTensorSquare(irreps, irreps, irrep_normalization="component")
-    n = sum(prod(ins.path_shape) for ins in tp.instructions if ins.has_weight)
-
-    @jax.vmap
-    def f(w, x):
-        return tp.left_right(w, x, x).array
-
-    k = 100_000
-    w = jax.random.normal(keys[0], (k, n))
-    x = e3nn.normal(irreps, keys[1], (k,), normalization="component")
-    y = f(w, x)
-    assert jnp.all(jnp.exp(jnp.abs(jnp.log(jnp.mean(y**2, 0)))) < 1.1)

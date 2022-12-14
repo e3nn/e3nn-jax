@@ -877,16 +877,6 @@ class IrrepsArray:
         ]
         return IrrepsArray(irreps=self.irreps, array=array, list=list)
 
-    @staticmethod
-    def cat(args, axis=-1) -> "IrrepsArray":  # noqa: D102
-        warnings.warn("IrrepsArray.cat is deprecated, use e3nn.concatenate instead", DeprecationWarning)
-        return concatenate(args, axis=axis)
-
-    @staticmethod
-    def randn(irreps, key, leading_shape=(), *, normalization=None):  # noqa: D102
-        warnings.warn("IrrepsArray.randn is deprecated, use e3nn.normal instead", DeprecationWarning)
-        return normal(irreps, key, leading_shape=leading_shape, normalization=normalization)
-
 
 jax.tree_util.register_pytree_node(
     IrrepsArray,

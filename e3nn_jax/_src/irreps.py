@@ -1,14 +1,13 @@
 import collections
 import dataclasses
 import itertools
-import warnings
 from functools import partial
 from typing import Callable, List, NamedTuple, Tuple, Union
 
 import jax
 import jax.numpy as jnp
 import jax.scipy
-from e3nn_jax import axis_angle_to_angles, config, generators, matrix_to_angles, perm, quaternion_to_angles, wigner_D
+from e3nn_jax import generators, matrix_to_angles, perm, quaternion_to_angles, wigner_D
 
 IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
 
@@ -413,29 +412,6 @@ class Irreps(tuple):
             i += mul_ir.dim
         return s
 
-    def randn(self, key, size, *, normalization=None):  # noqa: D102
-        warnings.warn("Irreps.randn is deprecated, use e3nn.normal instead", DeprecationWarning)
-        di = size.index(-1)
-        lsize = size[:di]
-        rsize = size[di + 1 :]
-
-        if normalization is None:
-            normalization = config("irrep_normalization")
-
-        if normalization == "component":
-            return jax.random.normal(key, lsize + (self.dim,) + rsize)
-        elif normalization == "norm":
-            x = jnp.zeros(lsize + (self.dim,) + rsize)
-            for s, (mul, ir) in zip(self.slices(), self):
-                key, k = jax.random.split(key)
-                r = jax.random.normal(k, lsize + (mul, ir.dim) + rsize)
-                r = r / jnp.linalg.norm(r, axis=di + 1, keepdims=True)
-                i = di * (slice(None, None, None),) + (s,)
-                x = x.at[i].set(r.reshape(*lsize, -1, *rsize))
-            return x
-        else:
-            raise ValueError("Normalization needs to be 'norm' or 'component'")
-
     def __getitem__(self, i) -> Union[MulIrrep, "Irreps"]:
         r"""Indexing."""
         x = super().__getitem__(i)
@@ -766,43 +742,6 @@ class Irreps(tuple):
     def __repr__(self):
         """Representation of the irreps."""
         return "+".join(f"{mul_ir}" for mul_ir in self)
-
-    @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_angles(self, array, alpha, beta, gamma, k=0):  # noqa: D102
-        warnings.warn(
-            "Irreps.transform_by_angles is deprecated, use IrrepsArray.transform_by_angles instead", DeprecationWarning
-        )
-
-        assert array.shape[-1] == self.dim
-        D = self.D_from_angles(alpha, beta, gamma, k)
-        return jnp.einsum("ij,...j", D, array)
-
-    @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_quaternion(self, array, q, k=0):  # noqa: D102
-        warnings.warn(
-            "Irreps.transform_by_quaternion is deprecated, use IrrepsArray.transform_by_quaternion instead", DeprecationWarning
-        )
-
-        return self.transform_by_angles(array, *quaternion_to_angles(q), k)
-
-    @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_axis_angle(self, array, axis, angle, k=0):  # noqa: D102
-        warnings.warn(
-            "Irreps.transform_by_axis_angle is deprecated, use IrrepsArray.transform_by_axis_angle instead", DeprecationWarning
-        )
-
-        return self.transform_by_angles(array, *axis_angle_to_angles(axis, angle), k)
-
-    @partial(jax.jit, static_argnums=(0,), inline=True)
-    def transform_by_matrix(self, array, R):  # noqa: D102
-        warnings.warn(
-            "Irreps.transform_by_matrix is deprecated, use IrrepsArray.transform_by_matrix instead", DeprecationWarning
-        )
-
-        d = jnp.sign(jnp.linalg.det(R))
-        R = d[..., None, None] * R
-        k = (1 - d) / 2
-        return self.transform_by_angles(array, *matrix_to_angles(R), k)
 
     @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_angles(self, alpha, beta, gamma, k=0):

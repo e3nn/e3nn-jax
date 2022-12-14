@@ -58,11 +58,7 @@ class Convolution(hk.Module):
         self.num_neighbors = num_neighbors
 
     def __call__(
-        self,
-        node_input: e3nn.IrrepsArray,
-        edge_src: jnp.ndarray,
-        edge_dst: jnp.ndarray,
-        edge_attr: e3nn.IrrepsArray,
+        self, node_input: e3nn.IrrepsArray, edge_src: jnp.ndarray, edge_dst: jnp.ndarray, edge_attr: e3nn.IrrepsArray
     ) -> e3nn.IrrepsArray:
         node_input = e3nn.Linear(node_input.irreps)(node_input)  # [num_nodes, irreps]
 
@@ -106,7 +102,7 @@ def train(steps=2000):
 
     def loss_pred(params, pos, edge_src, edge_dst, labels, batch):
         pred = model.apply(params, pos, edge_src, edge_dst)
-        pred = e3nn.index_add(batch, pred, out_dim=8)  # [batch, 1 + 7]
+        pred = e3nn.scatter_sum(pred, dst=batch, output_size=8)  # [batch, 1 + 7]
         loss_odd = jnp.log(1 + jnp.exp(-labels[:, 0] * pred[:, 0]))
         loss_even = jnp.mean(-labels[:, 1:] * jax.nn.log_softmax(pred[:, 1:]), axis=1)
         loss = jnp.mean(loss_odd + loss_even)

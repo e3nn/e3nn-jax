@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `IrrepsArray.astype` to cast the underlying array
 
+### Removed
+- `e3nn.full_tensor_product` in favor of `e3nn.tensor_product`
+- `e3nn.FunctionalTensorSquare` in favor of `e3nn.tensor_square`
+- `e3nn.TensorSquare` in favor of `e3nn.tensor_square`
+- `e3nn.IrrepsArray.cat` in favor of `e3nn.concatenate`
+- `e3nn.IrrepsArray.randn` in favor of `e3nn.normal`
+- `e3nn.Irreps.randn` in favor of `e3nn.normal`
+- `e3nn.Irreps.transform_by_*` in favor of `e3nn.IrrepsArray.transform_by_*`
+
 ## [0.13.1] - 2022-12-14
 ### Added
 - `e3nn.scatter_sum` to replace `e3nn.index_add`. `e3nn.index_add` is deprecated.
