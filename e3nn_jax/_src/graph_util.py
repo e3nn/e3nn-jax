@@ -37,7 +37,8 @@ def scatter_sum(
         data (`jax.numpy.ndarray` or `e3nn.IrrepsArray`): array of shape ``(n, ...)``
         dst (optional, `jax.numpy.ndarray`): array of shape ``(n,)``. If not specified, ``nel`` must be specified.
         nel (optional, `jax.numpy.ndarray`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
-        output_size (optional, int): size of output array. If not specified, ``nel`` must be specified or ``map_back`` must be ``True``.
+        output_size (optional, int): size of output array. If not specified, ``nel`` must be specified
+            or ``map_back`` must be ``True``.
         map_back (bool): whether to map back to the input position
 
     Returns:
