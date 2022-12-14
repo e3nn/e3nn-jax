@@ -5,8 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.13.1] - 2022-12-14
 ### Added
 - `e3nn.scatter_sum` to replace `e3nn.index_add`. `e3nn.index_add` is deprecated.
+- add `flax` and `haiku` submodules. Plan to migrate all modules to `flax` and `haiku` in the future.
+- Implement `e3nn.flax.Linear` and move `e3nn.Linear` in `e3nn.haiku.Linear`.
 
 ## [0.13.0] - 2022-12-07
 ### Changed
