@@ -11,13 +11,14 @@ def normalize_function(phi):
         k = jax.random.PRNGKey(0)
         x = jax.random.normal(k, (1_000_000,), dtype=jnp.float64)
         c = jnp.mean(phi(x) ** 2) ** 0.5
+        c = c.item()
 
         if jnp.allclose(c, 1.0):
             return phi
         else:
 
             def rho(x):
-                return phi(x) / c.astype(x.dtype)
+                return phi(x) / c
 
             return rho
 

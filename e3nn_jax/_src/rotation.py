@@ -6,7 +6,7 @@ import jax.numpy as jnp
 # matrix
 
 
-def rand_matrix(key, shape):
+def rand_matrix(key, shape, dtype=jnp.float32):
     r"""Random rotation matrix.
 
     Args:
@@ -16,13 +16,13 @@ def rand_matrix(key, shape):
     Returns:
         `jax.numpy.ndarray`: array of shape :math:`(..., 3, 3)`
     """
-    return angles_to_matrix(*rand_angles(key, shape))
+    return angles_to_matrix(*rand_angles(key, shape, dtype=dtype))
 
 
 # angles
 
 
-def identity_angles(shape):
+def identity_angles(shape, dtype=jnp.float32):
     r"""Angles of the identity rotation.
 
     Args:
@@ -33,11 +33,11 @@ def identity_angles(shape):
         beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
         gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
     """
-    return jnp.zeros(shape), jnp.zeros(shape), jnp.zeros(shape)
+    return jnp.zeros(shape, dtype), jnp.zeros(shape, dtype), jnp.zeros(shape, dtype)
 
 
 @partial(jax.jit, static_argnums=(1,), inline=True)
-def rand_angles(key, shape):
+def rand_angles(key, shape, dtype=jnp.float32):
     r"""Random rotation angles.
 
     Args:
@@ -49,7 +49,7 @@ def rand_angles(key, shape):
         beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
         gamma (`jax.numpy.ndarray`): array of shape :math:`(...)`
     """
-    x, y, z = jax.random.uniform(key, (3,) + shape)
+    x, y, z = jax.random.uniform(key, (3,) + shape, dtype=dtype)
     return 2 * jnp.pi * x, jnp.arccos(2 * z - 1), 2 * jnp.pi * y
 
 
@@ -95,7 +95,7 @@ def inverse_angles(a, b, c):
 # quaternions
 
 
-def identity_quaternion(shape):
+def identity_quaternion(shape, dtype=jnp.float32):
     r"""Quaternion of identity rotation.
 
     Args:
@@ -104,12 +104,12 @@ def identity_quaternion(shape):
     Returns:
         `jax.numpy.ndarray`: array of shape :math:`(..., 4)`
     """
-    q = jnp.zeros(shape, 4)
+    q = jnp.zeros(shape, 4, dtype=dtype)
     return q.at[..., 0].set(1)  # or -1...
 
 
 @partial(jax.jit, static_argnums=(1,), inline=True)
-def rand_quaternion(key, shape):
+def rand_quaternion(key, shape, dtype=jnp.float32):
     r"""Generate random quaternion.
 
     Args:
@@ -119,7 +119,7 @@ def rand_quaternion(key, shape):
     Returns:
         `jax.numpy.ndarray`: array of shape :math:`(..., 4)`
     """
-    return angles_to_quaternion(*rand_angles(key, shape))
+    return angles_to_quaternion(*rand_angles(key, shape, dtype))
 
 
 @partial(jax.jit, inline=True)
@@ -162,7 +162,7 @@ def inverse_quaternion(q):
 # axis-angle
 
 
-def rand_axis_angle(key, shape):
+def rand_axis_angle(key, shape, dtype=jnp.float32):
     r"""Generate random rotation as axis-angle.
 
     Args:
@@ -173,7 +173,7 @@ def rand_axis_angle(key, shape):
         axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
         angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
     """
-    return angles_to_axis_angle(*rand_angles(key, shape))
+    return angles_to_axis_angle(*rand_angles(key, shape, dtype))
 
 
 def compose_axis_angle(axis1, angle1, axis2, angle2):

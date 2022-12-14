@@ -1,9 +1,11 @@
 from typing import Callable, Optional, Tuple
 
-import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
 import numpy as np
+
+import e3nn_jax as e3nn
+from e3nn_jax._src.util.dtype import get_pytree_dtype
 
 
 def equivariance_test(
@@ -11,17 +13,14 @@ def equivariance_test(
     rng_key: jnp.ndarray,
     *args,
 ):
-    jax_enable_x64 = jax.config.read("jax_enable_x64")
-    jax.config.update("jax_enable_x64", True)
-
     assert all(isinstance(arg, e3nn.IrrepsArray) for arg in args)
+    dtype = get_pytree_dtype(args)
 
-    R = -e3nn.rand_matrix(rng_key, ())  # random rotation and inversion
+    R = -e3nn.rand_matrix(rng_key, (), dtype=dtype)  # random rotation and inversion
 
     out1 = fun(*[arg.transform_by_matrix(R) for arg in args])
     out2 = fun(*args).transform_by_matrix(R)
 
-    jax.config.update("jax_enable_x64", jax_enable_x64)
     return out1, out2
 
 
