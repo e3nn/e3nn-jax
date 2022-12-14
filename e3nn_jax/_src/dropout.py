@@ -4,6 +4,8 @@ import jax.numpy as jnp
 
 from e3nn_jax import Irreps, IrrepsArray
 
+# TODO move to haiku file
+
 
 class Dropout(hk.Module):
     r"""Equivariant Dropout.

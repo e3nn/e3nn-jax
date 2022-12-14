@@ -8,6 +8,8 @@ import e3nn_jax as e3nn
 import haiku as hk
 import jax.numpy as jnp
 
+# TODO: move to haiku file
+
 
 class SymmetricTensorProduct(hk.Module):
     r"""Symmetric tensor product contraction with parameters

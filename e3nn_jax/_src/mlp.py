@@ -5,6 +5,9 @@ import jax.numpy as jnp
 import e3nn_jax as e3nn
 
 
+# TODO move to haiku file
+
+
 class MultiLayerPerceptron(hk.Module):
     """Just a simple MLP for scalars. No equivariance here.
 
