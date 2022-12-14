@@ -486,6 +486,18 @@ class IrrepsArray:
         list = [None if x is None else x.reshape(shape + (mul, ir.dim)) for (mul, ir), x in zip(self.irreps, self.list)]
         return IrrepsArray(irreps=self.irreps, array=self.array.reshape(shape + (self.irreps.dim,)), list=list)
 
+    def astype(self, dtype) -> "IrrepsArray":
+        r"""Change the dtype of the array.
+
+        Args:
+            dtype (dtype): new dtype
+
+        Returns:
+            IrrepsArray: new IrrepsArray
+        """
+        list = [None if x is None else x.astype(dtype) for x in self.list]
+        return IrrepsArray(irreps=self.irreps, array=self.array.astype(dtype), list=list, _perform_checks=False)
+
     def replace_none_with_zeros(self) -> "IrrepsArray":
         r"""Replace all None in ``.list`` with zeros."""
         jnp = _infer_backend(self.array)
