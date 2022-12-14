@@ -1,22 +1,67 @@
 from typing import Optional, Union
 
 import flax
-import jax
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
+from e3nn_jax._src.util.dtype import get_pytree_dtype
 
-from .linear import FunctionalLinear
+from .linear import FunctionalLinear, linear_indexed, linear_mixed, linear_mixed_per_channel, linear_vanilla
 
 
 class Linear(flax.linen.Module):
-    r"""Equivariant Linear Flax module"""
+    r"""Equivariant Linear Flax module
+
+    Args:
+        irreps_out (`Irreps`): output representations.
+        channel_out (optional int): if specified, the last axis before the irreps
+            is assumed to be the channel axis and is mixed with the irreps.
+        irreps_in (optional `Irreps`): input representations. If not specified,
+            the input representations is obtained when calling the module.
+        biases (bool): whether to add a bias to the output.
+        path_normalization (str or float): Normalization of the paths, ``element`` or ``path``.
+            0/1 corresponds to a normalization where each element/path has an equal contribution to the forward.
+        gradient_normalization (str or float): Normalization of the gradients, ``element`` or ``path``.
+            0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
+        num_indexed_weights (optional int): number of indexed weights. See example below.
+        weights_per_channel (bool): whether to have one set of weights per channel.
+
+    Example:
+        Vanilla::
+
+        >>> import e3nn_jax as e3nn
+        >>> import jax
+        >>>
+        >>> linear = Linear("2x0e + 1o")
+        >>> x = e3nn.normal("0e + 1o")
+        >>> w = linear.init(jax.random.PRNGKey(0), x)
+        >>> linear.apply(w, x).shape
+        (5,)
+
+        External weights::
+
+        >>> linear = Linear("2x0e + 1o")
+        >>> e = jnp.array([1., 2., 3., 4.])
+        >>> w = linear.init(jax.random.PRNGKey(0), e, x)
+        >>> linear.apply(w, e, x).shape
+        (5,)
+
+        Indexed weights::
+
+        >>> linear = Linear("2x0e + 1o", num_indexed_weights=3)
+        >>> i = jnp.array(2)
+        >>> w = linear.init(jax.random.PRNGKey(0), i, x)
+        >>> linear.apply(w, i, x).shape
+        (5,)
+    """
     irreps_out: e3nn.Irreps
+    irreps_in: Optional[e3nn.Irreps] = None
     channel_out: Optional[int] = None
     gradient_normalization: Optional[Union[float, str]] = None
     path_normalization: Optional[Union[float, str]] = None
     biases: bool = False
     num_indexed_weights: Optional[int] = None
+    weights_per_channel: bool = False
 
     @flax.linen.compact
     def __call__(self, weights_or_input, input_or_none=None) -> e3nn.IrrepsArray:
@@ -40,11 +85,22 @@ class Linear(flax.linen.Module):
             input: e3nn.IrrepsArray = input_or_none
         del weights_or_input, input_or_none
 
+        dtype = get_pytree_dtype(weights, input)
+        if dtype.kind == "i":
+            dtype = jnp.float32
+        input = input.astype(dtype)
+
+        if self.irreps_in is not None:
+            if e3nn.Irreps(self.irreps_in).regroup() != input.irreps.regroup():
+                raise ValueError(
+                    f"e3nn.flax.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({self.irreps_in})"
+                )
+
         input = input.remove_nones().regroup()
         output_irreps = e3nn.Irreps(self.irreps_out).simplify()
 
         if self.channel_out is not None:
-            # assert not self.weights_per_channel
+            assert not self.weights_per_channel
             input = input.axis_to_mul()
             output_irreps = self.channel_out * output_irreps
 
@@ -56,28 +112,12 @@ class Linear(flax.linen.Module):
             gradient_normalization=self.gradient_normalization,
         )
 
+        def param(name, shape, std, dtype):
+            return self.param(name, flax.linen.initializers.normal(stddev=std), shape, dtype)
+
         if weights is None:
-            # assert not self.weights_per_channel  # Not implemented yet
-            w = [
-                self.param(
-                    f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}",
-                    flax.linen.initializers.normal(stddev=ins.weight_std),
-                    ins.path_shape,
-                    input.dtype,
-                )
-                if ins.i_in == -1
-                else self.param(
-                    f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
-                    flax.linen.initializers.normal(stddev=ins.weight_std),
-                    ins.path_shape,
-                    input.dtype,
-                )
-                for ins in lin.instructions
-            ]
-            f = lambda x: lin(w, x)
-            for _ in range(input.ndim - 1):
-                f = jax.vmap(f)
-            output = f(input)
+            assert not self.weights_per_channel  # Not implemented yet
+            output = linear_vanilla(input, lin, param)
         else:
             if isinstance(weights, e3nn.IrrepsArray):
                 if not weights.irreps.is_scalar():
@@ -85,34 +125,8 @@ class Linear(flax.linen.Module):
                 weights = weights.array
 
             if weights.dtype.kind == "i" and self.num_indexed_weights is not None:
-                # assert not self.weights_per_channel  # Not implemented yet
-
-                shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape)
-                input = input.broadcast_to(shape + (-1,))
-                weights = jnp.broadcast_to(weights, shape)
-
-                w = [
-                    self.param(
-                        f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}",
-                        flax.linen.initializers.normal(stddev=ins.weight_std),
-                        (self.num_indexed_weights,) + ins.path_shape,
-                        input.dtype,
-                    )
-                    if ins.i_in == -1
-                    else self.param(
-                        f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
-                        flax.linen.initializers.normal(stddev=ins.weight_std),
-                        (self.num_indexed_weights,) + ins.path_shape,
-                        input.dtype,
-                    )
-                    for ins in lin.instructions
-                ]  # List of shape (num_weights, *path_shape)
-                w = [wi[weights] for wi in w]  # List of shape (..., *path_shape)
-
-                f = lin
-                for _ in range(input.ndim - 1):
-                    f = jax.vmap(f)
-                output = f(w, input)
+                assert not self.weights_per_channel  # Not implemented yet
+                output = linear_indexed(input, lin, param, weights, self.num_indexed_weights)
 
             elif weights.dtype.kind in "fc" and self.num_indexed_weights is None:
 
@@ -122,90 +136,16 @@ class Linear(flax.linen.Module):
                 if isinstance(gradient_normalization, str):
                     gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
 
-                if False:
-                    pass
-                # if self.weights_per_channel:
-                #     shape = jnp.broadcast_shapes(input.shape[:-2], weights.shape[:-1])
-                #     input = input.broadcast_to(shape + input.shape[-2:])
-                #     weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])
-                #     nc = input.shape[-2]
-
-                #     weights = weights.astype(input.array.dtype)
-
-                #     # Should be equivalent to the last layer of e3nn.MultiLayerPerceptron
-                #     d = weights.shape[-1]
-                #     alpha = 1 / d
-                #     stddev = jnp.sqrt(alpha) ** (1.0 - gradient_normalization)
-
-                #     w = [
-                #         self.param(
-                #             f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}",
-                #             flax.linen.initializers.normal(stddev=stddev * ins.weight_std),
-                #             (d, nc) + ins.path_shape,
-                #             input.dtype,
-                #         )
-                #         if ins.i_in == -1
-                #         else self.param(
-                #             f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
-                #             flax.linen.initializers.normal(stddev=stddev * ins.weight_std),
-                #             (d, nc) + ins.path_shape,
-                #             input.dtype,
-                #         )
-                #         for ins in lin.instructions
-                #     ]  # List of shape (d, *path_shape)
-                #     w = [
-                #         jnp.sqrt(alpha) ** gradient_normalization
-                #         * jax.lax.dot_general(weights, wi.astype(input.array.dtype), (((weights.ndim - 1,), (0,)), ((), ())))
-                #         for wi in w
-                #     ]  # List of shape (..., num_channels, *path_shape)
-
-                #     f = lin
-                #     for _ in range(input.ndim - 1):
-                #         f = jax.vmap(f)
-                #     output = f(w, input)
+                if self.weights_per_channel:
+                    output = linear_mixed_per_channel(input, lin, param, weights, gradient_normalization)
                 else:
-                    shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape[:-1])
-                    input = input.broadcast_to(shape + (-1,))
-                    weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])
-
-                    weights = weights.astype(input.array.dtype)
-
-                    # Should be equivalent to the last layer of e3nn.MultiLayerPerceptron
-                    d = weights.shape[-1]
-                    alpha = 1 / d
-                    stddev = jnp.sqrt(alpha) ** (1.0 - gradient_normalization)
-
-                    w = [
-                        self.param(
-                            f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}",
-                            flax.linen.initializers.normal(stddev=stddev * ins.weight_std),
-                            (d,) + ins.path_shape,
-                            input.dtype,
-                        )
-                        if ins.i_in == -1
-                        else self.param(
-                            f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
-                            flax.linen.initializers.normal(stddev=stddev * ins.weight_std),
-                            (d,) + ins.path_shape,
-                            input.dtype,
-                        )
-                        for ins in lin.instructions
-                    ]  # List of shape (d, *path_shape)
-                    w = [
-                        jnp.sqrt(alpha) ** gradient_normalization
-                        * jax.lax.dot_general(weights, wi.astype(input.array.dtype), (((weights.ndim - 1,), (0,)), ((), ())))
-                        for wi in w
-                    ]  # List of shape (..., *path_shape)
-
-                    f = lin
-                    for _ in range(input.ndim - 1):
-                        f = jax.vmap(f)
-                    output = f(w, input)
+                    output = linear_mixed(input, lin, param, weights, gradient_normalization)
 
             else:
                 raise ValueError(
-                    "If weights are provided, they must be either integers and num_weights must be provided "
-                    "or floats and num_weights must not be provided."
+                    "If weights are provided, they must be either integers and num_indexed_weights must be provided "
+                    "or floats and num_indexed_weights must not be provided. "
+                    f"weights.dtype={weights.dtype}, num_indexed_weights={self.num_indexed_weights}"
                 )
 
         if self.channel_out is not None:
