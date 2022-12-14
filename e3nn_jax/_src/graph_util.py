@@ -115,7 +115,7 @@ def index_add(
        >>> i = jnp.array([0, 2, 2, 0])
        >>> x = jnp.array([1.0, 2.0, 3.0, -10.0])
        >>> index_add(i, x, out_dim=4)
-       DeviceArray([-9.,  0.,  5.,  0.], dtype=float32)
+       Array([-9.,  0.,  5.,  0.], dtype=float32)
     """
     warnings.warn("index_add is deprecated, use scatter_sum instead", DeprecationWarning)
     return scatter_sum(input, dst=indices, nel=n_elements, output_size=out_dim, map_back=map_back)
@@ -149,7 +149,7 @@ def radius_graph(
         >>> pos = jax.random.normal(key, (20, 3))
         >>> batch = jnp.arange(20) < 10
         >>> radius_graph(pos, 0.8, batch=batch)
-        (DeviceArray([ 3,  7, 10, 11, 12, 18], dtype=int32), DeviceArray([ 7,  3, 11, 10, 18, 12], dtype=int32))
+        (Array([ 3,  7, 10, 11, 12, 18], dtype=int32), Array([ 7,  3, 11, 10, 18, 12], dtype=int32))
     """
     if isinstance(pos, e3nn.IrrepsArray):
         pos = pos.array

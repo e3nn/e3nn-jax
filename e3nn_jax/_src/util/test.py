@@ -15,6 +15,8 @@ def equivariance_test(
 ):
     assert all(isinstance(arg, e3nn.IrrepsArray) for arg in args)
     dtype = get_pytree_dtype(args)
+    if dtype.kind == "i":
+        dtype = jnp.float32
 
     R = -e3nn.rand_matrix(rng_key, (), dtype=dtype)  # random rotation and inversion
 
