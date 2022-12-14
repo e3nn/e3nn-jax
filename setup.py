@@ -35,6 +35,7 @@ setup(
     install_requires=[
         "jax",
         "dm-haiku",
+        "flax",
         "optax",
         "sympy",
         "numpy",
