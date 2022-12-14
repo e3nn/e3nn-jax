@@ -305,6 +305,8 @@ def _left_right(
     fused: bool = False,
 ):
     dtype = get_pytree_dtype(weights, input1, input2)
+    if dtype.kind == "i":
+        dtype = jnp.float32
 
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
         return IrrepsArray.zeros(self.irreps_out, ())
@@ -563,6 +565,8 @@ def _right(
     custom_einsum_jvp: bool = False,
 ) -> jnp.ndarray:
     dtype = get_pytree_dtype(weights, input2)
+    if dtype.kind == "i":
+        dtype = jnp.float32
 
     # = Short-circut for zero dimensional =
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:

@@ -175,10 +175,10 @@ class IrrepsArray:
             >>> len(x.list)
             2
             >>> x.list[0]
-            DeviceArray([[0],
-                         [1]], dtype=int32)
+            Array([[0],
+                   [1]], dtype=int32)
             >>> x.list[1]
-            DeviceArray([[2]], dtype=int32)
+            Array([[2]], dtype=int32)
 
             The follwing is always true:
 
@@ -769,11 +769,11 @@ class IrrepsArray:
         Example:
             >>> x = IrrepsArray.from_list("6x0e + 4x0e", [None, jnp.ones((4, 1))], ())
             >>> x._convert("5x0e + 5x0e").list
-            [None, DeviceArray([[0.],
-                         [1.],
-                         [1.],
-                         [1.],
-                         [1.]], dtype=float32)]
+            [None, Array([[0.],
+                   [1.],
+                   [1.],
+                   [1.],
+                   [1.]], dtype=float32)]
         """
         jnp = _infer_backend(self.array)
 
