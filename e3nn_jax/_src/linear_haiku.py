@@ -32,6 +32,8 @@ class Linear(hk.Module):
         Vanilla::
 
         >>> import e3nn_jax as e3nn
+        >>> import jax
+        >>>
         >>> @hk.without_apply_rng
         ... @hk.transform
         ... def linear(x):
