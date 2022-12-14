@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Callable, List, NamedTuple, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -176,3 +176,130 @@ class FunctionalLinear:
                 * jnp.einsum("uw,ij->uiwj", w, jnp.eye(ir_in.dim)).reshape((mul_in * ir_in.dim, mul_out * ir_out.dim))
             )
         return output
+
+
+def linear_vanilla(
+    input: IrrepsArray, linear: FunctionalLinear, get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray]
+) -> IrrepsArray:
+    w = [
+        get_parameter(
+            f"b[{ins.i_out}] {linear.irreps_out[ins.i_out]}"
+            if ins.i_in == -1
+            else f"w[{ins.i_in},{ins.i_out}] {linear.irreps_in[ins.i_in]},{linear.irreps_out[ins.i_out]}",
+            ins.path_shape,
+            ins.weight_std,
+            input.dtype,
+        )
+        for ins in linear.instructions
+    ]
+    f = lambda x: linear(w, x)
+    for _ in range(input.ndim - 1):
+        f = jax.vmap(f)
+    return f(input)
+
+
+def linear_indexed(
+    input: IrrepsArray,
+    lin: FunctionalLinear,
+    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
+    weights: jnp.ndarray,
+    num_indexed_weights: int,
+) -> IrrepsArray:
+    shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape)
+    input = input.broadcast_to(shape + (-1,))
+    weights = jnp.broadcast_to(weights, shape)
+
+    w = [
+        get_parameter(
+            f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}"
+            if ins.i_in == -1
+            else f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+            (num_indexed_weights,) + ins.path_shape,
+            ins.weight_std,
+            input.dtype,
+        )
+        for ins in lin.instructions
+    ]  # List of shape (num_weights, *path_shape)
+    w = [wi[weights] for wi in w]  # List of shape (..., *path_shape)
+
+    f = lin
+    for _ in range(input.ndim - 1):
+        f = jax.vmap(f)
+    return f(w, input)
+
+
+def linear_mixed(
+    input: IrrepsArray,
+    lin: FunctionalLinear,
+    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
+    weights: jnp.ndarray,
+    gradient_normalization: float,
+) -> IrrepsArray:
+    shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape[:-1])
+    input = input.broadcast_to(shape + (-1,))  # (..., irreps)
+    weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])  # (..., d)
+
+    # Should be equivalent to the last layer of e3nn.MultiLayerPerceptron
+    d = weights.shape[-1]
+    alpha = 1 / d
+    stddev = jnp.sqrt(alpha) ** (1.0 - gradient_normalization)
+
+    w = [
+        get_parameter(
+            f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}"
+            if ins.i_in == -1
+            else f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+            (d,) + ins.path_shape,
+            stddev * ins.weight_std,
+            input.dtype,
+        )
+        for ins in lin.instructions
+    ]  # List of shape (d, *path_shape)
+    w = [
+        jnp.sqrt(alpha) ** gradient_normalization * jax.lax.dot_general(weights, wi, (((weights.ndim - 1,), (0,)), ((), ())))
+        for wi in w
+    ]  # List of shape (..., *path_shape)
+
+    f = lin
+    for _ in range(input.ndim - 1):
+        f = jax.vmap(f)
+    return f(w, input)  # (..., irreps)
+
+
+def linear_mixed_per_channel(
+    input: IrrepsArray,
+    lin: FunctionalLinear,
+    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
+    weights: jnp.ndarray,
+    gradient_normalization: float,
+) -> IrrepsArray:
+    shape = jnp.broadcast_shapes(input.shape[:-2], weights.shape[:-1])
+    input = input.broadcast_to(shape + input.shape[-2:])  # (..., num_channels, irreps)
+    weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])  # (..., d)
+    nc = input.shape[-2]
+
+    # Should be equivalent to the last layer of e3nn.MultiLayerPerceptron
+    d = weights.shape[-1]
+    alpha = 1 / d
+    stddev = jnp.sqrt(alpha) ** (1.0 - gradient_normalization)
+
+    w = [
+        get_parameter(
+            f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}"
+            if ins.i_in == -1
+            else f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+            (d, nc) + ins.path_shape,
+            stddev * ins.weight_std,
+            input.dtype,
+        )
+        for ins in lin.instructions
+    ]  # List of shape (d, num_channels, *path_shape)
+    w = [
+        jnp.sqrt(alpha) ** gradient_normalization * jax.lax.dot_general(weights, wi, (((weights.ndim - 1,), (0,)), ((), ())))
+        for wi in w
+    ]  # List of shape (..., num_channels, *path_shape)
+
+    f = lin
+    for _ in range(input.ndim - 1):
+        f = jax.vmap(f)
+    return f(w, input)  # (..., num_channels, irreps)
