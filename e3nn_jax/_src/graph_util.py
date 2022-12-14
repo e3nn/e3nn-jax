@@ -117,7 +117,7 @@ def index_add(
        >>> index_add(i, x, out_dim=4)
        Array([-9.,  0.,  5.,  0.], dtype=float32)
     """
-    warnings.warn("index_add is deprecated, use scatter_sum instead", DeprecationWarning)
+    warnings.warn("e3nn.index_add is deprecated, use e3nn.scatter_sum instead", DeprecationWarning)
     return scatter_sum(input, dst=indices, nel=n_elements, output_size=out_dim, map_back=map_back)
 
 

@@ -45,11 +45,8 @@ from e3nn_jax._src.core_tensor_product import FunctionalTensorProduct
 from e3nn_jax._src.tensor_products import (
     FunctionalFullyConnectedTensorProduct,
     FullyConnectedTensorProduct,
-    full_tensor_product,
     tensor_product,
     elementwise_tensor_product,
-    FunctionalTensorSquare,
-    TensorSquare,
     tensor_square,
 )
 from e3nn_jax._src.grad import grad
@@ -123,11 +120,8 @@ __all__ = [
     "FunctionalTensorProduct",
     "FunctionalFullyConnectedTensorProduct",  # deprecated
     "FullyConnectedTensorProduct",  # deprecated
-    "full_tensor_product",  # deprecated
     "tensor_product",
     "elementwise_tensor_product",
-    "FunctionalTensorSquare",  # not in docs
-    "TensorSquare",  # not in docs
     "tensor_square",
     "grad",
     "scalar_activation",

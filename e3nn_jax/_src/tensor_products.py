@@ -324,9 +324,6 @@ def tensor_square(
     return output
 
 
-# Deprecated functions:
-
-
 def FunctionalFullyConnectedTensorProduct(
     irreps_in1: Irreps,
     irreps_in2: Irreps,
@@ -361,6 +358,9 @@ def FunctionalFullyConnectedTensorProduct(
         path_normalization,
         gradient_normalization,
     )
+
+
+# Deprecated functions:
 
 
 class FullyConnectedTensorProduct(hk.Module):
@@ -399,103 +399,4 @@ class FullyConnectedTensorProduct(hk.Module):
         ]
         f = naive_broadcast_decorator(lambda x1, x2: tp.left_right(ws, x1, x2, **kwargs))
         output = f(x1, x2)
-        return output._convert(self.irreps_out)
-
-
-def full_tensor_product(
-    input1: IrrepsArray,
-    input2: IrrepsArray,
-    filter_ir_out: Optional[List[Irrep]] = None,
-    irrep_normalization: Optional[str] = None,
-):
-    warnings.warn("e3nn.full_tensor_product is deprecated. Use e3nn.tensor_product instead.", DeprecationWarning)
-
-    return tensor_product(input1, input2, filter_ir_out=filter_ir_out, irrep_normalization=irrep_normalization)
-
-
-def FunctionalTensorSquare(irreps_in: Irreps, irreps_out: Irreps, irrep_normalization: str = None, **kwargs):
-    if irrep_normalization is None:
-        irrep_normalization = config("irrep_normalization")
-
-    assert irrep_normalization in ["component", "norm", "none"]
-
-    irreps_in = Irreps(irreps_in)
-    irreps_out = Irreps(irreps_out)
-
-    instructions = []
-    for i_1, (mul_1, ir_1) in enumerate(irreps_in):
-        for i_2, (mul_2, ir_2) in enumerate(irreps_in):
-            for i_out, (mul_out, ir_out) in enumerate(irreps_out):
-                if ir_out in ir_1 * ir_2:
-
-                    if irrep_normalization == "component":
-                        alpha = ir_out.dim
-                    elif irrep_normalization == "norm":
-                        alpha = ir_1.dim * ir_2.dim
-                    elif irrep_normalization == "none":
-                        alpha = 1
-                    else:
-                        raise ValueError(f"irrep_normalization={irrep_normalization}")
-
-                    if i_1 < i_2:
-                        instructions += [(i_1, i_2, i_out, "uvw", True, alpha)]
-                    elif i_1 == i_2:
-                        i = i_1
-                        mul = mul_1
-
-                        if mul > 1:
-                            instructions += [(i, i, i_out, "u<vw", True, alpha)]
-
-                        if ir_out.l % 2 == 0:
-                            if irrep_normalization == "component":
-                                if ir_out.l == 0:
-                                    alpha = ir_out.dim / (ir_1.dim + 2)
-                                else:
-                                    alpha = ir_out.dim / 2
-                            if irrep_normalization == "norm":
-                                if ir_out.l == 0:
-                                    alpha = ir_out.dim * ir_1.dim
-                                else:
-                                    alpha = ir_1.dim * (ir_1.dim + 2) / 2
-
-                            instructions += [(i, i, i_out, "uuw", True, alpha)]
-
-    return FunctionalTensorProduct(irreps_in, irreps_in, irreps_out, instructions, irrep_normalization="none", **kwargs)
-
-
-class TensorSquare(hk.Module):
-    """Tensor product of a tensor with itself.
-
-    The difference with :func:`e3nn_jax.reduced_symmetric_tensor_product_basis` and :func:`e3nn_jax.SymmetricTensorProduct`
-    is the proper normalization.
-
-    Args:
-        irreps_out (Irreps): Irreps of the output
-    """
-
-    def __init__(self, irreps_out: Irreps, *, irreps_in=None, init=None):
-        super().__init__()
-
-        warnings.warn(
-            "TensorSquare is deprecated, use e3nn.tensor_square followed by e3nn.Linear instead",
-            DeprecationWarning,
-        )
-
-        self.irreps_in = Irreps(irreps_in) if irreps_in is not None else None
-        self.irreps_out = Irreps(irreps_out)
-
-        if init is None:
-            init = hk.initializers.RandomNormal
-        self.init = init
-
-    def __call__(self, input: IrrepsArray) -> IrrepsArray:
-        if self.irreps_in is not None:
-            input = input._convert(self.irreps_in)
-
-        input = input.remove_nones().simplify()
-
-        tp = FunctionalTensorSquare(input.irreps, self.irreps_out.simplify())
-        ws = [hk.get_parameter(str(ins), shape=ins.path_shape, init=self.init(ins.weight_std)) for ins in tp.instructions]
-        f = naive_broadcast_decorator(lambda x: tp.left_right(ws, x, x))
-        output = f(input)
         return output._convert(self.irreps_out)
