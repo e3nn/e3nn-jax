@@ -50,10 +50,14 @@ def test_conversions(keys):
             g = conv[i][j](g)
         return g
 
-    R1 = e3nn.rand_matrix(next(keys), (100,))
+    R1 = e3nn.rand_matrix(next(keys), (100,), dtype=jnp.float64)
     R2 = f(R1)
 
+    assert R2.dtype == jnp.float64
     np.testing.assert_allclose(R1, R2, rtol=0, atol=1e-10)
+
+    R1 = e3nn.rand_matrix(next(keys), (2,), dtype=jnp.float32)
+    assert f(R1).dtype == jnp.float32
 
     jax.config.update("jax_enable_x64", False)
 
@@ -61,8 +65,8 @@ def test_conversions(keys):
 def test_compose(keys):
     jax.config.update("jax_enable_x64", True)
 
-    q1 = e3nn.rand_quaternion(keys[1], (10,))
-    q2 = e3nn.rand_quaternion(keys[2], (10,))
+    q1 = e3nn.rand_quaternion(keys[1], (10,), dtype=jnp.float64)
+    q2 = e3nn.rand_quaternion(keys[2], (10,), dtype=jnp.float64)
 
     q = e3nn.compose_quaternion(q1, q2)
 
