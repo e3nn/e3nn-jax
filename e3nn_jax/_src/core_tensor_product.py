@@ -336,9 +336,12 @@ def _left_right(
     assert input2.ndim == 1, f"input2 is shape {input2.shape}. Execting ndim to be 1. Use jax.vmap to map over input2"
 
     if fused:
-        return _fused_left_right(self, weights_flat, input1, input2, einsum, dtype)
+        output = _fused_left_right(self, weights_flat, input1, input2, einsum, dtype)
     else:
-        return _block_left_right(self, weights_list, input1, input2, einsum, dtype)
+        output = _block_left_right(self, weights_list, input1, input2, einsum, dtype)
+
+    assert output.dtype == dtype, f"output.dtype {output.dtype} != dtype {dtype}, Please report this bug."
+    return output
 
 
 def _block_left_right(
@@ -454,7 +457,7 @@ def _block_left_right(
         )
         for i_out, mul_ir_out in enumerate(self.irreps_out)
     ]
-    return IrrepsArray.from_list(self.irreps_out, out, ())
+    return IrrepsArray.from_list(self.irreps_out, out, (), dtype)
 
 
 def _fused_left_right(
@@ -543,7 +546,7 @@ def _fused_left_right(
         out = einsum("ijk,i,j->k", big_w3j, input1.array, input2.array)
     else:
         if has_path_with_no_weights:
-            weights_flat = jnp.concatenate([jnp.ones((1,), dtype=dtype), weights_flat])
+            weights_flat = jnp.concatenate([jnp.ones((1,), dtype), weights_flat])
 
         out = einsum(
             "p,pijk,i,j->k",
@@ -626,7 +629,7 @@ def _right(
                 out = einsum("uv,ijk,vj->uivk", w, w3j, x2)
             else:
                 # not so useful operation because u is summed
-                out = einsum("ijk,vj,u->uivk", w3j, x2, jnp.ones((mul_ir_in1.mul,)))
+                out = einsum("ijk,vj,u->uivk", w3j, x2, jnp.ones((mul_ir_in1.mul,), dtype))
         if ins.connection_mode == "uuw":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             if ins.has_weight:
@@ -652,7 +655,7 @@ def _right(
 
         out_list += [out.reshape(mul_ir_in1.dim, mul_ir_out.dim)]
 
-    return jnp.concatenate(
+    output = jnp.concatenate(
         [
             jnp.concatenate(
                 [
@@ -671,3 +674,6 @@ def _right(
         ],
         axis=0,
     )
+
+    assert output.dtype == dtype, f"{output.dtype} != {dtype}, Please report this bug."
+    return output

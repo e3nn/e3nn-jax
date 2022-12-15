@@ -171,9 +171,9 @@ def from_s2grid(
     if normalization == "component":
         n = jnp.sqrt(4 * jnp.pi) * jnp.asarray([jnp.sqrt(2 * l + 1) for l in range(lmax + 1)]) * jnp.sqrt(lmax_in + 1)
     elif normalization == "norm":
-        n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1) * jnp.sqrt(lmax_in + 1)
+        n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, x.dtype) * jnp.sqrt(lmax_in + 1)
     elif normalization == "integral":
-        n = 4 * jnp.pi * jnp.ones(lmax + 1)
+        n = 4 * jnp.pi * jnp.ones(lmax + 1, x.dtype)
     else:
         raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
@@ -243,9 +243,9 @@ def to_s2grid(
     elif normalization == "norm":
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1/(2L+1)
-        n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1) / jnp.sqrt(lmax + 1)
+        n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, tensor.dtype) / jnp.sqrt(lmax + 1)
     elif normalization == "integral":
-        n = jnp.ones(lmax + 1)
+        n = jnp.ones(lmax + 1, tensor.dtype)
     else:
         raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 

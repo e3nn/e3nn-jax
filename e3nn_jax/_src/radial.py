@@ -221,7 +221,9 @@ def bessel(x: jnp.ndarray, n: int, x_max: float = 1.0) -> jnp.ndarray:
     Klicpera, J.; Groß, J.; Günnemann, S. Directional Message Passing for Molecular Graphs; ICLR 2020.
     Equation (7)
     """
+    x = jnp.asarray(x)
     assert isinstance(n, int)
+
     x = x[..., None]
     n = jnp.arange(1, n + 1, dtype=x.dtype)
     x_nonzero = jnp.where(x == 0.0, 1.0, x)

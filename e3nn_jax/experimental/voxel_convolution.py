@@ -18,6 +18,9 @@ from e3nn_jax import (
 from jax import lax
 
 
+# TODO: rewrite this like in the tetris_point example
+
+
 class Convolution(hk.Module):
     def __init__(
         self,
@@ -200,6 +203,6 @@ class Convolution(hk.Module):
                     i += 1
                 else:
                     list.append(None)
-            output = IrrepsArray.from_list(self.irreps_out, list, output.shape[:-1])
+            output = IrrepsArray.from_list(self.irreps_out, list, output.shape[:-1], output.dtype)
 
         return output

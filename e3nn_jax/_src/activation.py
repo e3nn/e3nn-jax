@@ -70,7 +70,7 @@ def scalar_activation(input: IrrepsArray, acts: List[Optional[Callable[[float], 
                 if is_zero_in_zero(act):
                     list.append(None)
                 else:
-                    list.append(act(jnp.ones(input.shape[:-1] + (mul, 1))))
+                    list.append(act(jnp.ones(input.shape[:-1] + (mul, 1), input.dtype)))
             else:
                 list.append(act(x))
         else:
@@ -84,7 +84,7 @@ def scalar_activation(input: IrrepsArray, acts: List[Optional[Callable[[float], 
         array = input.array if acts[0] is None else normalize_function(acts[0])(input.array)
         return IrrepsArray(irreps=irreps_out, array=array, list=list)
 
-    return IrrepsArray.from_list(irreps_out, list, input.shape[:-1])
+    return IrrepsArray.from_list(irreps_out, list, input.shape[:-1], input.dtype)
 
 
 # TODO remove this class and follow the same pattern as scalar_activation

@@ -101,14 +101,14 @@ class FunctionalLinear:
             if irreps_out.dim > 0:
                 output_mask = jnp.concatenate(
                     [
-                        jnp.ones(mul_ir.dim, dtype=bool)
+                        jnp.ones(mul_ir.dim, bool)
                         if any((ins.i_out == i_out) and (0 not in ins.path_shape) for ins in instructions)
-                        else jnp.zeros(mul_ir.dim, dtype=bool)
+                        else jnp.zeros(mul_ir.dim, bool)
                         for i_out, mul_ir in enumerate(irreps_out)
                     ]
                 )
             else:
-                output_mask = jnp.ones(0)
+                output_mask = jnp.ones(0, bool)
 
         self.irreps_in = irreps_in
         self.irreps_out = irreps_out
@@ -119,7 +119,7 @@ class FunctionalLinear:
     def num_weights(self) -> int:
         return sum(np.prod(i.path_shape) for i in self.instructions)
 
-    def aggregate_paths(self, paths, output_shape) -> IrrepsArray:
+    def aggregate_paths(self, paths, output_shape, output_dtype) -> IrrepsArray:
         output = [
             _sum_tensors(
                 [out for ins, out in zip(self.instructions, paths) if ins.i_out == i_out],
@@ -132,7 +132,7 @@ class FunctionalLinear:
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]
-        return IrrepsArray.from_list(self.irreps_out, output, output_shape)
+        return IrrepsArray.from_list(self.irreps_out, output, output_shape, output_dtype)
 
     def split_weights(self, weights: jnp.ndarray) -> List[jnp.ndarray]:
         ws = []
@@ -156,7 +156,7 @@ class FunctionalLinear:
             else (None if input.list[ins.i_in] is None else ins.path_weight * jnp.einsum("uw,ui->wi", w, input.list[ins.i_in]))
             for ins, w in zip(self.instructions, ws)
         ]
-        return self.aggregate_paths(paths, input.shape[:-1])
+        return self.aggregate_paths(paths, input.shape[:-1], input.dtype)
 
     def matrix(self, ws: List[jnp.ndarray]) -> jnp.ndarray:
         r"""Compute the matrix representation of the linear operator.

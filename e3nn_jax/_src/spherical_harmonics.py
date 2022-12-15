@@ -135,7 +135,7 @@ def spherical_harmonics(
 
     sh = _jited_spherical_harmonics(tuple(ir.l for _, ir in irreps_out), x, normalization, algorithm)
     sh = [jnp.repeat(y[..., None, :], mul, -2) if mul != 1 else y[..., None, :] for (mul, ir), y in zip(irreps_out, sh)]
-    return IrrepsArray.from_list(irreps_out, sh, x.shape[:-1])
+    return IrrepsArray.from_list(irreps_out, sh, x.shape[:-1], x.dtype)
 
 
 @partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
