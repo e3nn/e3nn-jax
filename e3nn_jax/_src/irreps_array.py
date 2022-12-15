@@ -166,14 +166,14 @@ class IrrepsArray:
         return IrrepsArray.zeros(irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype)
 
     @staticmethod
-    def ones(irreps: IntoIrreps, leading_shape) -> "IrrepsArray":
+    def ones(irreps: IntoIrreps, leading_shape, dtype=None) -> "IrrepsArray":
         r"""Create an IrrepsArray of ones."""
         # TODO: maybe remove this function because it is not equivariant
         irreps = Irreps(irreps)
         return IrrepsArray(
             irreps=irreps,
-            array=jnp.ones(leading_shape + (irreps.dim,)),
-            list=[jnp.ones(leading_shape + (mul, ir.dim)) for mul, ir in irreps],
+            array=jnp.ones(leading_shape + (irreps.dim,), dtype),
+            list=[jnp.ones(leading_shape + (mul, ir.dim), dtype) for mul, ir in irreps],
         )
 
     @property
@@ -253,7 +253,7 @@ class IrrepsArray:
 
             def eq(mul: int, x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
                 if x is None and y is None:
-                    return jnp.ones(leading_shape + (mul,), dtype="bool")
+                    return jnp.ones(leading_shape + (mul,), bool)
                 if x is None:
                     x = 0.0
                 if y is None:
@@ -262,7 +262,7 @@ class IrrepsArray:
                 return jnp.all(x == y, axis=-1)
 
             list = [eq(mul, x, y)[..., None] for (mul, ir), x, y in zip(self.irreps, self.list, other.list)]
-            return IrrepsArray.from_list([(mul, "0e") for mul, _ in self.irreps], list, leading_shape)
+            return IrrepsArray.from_list([(mul, "0e") for mul, _ in self.irreps], list, leading_shape, bool)
 
         other = jnp.asarray(other)
         if self.irreps.lmax > 0 or (other.ndim > 0 and other.shape[-1] != 1):
@@ -523,7 +523,7 @@ class IrrepsArray:
         if any(x is None for x in self.list):
             irreps = [mul_ir for mul_ir, x in zip(self.irreps, self.list) if x is not None]
             list = [x for x in self.list if x is not None]
-            return IrrepsArray.from_list(irreps, list, self.shape[:-1])
+            return IrrepsArray.from_list(irreps, list, self.shape[:-1], self.dtype)
         return self
 
     def simplify(self) -> "IrrepsArray":
@@ -555,7 +555,7 @@ class IrrepsArray:
             1x0e+2x0e+1x1o [0 4 5 1 2 3]
         """
         irreps, p, inv = self.irreps.sort()
-        return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1])
+        return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1], self.dtype)
 
     sorted = sort
 
@@ -593,7 +593,7 @@ class IrrepsArray:
 
         new_irreps = self.irreps.filter(keep=keep, drop=drop)
         return IrrepsArray.from_list(
-            new_irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in new_irreps], self.shape[:-1]
+            new_irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in new_irreps], self.shape[:-1], self.dtype
         )
 
     filtered = filter
@@ -682,7 +682,7 @@ class IrrepsArray:
             for (mul, ir), x in zip(irreps, self.list)
         ]
         new_list = [None if x is None else jnp.moveaxis(x, -3, axis) for x in new_list]
-        return IrrepsArray.from_list(irreps, new_list, self.shape[:-1] + (factor,))
+        return IrrepsArray.from_list(irreps, new_list, self.shape[:-1] + (factor,), self.dtype)
 
     def axis_to_mul(self, axis: int = -2) -> "IrrepsArray":
         r"""Repeat the multiplicity by the previous last axis of the array.
@@ -709,7 +709,7 @@ class IrrepsArray:
             None if x is None else x.reshape(self.shape[:-2] + (new_mul, ir.dim))
             for (new_mul, ir), x in zip(new_irreps, new_list)
         ]
-        return IrrepsArray.from_list(new_irreps, new_list, self.shape[:-2])
+        return IrrepsArray.from_list(new_irreps, new_list, self.shape[:-2], self.dtype)
 
     repeat_mul_by_last_axis = axis_to_mul
     factor_mul_to_last_axis = mul_to_axis
@@ -738,7 +738,7 @@ class IrrepsArray:
             jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
             for (mul, ir), x in zip(self.irreps, self.list)
         ]
-        return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1])
+        return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1], self.dtype)
 
     def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a quaternion.
@@ -932,6 +932,7 @@ def _reduce(op, array: IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = No
         Irreps([(1, ir) for _, ir in array.irreps]),
         [None if x is None else op(x, axis=-2, keepdims=True) for x in array.list],
         array.shape[:-1],
+        array.dtype,
     )
 
 
@@ -1114,6 +1115,7 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
         [(mul, "0e") for mul, _ in array.irreps],
         [f(x) for x in array.list],
         array.shape[:-1],
+        array.dtype,
     )
 
 
@@ -1185,7 +1187,7 @@ def normal(
             r = jax.random.normal(k, leading_shape + (mul, ir.dim), dtype=dtype)
             r = r / jnp.linalg.norm(r, axis=-1, keepdims=True)
             list.append(r)
-        return IrrepsArray.from_list(irreps, list, leading_shape)
+        return IrrepsArray.from_list(irreps, list, leading_shape, dtype)
     else:
         if normalization == "component":
             return IrrepsArray(irreps, jax.random.normal(key, leading_shape + (irreps.dim,), dtype=dtype))
@@ -1196,7 +1198,7 @@ def normal(
                 r = jax.random.normal(k, leading_shape + (mul, ir.dim), dtype=dtype)
                 r = r / jnp.sqrt(ir.dim)
                 list.append(r)
-            return IrrepsArray.from_list(irreps, list, leading_shape)
+            return IrrepsArray.from_list(irreps, list, leading_shape, dtype)
         else:
             raise ValueError("Normalization needs to be 'norm' or 'component'")
 
@@ -1350,7 +1352,7 @@ class _MulIndexSliceHelper:
                 list.append(x[..., max(start, i) - i : min(stop, i + mul) - i, :])
 
             i += mul
-        return IrrepsArray.from_list(irreps, list, self.irreps_array.shape[:-1])
+        return IrrepsArray.from_list(irreps, list, self.irreps_array.shape[:-1], self.irreps_array.dtype)
 
 
 class _DimIndexSliceHelper:
@@ -1380,4 +1382,5 @@ class _ChunkIndexSliceHelper:
             self.irreps_array.irreps[start:stop:stride],
             self.irreps_array.list[start:stop:stride],
             self.irreps_array.shape[:-1],
+            self.irreps_array.dtype,
         )

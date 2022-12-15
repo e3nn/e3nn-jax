@@ -26,10 +26,11 @@ def as_approx_integer_ratio(x):
     x = np.abs(x)
 
     with np.errstate(divide="ignore", over="ignore"):
+        px = np.where(x < 1.0, 1.0, x)
         n, d = np.where(
             x <= 1,
             _as_approx_integer_ratio(x),
-            _as_approx_integer_ratio(1 / x)[::-1],
+            _as_approx_integer_ratio(1 / px)[::-1],
         )
     return normalize_integer_ratio(sign * n, d)
 

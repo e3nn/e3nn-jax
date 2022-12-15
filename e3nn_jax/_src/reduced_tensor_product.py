@@ -146,7 +146,7 @@ def _simplify(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[
             new_irreps.append([mul, ir])
             new_orders.append(order)
             new_list.append(x)
-    return e3nn.IrrepsArray.from_list(new_irreps, new_list, irreps_array.shape[:-1]), tuple(new_orders)
+    return e3nn.IrrepsArray.from_list(new_irreps, new_list, irreps_array.shape[:-1], irreps_array.dtype), tuple(new_orders)
 
 
 def _sort(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
@@ -156,7 +156,7 @@ def _sort(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn
     new_irreps = [irreps_array.irreps[i] for i in inv]
     new_list = [irreps_array.list[i] for i in inv]
     new_orders = [orders[i] for i in inv]
-    return e3nn.IrrepsArray.from_list(new_irreps, new_list, irreps_array.shape[:-1]), tuple(new_orders)
+    return e3nn.IrrepsArray.from_list(new_irreps, new_list, irreps_array.shape[:-1], irreps_array.dtype), tuple(new_orders)
 
 
 def _sort_simplify(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
@@ -178,6 +178,7 @@ def _filter_order(irreps_array: e3nn.IrrepsArray, orders, max_order: int) -> Tup
         [mul_ir for mul_ir, o in zip(irreps_array.irreps, orders) if o <= max_order],
         [x for x, o in zip(irreps_array.list, orders) if o <= max_order],
         irreps_array.shape[:-1],
+        irreps_array.dtype,
     )
     orders = [o for o in orders if o <= max_order]
     return irreps_array, tuple(orders)
@@ -353,7 +354,9 @@ def reduce_basis_product(
                 new_list.append(x)
                 new_orders.append(o1 + o2)
 
-    new = e3nn.IrrepsArray.from_list(new_irreps, new_list, np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]))
+    new = e3nn.IrrepsArray.from_list(
+        new_irreps, new_list, np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]), np.float64
+    )
     return _sort_simplify(new, tuple(new_orders))
 
 
@@ -401,7 +404,7 @@ def constrain_rotation_basis_by_permutation_basis(
             new_list.append(round_fn(np.einsum("u,...ui->...i", p, rot_basis)[..., None, :]))
             new_orders.append(int(np.max(ord * (p != 0.0))))
 
-    return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1]), tuple(new_orders)
+    return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1], np.float64), tuple(new_orders)
 
 
 def subrepr_permutation(

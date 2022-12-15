@@ -7,7 +7,7 @@ from e3nn_jax._src.util.prod import prod
 
 
 def test_empty():
-    x = e3nn.IrrepsArray.from_list("", [], (2, 2))
+    x = e3nn.IrrepsArray.from_list("", [], (2, 2), jnp.float32)
     assert x.irreps == e3nn.Irreps([])
     assert x.shape == (2, 2, 0)
 

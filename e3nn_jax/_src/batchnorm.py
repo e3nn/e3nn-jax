@@ -53,7 +53,7 @@ def _batch_norm(
 
             if is_training or is_instance:
                 if not is_instance:
-                    new_vars.append(jnp.ones((mul,)))
+                    new_vars.append(jnp.ones((mul,), input.dtype))
 
             if has_affine and ir.is_scalar():  # scalars
                 i_bia += mul
@@ -114,7 +114,7 @@ def _batch_norm(
             fields.append(field)  # [batch, sample, mul, repr]
         i_wei += mul
 
-    output = IrrepsArray.from_list(input.irreps, fields, (batch, prod(size)))
+    output = IrrepsArray.from_list(input.irreps, fields, (batch, prod(size)), input.dtype)
     output = output.reshape((batch,) + tuple(size) + (-1,))
     return output, new_means, new_vars
 

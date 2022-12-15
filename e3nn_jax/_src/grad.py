@@ -41,7 +41,7 @@ def grad(
 
         def naked_fun(*args, **kwargs) -> List[jnp.ndarray]:
             args = list(args)
-            args[argnums] = e3nn.IrrepsArray.from_list(irreps_in, args[argnums], leading_shape_in)
+            args[argnums] = e3nn.IrrepsArray.from_list(irreps_in, args[argnums], leading_shape_in, x.dtype)
             if has_aux:
                 y, aux = fun(*args, **kwargs)
                 if not isinstance(y, e3nn.IrrepsArray):
@@ -82,7 +82,7 @@ def grad(
                             "auibvj,ijk->abuvk", z, jnp.sqrt(ir.dim) * e3nn.clebsch_gordan(mir_out.ir.l, mir_in.ir.l, ir.l)
                         ).reshape(leading_shape_out + leading_shape_in + (mir_out.mul * mir_in.mul, ir.dim))
                     )
-        output = e3nn.IrrepsArray.from_list(irreps, lst, leading_shape_out + leading_shape_in)
+        output = e3nn.IrrepsArray.from_list(irreps, lst, leading_shape_out + leading_shape_in, x.dtype)
         if has_aux:
             return output, aux
         else:
