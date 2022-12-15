@@ -20,7 +20,7 @@ class MultiLayerPerceptron(flax.linen.Module):
                 gives the same importance to every layer independently of the number of neurons
     """
     list_neurons: Tuple[int, ...]
-    act: Optional[Callable]
+    act: Optional[Callable] = None
     gradient_normalization: Union[str, float] = None
     output_activation: Union[Callable, bool] = True
 
