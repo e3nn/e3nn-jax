@@ -2,13 +2,12 @@
 Implementation from MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields
 Ilyes Batatia, Dávid Péter Kovács, Gregor N. C. Simm, Christoph Ortner and Gábor Csányi
 """
-from typing import Set, Optional, Callable, Tuple
+from typing import Any, Callable, Optional, Set, Tuple
 
-import e3nn_jax as e3nn
 import haiku as hk
 import jax.numpy as jnp
 
-# TODO: move to haiku file
+import e3nn_jax as e3nn
 
 
 class SymmetricTensorProduct(hk.Module):
@@ -39,7 +38,7 @@ class SymmetricTensorProduct(hk.Module):
         self,
         orders: Tuple[int, ...],
         keep_irrep_out: Optional[Set[e3nn.Irrep]] = None,
-        get_parameter: Optional[Callable[[str, Tuple[int, ...]], jnp.ndarray]] = None,
+        get_parameter: Optional[Callable[[str, Tuple[int, ...], Any], jnp.ndarray]] = None,
     ):
         super().__init__()
 
@@ -58,7 +57,7 @@ class SymmetricTensorProduct(hk.Module):
         self.keep_irrep_out = keep_irrep_out
 
         if get_parameter is None:
-            get_parameter = lambda name, shape: hk.get_parameter(name, shape, init=hk.initializers.RandomNormal())
+            get_parameter = lambda name, shape, dtype: hk.get_parameter(name, shape, dtype, hk.initializers.RandomNormal())
 
         self.get_parameter = get_parameter
 
@@ -94,6 +93,7 @@ class SymmetricTensorProduct(hk.Module):
                         w = self.get_parameter(  # parameters initialized with a normal distribution (variance 1)
                             f"w{order}_{ir_out}",
                             (mul, x.shape[0]),
+                            x.dtype,
                         )  # [multiplicity, num_channel]
 
                         if ir_out not in out:

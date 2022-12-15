@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.Irreps.randn` in favor of `e3nn.normal`
 - `e3nn.Irreps.transform_by_*` in favor of `e3nn.IrrepsArray.transform_by_*`
 
+## Changed
+- moves `BatchNorm` and `Dropout` to `e3nn.haiku` submodule, will remove them from the main module in the future.
+
 ## [0.13.1] - 2022-12-14
 ### Added
 - `e3nn.scatter_sum` to replace `e3nn.index_add`. `e3nn.index_add` is deprecated.

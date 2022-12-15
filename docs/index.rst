@@ -355,6 +355,8 @@ API
     api/math
     api/nn
     api/radial
+    api/haiku
+    api/flax
     api/extra
 
 .. _jax: https://github.com/google/jax
