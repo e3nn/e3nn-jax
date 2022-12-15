@@ -46,8 +46,6 @@ def main():
 
     k.key = jax.random.PRNGKey(0)
 
-    # device = 'cuda' if (torch.cuda.is_available() and args.cuda) else 'cpu'
-    # args.cuda = device == 'cuda'
     print("======= Versions: ======")
     print("jax:", jax.__version__)
     print("jaxlib:", jaxlib.__version__)
@@ -110,9 +108,6 @@ def main():
 
         f = tp.apply
 
-    # from https://pytorch.org/docs/master/_modules/torch/utils/benchmark/utils/timer.html#Timer.timeit
-    warmup = max(int(args.n // 100), 1)
-
     w = tp.init(k(), *inputs)
 
     print(f"{sum(x.size for x in jax.tree_util.tree_leaves(w))} parameters")
@@ -137,7 +132,7 @@ def main():
 
     print("starting...")
 
-    for _ in range(warmup):
+    for _ in range(max(int(args.n // 100), 1)):
         z = f(w, *inputs)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), z)
 
@@ -150,7 +145,7 @@ def main():
     perloop = (time.perf_counter() - t) / args.n
 
     print()
-    print(f"{1e3 * perloop:.1f} ms")
+    print(f"{1e3 * perloop:.2f} ms")
 
     c = jax.xla_computation(f)(w, *inputs)
 

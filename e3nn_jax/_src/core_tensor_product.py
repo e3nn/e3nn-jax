@@ -309,7 +309,7 @@ def _left_right(
         dtype = jnp.float32
 
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
-        return IrrepsArray.zeros(self.irreps_out, ())
+        return IrrepsArray.zeros(self.irreps_out, (), dtype)
 
     einsum = opt_einsum if custom_einsum_jvp else jnp.einsum
 
