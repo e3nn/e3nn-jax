@@ -7,6 +7,7 @@ import numpy as np
 
 from e3nn_jax import Irreps, IrrepsArray, config
 from e3nn_jax._src.core_tensor_product import _sum_tensors
+from e3nn_jax._src.util.dtype import get_pytree_dtype
 
 
 class Instruction(NamedTuple):
@@ -100,9 +101,9 @@ class FunctionalLinear:
             if irreps_out.dim > 0:
                 output_mask = jnp.concatenate(
                     [
-                        jnp.ones(mul_ir.dim)
+                        jnp.ones(mul_ir.dim, dtype=bool)
                         if any((ins.i_out == i_out) and (0 not in ins.path_shape) for ins in instructions)
-                        else jnp.zeros(mul_ir.dim)
+                        else jnp.zeros(mul_ir.dim, dtype=bool)
                         for i_out, mul_ir in enumerate(irreps_out)
                     ]
                 )
@@ -166,7 +167,8 @@ class FunctionalLinear:
         Returns:
             The matrix representation of the linear operator. The matrix is shape ``(irreps_in.dim, irreps_out.dim)``.
         """
-        output = jnp.zeros((self.irreps_in.dim, self.irreps_out.dim))
+        dtype = get_pytree_dtype(ws)
+        output = jnp.zeros((self.irreps_in.dim, self.irreps_out.dim), dtype)
         for ins, w in zip(self.instructions, ws):
             assert ins.i_in != -1
             mul_in, ir_in = self.irreps_in[ins.i_in]

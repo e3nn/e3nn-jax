@@ -301,7 +301,11 @@ def irfft(x: jnp.ndarray, res: int):
 
     l = (x.shape[-1] - 1) // 2
     x_reshaped = jnp.concatenate(
-        [x[..., l : l + 1], (x[..., l + 1 :] + jnp.flip(x[..., :l], -1) * -1j) / np.sqrt(2), jnp.zeros((*x.shape[:-1], l))],
+        [
+            x[..., l : l + 1],
+            (x[..., l + 1 :] + jnp.flip(x[..., :l], -1) * -1j) / np.sqrt(2),
+            jnp.zeros((*x.shape[:-1], l), x.dtype),
+        ],
         axis=-1,
     ).reshape((-1, x.shape[-1]))
     x_transformed = jnp.fft.irfft(x_reshaped, res)

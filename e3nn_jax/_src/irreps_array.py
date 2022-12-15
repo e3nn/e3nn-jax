@@ -103,7 +103,9 @@ class IrrepsArray:
                 )
 
     @staticmethod
-    def from_list(irreps: IntoIrreps, list: List[Optional[jnp.ndarray]], leading_shape: Tuple[int]) -> "IrrepsArray":
+    def from_list(
+        irreps: IntoIrreps, list: List[Optional[jnp.ndarray]], leading_shape: Tuple[int], dtype=None
+    ) -> "IrrepsArray":
         r"""Create an IrrepsArray from a list of arrays.
 
         Args:
@@ -130,16 +132,24 @@ class IrrepsArray:
                 f"Expecting {[leading_shape + (mul, ir.dim) for (mul, ir) in irreps]}."
             )
 
+        for x in list:
+            if x is not None:
+                dtype = x.dtype
+                break
+
+        if dtype is None:
+            raise ValueError("IrrepsArray.from_list: Need to specify dtype if list is empty or contains only None.")
+
         if irreps.dim > 0:
             array = jnp.concatenate(
                 [
-                    jnp.zeros(leading_shape + (mul_ir.dim,)) if x is None else x.reshape(leading_shape + (mul_ir.dim,))
+                    jnp.zeros(leading_shape + (mul_ir.dim,), dtype) if x is None else x.reshape(leading_shape + (mul_ir.dim,))
                     for mul_ir, x in zip(irreps, list)
                 ],
                 axis=-1,
             )
         else:
-            array = jnp.zeros(leading_shape + (0,))
+            array = jnp.zeros(leading_shape + (0,), dtype)
         return IrrepsArray(irreps=irreps, array=array, list=list)
 
     @staticmethod
@@ -502,7 +512,10 @@ class IrrepsArray:
         r"""Replace all None in ``.list`` with zeros."""
         jnp = _infer_backend(self.array)
 
-        list = [jnp.zeros(self.shape[:-1] + (mul, ir.dim)) if x is None else x for (mul, ir), x in zip(self.irreps, self.list)]
+        list = [
+            jnp.zeros(self.shape[:-1] + (mul, ir.dim), self.dtype) if x is None else x
+            for (mul, ir), x in zip(self.irreps, self.list)
+        ]
         return IrrepsArray(irreps=self.irreps, array=self.array, list=list)
 
     def remove_nones(self) -> "IrrepsArray":
@@ -830,7 +843,7 @@ class IrrepsArray:
                         current_array += m
                     else:
                         current_array = jnp.concatenate(
-                            [current_array, jnp.zeros(leading_shape + (m, mul_ir.ir.dim))], axis=-2
+                            [current_array, jnp.zeros(leading_shape + (m, mul_ir.ir.dim), self.dtype)], axis=-2
                         )
                 else:
                     if isinstance(current_array, int):
@@ -838,7 +851,7 @@ class IrrepsArray:
                             current_array = x
                         else:
                             current_array = jnp.concatenate(
-                                [jnp.zeros(leading_shape + (current_array, mul_ir.ir.dim)), x], axis=-2
+                                [jnp.zeros(leading_shape + (current_array, mul_ir.ir.dim), self.dtype), x], axis=-2
                             )
                     else:
                         current_array = jnp.concatenate([current_array, x], axis=-2)
@@ -1248,7 +1261,7 @@ class _IndexUpdateRef:
                 if x is not None and y is None:
                     return x.at[index + (slice(None),)].set(0)
                 if x is None and y is not None:
-                    return jnp.zeros(self.shape[:-1] + (mul, ir.dim), dtype=self.array.dtype).at[index + (slice(None),)].set(y)
+                    return jnp.zeros(self.shape[:-1] + (mul, ir.dim), self.dtype).at[index + (slice(None),)].set(y)
                 if x is None and y is None:
                     return None
 
@@ -1299,7 +1312,7 @@ class _IndexUpdateRef:
                 if x is not None and y is None:
                     return x
                 if x is None and y is not None:
-                    return jnp.zeros(self.shape[:-1] + (mul, ir.dim), dtype=self.array.dtype).at[index + (slice(None),)].add(y)
+                    return jnp.zeros(self.shape[:-1] + (mul, ir.dim), self.dtype).at[index + (slice(None),)].add(y)
                 if x is None and y is None:
                     return None
 

@@ -312,7 +312,7 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
     """
     x = jnp.asarray(x)
 
-    p = jnp.zeros(((lmax + 1) * (lmax + 2) // 2,) + x.shape, dtype=x.dtype)
+    p = jnp.zeros(((lmax + 1) * (lmax + 2) // 2,) + x.shape, x.dtype)
 
     scalef = {
         jnp.dtype("float32"): 1e-35,
@@ -439,7 +439,7 @@ def _legendre_spherical_harmonics(lmax: int, x: jnp.ndarray, normalize: bool, no
 
     sh_y = _sh_beta(lmax, x[..., 1])  # [..., (lmax + 1) * (lmax + 2) // 2]
 
-    sh = jnp.zeros(x.shape[:-1] + ((lmax + 1) ** 2,), dtype=x.dtype)
+    sh = jnp.zeros(x.shape[:-1] + ((lmax + 1) ** 2,), x.dtype)
 
     def f(l, sh):
         def g(m, sh):
