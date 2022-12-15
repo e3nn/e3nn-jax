@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `IrrepsArray.astype` to cast the underlying array
+- `e3nn.flax.MultiLayerPerceptron` and `e3nn.haiku.MultiLayerPerceptron`
 
 ### Removed
 - `e3nn.full_tensor_product` in favor of `e3nn.tensor_product`

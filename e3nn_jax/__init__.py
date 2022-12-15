@@ -54,7 +54,7 @@ from e3nn_jax._src.activation import scalar_activation, normalize_function
 from e3nn_jax._src.gate import gate
 from e3nn_jax._src.batchnorm import BatchNorm
 from e3nn_jax._src.dropout import Dropout
-from e3nn_jax._src.mlp import MultiLayerPerceptron
+from e3nn_jax._src.mlp_haiku import MultiLayerPerceptron  # TODO remove
 from e3nn_jax._src.graph_util import index_add, radius_graph, scatter_sum
 from e3nn_jax._src.reduced_tensor_product import reduced_tensor_product_basis, reduced_symmetric_tensor_product_basis
 from e3nn_jax._src.symmetric_tensor_product import SymmetricTensorProduct
