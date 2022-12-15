@@ -1,8 +1,8 @@
-import e3nn_jax as e3nn
 import haiku as hk
 import jax.numpy as jnp
 import numpy as np
-import pytest
+
+import e3nn_jax as e3nn
 
 
 def test_tensor_product():
@@ -31,14 +31,13 @@ def test_fully_connected_tensor_product(keys):
     @hk.without_apply_rng
     @hk.transform
     def f(x1, x2):
-        return e3nn.FullyConnectedTensorProduct("10x0e + 1e")(x1, x2)
+        return e3nn.haiku.FullyConnectedTensorProduct("10x0e + 1e")(x1, x2)
 
     x1 = e3nn.normal("5x0e + 1e", next(keys), (10,))
     x2 = e3nn.normal("3x1e + 2x0e", next(keys), (20, 1))
 
-    with pytest.deprecated_call():
-        w = f.init(next(keys), x1, x2)
-        x3 = f.apply(w, x1, x2)
+    w = f.init(next(keys), x1, x2)
+    x3 = f.apply(w, x1, x2)
 
     assert x3.irreps == e3nn.Irreps("10x0e + 1e")
     assert x3.shape[:-1] == (20, 10)

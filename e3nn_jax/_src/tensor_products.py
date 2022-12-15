@@ -56,14 +56,12 @@ def tensor_product(
 
         Usage in combination with `Linear`:
 
-        >>> @hk.without_apply_rng
-        ... @hk.transform
-        ... def fully_connected_tensor_product(x, y):
-        ...     return e3nn.Linear("3x1e")(e3nn.tensor_product(x, y))
-        >>> params = fully_connected_tensor_product.init(jax.random.PRNGKey(0), x, y)
+        >>> import flax.linen as nn
+        >>> linear = e3nn.flax.Linear("3x1e")
+        >>> params = linear.init(jax.random.PRNGKey(0), e3nn.tensor_product(x, y))
         >>> jax.tree_util.tree_structure(params)
-        PyTreeDef({'linear': {'w[1,0] 2x1e,3x1e': *}})
-        >>> z = fully_connected_tensor_product.apply(params, x, y)
+        PyTreeDef(CustomNode(FrozenDict[()], [{'params': {'w[1,0] 2x1e,3x1e': *}}]))
+        >>> z = linear.apply(params, e3nn.tensor_product(x, y))
 
         The irreps can be determined without providing input data:
 
