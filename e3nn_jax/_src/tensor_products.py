@@ -1,8 +1,6 @@
-import warnings
 from functools import partial
 from typing import List, Optional
 
-import haiku as hk
 import jax
 import jax.numpy as jnp
 from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsArray, config
@@ -358,45 +356,3 @@ def FunctionalFullyConnectedTensorProduct(
         path_normalization,
         gradient_normalization,
     )
-
-
-# Deprecated functions:
-
-
-class FullyConnectedTensorProduct(hk.Module):
-    def __init__(self, irreps_out, *, irreps_in1=None, irreps_in2=None):
-        super().__init__()
-
-        warnings.warn(
-            "e3nn.FullyConnectedTensorProduct is deprecated. Use e3nn.tensor_product followed by e3nn.Linear instead.",
-            DeprecationWarning,
-        )
-
-        self.irreps_out = Irreps(irreps_out)
-        self.irreps_in1 = Irreps(irreps_in1) if irreps_in1 is not None else None
-        self.irreps_in2 = Irreps(irreps_in2) if irreps_in2 is not None else None
-
-    def __call__(self, x1: IrrepsArray, x2: IrrepsArray, **kwargs) -> IrrepsArray:
-        if self.irreps_in1 is not None:
-            x1 = x1._convert(self.irreps_in1)
-        if self.irreps_in2 is not None:
-            x2 = x2._convert(self.irreps_in2)
-
-        x1 = x1.remove_nones().simplify()
-        x2 = x2.remove_nones().simplify()
-
-        tp = FunctionalFullyConnectedTensorProduct(x1.irreps, x2.irreps, self.irreps_out.simplify())
-        ws = [
-            hk.get_parameter(
-                (
-                    f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] "
-                    f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
-                ),
-                shape=ins.path_shape,
-                init=hk.initializers.RandomNormal(stddev=ins.weight_std),
-            )
-            for ins in tp.instructions
-        ]
-        f = naive_broadcast_decorator(lambda x1, x2: tp.left_right(ws, x1, x2, **kwargs))
-        output = f(x1, x2)
-        return output._convert(self.irreps_out)

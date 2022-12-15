@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.IrrepsArray.randn` in favor of `e3nn.normal`
 - `e3nn.Irreps.randn` in favor of `e3nn.normal`
 - `e3nn.Irreps.transform_by_*` in favor of `e3nn.IrrepsArray.transform_by_*`
+- move `e3nn.haiku.FullyConnectedTensorProduct` in `haiku` submodule. Undeprecate it because it's faster than `e3nn.tensor_product` followed by `e3nn.Linear`. This is because `opteinsum` optimizes the contraction of the two operations.
 
 ## Changed
 - moves `BatchNorm` and `Dropout` to `e3nn.haiku` submodule, will remove them from the main module in the future.
