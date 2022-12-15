@@ -62,10 +62,10 @@ class Dropout(hk.Module):
         for (mul, ir), a in zip(x.irreps, x.list):
             if self.p >= 1:
                 out_list.append(None)
-                noises.append(jnp.zeros((mul * ir.dim,)))
+                noises.append(jnp.zeros((mul * ir.dim,), dtype=x.dtype))
             elif self.p <= 0:
                 out_list.append(a)
-                noises.append(jnp.ones((mul * ir.dim,)))
+                noises.append(jnp.ones((mul * ir.dim,), dtype=x.dtype))
             else:
                 noise = jax.random.bernoulli(rng, p=1 - self.p, shape=(mul, 1)) / (1 - self.p)
                 out_list.append(noise * a)

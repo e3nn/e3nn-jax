@@ -118,17 +118,17 @@ class FunctionalTensorProduct:
             if self.irreps_out.dim > 0:
                 self.output_mask = jnp.concatenate(
                     [
-                        jnp.ones(mul_ir.dim)
+                        jnp.ones(mul_ir.dim, dtype=bool)
                         if any(
                             (ins.i_out == i_out) and (ins.path_weight != 0) and (0 not in ins.path_shape)
                             for ins in self.instructions
                         )
-                        else jnp.zeros(mul_ir.dim)
+                        else jnp.zeros(mul_ir.dim, dtype=bool)
                         for i_out, mul_ir in enumerate(self.irreps_out)
                     ]
                 )
             else:
-                self.output_mask = jnp.ones(0)
+                self.output_mask = jnp.ones(0, dtype=bool)
 
     def left_right(
         self,
@@ -225,7 +225,7 @@ def _flat_concatenate(xs):
         return None
     if len(xs) > 0:
         return jnp.concatenate([x.flatten() for x in xs])
-    return jnp.zeros((0,))
+    return jnp.zeros((0,), dtype=jnp.float32)
 
 
 def _normalize_instruction_path_weights(
@@ -603,7 +603,7 @@ def _right(
 
         if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
             # TODO add tests for this case
-            out_list += [jnp.zeros((mul_ir_in1.dim, mul_ir_out.dim))]
+            out_list += [jnp.zeros((mul_ir_in1.dim, mul_ir_out.dim), dtype=dtype)]
             continue
 
         with jax.ensure_compile_time_eval():

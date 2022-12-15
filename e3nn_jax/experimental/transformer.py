@@ -74,7 +74,7 @@ def _tp_mlp_uvu(
 
 
 def _index_max(i, x, out_dim):
-    return jnp.zeros((out_dim,) + x.shape[1:]).at[i].max(x)
+    return jnp.zeros((out_dim,) + x.shape[1:], x.dtype).at[i].max(x)
 
 
 class Transformer(hk.Module):

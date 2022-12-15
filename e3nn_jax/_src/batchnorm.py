@@ -48,7 +48,7 @@ def _batch_norm(
             if ir.is_scalar():  # scalars
                 if is_training or is_instance:
                     if not is_instance:
-                        new_means.append(jnp.zeros((mul,)))
+                        new_means.append(jnp.zeros((mul,), dtype=input.dtype))
                 i_rmu += mul
 
             if is_training or is_instance:
