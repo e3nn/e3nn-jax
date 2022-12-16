@@ -9,19 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IrrepsArray.astype` to cast the underlying array
 - `e3nn.flax.MultiLayerPerceptron` and `e3nn.haiku.MultiLayerPerceptron`
 - `e3nn.IrrepsArray.from_list(..., dtype)`
+- Add sparse tensor product as an option in `e3nn.tensor_product` and related functions. It sparsify the clebsch gordan coefficients. It has more inpact when `fused=True`. It is disabled by default because no improvement was observed in the benchmarks.
 
 ### Fixed
 - set dtype for all `jnp.zeros(..., dtype)` calls in the codebase
 - set dtype for all `jnp.ones(..., dtype)` calls in the codebase
 
 ### Removed
-- `e3nn.full_tensor_product` in favor of `e3nn.tensor_product`
-- `e3nn.FunctionalTensorSquare` in favor of `e3nn.tensor_square`
-- `e3nn.TensorSquare` in favor of `e3nn.tensor_square`
-- `e3nn.IrrepsArray.cat` in favor of `e3nn.concatenate`
-- `e3nn.IrrepsArray.randn` in favor of `e3nn.normal`
-- `e3nn.Irreps.randn` in favor of `e3nn.normal`
-- `e3nn.Irreps.transform_by_*` in favor of `e3nn.IrrepsArray.transform_by_*`
+- **[BREAKING]** `e3nn.full_tensor_product` in favor of `e3nn.tensor_product`
+- **[BREAKING]** `e3nn.FunctionalTensorSquare` in favor of `e3nn.tensor_square`
+- **[BREAKING]** `e3nn.TensorSquare` in favor of `e3nn.tensor_square`
+- **[BREAKING]** `e3nn.IrrepsArray.cat` in favor of `e3nn.concatenate`
+- **[BREAKING]** `e3nn.IrrepsArray.randn` in favor of `e3nn.normal`
+- **[BREAKING]** `e3nn.Irreps.randn` in favor of `e3nn.normal`
+- **[BREAKING]** `e3nn.Irreps.transform_by_*` in favor of `e3nn.IrrepsArray.transform_by_*`
 - move `e3nn.haiku.FullyConnectedTensorProduct` in `haiku` submodule. Undeprecate it because it's faster than `e3nn.tensor_product` followed by `e3nn.Linear`. This is because `opteinsum` optimizes the contraction of the two operations.
 
 ## Changed

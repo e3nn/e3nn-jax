@@ -28,6 +28,7 @@ def tensor_product(
     irrep_normalization: Optional[str] = None,
     custom_einsum_jvp: bool = None,
     fused: bool = None,
+    sparse: bool = None,
     regroup_output: bool = True,
 ) -> IrrepsArray:
     """Tensor product reduced into irreps.
@@ -97,9 +98,9 @@ def tensor_product(
         input1.irreps, input2.irreps, irreps_out, instructions, irrep_normalization=irrep_normalization
     )
 
-    output = naive_broadcast_decorator(partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp))(
-        input1, input2
-    )
+    output = naive_broadcast_decorator(
+        partial(tp.left_right, fused=fused, sparse=sparse, custom_einsum_jvp=custom_einsum_jvp)
+    )(input1, input2)
     if regroup_output:
         output = output.regroup()
     return output
