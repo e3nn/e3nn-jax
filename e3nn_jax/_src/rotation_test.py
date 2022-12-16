@@ -24,7 +24,6 @@ def test_xyz(keys):
 def test_conversions(keys):
     jax.config.update("jax_enable_x64", True)
 
-    # @jax.jit
     def f(g):
         def wrap(f):
             def g(x):
@@ -39,12 +38,43 @@ def test_conversions(keys):
             return x
 
         conv = [
-            [identity, wrap(e3nn.angles_to_matrix), wrap(e3nn.angles_to_axis_angle), wrap(e3nn.angles_to_quaternion)],
-            [wrap(e3nn.matrix_to_angles), identity, wrap(e3nn.matrix_to_axis_angle), wrap(e3nn.matrix_to_quaternion)],
-            [wrap(e3nn.axis_angle_to_angles), wrap(e3nn.axis_angle_to_matrix), identity, wrap(e3nn.axis_angle_to_quaternion)],
-            [wrap(e3nn.quaternion_to_angles), wrap(e3nn.quaternion_to_matrix), wrap(e3nn.quaternion_to_axis_angle), identity],
+            [
+                identity,
+                wrap(e3nn.angles_to_matrix),
+                wrap(e3nn.angles_to_axis_angle),
+                wrap(e3nn.angles_to_quaternion),
+                wrap(e3nn.angles_to_log_coordinates),
+            ],
+            [
+                wrap(e3nn.matrix_to_angles),
+                identity,
+                wrap(e3nn.matrix_to_axis_angle),
+                wrap(e3nn.matrix_to_quaternion),
+                wrap(e3nn.matrix_to_log_coordinates),
+            ],
+            [
+                wrap(e3nn.axis_angle_to_angles),
+                wrap(e3nn.axis_angle_to_matrix),
+                identity,
+                wrap(e3nn.axis_angle_to_quaternion),
+                wrap(e3nn.axis_angle_to_log_coordinates),
+            ],
+            [
+                wrap(e3nn.quaternion_to_angles),
+                wrap(e3nn.quaternion_to_matrix),
+                wrap(e3nn.quaternion_to_axis_angle),
+                identity,
+                wrap(e3nn.quaternion_to_log_coordinates),
+            ],
+            [
+                wrap(e3nn.log_coordinates_to_angles),
+                wrap(e3nn.log_coordinates_to_matrix),
+                wrap(e3nn.log_coordinates_to_axis_angle),
+                wrap(e3nn.log_coordinates_to_quaternion),
+                identity,
+            ],
         ]
-        path = [1, 2, 3, 0, 2, 0, 3, 1, 3, 2, 1, 0, 1]
+        path = [1, 2, 3, 0, 2, 0, 3, 1, 3, 2, 1, 0, 1, 4, 2, 4, 3, 4, 0, 4, 1]
 
         for i, j in zip(path, path[1:]):
             g = conv[i][j](g)
@@ -104,6 +134,16 @@ def test_inverse_angles(keys):
     e = e3nn.identity_angles(())
     rc = e3nn.angles_to_matrix(*c)
     re = e3nn.angles_to_matrix(*e)
+    assert jnp.max(jnp.abs(rc - re)) < float_tolerance
+
+
+def test_inverse_log_coordinates(keys):
+    a = e3nn.rand_log_coordinates(next(keys), ())
+    b = e3nn.inverse_log_coordinates(a)
+    c = e3nn.compose_log_coordinates(a, b)
+    e = e3nn.identity_log_coordinates(())
+    rc = e3nn.log_coordinates_to_matrix(c)
+    re = e3nn.log_coordinates_to_matrix(e)
     assert jnp.max(jnp.abs(rc - re)) < float_tolerance
 
 

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.flax.MultiLayerPerceptron` and `e3nn.haiku.MultiLayerPerceptron`
 - `e3nn.IrrepsArray.from_list(..., dtype)`
 - Add sparse tensor product as an option in `e3nn.tensor_product` and related functions. It sparsify the clebsch gordan coefficients. It has more inpact when `fused=True`. It is disabled by default because no improvement was observed in the benchmarks.
+- Add `log_coordinates` along the other parameterizations of SO(3). `e3nn.log_coordinates_to_matrix`, `e3nn.rand_log_coordinates`, etc.
 
 ### Fixed
 - set dtype for all `jnp.zeros(..., dtype)` calls in the codebase
