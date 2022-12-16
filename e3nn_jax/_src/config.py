@@ -7,6 +7,7 @@ __conf = {
     "spherical_harmonics_normalization": "component",
     "custom_einsum_jvp": False,
     "fused": False,
+    "sparse_tp": False,
 }
 
 

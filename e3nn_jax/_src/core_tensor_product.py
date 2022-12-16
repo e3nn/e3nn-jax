@@ -8,6 +8,7 @@ from typing import Callable, List, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
+from jax.experimental.sparse import BCOO, sparsify
 
 from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
 from e3nn_jax._src.einsum import einsum as opt_einsum
@@ -138,6 +139,7 @@ class FunctionalTensorProduct:
         *,
         custom_einsum_jvp: bool = None,
         fused: bool = None,
+        sparse: bool = None,
     ) -> IrrepsArray:
         r"""Compute the tensor product of two input tensors.
 
@@ -155,6 +157,8 @@ class FunctionalTensorProduct:
             custom_einsum_jvp = config("custom_einsum_jvp")
         if fused is None:
             fused = config("fused")
+        if sparse is None:
+            sparse = config("sparse_tp")
 
         if input2 is None:
             weights, input1, input2 = [], weights, input1
@@ -166,6 +170,7 @@ class FunctionalTensorProduct:
             input2._convert(self.irreps_in2),
             custom_einsum_jvp=custom_einsum_jvp,
             fused=fused,
+            sparse=sparse,
         )
 
     def right(
@@ -293,7 +298,7 @@ def _normalize_instruction_path_weights(
     return [update(instruction) for instruction in instructions]
 
 
-@partial(jax.jit, static_argnums=(0,), static_argnames=("custom_einsum_jvp", "fused"))
+@partial(jax.jit, static_argnums=(0,), static_argnames=("custom_einsum_jvp", "fused", "sparse"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
     self: FunctionalTensorProduct,
@@ -303,6 +308,7 @@ def _left_right(
     *,
     custom_einsum_jvp: bool = False,
     fused: bool = False,
+    sparse: bool = False,
 ):
     dtype = get_pytree_dtype(weights, input1, input2)
     if dtype.kind == "i":
@@ -311,7 +317,15 @@ def _left_right(
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
         return IrrepsArray.zeros(self.irreps_out, (), dtype)
 
-    einsum = opt_einsum if custom_einsum_jvp else jnp.einsum
+    if sparse:
+        assert not custom_einsum_jvp, "custom_einsum_jvp does not support sparse tensors."
+
+        def einsum(op, *args):
+            f = sparsify(lambda *args: jnp.einsum(op, *args))
+            return f(*args)
+
+    else:
+        einsum = opt_einsum if custom_einsum_jvp else jnp.einsum
 
     if isinstance(weights, list):
         assert len(weights) == len([ins for ins in self.instructions if ins.has_weight]), (
@@ -336,9 +350,9 @@ def _left_right(
     assert input2.ndim == 1, f"input2 is shape {input2.shape}. Execting ndim to be 1. Use jax.vmap to map over input2"
 
     if fused:
-        output = _fused_left_right(self, weights_flat, input1, input2, einsum, dtype)
+        output = _fused_left_right(self, weights_flat, input1, input2, einsum, sparse, dtype)
     else:
-        output = _block_left_right(self, weights_list, input1, input2, einsum, dtype)
+        output = _block_left_right(self, weights_list, input1, input2, einsum, sparse, dtype)
 
     assert output.dtype == dtype, f"output.dtype {output.dtype} != dtype {dtype}, Please report this bug."
     return output
@@ -350,6 +364,7 @@ def _block_left_right(
     input1: IrrepsArray,
     input2: IrrepsArray,
     einsum: Callable,
+    sparse: bool,
     dtype: jnp.dtype,
 ) -> IrrepsArray:
     @lru_cache(maxsize=None)
@@ -391,6 +406,8 @@ def _block_left_right(
             w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
             w3j = ins.path_weight * w3j
             w3j = w3j.astype(dtype)
+            if sparse:
+                w3j = BCOO.fromdense(w3j)
 
         if ins.connection_mode == "uvw":
             assert ins.has_weight
@@ -466,6 +483,7 @@ def _fused_left_right(
     input1: IrrepsArray,
     input2: IrrepsArray,
     einsum: Callable,
+    sparse: bool,
     dtype: jnp.dtype,
 ) -> IrrepsArray:
     with jax.ensure_compile_time_eval():
@@ -541,20 +559,24 @@ def _fused_left_right(
 
         assert i == num_path
 
+        if sparse:
+            big_w3j = BCOO.fromdense(big_w3j)
+
     if has_path_with_no_weights and big_w3j.shape[0] == 1:
-        big_w3j = big_w3j.reshape(big_w3j.shape[1:])
-        out = einsum("ijk,i,j->k", big_w3j, input1.array, input2.array)
+        if sparse:
+            f = sparsify(lambda w3j, x1, x2: einsum("pijk,i,j->k", w3j, x1, x2))
+            out = f(big_w3j, input1.array, input2.array)
+        else:
+            out = einsum("pijk,i,j->k", big_w3j, input1.array, input2.array)
     else:
         if has_path_with_no_weights:
-            weights_flat = jnp.concatenate([jnp.ones((1,), dtype), weights_flat])
+            weights_flat = jnp.concatenate([jnp.ones((1,), weights_flat.dtype), weights_flat])
 
-        out = einsum(
-            "p,pijk,i,j->k",
-            weights_flat,
-            big_w3j,
-            input1.array,
-            input2.array,
-        )
+        if sparse:
+            f = sparsify(lambda w, w3j, x1, x2: einsum("p,pijk,i,j->k", w, w3j, x1, x2))
+            out = f(weights_flat, big_w3j, input1.array, input2.array)
+        else:
+            out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1.array, input2.array)
     return IrrepsArray(self.irreps_out, out)
 
 

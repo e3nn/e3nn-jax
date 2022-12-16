@@ -27,12 +27,11 @@ def main():
     parser.add_argument("--irreps-in1", type=str, default=None)
     parser.add_argument("--irreps-in2", type=str, default=None)
     parser.add_argument("--irreps-out", type=str, default=None)
-    parser.add_argument("--cuda", type=t_or_f, default=True)
     parser.add_argument("--backward", type=t_or_f, default=True)
     parser.add_argument("--custom-einsum-jvp", type=t_or_f, default=False)
-    parser.add_argument("--elementwise", type=t_or_f, default=False)
     parser.add_argument("--extrachannels", type=t_or_f, default=False)
     parser.add_argument("--fused", type=t_or_f, default=False)
+    parser.add_argument("--sparse", type=t_or_f, default=False)
     parser.add_argument("--lists", type=t_or_f, default=False)
     parser.add_argument("--module", type=t_or_f, default=False)
     parser.add_argument("-n", type=int, default=1000)
@@ -60,58 +59,38 @@ def main():
     irreps_in2 = e3nn.Irreps(args.irreps_in2 if args.irreps_in2 else args.irreps)
     irreps_out = e3nn.Irreps(args.irreps_out if args.irreps_out else args.irreps)
 
-    if args.elementwise:
-        raise NotImplementedError
-    elif args.extrachannels:
+    kwargs = dict(
+        custom_einsum_jvp=args.custom_einsum_jvp,
+        fused=args.fused,
+        sparse=args.sparse,
+    )
 
-        @hk.without_apply_rng
-        @hk.transform
-        def tp(x1, x2):
-            x = e3nn.tensor_product(
-                x1[..., :, None, :],
-                x2[..., None, :, :],
-                custom_einsum_jvp=args.custom_einsum_jvp,
-                fused=args.fused,
-            )
-            x = x.reshape(x.shape[:-3] + (-1,) + x.shape[-1:])
-            x = x.axis_to_mul()
+    @hk.without_apply_rng
+    @hk.transform
+    def tp(x1, x2):
+        if args.module:
+            assert not args.extrachannels
+            return e3nn.haiku.FullyConnectedTensorProduct(irreps_out)(x1, x2, **kwargs)
+        else:
+            if args.extrachannels:
+                assert not args.module
+                x1 = x1.mul_to_axis()  # (batch, channels, irreps)
+                x2 = x2.mul_to_axis()  # (batch, channels, irreps)
+                x = e3nn.tensor_product(x1[..., :, None, :], x2[..., None, :, :], **kwargs)
+                x = x.reshape(x.shape[:-3] + (-1,) + x.shape[-1:])
+                x = x.axis_to_mul()
+            else:
+                x = e3nn.tensor_product(x1, x2, **kwargs)
+
             return e3nn.Linear(irreps_out)(x)
 
-        inputs = (e3nn.normal(irreps_in1, k(), (args.batch,)), e3nn.normal(irreps_in2, k(), (args.batch,)))
-        inputs = (inputs[0].mul_to_axis(), inputs[1].mul_to_axis())
-
-        f = tp.apply
-
-    else:
-
-        @hk.without_apply_rng
-        @hk.transform
-        def tp(x1, x2):
-            if args.module:
-                return e3nn.FullyConnectedTensorProduct(irreps_out)(
-                    x1,
-                    x2,
-                    custom_einsum_jvp=args.custom_einsum_jvp,
-                    fused=args.fused,
-                )
-            else:
-                return e3nn.Linear(irreps_out)(
-                    e3nn.tensor_product(
-                        x1,
-                        x2,
-                        custom_einsum_jvp=args.custom_einsum_jvp,
-                        fused=args.fused,
-                    )
-                )
-
-        inputs = (e3nn.normal(irreps_in1, k(), (args.batch,)), e3nn.normal(irreps_in2, k(), (args.batch,)))
-
-        f = tp.apply
+    inputs = (e3nn.normal(irreps_in1, k(), (args.batch,)), e3nn.normal(irreps_in2, k(), (args.batch,)))
 
     w = tp.init(k(), *inputs)
 
     print(f"{sum(x.size for x in jax.tree_util.tree_leaves(w))} parameters")
 
+    f = tp.apply
     if args.lists:
         f_1 = f
         f = lambda w, x1, x2: f_1(w, x1, x2).list
