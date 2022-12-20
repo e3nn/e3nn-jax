@@ -29,8 +29,9 @@ The discrete representation is therefore
 .. math:: \{ h_{ij} = f(x_{ij}) \}_{ij}
 """
 
-from typing import Optional
+from typing import Optional, Tuple
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -39,7 +40,7 @@ import e3nn_jax as e3nn
 from .spherical_harmonics import _sh_alpha, _sh_beta
 
 
-def _quadrature_weights_soft(b):
+def _quadrature_weights_soft(b: int) -> np.ndarray:
     r"""
     function copied from ``lie_learn.spaces.S3``
     Compute quadrature weights for the grid used by Kostelec & Rockmore [1, 2].
@@ -69,10 +70,10 @@ def _quadrature_weights_soft(b):
     )
 
     w /= 2.0 * ((2 * b) ** 2)
-    return jnp.asarray(w)
+    return w
 
 
-def s2grid(res_beta: int, res_alpha: int, *, quadrature: str):
+def s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""grid on the sphere
     Args:
         res_beta (int): :math:`N`
@@ -87,8 +88,8 @@ def s2grid(res_beta: int, res_alpha: int, *, quadrature: str):
 
     if quadrature == "soft":
         i = np.arange(res_beta)
-        betas = (i + 0.5) / res_beta * jnp.pi
-        y = np.cos(betas)
+        betas = (i + 0.5) / res_beta * np.pi
+        y = -np.cos(betas)  # minus sign is here to go from -1 to 1 in both quadratures
 
         assert res_beta % 2 == 0, "res_beta needs to be even for soft quadrature weights to be computed properly"
         qw = _quadrature_weights_soft(res_beta // 2) * res_beta**2
@@ -98,12 +99,12 @@ def s2grid(res_beta: int, res_alpha: int, *, quadrature: str):
     else:
         raise Exception("quadrature needs to be 'soft' or 'gausslegendre'")
 
-    i = jnp.arange(res_alpha)
-    alphas = i / res_alpha * 2 * jnp.pi
-    return jnp.asarray(y), alphas, jnp.asarray(qw)
+    i = np.arange(res_alpha)
+    alphas = i / res_alpha * 2 * np.pi
+    return y, alphas, qw
 
 
-def spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str):
+def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str):
     r"""spherical harmonics evaluated on the grid on the sphere
     .. math::
         f(x) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot Y^l(x)
@@ -122,6 +123,7 @@ def spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, quad
         qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
     """
     y, alphas, qw = s2grid(res_beta, res_alpha, quadrature=quadrature)
+    y, alphas, qw = jax.tree_util.tree_map(jnp.asarray, (y, alphas, qw))
     sh_alpha = _sh_alpha(lmax, alphas)  # [..., 2 * l + 1]
     sh_y = _sh_beta(lmax, y)  # [..., (lmax + 1) * (lmax + 2) // 2]
     return y, alphas, sh_y, sh_alpha, qw
@@ -145,7 +147,7 @@ def from_s2grid(
     The inverse transformation of :func:`e3nn_jax.to_s2grid`
 
     Args:
-        x (`jax.numpy.ndarray`): signal on the sphere of shape ``(..., beta, alpha)``
+        x (`jax.numpy.ndarray`): signal on the sphere of shape ``(..., y/beta, alpha)``
         lmax (int): maximum degree of the spherical tensor
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
         lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
@@ -162,7 +164,7 @@ def from_s2grid(
     if lmax_in is None:
         lmax_in = lmax
 
-    _, _, sh_y, sha, qw = spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature)
+    _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature)
     # sh_y: (res_beta, (l+1)(l+2)/2)
 
     # normalize such that it is the inverse of ToS2Grid
@@ -218,7 +220,7 @@ def to_s2grid(
         fft (bool): True if we use FFT, False if we use the naive implementation
 
     Returns:
-        `jax.numpy.ndarray`: signal on the sphere of shape ``(..., beta, alpha)``
+        `jax.numpy.ndarray`: signal on the sphere of shape ``(..., y/beta, alpha)``
     """
     lmax = tensor.irreps.ls[-1]
 
@@ -233,7 +235,7 @@ def to_s2grid(
     ):
         raise ValueError("irrep parities should be of the form (p_val * p_arg**l) for all l, where p_val and p_arg are ±1")
 
-    _, _, sh_y, sha, _ = spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature)
+    _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature)
 
     n = None
     if normalization == "component":
@@ -350,3 +352,71 @@ def _rollout_sh(m, lmax):
             m_full[..., i_mid + i] = m[..., l * (l + 1) // 2 + i]
             m_full[..., i_mid - i] = m[..., l * (l + 1) // 2 + i]
     return m_full
+
+
+def s2grid_vectors(y: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    r"""Calculate the points on the sphere.
+
+    Args:
+        y: array with y values, shape ``(res_beta)``
+        alpha: array with alpha values, shape ``(res_alpha)``
+
+    Returns:
+        r: array of vectors, shape ``(res_beta, res_alpha, 3)``
+    """
+    assert y.ndim == 1
+    assert alpha.ndim == 1
+    return np.stack(
+        [
+            np.sqrt(1.0 - y[:, None] ** 2) * np.sin(alpha),
+            y[:, None] * np.ones_like(alpha),
+            np.sqrt(1.0 - y[:, None] ** 2) * np.cos(alpha),
+        ],
+        axis=2,
+    )
+
+
+def pad_to_plot_on_s2grid(
+    y: np.ndarray,  # [beta_res]
+    alpha: np.ndarray,  # [alpha_res]
+    signal: np.ndarray,  # [beta_res, alpha_res]
+    *,
+    translation: Optional[np.ndarray] = None,
+    scale_radius_by_amplitude: bool = False,
+) -> Tuple[np.ndarray, np.ndarray]:
+    r"""Postprocess the borders of a given signal to allow the plot it with plotly.
+
+    Args:
+        y: array with y values, shape ``(res_beta)``
+        alpha: array with alpha values, shape ``(res_alpha)``
+        signal: array with the signal on the sphere, shape ``(res_beta, res_alpha)``
+        translation (optional): translation vector
+        scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
+
+    Returns:
+        r (np.ndarray): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
+        f (np.ndarray): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
+    """
+    assert signal.shape == (len(y), len(alpha))
+
+    f = np.array(signal)
+
+    # y: [-1, 1]
+    one = np.ones_like(y, shape=(1,))
+    ones = np.ones_like(f, shape=(1, len(alpha)))
+    y = np.concatenate([-one, y, one])  # [res_beta + 2]
+    f = np.concatenate([np.mean(f[0]) * ones, f, np.mean(f[-1]) * ones], axis=0)  # [res_beta + 2, res_alpha]
+
+    # alpha: [0, 2pi]
+    alpha = np.concatenate([alpha, alpha[:1]])  # [res_alpha + 1]
+    f = np.concatenate([f, f[:, :1]], axis=1)  # [res_beta + 2, res_alpha + 1]
+
+    r = s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
+
+    if scale_radius_by_amplitude:
+        r *= np.abs(f)[:, :, None]
+
+    if translation is not None:
+        r = r + translation
+
+    return r, f
