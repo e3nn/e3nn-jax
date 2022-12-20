@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- `e3nn.s2grid_vectors` and `e3nn.pad_to_plot_on_s2grid` to help plotting signals on the sphere
 
 ## [0.14.0] - 2022-12-16
 ### Added
@@ -26,10 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **[BREAKING]** `e3nn.IrrepsArray.randn` in favor of `e3nn.normal`
 - **[BREAKING]** `e3nn.Irreps.randn` in favor of `e3nn.normal`
 - **[BREAKING]** `e3nn.Irreps.transform_by_*` in favor of `e3nn.IrrepsArray.transform_by_*`
-- move `e3nn.haiku.FullyConnectedTensorProduct` in `haiku` submodule. Undeprecate it because it's faster than `e3nn.tensor_product` followed by `e3nn.Linear`. This is because `opteinsum` optimizes the contraction of the two operations.
 
 ## Changed
 - moves `BatchNorm` and `Dropout` to `e3nn.haiku` submodule, will remove them from the main module in the future.
+- move `e3nn.haiku.FullyConnectedTensorProduct` in `haiku` submodule. Undeprecate it because it's faster than `e3nn.tensor_product` followed by `e3nn.Linear`. This is because `opteinsum` optimizes the contraction of the two operations.
 
 ## [0.13.1] - 2022-12-14
 ### Added

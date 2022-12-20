@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.s2grid import irfft, rfft
+from e3nn_jax._src.s2grid import irfft, rfft, _spherical_harmonics_s2grid
 
 
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
@@ -34,3 +34,15 @@ def test_fft(keys):
     x_t = rfft(x, l)
     x_p = irfft(x_t, res_alpha)
     np.testing.assert_allclose(x, x_p, rtol=1e-5)
+
+
+@pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
+def test_s2grid_vectors(quadrature):
+    y, alpha, sh_y, sh_alpha, _ = _spherical_harmonics_s2grid(lmax=1, res_beta=4, res_alpha=5, quadrature=quadrature)
+    r = e3nn.s2grid_vectors(y, alpha)
+
+    sh_y = np.stack([sh_y[:, 2], sh_y[:, 1], sh_y[:, 2]], axis=1)  # for l=1
+    sh = sh_y[:, None, :] * sh_alpha
+    sh = sh / np.linalg.norm(sh, axis=2, keepdims=True)
+
+    np.testing.assert_allclose(sh, r, atol=1e-7)
