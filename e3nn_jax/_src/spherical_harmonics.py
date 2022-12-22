@@ -407,7 +407,7 @@ def _sh_alpha(l: int, alpha: jnp.ndarray) -> jnp.ndarray:
     )
 
 
-def _sh_beta(lmax: int, cos_betas):
+def _sh_beta(lmax: int, cos_betas: jnp.ndarray) -> jnp.ndarray:
     r"""Beta dependence of spherical harmonics.
 
     Args:
@@ -425,7 +425,8 @@ def _sh_beta(lmax: int, cos_betas):
             math.sqrt(fractions.Fraction((2 * l + 1) * math.factorial(l - m), 4 * math.factorial(l + m)) / math.pi)
             for l in range(lmax + 1)
             for m in range(l + 1)
-        ]
+        ],
+        sh_y.dtype,
     )
     return sh_y
 
