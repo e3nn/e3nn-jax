@@ -1,9 +1,11 @@
 import jax
 import numpy as np
 import pytest
+import jax.numpy as jnp
 
 import e3nn_jax as e3nn
 from e3nn_jax._src.s2grid import irfft, rfft, _spherical_harmonics_s2grid
+from e3nn_jax.util import assert_output_dtype
 
 
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
@@ -46,3 +48,34 @@ def test_s2grid_vectors(quadrature):
     sh = sh / np.linalg.norm(sh, axis=2, keepdims=True)
 
     np.testing.assert_allclose(sh, r, atol=1e-7)
+
+
+@pytest.mark.parametrize("normalization", ["component", "norm"])
+@pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
+@pytest.mark.parametrize("fft", [False, True])
+def test_to_s2grid_dtype(normalization, quadrature, fft):
+    jax.config.update("jax_enable_x64", True)
+
+    assert_output_dtype(
+        lambda x: e3nn.to_s2grid(x, 4, 5, normalization=normalization, quadrature=quadrature, fft=fft),
+        e3nn.IrrepsArray("0e", jnp.array([1.0])),
+    )
+
+
+@pytest.mark.parametrize("normalization", ["component", "norm"])
+@pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
+@pytest.mark.parametrize("fft", [False, True])
+def test_from_s2grid_dtype(normalization, quadrature, fft):
+    jax.config.update("jax_enable_x64", True)
+
+    assert_output_dtype(
+        lambda x: e3nn.from_s2grid(x, 4, normalization=normalization, quadrature=quadrature, fft=fft),
+        jnp.ones((10, 11)),
+    )
+
+
+def test_fft_dtype():
+    jax.config.update("jax_enable_x64", True)
+
+    assert_output_dtype(lambda x: rfft(x, 4), jnp.ones((10, 11)))
+    assert_output_dtype(lambda x: irfft(x, 11), jnp.ones((10, 11)))

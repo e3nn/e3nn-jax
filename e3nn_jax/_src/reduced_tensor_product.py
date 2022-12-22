@@ -476,7 +476,7 @@ def reduce_permutation_matrix(
 
     # First we compute the change of basis (projection) between full_base and base
     d_sym = len(base)
-    Q = np.zeros((d_sym, prod(dims)))
+    Q = np.zeros((d_sym, prod(dims)), np.float64)
 
     for i, x in enumerate(base):
         x = max(x, key=lambda xs: sum(s for s, x in xs))

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `e3nn.s2grid_vectors` and `e3nn.pad_to_plot_on_s2grid` to help plotting signals on the sphere
+- `e3nn.util.assert_output_dtype` to check the output dtype of a function
 
 ## [0.14.0] - 2022-12-16
 ### Added

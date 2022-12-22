@@ -29,7 +29,7 @@ The discrete representation is therefore
 .. math:: \{ h_{ij} = f(x_{ij}) \}_{ij}
 """
 
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -104,7 +104,7 @@ def s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarra
     return y, alphas, qw
 
 
-def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str):
+def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str, dtype: np.dtype = np.float32):
     r"""spherical harmonics evaluated on the grid on the sphere
     .. math::
         f(x) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot Y^l(x)
@@ -123,7 +123,7 @@ def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, qua
         qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
     """
     y, alphas, qw = s2grid(res_beta, res_alpha, quadrature=quadrature)
-    y, alphas, qw = jax.tree_util.tree_map(jnp.asarray, (y, alphas, qw))
+    y, alphas, qw = jax.tree_util.tree_map(lambda x: jnp.asarray(x, dtype), (y, alphas, qw))
     sh_alpha = _sh_alpha(lmax, alphas)  # [..., 2 * l + 1]
     sh_y = _sh_beta(lmax, y)  # [..., (lmax + 1) * (lmax + 2) // 2]
     return y, alphas, sh_y, sh_alpha, qw
@@ -164,14 +164,14 @@ def from_s2grid(
     if lmax_in is None:
         lmax_in = lmax
 
-    _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature)
+    _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature, dtype=x.dtype)
     # sh_y: (res_beta, (l+1)(l+2)/2)
 
     # normalize such that it is the inverse of ToS2Grid
     n = None
     # lmax_in = max frequency in input; lmax = max freq in output
     if normalization == "component":
-        n = jnp.sqrt(4 * jnp.pi) * jnp.asarray([jnp.sqrt(2 * l + 1) for l in range(lmax + 1)]) * jnp.sqrt(lmax_in + 1)
+        n = jnp.sqrt(4 * jnp.pi) * jnp.asarray([jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], x.dtype) * jnp.sqrt(lmax_in + 1)
     elif normalization == "norm":
         n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, x.dtype) * jnp.sqrt(lmax_in + 1)
     elif normalization == "integral":
@@ -180,7 +180,7 @@ def from_s2grid(
         raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
     # prepare beta integrand
-    m = _expand_matrix(range(lmax + 1))  # [l, m, i]
+    m = jnp.asarray(_expand_matrix(range(lmax + 1)), x.dtype)  # [l, m, i]
     sh_y = _rollout_sh(sh_y, lmax)
     sh_y = jnp.einsum("lmj,bj,lmi,l,b->mbi", m, sh_y, m, n, qw)  # [m, b, i]
 
@@ -230,18 +230,22 @@ def to_s2grid(
 
     # check parities of irreps
     if not (
-        {ir.p for mul, ir in tensor.irreps if ir.l % 2 == 0} in [{1}, {-1}, {}]
-        and {ir.p for mul, ir in tensor.irreps if ir.l % 2 == 1} in [{1}, {-1}, {}]
+        {ir.p for mul, ir in tensor.irreps if ir.l % 2 == 0} in [{1}, {-1}, set()]
+        and {ir.p for mul, ir in tensor.irreps if ir.l % 2 == 1} in [{1}, {-1}, set()]
     ):
         raise ValueError("irrep parities should be of the form (p_val * p_arg**l) for all l, where p_val and p_arg are ±1")
 
-    _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature)
+    _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature, dtype=tensor.dtype)
 
     n = None
     if normalization == "component":
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1
-        n = jnp.sqrt(4 * jnp.pi) * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)]) / jnp.sqrt(lmax + 1)
+        n = (
+            jnp.sqrt(4 * jnp.pi)
+            * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], tensor.dtype)
+            / jnp.sqrt(lmax + 1)
+        )
     elif normalization == "norm":
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1/(2L+1)
@@ -251,7 +255,7 @@ def to_s2grid(
     else:
         raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
-    m = _expand_matrix(range(lmax + 1))  # [l, m, i]
+    m = jnp.asarray(_expand_matrix(range(lmax + 1)), tensor.dtype)  # [l, m, i]
     # put beta component in summable form
     sh_y = _rollout_sh(sh_y, lmax)
     sh_y = jnp.einsum("lmj,bj,lmi,l->mbi", m, sh_y, m, n)  # [m, b, i]
@@ -282,9 +286,9 @@ def rfft(x: jnp.ndarray, l: int):
     x_transformed_c = jnp.fft.rfft(x_reshaped)  # (..., 2*l+1)
     x_transformed = jnp.concatenate(
         [
-            jnp.flip(jnp.imag(x_transformed_c[..., 1 : l + 1]), -1) * -np.sqrt(2),
+            jnp.flip(jnp.imag(x_transformed_c[..., 1 : l + 1]), -1) * -jnp.sqrt(2),
             jnp.real(x_transformed_c[..., :1]),
-            jnp.real(x_transformed_c[..., 1 : l + 1]) * np.sqrt(2),
+            jnp.real(x_transformed_c[..., 1 : l + 1]) * jnp.sqrt(2),
         ],
         axis=-1,
     )
@@ -305,7 +309,7 @@ def irfft(x: jnp.ndarray, res: int):
     x_reshaped = jnp.concatenate(
         [
             x[..., l : l + 1],
-            (x[..., l + 1 :] + jnp.flip(x[..., :l], -1) * -1j) / np.sqrt(2),
+            (x[..., l + 1 :] + jnp.flip(x[..., :l], -1) * -1j) / jnp.sqrt(2),
             jnp.zeros((*x.shape[:-1], l), x.dtype),
         ],
         axis=-1,
@@ -314,7 +318,7 @@ def irfft(x: jnp.ndarray, res: int):
     return x_transformed.reshape((*x.shape[:-1], x_transformed.shape[-1]))
 
 
-def _expand_matrix(ls):
+def _expand_matrix(ls: List[int]) -> np.ndarray:
     """
     conversion matrix between a flatten vector (L, m) like that
     (0, 0) (1, -1) (1, 0) (1, 1) (2, -2) (2, -1) (2, 0) (2, 1) (2, 2)
@@ -328,15 +332,15 @@ def _expand_matrix(ls):
         tensor [l, m, l * m]
     """
     lmax = max(ls)
-    m = np.zeros((len(ls), 2 * lmax + 1, sum(2 * l + 1 for l in ls)))
+    m = np.zeros((len(ls), 2 * lmax + 1, sum(2 * l + 1 for l in ls)), np.float64)
     i = 0
     for j, l in enumerate(ls):
-        m[j, lmax - l : lmax + l + 1, i : i + 2 * l + 1] = np.eye(2 * l + 1)
+        m[j, lmax - l : lmax + l + 1, i : i + 2 * l + 1] = np.eye(2 * l + 1, dtype=np.float64)
         i += 2 * l + 1
-    return jnp.asarray(m)
+    return m
 
 
-def _rollout_sh(m, lmax):
+def _rollout_sh(m: jnp.ndarray, lmax: int) -> jnp.ndarray:
     """
     Expand spherical harmonic representation.
     Args:
@@ -345,12 +349,12 @@ def _rollout_sh(m, lmax):
         jnp.ndarray of shape (..., (lmax+1)**2)
     """
     assert m.shape[-1] == (lmax + 1) * (lmax + 2) // 2
-    m_full = np.zeros((*m.shape[:-1], (lmax + 1) ** 2))
+    m_full = jnp.zeros((*m.shape[:-1], (lmax + 1) ** 2), dtype=m.dtype)
     for l in range(lmax + 1):
         i_mid = l**2 + l
         for i in range(l + 1):
-            m_full[..., i_mid + i] = m[..., l * (l + 1) // 2 + i]
-            m_full[..., i_mid - i] = m[..., l * (l + 1) // 2 + i]
+            m_full = m_full.at[..., i_mid + i].set(m[..., l * (l + 1) // 2 + i])
+            m_full = m_full.at[..., i_mid - i].set(m[..., l * (l + 1) // 2 + i])
     return m_full
 
 
