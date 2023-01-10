@@ -129,11 +129,10 @@ def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], 
             for subtuple in generate_tuples_with_fixed_sum(length - 1, sum - first):
                 yield (first,) + subtuple
 
-
     def compute_padding_for_term(irrep_indices: Sequence[int]) -> List[Tuple[int, int]]:
         """Computes the padding for the given term at each index.
-        
-        This is required because the output change-of-basis must have the 
+
+        This is required because the output change-of-basis must have the
         shape (irreps.dim, ..., irreps.dim, irreps_out.dim),
         which means all input axes must have the same length.
 
@@ -153,14 +152,12 @@ def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], 
 
         return [compute_padding_for_irrep_index(irrep_index) for irrep_index in irrep_indices] + [(0, 0)]
 
-
     def repeat_indices(indices: Sequence[int], powers: Sequence[int]) -> List[int]:
         """Given [i1, i2, ...] and [p1, p2, ...], returns [i1, i1, ... (p1 times), i2, i2, ... (p2 times), ...]"""
         repeated_indices = []
         for index, power in zip(indices, powers):
-            repeated_indices.extend([index] * power) 
+            repeated_indices.extend([index] * power)
         return repeated_indices
-
 
     def generate_permutations(seq: Sequence[float]) -> Iterator[Tuple[Sequence[float], Sequence[int]]]:
         """Generates permutations of a sequence along with the indices used to create the permutation."""
@@ -169,22 +166,19 @@ def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], 
             permuted_sequence = tuple(seq[index] for index in permuted_indices)
             yield permuted_sequence, permuted_indices
 
-
     def cumsum_before(seq: Sequence[float]) -> np.ndarray:
         """Returns the cumulative sum before every index.
-        
+
         For example, cumsum_before([1, 2, 3]) == [0, 1, 3].
         """
         return np.cumsum([0, *seq])[:-1]
 
-
     def cumsum_after(seq: Sequence[float]) -> np.ndarray:
         """Returns the cumulative sum after every index.
-        
+
         For example, cumsum_after([1, 2, 3]) == [5, 3, 0].
         """
         return cumsum_before(seq[::-1])[::-1]
-
 
     def reshape_for_basis_product(terms: Sequence[e3nn.IrrepsArray], non_zero_powers: Sequence[float]):
         """Adds extra axes to each term to be compatible for reduce_basis_product()."""
@@ -192,18 +186,22 @@ def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], 
         term_powers_cumsum_after = cumsum_after(non_zero_powers)
 
         def reshape_term_for_basis_product(index, term):
-            new_shape = (1,) * term_powers_cumsum_before[index] + term.shape[:-1] + (1,) * term_powers_cumsum_after[index] + term.shape[-1:]
+            new_shape = (
+                (1,) * term_powers_cumsum_before[index]
+                + term.shape[:-1]
+                + (1,) * term_powers_cumsum_after[index]
+                + term.shape[-1:]
+            )
             return term.reshape(new_shape)
 
         return [reshape_term_for_basis_product(index, term) for index, term in enumerate(terms)]
-
 
     irreps = e3nn.Irreps(irreps)
 
     # Easy base case.
     if order == 1:
         return e3nn.IrrepsArray(irreps, np.eye(irreps.dim))
-    
+
     # Another easy base case.
     if len(irreps) == 1:
         return e3nn.reduced_symmetric_tensor_product_basis(irreps[0], order)
@@ -211,7 +209,7 @@ def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], 
     # Precompute powers of irreps.
     irreps_powers = {}
     for i, ir in enumerate(irreps):
-        irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.]))]
+        irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.0]))]
         for n in range(1, order + 1):
             power = e3nn.reduced_symmetric_tensor_product_basis(ir, order=n)
             irreps_powers[i].append(power)
@@ -243,12 +241,14 @@ def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], 
         non_zero_terms = [irreps_powers[i][n] for i, n in zip(non_zero_indices, non_zero_powers)]
         non_zero_terms_reshaped = reshape_for_basis_product(non_zero_terms, non_zero_powers)
 
-        # Compute basis product, two at a time.
+        # Compute basis product, two terms at a time.
         current_term = non_zero_terms_reshaped[0]
         for next_term in non_zero_terms_reshaped[1:]:
-            current_term, _ = reduce_basis_product(current_term, [0] * len(current_term.irreps), next_term, [0] * len(next_term.irreps))
+            current_term, _ = reduce_basis_product(
+                current_term, [0] * len(current_term.irreps), next_term, [0] * len(next_term.irreps)
+            )
         product_basis = current_term
-        
+
         sum_of_permuted_bases = None
         seen_permutations = set()
 
@@ -272,6 +272,7 @@ def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], 
             else:
                 sum_of_permuted_bases += permuted_product_basis_array
 
+        # Normalize the sum of bases.
         symmetrized_sum_of_permuted_bases = sum_of_permuted_bases / np.sqrt(len(seen_permutations))
         product_basis = e3nn.IrrepsArray(product_basis.irreps, symmetrized_sum_of_permuted_bases)
         symmetric_product.append(product_basis)
