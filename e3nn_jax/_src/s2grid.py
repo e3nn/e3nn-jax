@@ -82,7 +82,7 @@ def s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarra
 
     Returns:
         y (`numpy.ndarray`): array of shape ``(res_beta)``
-        alphas (`numpy.ndarray`): array of shape ``(res_alpha)``
+        alpha (`numpy.ndarray`): array of shape ``(res_alpha)``
         qw (`numpy.ndarray`): array of shape ``(res_beta)``
     """
 
@@ -100,8 +100,8 @@ def s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarra
         raise Exception("quadrature needs to be 'soft' or 'gausslegendre'")
 
     i = np.arange(res_alpha)
-    alphas = i / res_alpha * 2 * np.pi
-    return y, alphas, qw
+    alpha = i / res_alpha * 2 * np.pi
+    return y, alpha, qw
 
 
 def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str, dtype: np.dtype = np.float32):
