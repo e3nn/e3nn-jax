@@ -35,8 +35,8 @@ class Linear(hk.Module):
         >>> import jax
         >>>
         >>> @hk.without_apply_rng
-        >>> @hk.transform
-        >>> def linear(x):
+        ... @hk.transform
+        ... def linear(x):
         ...     return e3nn.Linear("0e + 1o")(x)
         >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
         >>> params = linear.init(jax.random.PRNGKey(0), x)
@@ -47,8 +47,8 @@ class Linear(hk.Module):
         External weights::
 
         >>> @hk.without_apply_rng
-        >>> @hk.transform
-        >>> def linear(w, x):
+        ... @hk.transform
+        ... def linear(w, x):
         ...     return e3nn.Linear("0e + 1o")(w, x)
         >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
         >>> w = jnp.array([1., 2., 3., 4.])
@@ -60,8 +60,8 @@ class Linear(hk.Module):
         External indices::
 
         >>> @hk.without_apply_rng
-        >>> @hk.transform
-        >>> def linear(i, x):
+        ... @hk.transform
+        ... def linear(i, x):
         ...     return e3nn.Linear("0e + 1o", num_indexed_weights=4)(i, x)
         >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones((2, 5)))
         >>> i = jnp.array([2, 3])
