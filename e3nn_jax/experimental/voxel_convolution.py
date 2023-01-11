@@ -187,7 +187,7 @@ class Convolution(hk.Module):
             irreps_out,
             lax.conv_general_dilated(
                 lhs=input.array,
-                rhs=self.kernel(input.irreps, irreps_out),
+                rhs=self.kernel(input.irreps, irreps_out).astype(input.array.dtype),
                 window_strides=(1, 1, 1),
                 padding=self.padding,
                 dimension_numbers=("NXYZC", "XYZIO", "NXYZC"),
