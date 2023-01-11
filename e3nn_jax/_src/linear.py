@@ -257,6 +257,7 @@ def linear_mixed(
         )
         for ins in lin.instructions
     ]  # List of shape (d, *path_shape)
+    weights = weights.astype(input.array.dtype)
     w = [
         jnp.sqrt(alpha) ** gradient_normalization * jax.lax.dot_general(weights, wi, (((weights.ndim - 1,), (0,)), ((), ())))
         for wi in w
@@ -296,6 +297,7 @@ def linear_mixed_per_channel(
         )
         for ins in lin.instructions
     ]  # List of shape (d, num_channels, *path_shape)
+    weights = weights.astype(input.array.dtype)
     w = [
         jnp.sqrt(alpha) ** gradient_normalization * jax.lax.dot_general(weights, wi, (((weights.ndim - 1,), (0,)), ((), ())))
         for wi in w
