@@ -96,6 +96,10 @@ def reduced_tensor_product_basis(
 
     irreps_tuple = tuple(irreps_dict[i] for i in f0)
 
+    # Fully symmetric case.
+    if perm_repr == _symmetric_perm_repr(len(irreps_tuple)):
+        return reduced_symmetric_tensor_product_basis(irreps_tuple, len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir, max_order=max_order)
+
     return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon, max_order)[0].simplify()
 
 
@@ -103,7 +107,14 @@ def _symmetric_perm_repr(n: int):
     return frozenset((1, p) for p in itertools.permutations(range(n)))
 
 
-def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], order: int):
+def reduced_symmetric_tensor_product_basis(
+    irreps: Union[e3nn.Irreps, str],
+    order: int,
+    *,
+    epsilon: float = 1e-5,
+    keep_ir: Optional[List[e3nn.Irrep]] = None,
+    max_order: Optional[int] = None,
+):
     r"""Reduce a symmetric tensor product.
 
     Args:
@@ -204,14 +215,16 @@ def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], 
 
     # Another easy base case.
     if len(irreps) == 1:
-        return e3nn.reduced_symmetric_tensor_product_basis(irreps[0], order)
+        return e3nn._reduced_symmetric_tensor_product_basis(
+            irreps[0], order, epsilon=epsilon, keep_ir=keep_ir, max_order=max_order
+        )
 
     # Precompute powers of irreps.
     irreps_powers = {}
     for i, ir in enumerate(irreps):
         irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.0]))]
         for n in range(1, order + 1):
-            power = e3nn.reduced_symmetric_tensor_product_basis(ir, order=n)
+            power = e3nn._reduced_symmetric_tensor_product_basis(ir, n, epsilon=epsilon)
             irreps_powers[i].append(power)
 
     # Take all products of irreps whose powers sum up to order.
@@ -277,10 +290,15 @@ def optimized_reduced_symmetric_tensor_product(irreps: Union[e3nn.Irreps, str], 
         product_basis = e3nn.IrrepsArray(product_basis.irreps, symmetrized_sum_of_permuted_bases)
         symmetric_product.append(product_basis)
 
-    return e3nn.concatenate(symmetric_product).sorted().simplify()
+    # Filter out irreps, if needed.
+    basis = e3nn.concatenate(symmetric_product).regroup()
+    orders = tuple(ir.l for _, ir in basis.irreps)
+    basis, orders = _filter_ir(basis, orders, keep_ir)
+    basis, orders = _filter_order(basis, orders, max_order)
+    return basis
 
 
-def reduced_symmetric_tensor_product_basis(
+def _reduced_symmetric_tensor_product_basis(
     irreps: e3nn.Irreps,
     order: int,
     *,
@@ -288,7 +306,7 @@ def reduced_symmetric_tensor_product_basis(
     keep_ir: Optional[List[e3nn.Irrep]] = None,
     max_order: Optional[int] = None,
 ) -> e3nn.IrrepsArray:
-    r"""Reduce a symmetric tensor product.
+    r"""Reduce a symmetric tensor product, usually called for a single irrep.
 
     Args:
         irreps (Irreps): the irreps of each index.
