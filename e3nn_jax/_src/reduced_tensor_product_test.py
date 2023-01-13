@@ -53,3 +53,15 @@ def test_tensor_product_basis_equivariance(keys):
     Q2 = np.einsum("ijkz,iu,jv,kw->uvwz", Q.array, D, D, D)
     np.testing.assert_allclose(Q1, Q2, atol=1e-6, rtol=1e-6)
     jax.config.update("jax_enable_x64", False)
+
+
+def test_optimized_reduced_symmetric_tensor_product_basis_order_2():
+    Q = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 2)
+    P = e3nn._src.reduced_tensor_product._reduced_symmetric_tensor_product_basis("1e + 2o", 2)
+    np.testing.assert_almost_equal(Q.array, P.array)
+
+
+def test_optimized_reduced_symmetric_tensor_product_basis_order_3():
+    Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
+    P = e3nn._src.reduced_tensor_product._reduced_symmetric_tensor_product_basis("0e + 1e", 3)
+    np.testing.assert_almost_equal(Q.array, P.array)

@@ -98,7 +98,7 @@ def reduced_tensor_product_basis(
 
     # Fully symmetric case.
     if perm_repr == _symmetric_perm_repr(len(irreps_tuple)):
-        return reduced_symmetric_tensor_product_basis(irreps_tuple, len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir, max_order=max_order)
+        return reduced_symmetric_tensor_product_basis(irreps_tuple[0], len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir, max_order=max_order)
 
     return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon, max_order)[0].simplify()
 
@@ -215,7 +215,7 @@ def reduced_symmetric_tensor_product_basis(
 
     # Another easy base case.
     if len(irreps) == 1:
-        return e3nn._reduced_symmetric_tensor_product_basis(
+        return _reduced_symmetric_tensor_product_basis(
             irreps[0], order, epsilon=epsilon, keep_ir=keep_ir, max_order=max_order
         )
 
@@ -224,7 +224,7 @@ def reduced_symmetric_tensor_product_basis(
     for i, ir in enumerate(irreps):
         irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.0]))]
         for n in range(1, order + 1):
-            power = e3nn._reduced_symmetric_tensor_product_basis(ir, n, epsilon=epsilon)
+            power = _reduced_symmetric_tensor_product_basis(ir, n, epsilon=epsilon)
             irreps_powers[i].append(power)
 
     # Take all products of irreps whose powers sum up to order.
@@ -293,8 +293,8 @@ def reduced_symmetric_tensor_product_basis(
     # Filter out irreps, if needed.
     basis = e3nn.concatenate(symmetric_product).regroup()
     orders = tuple(ir.l for _, ir in basis.irreps)
-    basis, orders = _filter_ir(basis, orders, keep_ir)
-    basis, orders = _filter_order(basis, orders, max_order)
+    # basis, orders = _filter_ir(basis, orders, keep_ir)
+    # basis, orders = _filter_order(basis, orders, max_order)
     return basis
 
 
