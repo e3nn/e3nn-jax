@@ -122,6 +122,9 @@ def reduced_symmetric_tensor_product_basis(
     Args:
         irreps (Irreps): the irreps of each index.
         order (int): the order of the tensor product. i.e. the number of indices.
+        epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
+        keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
+        max_order (int): the maximum polynomial order assuming the input to be order ``l``. Default: no limit
 
     Returns:
         IrrepsArray: The change of basis
