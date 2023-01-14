@@ -8,25 +8,20 @@ from e3nn_jax._src.s2grid import irfft, rfft, _spherical_harmonics_s2grid
 from e3nn_jax.util import assert_output_dtype
 
 
+@pytest.mark.parametrize("irreps", ["0e", "0e + 1o", "1o + 2e", "2e + 0e", e3nn.s2_irreps(4)])
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
 @pytest.mark.parametrize("fft_to", [False, True])
 @pytest.mark.parametrize("fft_from", [False, True])
-def test_s2grid_transforms(keys, quadrature, fft_to, fft_from):
-    assert quadrature in ["soft", "gausslegendre"], "quadrature must be 'soft' or 'gausslegendre"
-    res_alpha = 51
-    res_beta = 30
-    lmax = 10
-    p_val = 1
-    p_arg = -1
+def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
+    @jax.jit
+    def f(c):
+        res = e3nn.to_s2grid(c, 30, 51, quadrature=quadrature, fft=fft_to)
+        return e3nn.from_s2grid(res, c.irreps, quadrature=quadrature, fft=fft_from)
 
-    c = jax.random.uniform(keys[0], shape=(1, (lmax + 1) ** 2))
-    irreps = e3nn.Irreps([(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)])
-    irreps_in = e3nn.IrrepsArray(irreps, c)
-
-    res = e3nn.to_s2grid(irreps_in, res_beta, res_alpha, quadrature=quadrature, fft=fft_to)
-    irreps_out = e3nn.from_s2grid(res, lmax, quadrature=quadrature, fft=fft_from)
-    np.testing.assert_allclose(c, irreps_out.array, rtol=1e-5, atol=1e-5)
-    assert irreps_in.irreps == irreps_out.irreps
+    a = e3nn.normal(irreps, keys[0])
+    b = f(a)
+    assert a.irreps == b.irreps
+    np.testing.assert_allclose(a.array, b.array, rtol=1e-5, atol=1e-5)
 
 
 def test_fft(keys):
@@ -69,7 +64,7 @@ def test_from_s2grid_dtype(normalization, quadrature, fft):
     jax.config.update("jax_enable_x64", True)
 
     assert_output_dtype(
-        lambda x: e3nn.from_s2grid(x, 4, normalization=normalization, quadrature=quadrature, fft=fft),
+        lambda x: e3nn.from_s2grid(x, "0e + 4e", normalization=normalization, quadrature=quadrature, fft=fft),
         jnp.ones((10, 11)),
     )
 
