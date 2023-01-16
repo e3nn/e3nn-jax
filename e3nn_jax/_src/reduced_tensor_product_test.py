@@ -65,3 +65,9 @@ def test_optimized_reduced_symmetric_tensor_product_basis_order_3():
     Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
     P = e3nn._src.reduced_tensor_product._reduced_symmetric_tensor_product_basis("0e + 1e", 3)
     np.testing.assert_almost_equal(Q.array, P.array)
+
+
+def test_symmetric_tensor_product_basis():
+    Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
+    P = e3nn.reduced_tensor_product_basis("ijk=jki=ikj", i="0e + 1e")
+    np.testing.assert_equal(Q.array, P.array)
