@@ -22,7 +22,6 @@ def reduced_tensor_product_basis(
     *,
     epsilon: float = 1e-5,
     keep_ir: Optional[List[e3nn.Irrep]] = None,
-    max_order: Optional[int] = None,
     **irreps_dict,
 ) -> e3nn.IrrepsArray:
     r"""Reduce a tensor product of multiple irreps subject to some permutation symmetry given by a formula.
@@ -34,7 +33,6 @@ def reduced_tensor_product_basis(
 
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
         keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
-        max_order (int): the maximum polynomial order assuming the input to be order ``l``. Default: no limit
         irreps_dict (dict): the irreps of each index of the formula. For instance ``i="1x1o"``.
 
     Returns:
@@ -64,8 +62,8 @@ def reduced_tensor_product_basis(
     if isinstance(formula_or_irreps_list, (tuple, list)):
         irreps_list = formula_or_irreps_list
         irreps_tuple = tuple(e3nn.Irreps(irreps) for irreps in irreps_list)
-        formulas: FrozenSet[Tuple[int, Tuple[int, ...]]] = frozenset({(1, tuple(range(len(irreps_tuple))))})
-        return _reduced_tensor_product_basis(irreps_tuple, formulas, keep_ir, epsilon, max_order)[0].simplify()
+        perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = frozenset({(1, tuple(range(len(irreps_tuple))))})
+        return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon)[0].simplify()
 
     formula = formula_or_irreps_list
     f0, perm_repr = germinate_perm_repr(formula)
@@ -98,11 +96,9 @@ def reduced_tensor_product_basis(
 
     # Fully symmetric case.
     if perm_repr == _symmetric_perm_repr(len(irreps_tuple)):
-        return reduced_symmetric_tensor_product_basis(
-            irreps_tuple[0][0], len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir, max_order=max_order
-        )
+        return reduced_symmetric_tensor_product_basis(irreps_tuple[0][0], len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir)
 
-    return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon, max_order)[0].simplify()
+    return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon)[0].simplify()
 
 
 def _symmetric_perm_repr(n: int):
@@ -115,7 +111,6 @@ def reduced_symmetric_tensor_product_basis(
     *,
     epsilon: float = 1e-5,
     keep_ir: Optional[List[e3nn.Irrep]] = None,
-    max_order: Optional[int] = None,
 ):
     r"""Reduce a symmetric tensor product.
 
@@ -124,7 +119,6 @@ def reduced_symmetric_tensor_product_basis(
         order (int): the order of the tensor product. i.e. the number of indices.
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
         keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
-        max_order (int): the maximum polynomial order assuming the input to be order ``l``. Default: no limit
 
     Returns:
         IrrepsArray: The change of basis
@@ -220,7 +214,7 @@ def reduced_symmetric_tensor_product_basis(
 
     # Another easy base case.
     if len(irreps) == 1:
-        return _reduced_symmetric_tensor_product_basis(irreps[0], order, epsilon=epsilon, keep_ir=keep_ir, max_order=max_order)
+        return _reduced_symmetric_tensor_product_basis(irreps[0], order, epsilon=epsilon, keep_ir=keep_ir)
 
     # Precompute powers of irreps.
     irreps_powers = {}
@@ -298,8 +292,6 @@ def reduced_symmetric_tensor_product_basis(
     orders = tuple(ir.l for _, ir in basis.irreps)
     if keep_ir is not None:
         basis, orders = _filter_ir(basis, orders, keep_ir)
-    if max_order is not None:
-        basis, orders = _filter_order(basis, orders, max_order)
     return basis
 
 
@@ -309,7 +301,6 @@ def _reduced_symmetric_tensor_product_basis(
     *,
     epsilon: float = 1e-5,
     keep_ir: Optional[List[e3nn.Irrep]] = None,
-    max_order: Optional[int] = None,
 ) -> e3nn.IrrepsArray:
     r"""Reduce a symmetric tensor product, usually called for a single irrep.
 
@@ -318,7 +309,6 @@ def _reduced_symmetric_tensor_product_basis(
         order (int): the order of the tensor product. i.e. the number of indices.
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
         keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
-        max_order (int): the maximum polynomial order assuming the input to be order ``l``. Default: no limit
 
     Returns:
         IrrepsArray: The change of basis
@@ -331,7 +321,7 @@ def _reduced_symmetric_tensor_product_basis(
 
     irreps = e3nn.Irreps(irreps)
     perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _symmetric_perm_repr(order)
-    return _reduced_tensor_product_basis(tuple([irreps] * order), perm_repr, keep_ir, epsilon, max_order)[0].simplify()
+    return _reduced_tensor_product_basis(tuple([irreps] * order), perm_repr, keep_ir, epsilon)[0].simplify()
 
 
 def _simplify(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
@@ -419,9 +409,9 @@ def _reduced_tensor_product_basis(
     perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]],
     keep_ir: Optional[FrozenSet[e3nn.Irrep]],
     epsilon: float,
-    max_order: Optional[int] = None,
+    max_degree: Optional[int] = None,
 ) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
-    out = _check_database(irreps_tuple, perm_repr, keep_ir, max_order)
+    out = _check_database(irreps_tuple, perm_repr, keep_ir, max_degree)
     if out is not None:
         return out
 
@@ -443,8 +433,8 @@ def _reduced_tensor_product_basis(
         if len(bases) == 1:
             f, b, ord = bases[0]
             assert f == frozenset(range(len(irreps_tuple)))
-            if max_order is not None:
-                (b, ord) = _filter_order(b, ord, max_order)
+            if max_degree is not None:
+                (b, ord) = _filter_order(b, ord, max_degree)
             if keep_ir is not None:
                 (b, ord) = _filter_ir(b, ord, keep_ir)
             return _sort_simplify(b, ord)
@@ -453,7 +443,7 @@ def _reduced_tensor_product_basis(
             (fa, a, oa) = bases[0]
             (fb, b, ob) = bases[1]
             f = frozenset(fa | fb)
-            ab, ord = reduce_basis_product(a, oa, b, ob, max_order, keep_ir, round_fn=round_to_sqrt_rational)
+            ab, ord = reduce_basis_product(a, oa, b, ob, max_degree, keep_ir, round_fn=round_to_sqrt_rational)
             if len(subrepr_permutation(f, perm_repr)) == 1:
                 return _sort_simplify(ab, ord)
             p = reduce_subgroup_permutation(f, perm_repr, dims)
@@ -481,7 +471,7 @@ def _reduced_tensor_product_basis(
         del bases[i]
         sub_irreps = tuple(irreps_tuple[i] for i in f)
         sub_perm_repr = subrepr_permutation(f, perm_repr)
-        ab, ord = _reduced_tensor_product_basis(sub_irreps, sub_perm_repr, None, epsilon, max_order)
+        ab, ord = _reduced_tensor_product_basis(sub_irreps, sub_perm_repr, None, epsilon, max_degree)
         ab = ab.reshape(tuple(dims[i] if i in f else 1 for i in range(len(dims))) + (-1,))
         bases = [(f, ab, ord)] + bases
 
