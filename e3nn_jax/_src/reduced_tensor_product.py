@@ -96,7 +96,7 @@ def reduced_tensor_product_basis(
 
     # Fully symmetric case.
     if perm_repr == _symmetric_perm_repr(len(irreps_tuple)):
-        return reduced_symmetric_tensor_product_basis(irreps_tuple[0][0], len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir)
+        return reduced_symmetric_tensor_product_basis(irreps_tuple[0], len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir)
 
     return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon)[0].simplify()
 
