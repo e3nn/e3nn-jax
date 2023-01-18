@@ -312,11 +312,11 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         return [reshape_term_for_basis_product(index, term) for index, term in enumerate(terms)]
 
     irreps = e3nn.Irreps(irreps)
+    irreps = e3nn.Irreps([(1, ir) for mul, ir in irreps for _ in range(mul)])
 
     # Precompute powers of irreps.
     irreps_powers = {}
     for i, mul_ir in enumerate(irreps):
-        # TODO what if multiplicity is large here?
         irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.0]))]
         for n in range(1, degree + 1):
             power = reduced_symmetric_tensor_product_basis(mul_ir, n, epsilon=epsilon)

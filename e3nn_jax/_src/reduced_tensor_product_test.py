@@ -67,10 +67,22 @@ def test_optimized_reduced_symmetric_tensor_product_basis_order_3():
     np.testing.assert_almost_equal(Q.array, P.array)
 
 
-def test_symmetric_tensor_product_basis():
+def test_optimized_reduced_symmetric_tensor_product_basis_order_3b():
+    Q = e3nn.reduced_symmetric_tensor_product_basis("3x0e + 1e", 3)
+    P = e3nn.reduced_symmetric_tensor_product_basis("3x0e + 1e", 3, _use_optimized_implementation=False)
+
+    Q = Q.array.reshape(-1, Q.irreps.dim)
+    P = P.array.reshape(-1, P.irreps.dim)
+    np.testing.assert_allclose(Q @ Q.T, P @ P.T, atol=1e-6, rtol=1e-6)
+
+
+def test_symmetric_tensor_product_basis_1():
     Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
     P = e3nn.reduced_tensor_product_basis("ijk=jki=ikj", i="0e + 1e")
-    np.testing.assert_equal(Q.array, P.array)
+
+    Q = Q.array.reshape(-1, Q.irreps.dim)
+    P = P.array.reshape(-1, P.irreps.dim)
+    np.testing.assert_equal(Q @ Q.T, P @ P.T)
 
 
 def test_trivial_case_1():
