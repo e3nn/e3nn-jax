@@ -103,7 +103,7 @@ def _symmetric_perm_repr(n: int):
 
 def reduced_symmetric_tensor_product_basis(
     irreps: e3nn.Irreps,
-    order: int,
+    degree: int,
     *,
     epsilon: float = 1e-5,
     keep_ir: Optional[List[e3nn.Irrep]] = None,
@@ -113,7 +113,7 @@ def reduced_symmetric_tensor_product_basis(
 
     Args:
         irreps (Irreps): the irreps of each index.
-        order (int): the order of the tensor product. i.e. the number of indices.
+        degree (int): the degree of the tensor product. i.e. the number of indices.
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
         keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
 
@@ -127,8 +127,8 @@ def reduced_symmetric_tensor_product_basis(
         keep_ir = frozenset(e3nn.Irrep(ir) for ir in keep_ir)
 
     irreps = e3nn.Irreps(irreps)
-    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _symmetric_perm_repr(order)
-    return _reduced_tensor_product_basis(tuple([irreps] * order), perm_repr, keep_ir, epsilon, _use_optimized_implementation)
+    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _symmetric_perm_repr(degree)
+    return _reduced_tensor_product_basis(tuple([irreps] * degree), perm_repr, keep_ir, epsilon, _use_optimized_implementation)
 
 
 @functools.lru_cache(maxsize=None)
@@ -212,7 +212,7 @@ def _reduced_tensor_product_basis(
 
 def _optimized_reduced_symmetric_tensor_product_basis(
     irreps: Union[e3nn.Irreps, str],
-    order: int,
+    degree: int,
     *,
     epsilon: float = 1e-5,
     keep_ir: Optional[List[e3nn.Irrep]] = None,
@@ -221,7 +221,7 @@ def _optimized_reduced_symmetric_tensor_product_basis(
 
     Args:
         irreps (Irreps): the irreps of each index.
-        order (int): the order of the tensor product. i.e. the number of indices.
+        degree (int): the degree of the tensor product. i.e. the number of indices.
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
         keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
 
@@ -318,11 +318,11 @@ def _optimized_reduced_symmetric_tensor_product_basis(
     for i, mul_ir in enumerate(irreps):
         # TODO what if multiplicity is large here?
         irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.0]))]
-        for n in range(1, order + 1):
+        for n in range(1, degree + 1):
             power = reduced_symmetric_tensor_product_basis(mul_ir, n, epsilon=epsilon)
             irreps_powers[i].append(power)
 
-    # Take all products of irreps whose powers sum up to order.
+    # Take all products of irreps whose powers sum up to degree.
     # For example, if we are computing (ir1 + ir2)^3, we would consider terms of the form:
     # - ir_1 ir_1 ir_1
     # - ir_1 ir_1 ir_2, ir_1 ir_2 ir_1, ir_2 ir_1 ir_1
@@ -336,9 +336,9 @@ def _optimized_reduced_symmetric_tensor_product_basis(
     # - (0, 3)
     # indicating the powers of the individual irreps ir_1 and ir_2.
     # Note that possible many terms correspond to the same tuple,
-    # since the tuple does not indicate the order of multiplication.
+    # since the tuple does not indicate the degree of multiplication.
     symmetric_product = []
-    for term_powers in generate_tuples_with_fixed_sum(len(irreps), order):
+    for term_powers in generate_tuples_with_fixed_sum(len(irreps), degree):
         term_powers = list(term_powers)
 
         non_zero_indices = [i for i, n in enumerate(term_powers) if n != 0]
