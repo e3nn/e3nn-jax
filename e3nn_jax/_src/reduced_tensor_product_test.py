@@ -57,13 +57,13 @@ def test_tensor_product_basis_equivariance(keys):
 
 def test_optimized_reduced_symmetric_tensor_product_basis_order_2():
     Q = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 2)
-    P = e3nn._src.reduced_tensor_product._reduced_symmetric_tensor_product_basis("1e + 2o", 2)
+    P = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 2, _use_optimized_implementation=False)
     np.testing.assert_almost_equal(Q.array, P.array)
 
 
 def test_optimized_reduced_symmetric_tensor_product_basis_order_3():
     Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
-    P = e3nn._src.reduced_tensor_product._reduced_symmetric_tensor_product_basis("0e + 1e", 3)
+    P = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3, _use_optimized_implementation=False)
     np.testing.assert_almost_equal(Q.array, P.array)
 
 
@@ -71,3 +71,15 @@ def test_symmetric_tensor_product_basis():
     Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
     P = e3nn.reduced_tensor_product_basis("ijk=jki=ikj", i="0e + 1e")
     np.testing.assert_equal(Q.array, P.array)
+
+
+def test_trivial_case_1():
+    Q = e3nn.reduced_symmetric_tensor_product_basis("0e", 3)
+    assert Q.irreps == "0e"
+    np.testing.assert_equal(Q.array, np.ones((1, 1, 1, 1)))
+
+
+def test_trivial_case_2():
+    Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e + 2e", 1)
+    assert Q.irreps == "0e + 1e + 2e"
+    np.testing.assert_equal(Q.array, np.eye(Q.irreps.dim))
