@@ -67,7 +67,11 @@ from e3nn_jax._src.batchnorm import BatchNorm  # TODO remove
 from e3nn_jax._src.dropout import Dropout  # TODO remove
 from e3nn_jax._src.mlp_haiku import MultiLayerPerceptron  # TODO remove
 from e3nn_jax._src.graph_util import index_add, radius_graph, scatter_sum
-from e3nn_jax._src.reduced_tensor_product import reduced_tensor_product_basis, reduced_symmetric_tensor_product_basis
+from e3nn_jax._src.reduced_tensor_product import (
+    reduced_tensor_product_basis,
+    reduced_symmetric_tensor_product_basis,
+    reduced_antisymmetric_tensor_product_basis,
+)
 from e3nn_jax._src.symmetric_tensor_product import SymmetricTensorProduct  # TODO remove
 from e3nn_jax._src.s2grid import from_s2grid, to_s2grid, s2_irreps, s2grid, s2grid_vectors, pad_to_plot_on_s2grid
 from e3nn_jax._src.fc_tp_haiku import FullyConnectedTensorProduct  # TODO remove
@@ -161,6 +165,7 @@ __all__ = [
     "soft_envelope",
     "reduced_tensor_product_basis",
     "reduced_symmetric_tensor_product_basis",
+    "reduced_antisymmetric_tensor_product_basis",
     "SymmetricTensorProduct",
     "from_s2grid",
     "to_s2grid",

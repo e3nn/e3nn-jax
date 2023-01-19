@@ -122,12 +122,44 @@ def reduced_symmetric_tensor_product_basis(
             The shape is ``(d, ..., d, irreps_out.dim)``
             where ``d`` is the dimension of ``irreps``.
     """
-    # TODO add antisymmetric tensor product
     if keep_ir is not None:
         keep_ir = frozenset(e3nn.Irrep(ir) for ir in keep_ir)
 
     irreps = e3nn.Irreps(irreps)
     perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _symmetric_perm_repr(degree)
+    return _reduced_tensor_product_basis(tuple([irreps] * degree), perm_repr, keep_ir, epsilon, _use_optimized_implementation)
+
+
+def _antisymmetric_perm_repr(n: int):
+    return frozenset((perm.sign(p), p) for p in itertools.permutations(range(n)))
+
+
+def reduced_antisymmetric_tensor_product_basis(
+    irreps: e3nn.Irreps,
+    degree: int,
+    *,
+    epsilon: float = 1e-5,
+    keep_ir: Optional[List[e3nn.Irrep]] = None,
+    _use_optimized_implementation: bool = True,
+) -> e3nn.IrrepsArray:
+    r"""Reduce an antisymmetric tensor product.
+
+    Args:
+        irreps (Irreps): the irreps of each index.
+        degree (int): the degree of the tensor product. i.e. the number of indices.
+        epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
+        keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
+
+    Returns:
+        IrrepsArray: The change of basis
+            The shape is ``(d, ..., d, irreps_out.dim)``
+            where ``d`` is the dimension of ``irreps``.
+    """
+    if keep_ir is not None:
+        keep_ir = frozenset(e3nn.Irrep(ir) for ir in keep_ir)
+
+    irreps = e3nn.Irreps(irreps)
+    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _antisymmetric_perm_repr(degree)
     return _reduced_tensor_product_basis(tuple([irreps] * degree), perm_repr, keep_ir, epsilon, _use_optimized_implementation)
 
 
@@ -447,7 +479,7 @@ def reduce_basis_product(
                 new_list.append(x)
 
     new = e3nn.IrrepsArray.from_list(
-        new_irreps, new_list, np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]), np.float64
+        new_irreps, new_list, np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]), np.float64, backend=np
     )
     return new.regroup()
 
@@ -470,7 +502,7 @@ def constrain_rotation_basis_by_permutation_basis(
     """
     assert rotation_basis.shape[:-1] == permutation_basis.shape[1:]
 
-    perm = np.reshape(permutation_basis, (permutation_basis.shape[0], -1))  # (free, dim)
+    perm = np.reshape(permutation_basis, (permutation_basis.shape[0], prod(permutation_basis.shape[1:])))  # (free, dim)
 
     new_irreps: List[Tuple[int, e3nn.Irrep]] = []
     new_list: List[np.ndarray] = []
@@ -491,7 +523,7 @@ def constrain_rotation_basis_by_permutation_basis(
         new_irreps.append((len(P), ir))
         new_list.append(round_fn(np.einsum("vu,...ui->...vi", P, rot_basis)))
 
-    return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1], np.float64)
+    return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1], np.float64, backend=np)
 
 
 def subrepr_permutation(
