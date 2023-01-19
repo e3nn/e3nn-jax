@@ -4,7 +4,7 @@ r"""Transformation between two representations of a signal on the sphere.
 
 is a signal on the sphere.
 
-One representation that we like to call "spherical tensor" is
+It can be decomposed into the basis of the spherical harmonics:
 
 .. math:: f(x) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot Y^l(x)
 
@@ -83,7 +83,7 @@ def s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarra
     Returns:
         y (`numpy.ndarray`): array of shape ``(res_beta)``
         alpha (`numpy.ndarray`): array of shape ``(res_alpha)``
-        qw (`numpy.ndarray`): array of shape ``(res_beta)``
+        qw (`numpy.ndarray`): array of shape ``(res_beta)``, ``sum(qw) = 1``
     """
 
     if quadrature == "soft":
@@ -129,18 +129,28 @@ def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, qua
     return y, alphas, sh_y, sh_alpha, qw
 
 
+def s2_irreps(lmax: int, p_val: int = 1, p_arg: int = -1) -> e3nn.Irreps:
+    return e3nn.Irreps([(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)])
+
+
+def _check_parities(irreps: e3nn.Irreps):
+    if not (
+        {ir.p for mul, ir in irreps if ir.l % 2 == 0} in [{1}, {-1}, set()]
+        and {ir.p for mul, ir in irreps if ir.l % 2 == 1} in [{1}, {-1}, set()]
+    ):
+        raise ValueError("irrep parities should be of the form (p_val * p_arg**l) for all l, where p_val and p_arg are ±1")
+
+
 def from_s2grid(
     x: jnp.ndarray,
-    lmax: int,
+    irreps: e3nn.Irreps,
     *,
     normalization: str = "component",
     quadrature: str,
     lmax_in: Optional[int] = None,
     fft: bool = True,
-    p_val: int = 1,
-    p_arg: int = -1,
 ):
-    r"""Transform signal on the sphere into spherical tensors.
+    r"""Transform signal on the sphere into spherical harmonics coefficients.
 
     The output has degree :math:`l` between 0 and lmax, and parity :math:`p = p_{val}p_{arg}^l`
 
@@ -148,18 +158,25 @@ def from_s2grid(
 
     Args:
         x (`jax.numpy.ndarray`): signal on the sphere of shape ``(..., y/beta, alpha)``
-        lmax (int): maximum degree of the spherical tensor
-        normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
+        irreps (e3nn.Irreps): irreps of the coefficients
+        normalization ({'norm', 'component', 'integral'}): normalization of the spherical harmonics basis
         lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
         quadrature (str): "soft" or "gausslegendre"
         fft (bool): True if we use FFT, False if we use the naive implementation
-        p_val (int): ``+1`` or ``-1``, the parity of the value of the input signal
-        p_arg (int): ``+1`` or ``-1``, the parity of the argument of the input signal
 
     Returns:
-        `e3nn_jax.IrrepsArray`: output spherical tensor, with coefficient array of shape ``(..., (lmax+1)^2)``
+        `e3nn_jax.IrrepsArray`: coefficient array of shape ``(..., (lmax+1)^2)``
     """
     res_beta, res_alpha = x.shape[-2:]
+
+    irreps = e3nn.Irreps(irreps)
+
+    if not all(mul == 1 for mul, _ in irreps.regroup()):
+        raise ValueError("multiplicities should be ones")
+
+    _check_parities(irreps)
+
+    lmax = max(irreps.ls)
 
     if lmax_in is None:
         lmax_in = lmax
@@ -180,9 +197,10 @@ def from_s2grid(
         raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
     # prepare beta integrand
-    m = jnp.asarray(_expand_matrix(range(lmax + 1)), x.dtype)  # [l, m, i]
+    m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), x.dtype)  # [l, m, j]
+    m_out = jnp.asarray(_expand_matrix(irreps.ls), x.dtype)  # [l, m, i]
     sh_y = _rollout_sh(sh_y, lmax)
-    sh_y = jnp.einsum("lmj,bj,lmi,l,b->mbi", m, sh_y, m, n, qw)  # [m, b, i]
+    sh_y = jnp.einsum("lmj,bj,lmi,l,b->mbi", m_in, sh_y, m_out, n, qw)  # [m, b, i]
 
     # integrate over alpha
     if fft:
@@ -194,12 +212,11 @@ def from_s2grid(
     int_b = jnp.einsum("mbi,...bm->...i", sh_y, int_a)  # [..., irreps]
 
     # convert to IrrepsArray
-    irreps = [(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)]
     return e3nn.IrrepsArray(irreps, int_b)
 
 
 def to_s2grid(
-    tensor: e3nn.IrrepsArray,
+    coeffs: e3nn.IrrepsArray,
     res_beta: int,
     res_alpha: int,
     *,
@@ -207,35 +224,30 @@ def to_s2grid(
     quadrature: str,
     fft: bool = True,
 ):
-    r"""Transform spherical tensor into signal on the sphere
+    r"""Sample a signal on the sphere given by the coefficient in the spherical harmonics basis.
 
     The inverse transformation of :func:`e3nn_jax.from_s2grid`
 
     Args:
-        tensor (`e3nn_jax.IrrepsArray`): spherical tensor, with coefficient array of shape ``(..., (lmax+1)^2)``
+        coeffs (`e3nn_jax.IrrepsArray`): coefficient array
         res_beta (int): number of points on the sphere in the :math:`\theta` direction
         res_alpha (int): number of points on the sphere in the :math:`\phi` direction
-        normalization ({'norm', 'component', 'integral'}): normalization of the spherical tensor
+        normalization ({'norm', 'component', 'integral'}): normalization of the basis
         quadrature (str): "soft" or "gausslegendre"
         fft (bool): True if we use FFT, False if we use the naive implementation
 
     Returns:
         `jax.numpy.ndarray`: signal on the sphere of shape ``(..., y/beta, alpha)``
     """
-    lmax = tensor.irreps.ls[-1]
+    coeffs = coeffs.regroup()
+    lmax = coeffs.irreps.ls[-1]
 
-    # check l values of irreps
-    if not all(mul == 1 and ir.l == l for (mul, ir), l in zip(tensor.irreps, range(lmax + 1))):
-        raise ValueError("multiplicities should be ones and irreps should range from l=0 to l=lmax")
+    if not all(mul == 1 for mul, _ in coeffs.irreps):
+        raise ValueError("multiplicities should be ones")
 
-    # check parities of irreps
-    if not (
-        {ir.p for mul, ir in tensor.irreps if ir.l % 2 == 0} in [{1}, {-1}, set()]
-        and {ir.p for mul, ir in tensor.irreps if ir.l % 2 == 1} in [{1}, {-1}, set()]
-    ):
-        raise ValueError("irrep parities should be of the form (p_val * p_arg**l) for all l, where p_val and p_arg are ±1")
+    _check_parities(coeffs.irreps)
 
-    _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature, dtype=tensor.dtype)
+    _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature, dtype=coeffs.dtype)
 
     n = None
     if normalization == "component":
@@ -243,25 +255,26 @@ def to_s2grid(
         # given that all component has mean 0 and variance 1
         n = (
             jnp.sqrt(4 * jnp.pi)
-            * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], tensor.dtype)
+            * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], coeffs.dtype)
             / jnp.sqrt(lmax + 1)
         )
     elif normalization == "norm":
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1/(2L+1)
-        n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, tensor.dtype) / jnp.sqrt(lmax + 1)
+        n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, coeffs.dtype) / jnp.sqrt(lmax + 1)
     elif normalization == "integral":
-        n = jnp.ones(lmax + 1, tensor.dtype)
+        n = jnp.ones(lmax + 1, coeffs.dtype)
     else:
         raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
-    m = jnp.asarray(_expand_matrix(range(lmax + 1)), tensor.dtype)  # [l, m, i]
+    m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), coeffs.dtype)  # [l, m, j]
+    m_out = jnp.asarray(_expand_matrix(coeffs.irreps.ls), coeffs.dtype)  # [l, m, i]
     # put beta component in summable form
     sh_y = _rollout_sh(sh_y, lmax)
-    sh_y = jnp.einsum("lmj,bj,lmi,l->mbi", m, sh_y, m, n)  # [m, b, i]
+    sh_y = jnp.einsum("lmj,bj,lmi,l->mbi", m_in, sh_y, m_out, n)  # [m, b, i]
 
     # multiply spherical harmonics by their coefficients
-    signal_b = jnp.einsum("mbi,...i->...bm", sh_y, tensor.array)  # [batch, beta, m]
+    signal_b = jnp.einsum("mbi,...i->...bm", sh_y, coeffs.array)  # [batch, beta, m]
 
     if fft:
         if res_alpha % 2 == 0:
@@ -274,7 +287,7 @@ def to_s2grid(
     return signal
 
 
-def rfft(x: jnp.ndarray, l: int):
+def rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
     r"""Real fourier transform
     Args:
         x (`jax.numpy.ndarray`): input array of shape ``(..., res_beta, res_alpha)``
@@ -295,7 +308,7 @@ def rfft(x: jnp.ndarray, l: int):
     return x_transformed.reshape((*x.shape[:-1], 2 * l + 1))
 
 
-def irfft(x: jnp.ndarray, res: int):
+def irfft(x: jnp.ndarray, res: int) -> jnp.ndarray:
     r"""Inverse of the real fourier transform
     Args:
         x (`jax.numpy.ndarray`): array of shape ``(..., 2*l + 1)``
@@ -326,16 +339,17 @@ def _expand_matrix(ls: List[int]) -> np.ndarray:
                     (0, 0)
             (1, -1) (1, 0) (1, 1)
     (2, -2) (2, -1) (2, 0) (2, 1) (2, 2)
+
     Args:
         ls: list of l values
     Returns:
-        tensor [l, m, l * m]
+        array of shape ``[l, m, l * m]``
     """
     lmax = max(ls)
-    m = np.zeros((len(ls), 2 * lmax + 1, sum(2 * l + 1 for l in ls)), np.float64)
+    m = np.zeros((lmax + 1, 2 * lmax + 1, sum(2 * l + 1 for l in ls)), np.float64)
     i = 0
-    for j, l in enumerate(ls):
-        m[j, lmax - l : lmax + l + 1, i : i + 2 * l + 1] = np.eye(2 * l + 1, dtype=np.float64)
+    for l in ls:
+        m[l, lmax - l : lmax + l + 1, i : i + 2 * l + 1] = np.eye(2 * l + 1, dtype=np.float64)
         i += 2 * l + 1
     return m
 
