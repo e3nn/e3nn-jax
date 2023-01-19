@@ -11,11 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.s2_irreps` is a function to create the irreps of the coefficients of a signal on the sphere
 
 ### Changed
+- Optimize the `reduced_symmetric_tensor_product`. It is now up to 100x faster than the previous implementation.
 - `e3nn.from_s2grid` and `e3nn.to_s2grid` are now more flexible with input and output irreps, you can skip some l's and have them in any order
 - **[BREAKING]** `e3nn.from_s2grid` requires and `irreps` argument instead of a `lmax` argument
-
-### Changed
-- Optimize the `reduced_symmetric_tensor_product`. It is now up to 100x faster than the previous implementation.
 
 ## [0.14.0] - 2022-12-16
 ### Added
