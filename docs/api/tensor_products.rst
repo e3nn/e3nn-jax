@@ -21,6 +21,9 @@ Tensor Products
 .. autofunction:: e3nn_jax.reduced_symmetric_tensor_product_basis
 
 
+.. autofunction:: e3nn_jax.reduced_antisymmetric_tensor_product_basis
+
+
 .. autofunction:: e3nn_jax.elementwise_tensor_product
 
 

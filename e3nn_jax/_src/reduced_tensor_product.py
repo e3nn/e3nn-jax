@@ -6,8 +6,7 @@ History of the different versions of the code:
 """
 import functools
 import itertools
-import os
-from typing import FrozenSet, List, Optional, Tuple, Union
+from typing import FrozenSet, Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -22,7 +21,7 @@ def reduced_tensor_product_basis(
     *,
     epsilon: float = 1e-5,
     keep_ir: Optional[List[e3nn.Irrep]] = None,
-    max_order: Optional[int] = None,
+    _use_optimized_implementation: bool = True,
     **irreps_dict,
 ) -> e3nn.IrrepsArray:
     r"""Reduce a tensor product of multiple irreps subject to some permutation symmetry given by a formula.
@@ -34,7 +33,6 @@ def reduced_tensor_product_basis(
 
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
         keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
-        max_order (int): the maximum polynomial order assuming the input to be order ``l``. Default: no limit
         irreps_dict (dict): the irreps of each index of the formula. For instance ``i="1x1o"``.
 
     Returns:
@@ -64,8 +62,8 @@ def reduced_tensor_product_basis(
     if isinstance(formula_or_irreps_list, (tuple, list)):
         irreps_list = formula_or_irreps_list
         irreps_tuple = tuple(e3nn.Irreps(irreps) for irreps in irreps_list)
-        formulas: FrozenSet[Tuple[int, Tuple[int, ...]]] = frozenset({(1, tuple(range(len(irreps_tuple))))})
-        return _reduced_tensor_product_basis(irreps_tuple, formulas, keep_ir, epsilon, max_order)[0].simplify()
+        perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = frozenset({(1, tuple(range(len(irreps_tuple))))})
+        return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon, _use_optimized_implementation)
 
     formula = formula_or_irreps_list
     f0, perm_repr = germinate_perm_repr(formula)
@@ -96,7 +94,7 @@ def reduced_tensor_product_basis(
 
     irreps_tuple = tuple(irreps_dict[i] for i in f0)
 
-    return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon, max_order)[0].simplify()
+    return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon, _use_optimized_implementation)
 
 
 def _symmetric_perm_repr(n: int):
@@ -105,112 +103,64 @@ def _symmetric_perm_repr(n: int):
 
 def reduced_symmetric_tensor_product_basis(
     irreps: e3nn.Irreps,
-    order: int,
+    degree: int,
     *,
     epsilon: float = 1e-5,
     keep_ir: Optional[List[e3nn.Irrep]] = None,
-    max_order: Optional[int] = None,
+    _use_optimized_implementation: bool = True,
 ) -> e3nn.IrrepsArray:
-    r"""Reduce a symmetric tensor product.
+    r"""Reduce a symmetric tensor product, usually called for a single irrep.
 
     Args:
         irreps (Irreps): the irreps of each index.
-        order (int): the order of the tensor product. i.e. the number of indices.
+        degree (int): the degree of the tensor product. i.e. the number of indices.
         epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
         keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
-        max_order (int): the maximum polynomial order assuming the input to be order ``l``. Default: no limit
 
     Returns:
         IrrepsArray: The change of basis
             The shape is ``(d, ..., d, irreps_out.dim)``
             where ``d`` is the dimension of ``irreps``.
     """
-    # TODO add antisymmetric tensor product
     if keep_ir is not None:
         keep_ir = frozenset(e3nn.Irrep(ir) for ir in keep_ir)
 
     irreps = e3nn.Irreps(irreps)
-    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _symmetric_perm_repr(order)
-    return _reduced_tensor_product_basis(tuple([irreps] * order), perm_repr, keep_ir, epsilon, max_order)[0].simplify()
+    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _symmetric_perm_repr(degree)
+    return _reduced_tensor_product_basis(tuple([irreps] * degree), perm_repr, keep_ir, epsilon, _use_optimized_implementation)
 
 
-def _simplify(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
-    new_irreps = []
-    new_orders = []
-    new_list = []
-    for (mul, ir), order, x in zip(irreps_array.irreps, orders, irreps_array.list):
-        if len(new_irreps) > 0 and new_irreps[-1][1] == ir and new_orders[-1] == order:
-            new_irreps[-1][0] += mul
-            new_list[-1] = np.concatenate([new_list[-1], x], axis=-2)
-        else:
-            new_irreps.append([mul, ir])
-            new_orders.append(order)
-            new_list.append(x)
-    return e3nn.IrrepsArray.from_list(new_irreps, new_list, irreps_array.shape[:-1], irreps_array.dtype), tuple(new_orders)
+def _antisymmetric_perm_repr(n: int):
+    return frozenset((perm.sign(p), p) for p in itertools.permutations(range(n)))
 
 
-def _sort(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
-    out = [(ir, o, i, mul) for i, ((mul, ir), o) in enumerate(zip(irreps_array.irreps, orders))]
-    out = sorted(out)
-    inv = tuple(i for _, _, i, _ in out)
-    new_irreps = [irreps_array.irreps[i] for i in inv]
-    new_list = [irreps_array.list[i] for i in inv]
-    new_orders = [orders[i] for i in inv]
-    return e3nn.IrrepsArray.from_list(new_irreps, new_list, irreps_array.shape[:-1], irreps_array.dtype), tuple(new_orders)
+def reduced_antisymmetric_tensor_product_basis(
+    irreps: e3nn.Irreps,
+    degree: int,
+    *,
+    epsilon: float = 1e-5,
+    keep_ir: Optional[List[e3nn.Irrep]] = None,
+    _use_optimized_implementation: bool = True,
+) -> e3nn.IrrepsArray:
+    r"""Reduce an antisymmetric tensor product.
 
+    Args:
+        irreps (Irreps): the irreps of each index.
+        degree (int): the degree of the tensor product. i.e. the number of indices.
+        epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
+        keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
 
-def _sort_simplify(irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...]) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
-    irreps_array, orders = _sort(irreps_array, orders)
-    irreps_array, orders = _simplify(irreps_array, orders)
-    return irreps_array, orders
+    Returns:
+        IrrepsArray: The change of basis
+            The shape is ``(d, ..., d, irreps_out.dim)``
+            where ``d`` is the dimension of ``irreps``.
+    """
+    if keep_ir is not None:
+        keep_ir = frozenset(e3nn.Irrep(ir) for ir in keep_ir)
 
-
-def _filter_ir(
-    irreps_array: e3nn.IrrepsArray, orders: Tuple[int, ...], keep_ir: FrozenSet[e3nn.Irrep]
-) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
-    orders = [o for o, (_, ir) in zip(orders, irreps_array.irreps) if ir in keep_ir]
-    irreps_array = irreps_array.filtered(keep_ir)
-    return irreps_array, tuple(orders)
-
-
-def _filter_order(irreps_array: e3nn.IrrepsArray, orders, max_order: int) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
-    irreps_array = e3nn.IrrepsArray.from_list(
-        [mul_ir for mul_ir, o in zip(irreps_array.irreps, orders) if o <= max_order],
-        [x for x, o in zip(irreps_array.list, orders) if o <= max_order],
-        irreps_array.shape[:-1],
-        irreps_array.dtype,
-    )
-    orders = [o for o in orders if o <= max_order]
-    return irreps_array, tuple(orders)
-
-
-def _check_database(
-    irreps_tuple: Tuple[e3nn.Irreps],
-    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]],
-    keep_ir: Optional[FrozenSet[e3nn.Irrep]],
-    max_order: Optional[int] = None,
-) -> Optional[Tuple[e3nn.IrrepsArray, Tuple[int, ...]]]:
-    path = os.path.join(os.path.dirname(__file__), "rtp.npz")
-    if not os.path.exists(path):
-        return None
-
-    if max_order is not None:
-        return None
-
-    key = None
-    if perm_repr == _symmetric_perm_repr(len(irreps_tuple)):
-        key = f"symmetric_{irreps_tuple[0]}_{len(irreps_tuple)}_"
-
-    if key is None:
-        return None
-
-    with np.load(path) as f:
-        for k in f:
-            if k.startswith(key):
-                out = e3nn.IrrepsArray(e3nn.Irreps(k.split("_")[-1]), f[k]).filtered(keep_ir)
-                return out, (0,) * len(out.irreps)
-
-    return None
+    irreps = e3nn.Irreps(irreps)
+    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _antisymmetric_perm_repr(degree)
+    return _reduced_tensor_product_basis(tuple([irreps] * degree), perm_repr, keep_ir, epsilon, _use_optimized_implementation)
 
 
 @functools.lru_cache(maxsize=None)
@@ -219,12 +169,20 @@ def _reduced_tensor_product_basis(
     perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]],
     keep_ir: Optional[FrozenSet[e3nn.Irrep]],
     epsilon: float,
-    max_order: Optional[int] = None,
-) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
-    out = _check_database(irreps_tuple, perm_repr, keep_ir, max_order)
-    if out is not None:
-        return out
+    _use_optimized_implementation: bool,
+) -> e3nn.IrrepsArray:
+    # Optimized case
+    if (
+        _use_optimized_implementation
+        and perm_repr == _symmetric_perm_repr(len(irreps_tuple))
+        and len(irreps_tuple) > 1
+        and irreps_tuple[0].num_irreps > 1
+    ):
+        return _optimized_reduced_symmetric_tensor_product_basis(
+            irreps_tuple[0], len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir
+        )
 
+    # General case
     dims = tuple(irreps.dim for irreps in irreps_tuple)
 
     bases = [
@@ -234,33 +192,31 @@ def _reduced_tensor_product_basis(
                 irreps,
                 np.reshape(np.eye(irreps.dim), (1,) * i + (irreps.dim,) + (1,) * (len(irreps_tuple) - i - 1) + (irreps.dim,)),
             ),
-            tuple(ir.l for _, ir in irreps),  # order of the polynomial
         )
         for i, irreps in enumerate(irreps_tuple)
     ]
 
     while True:
+        if len(bases) == 0:
+            raise RuntimeError("Tensor Product raised to the 0th power is not defined.")
+
         if len(bases) == 1:
-            f, b, ord = bases[0]
+            f, b = bases[0]
             assert f == frozenset(range(len(irreps_tuple)))
-            if max_order is not None:
-                (b, ord) = _filter_order(b, ord, max_order)
             if keep_ir is not None:
-                (b, ord) = _filter_ir(b, ord, keep_ir)
-            return _sort_simplify(b, ord)
+                b = b.filter(keep=keep_ir)
+            return b.regroup()
 
         if len(bases) == 2:
-            (fa, a, oa) = bases[0]
-            (fb, b, ob) = bases[1]
+            (fa, a) = bases[0]
+            (fb, b) = bases[1]
             f = frozenset(fa | fb)
-            ab, ord = reduce_basis_product(a, oa, b, ob, max_order, keep_ir, round_fn=round_to_sqrt_rational)
+            ab = reduce_basis_product(a, b, keep_ir, round_fn=round_to_sqrt_rational)
             if len(subrepr_permutation(f, perm_repr)) == 1:
-                return _sort_simplify(ab, ord)
+                return ab.regroup()
             p = reduce_subgroup_permutation(f, perm_repr, dims)
-            ab, ord = constrain_rotation_basis_by_permutation_basis(
-                ab, p, ord, epsilon=epsilon, round_fn=round_to_sqrt_rational
-            )
-            return _sort_simplify(ab, ord)
+            ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon, round_fn=round_to_sqrt_rational)
+            return ab.regroup()
 
         # greedy algorithm
         min_p = np.inf
@@ -268,8 +224,8 @@ def _reduced_tensor_product_basis(
 
         for i in range(len(bases)):
             for j in range(i + 1, len(bases)):
-                (fa, _, _) = bases[i]
-                (fb, _, _) = bases[j]
+                (fa, _) = bases[i]
+                (fb, _) = bases[j]
                 f = frozenset(fa | fb)
                 p_dim = reduce_subgroup_permutation(f, perm_repr, dims, return_dim=True)
                 if p_dim < min_p:
@@ -281,9 +237,189 @@ def _reduced_tensor_product_basis(
         del bases[i]
         sub_irreps = tuple(irreps_tuple[i] for i in f)
         sub_perm_repr = subrepr_permutation(f, perm_repr)
-        ab, ord = _reduced_tensor_product_basis(sub_irreps, sub_perm_repr, None, epsilon, max_order)
+        ab = _reduced_tensor_product_basis(sub_irreps, sub_perm_repr, None, epsilon, _use_optimized_implementation)
         ab = ab.reshape(tuple(dims[i] if i in f else 1 for i in range(len(dims))) + (-1,))
-        bases = [(f, ab, ord)] + bases
+        bases = [(f, ab)] + bases
+
+
+def _optimized_reduced_symmetric_tensor_product_basis(
+    irreps: Union[e3nn.Irreps, str],
+    degree: int,
+    *,
+    epsilon: float = 1e-5,
+    keep_ir: Optional[List[e3nn.Irrep]] = None,
+):
+    r"""Reduce a symmetric tensor product.
+
+    Args:
+        irreps (Irreps): the irreps of each index.
+        degree (int): the degree of the tensor product. i.e. the number of indices.
+        epsilon (float): the tolerance for the Gram-Schmidt orthogonalization. Default: ``1e-5``
+        keep_ir (list of Irrep): irrep to keep in the output. Default: keep all irrep
+
+    Returns:
+        IrrepsArray: The change of basis
+            The shape is ``(irreps.dim, ..., irreps.dim, irreps_out.dim)``
+    """
+
+    def generate_tuples_with_fixed_sum(length: int, sum: int):
+        """Generates all non-negative integer tuples of a certain length with the specified sum."""
+        if length == 1:
+            yield (sum,)
+            return
+
+        if sum == 0:
+            yield tuple(0 for _ in range(length))
+            return
+
+        for first in range(sum, -1, -1):
+            for subtuple in generate_tuples_with_fixed_sum(length - 1, sum - first):
+                yield (first,) + subtuple
+
+    def compute_padding_for_term(irrep_indices: Sequence[int]) -> List[Tuple[int, int]]:
+        """Computes the padding for the given term at each index.
+
+        This is required because the output change-of-basis must have the
+        shape (irreps.dim, ..., irreps.dim, irreps_out.dim),
+        which means all input axes must have the same length.
+
+        For example, when computing ir^3 = (ir_1 + ir_2)^3,
+        we get a term corresponding to (ir_1)^3 with shape (ir_1.dim, ..., ir_1.dim, ...).
+        We need to pad this term to have shape (ir.dim, ..., ir.dim, ...) instead.
+        A similar logic applies for all of the terms.
+        """
+        inp_irreps_dims = [ir.dim for ir in irreps]
+        inp_irreps_dims_cumsum_before = cumsum_before(inp_irreps_dims)
+        inp_irreps_dims_cumsum_after = cumsum_after(inp_irreps_dims)
+
+        def compute_padding_for_irrep_index(irrep_index: int):
+            dims_before = inp_irreps_dims_cumsum_before[irrep_index]
+            dims_after = inp_irreps_dims_cumsum_after[irrep_index]
+            return (dims_before, dims_after)
+
+        return [compute_padding_for_irrep_index(irrep_index) for irrep_index in irrep_indices] + [(0, 0)]
+
+    def repeat_indices(indices: Sequence[int], powers: Sequence[int]) -> List[int]:
+        """Given [i1, i2, ...] and [p1, p2, ...], returns [i1, i1, ... (p1 times), i2, i2, ... (p2 times), ...]"""
+        repeated_indices = []
+        for index, power in zip(indices, powers):
+            repeated_indices.extend([index] * power)
+        return repeated_indices
+
+    def generate_permutations(seq: Sequence[float]) -> Iterator[Tuple[Sequence[float], Sequence[int]]]:
+        """Generates permutations of a sequence along with the indices used to create the permutation."""
+        indices = range(len(seq))
+        for permuted_indices in itertools.permutations(indices):
+            permuted_sequence = tuple(seq[index] for index in permuted_indices)
+            yield permuted_sequence, permuted_indices
+
+    def cumsum_before(seq: Sequence[float]) -> np.ndarray:
+        """Returns the cumulative sum before every index.
+
+        For example, cumsum_before([1, 2, 3]) == [0, 1, 3].
+        """
+        return np.cumsum([0, *seq])[:-1]
+
+    def cumsum_after(seq: Sequence[float]) -> np.ndarray:
+        """Returns the cumulative sum after every index.
+
+        For example, cumsum_after([1, 2, 3]) == [5, 3, 0].
+        """
+        return cumsum_before(seq[::-1])[::-1]
+
+    def reshape_for_basis_product(terms: Sequence[e3nn.IrrepsArray], non_zero_powers: Sequence[float]):
+        """Adds extra axes to each term to be compatible for reduce_basis_product()."""
+        term_powers_cumsum_before = cumsum_before(non_zero_powers)
+        term_powers_cumsum_after = cumsum_after(non_zero_powers)
+
+        def reshape_term_for_basis_product(index, term):
+            new_shape = (
+                (1,) * term_powers_cumsum_before[index]
+                + term.shape[:-1]
+                + (1,) * term_powers_cumsum_after[index]
+                + term.shape[-1:]
+            )
+            return term.reshape(new_shape)
+
+        return [reshape_term_for_basis_product(index, term) for index, term in enumerate(terms)]
+
+    irreps = e3nn.Irreps(irreps)
+    irreps = e3nn.Irreps([(1, ir) for mul, ir in irreps for _ in range(mul)])
+
+    # Precompute powers of irreps.
+    irreps_powers = {}
+    for i, mul_ir in enumerate(irreps):
+        irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.0]))]
+        for n in range(1, degree + 1):
+            power = reduced_symmetric_tensor_product_basis(mul_ir, n, epsilon=epsilon)
+            irreps_powers[i].append(power)
+
+    # Take all products of irreps whose powers sum up to degree.
+    # For example, if we are computing (ir1 + ir2)^3, we would consider terms of the form:
+    # - ir_1 ir_1 ir_1
+    # - ir_1 ir_1 ir_2, ir_1 ir_2 ir_1, ir_2 ir_1 ir_1
+    # - ir_1 ir_2 ir_2, ir_2 ir_1 ir_2, ir_2 ir_2 ir_1
+    # - ir_2 ir_2 ir_2
+    # where the terms on the same line will be averaged over.
+    # Each line above corresponds to a unique tuple:
+    # - (3, 0)
+    # - (2, 1)
+    # - (1, 2)
+    # - (0, 3)
+    # indicating the powers of the individual irreps ir_1 and ir_2.
+    # Note that possible many terms correspond to the same tuple,
+    # since the tuple does not indicate the degree of multiplication.
+    symmetric_product = []
+    for term_powers in generate_tuples_with_fixed_sum(len(irreps), degree):
+        term_powers = list(term_powers)
+
+        non_zero_indices = [i for i, n in enumerate(term_powers) if n != 0]
+        non_zero_powers = [n for n in term_powers if n != 0]
+        non_zero_indices_repeated = tuple(repeat_indices(non_zero_indices, non_zero_powers))
+
+        # Add axes to all terms, so that they have the same number of input axes.
+        non_zero_terms = [irreps_powers[i][n] for i, n in zip(non_zero_indices, non_zero_powers)]
+        non_zero_terms_reshaped = reshape_for_basis_product(non_zero_terms, non_zero_powers)
+
+        # Compute basis product, two terms at a time.
+        current_term = non_zero_terms_reshaped[0]
+        for next_term in non_zero_terms_reshaped[1:]:
+            current_term = reduce_basis_product(current_term, next_term, keep_ir, round_fn=round_to_sqrt_rational)
+        product_basis = current_term
+
+        sum_of_permuted_bases = None
+        seen_permutations = set()
+
+        # Now, average over the different permutations.
+        for permuted_indices_repeated, permuted_axes in generate_permutations(non_zero_indices_repeated):
+            # Keep track of which permutations we have seen.
+            # Don't repeat permutations!
+            if permuted_indices_repeated in seen_permutations:
+                continue
+            seen_permutations.add(permuted_indices_repeated)
+
+            # Permute axes according to this term.
+            permuted_product_basis_array = np.transpose(product_basis.array, permuted_axes + (len(permuted_axes),))
+
+            # Add padding.
+            padding = compute_padding_for_term(permuted_indices_repeated)
+            permuted_product_basis_array = np.pad(permuted_product_basis_array, padding)
+
+            if sum_of_permuted_bases is None:
+                sum_of_permuted_bases = permuted_product_basis_array
+            else:
+                sum_of_permuted_bases += permuted_product_basis_array
+
+        # Normalize the sum of bases.
+        symmetrized_sum_of_permuted_bases = sum_of_permuted_bases / np.sqrt(len(seen_permutations))
+        product_basis = e3nn.IrrepsArray(product_basis.irreps, symmetrized_sum_of_permuted_bases)
+        symmetric_product.append(product_basis)
+
+    # Filter out irreps, if needed.
+    basis = e3nn.concatenate(symmetric_product).regroup()
+    if keep_ir is not None:
+        basis = basis.filter(keep=keep_ir)
+    return basis
 
 
 @functools.lru_cache(maxsize=None)
@@ -318,56 +454,43 @@ def germinate_perm_repr(formula: str) -> Tuple[str, FrozenSet[Tuple[int, Tuple[i
 
 def reduce_basis_product(
     basis1: e3nn.IrrepsArray,
-    order1: Tuple[int, ...],
     basis2: e3nn.IrrepsArray,
-    order2: Tuple[int, ...],
-    max_order: Optional[int] = None,
     filter_ir_out: Optional[List[e3nn.Irrep]] = None,
     round_fn=lambda x: x,
-) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
+) -> e3nn.IrrepsArray:
     """Reduce the product of two basis."""
-    basis1, order1 = _sort_simplify(basis1, order1)
-    basis2, order2 = _sort_simplify(basis2, order2)
+    basis1 = basis1.regroup()
+    basis2 = basis2.regroup()
 
     new_irreps: List[Tuple[int, e3nn.Irrep]] = []
     new_list = []
-    new_orders = []
 
-    for (mul1, ir1), x1, o1 in zip(basis1.irreps, basis1.list, order1):
-        for (mul2, ir2), x2, o2 in zip(basis2.irreps, basis2.list, order2):
-            if max_order is not None and o1 + o2 > max_order:
-                continue
-
+    for (mul1, ir1), x1 in zip(basis1.irreps, basis1.list):
+        for (mul2, ir2), x2 in zip(basis2.irreps, basis2.list):
             for ir in ir1 * ir2:
                 if filter_ir_out is not None and ir not in filter_ir_out:
                     continue
 
-                x = np.einsum(
-                    "...ui,...vj,ijk->...uvk",
-                    x1,
-                    x2,
-                    np.sqrt(ir.dim) * e3nn.clebsch_gordan(ir1.l, ir2.l, ir.l),
-                )
+                w = np.sqrt(ir.dim) * e3nn.clebsch_gordan(ir1.l, ir2.l, ir.l)
+                x = np.einsum("...ui,...vj,ijk->...uvk", x1, x2, w)
                 x = round_fn(x)
                 x = np.reshape(x, x.shape[:-3] + (mul1 * mul2, ir.dim))
                 new_irreps.append((mul1 * mul2, ir))
                 new_list.append(x)
-                new_orders.append(o1 + o2)
 
     new = e3nn.IrrepsArray.from_list(
-        new_irreps, new_list, np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]), np.float64
+        new_irreps, new_list, np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]), np.float64, backend=np
     )
-    return _sort_simplify(new, tuple(new_orders))
+    return new.regroup()
 
 
 def constrain_rotation_basis_by_permutation_basis(
     rotation_basis: e3nn.IrrepsArray,
     permutation_basis: np.ndarray,
-    orders: Tuple[int, ...],
     *,
     epsilon=1e-5,
     round_fn=lambda x: x,
-) -> Tuple[e3nn.IrrepsArray, Tuple[int, ...]]:
+) -> e3nn.IrrepsArray:
     """Constrain a rotation basis by a permutation basis.
 
     Args:
@@ -379,16 +502,14 @@ def constrain_rotation_basis_by_permutation_basis(
     """
     assert rotation_basis.shape[:-1] == permutation_basis.shape[1:]
 
-    perm = np.reshape(permutation_basis, (permutation_basis.shape[0], -1))  # (free, dim)
+    perm = np.reshape(permutation_basis, (permutation_basis.shape[0], prod(permutation_basis.shape[1:])))  # (free, dim)
 
     new_irreps: List[Tuple[int, e3nn.Irrep]] = []
     new_list: List[np.ndarray] = []
-    new_orders: List[int] = []
 
     for ir in sorted({ir for mul, ir in rotation_basis.irreps}):
         idx = [i for i, (mul, ir_) in enumerate(rotation_basis.irreps) if ir == ir_]
         rot_basis = np.concatenate([rotation_basis.list[i] for i in idx], axis=-2)
-        ord = np.array([orders[i] for i in idx for _ in range(rotation_basis.irreps[i].mul)])
         mul = rot_basis.shape[-2]
         R = rot_basis[..., 0]
         R = np.reshape(R, (-1, mul)).T  # (mul, dim)
@@ -399,12 +520,10 @@ def constrain_rotation_basis_by_permutation_basis(
 
         P, _ = basis_intersection(R, perm_opt, epsilon=epsilon, round_fn=round_fn)
 
-        for p in P:
-            new_irreps.append((1, ir))
-            new_list.append(round_fn(np.einsum("u,...ui->...i", p, rot_basis)[..., None, :]))
-            new_orders.append(int(np.max(ord * (p != 0.0))))
+        new_irreps.append((len(P), ir))
+        new_list.append(round_fn(np.einsum("vu,...ui->...vi", P, rot_basis)))
 
-    return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1], np.float64), tuple(new_orders)
+    return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1], np.float64, backend=np)
 
 
 def subrepr_permutation(

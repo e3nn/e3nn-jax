@@ -104,7 +104,7 @@ class IrrepsArray:
 
     @staticmethod
     def from_list(
-        irreps: IntoIrreps, list: List[Optional[jnp.ndarray]], leading_shape: Tuple[int], dtype=None
+        irreps: IntoIrreps, list: List[Optional[jnp.ndarray]], leading_shape: Tuple[int], dtype=None, *, backend=None
     ) -> "IrrepsArray":
         r"""Create an IrrepsArray from a list of arrays.
 
@@ -116,7 +116,7 @@ class IrrepsArray:
         Returns:
             IrrepsArray
         """
-        jnp = _infer_backend(list)
+        jnp = _infer_backend(list) if backend is None else backend
 
         irreps = Irreps(irreps)
         if len(irreps) != len(list):
@@ -555,7 +555,9 @@ class IrrepsArray:
             1x0e+2x0e+1x1o [0 4 5 1 2 3]
         """
         irreps, p, inv = self.irreps.sort()
-        return IrrepsArray.from_list(irreps, [self.list[i] for i in inv], self.shape[:-1], self.dtype)
+        return IrrepsArray.from_list(
+            irreps, [self.list[i] for i in inv], self.shape[:-1], self.dtype, backend=_infer_backend(self.array)
+        )
 
     sorted = sort
 
