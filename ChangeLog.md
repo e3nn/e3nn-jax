@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.util.assert_output_dtype` to check the output dtype of a function
 - `e3nn.s2_irreps` is a function to create the irreps of the coefficients of a signal on the sphere
 - `e3nn.reduced_antisymmetric_tensor_product_basis` to compute the basis of the reduced antisymmetric tensor product
+- `IrrepsArray * scalar` is supported if the number of scalars matches the number of irreps
 
 ### Changed
 - Optimize the `reduced_symmetric_tensor_product`. It is now up to 100x faster than the previous implementation.

@@ -105,6 +105,8 @@ def test_operators():
     with pytest.raises(ValueError):
         x * jnp.array([1.0, 2.0, 3.0, 4.0, 5.0])
 
+    x * jnp.array([1.0, 2.0, 3.0])
+
     with pytest.raises(ValueError):
         1.0 / x
 

@@ -319,6 +319,10 @@ class IrrepsArray:
             return e3nn.elementwise_tensor_product(self, other)
 
         other = jnp.asarray(other)
+        if other.ndim > 0 and other.shape[-1] == self.irreps.num_irreps:
+            other = IrrepsArray(f"{other.shape[-1]}x0e", other)
+            return e3nn.elementwise_tensor_product(self, other)
+
         if self.irreps.lmax > 0 and other.ndim > 0 and other.shape[-1] != 1:
             raise ValueError(f"IrrepsArray({self.irreps}) * scalar(shape={other.shape}) is not equivariant.")
         list = [None if x is None else x * other[..., None] for x in self.list]
