@@ -5,8 +5,8 @@ Favor `jax.vmap` to broadcasting
 `IrrepsArray` is a triplet of `(irreps, array, list)` where
 
 - `irreps: Irreps`
-- `array: jnp.ndarray` of shape `shape`
-- `list: List[Optional[jnp.ndarray]]` with one entry per entry in `irreps`. If the entry is `None` is means that the block is filled with zeros. The `i`th entry is shape `shape + (mul, ir.dim)` where `mul, ir = irreps[i]`
+- `array: jnp.ndarray` of shape `shape` with `shape[-1] == irreps.dim`
+- `list: List[Optional[jnp.ndarray]]` with one entry per entry in `irreps`. If the entry is `None` is means that the block is filled with zeros. The `i`th entry is shape `shape[:-1] + (mul, ir.dim)` where `mul, ir = irreps[i]`
 
 - Favor function to get `IrrepsArray` as input/output
 - Ideally implement the function for both `.array` and `.list` and output a new `IrrepsArray`
