@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.from_s2grid` and `e3nn.to_s2grid` are now more flexible with input and output irreps, you can skip some l's and have them in any order
 - **[BREAKING]** `e3nn.from_s2grid` requires and `irreps` argument instead of a `lmax` argument
 
+### Fixed
+- Increase robusteness of `e3nn.spherical_harmonics` towards `nan` when `normalize=True`
+
 ## [0.14.0] - 2022-12-16
 ### Added
 - `IrrepsArray.astype` to cast the underlying array

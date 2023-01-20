@@ -130,8 +130,9 @@ def spherical_harmonics(
 
     assert x.shape[-1] == 3
     if normalize:
-        r = jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True)
-        x = x / jnp.where(r == 0.0, 1.0, r)
+        r2 = jnp.sum(x**2, axis=-1, keepdims=True)
+        r2 = jnp.where(r2 == 0.0, 1.0, r2)
+        x = x / jnp.sqrt(r2)
 
     sh = _jited_spherical_harmonics(tuple(ir.l for _, ir in irreps_out), x, normalization, algorithm)
     sh = [jnp.repeat(y[..., None, :], mul, -2) if mul != 1 else y[..., None, :] for (mul, ir), y in zip(irreps_out, sh)]
