@@ -52,7 +52,6 @@ from e3nn_jax._src.irreps_array import sum_ as sum
 from e3nn_jax._src.spherical_harmonics import spherical_harmonics, sh, legendre
 from e3nn_jax._src.radial import sus, soft_one_hot_linspace, bessel, poly_envelope, soft_envelope
 from e3nn_jax._src.linear import FunctionalLinear
-from e3nn_jax._src.linear_haiku import Linear  # TODO remove
 from e3nn_jax._src.core_tensor_product import FunctionalTensorProduct
 from e3nn_jax._src.tensor_products import (
     FunctionalFullyConnectedTensorProduct,
@@ -63,18 +62,13 @@ from e3nn_jax._src.tensor_products import (
 from e3nn_jax._src.grad import grad
 from e3nn_jax._src.activation import scalar_activation, normalize_function
 from e3nn_jax._src.gate import gate
-from e3nn_jax._src.batchnorm import BatchNorm  # TODO remove
-from e3nn_jax._src.dropout import Dropout  # TODO remove
-from e3nn_jax._src.mlp_haiku import MultiLayerPerceptron  # TODO remove
 from e3nn_jax._src.graph_util import index_add, radius_graph, scatter_sum
 from e3nn_jax._src.reduced_tensor_product import (
     reduced_tensor_product_basis,
     reduced_symmetric_tensor_product_basis,
     reduced_antisymmetric_tensor_product_basis,
 )
-from e3nn_jax._src.symmetric_tensor_product import SymmetricTensorProduct  # TODO remove
 from e3nn_jax._src.s2grid import from_s2grid, to_s2grid, s2_irreps, s2grid, s2grid_vectors, pad_to_plot_on_s2grid
-from e3nn_jax._src.fc_tp_haiku import FullyConnectedTensorProduct  # TODO remove
 
 # make submodules flax and haiku available
 from e3nn_jax import flax, haiku
@@ -144,10 +138,8 @@ __all__ = [
     "soft_one_hot_linspace",
     "bessel",
     "FunctionalLinear",  # not in docs
-    "Linear",
     "FunctionalTensorProduct",
     "FunctionalFullyConnectedTensorProduct",  # deprecated
-    "FullyConnectedTensorProduct",  # deprecated
     "tensor_product",
     "elementwise_tensor_product",
     "tensor_square",
@@ -155,9 +147,6 @@ __all__ = [
     "scalar_activation",
     "normalize_function",
     "gate",
-    "BatchNorm",
-    "Dropout",
-    "MultiLayerPerceptron",
     "index_add",
     "radius_graph",
     "scatter_sum",
@@ -166,7 +155,6 @@ __all__ = [
     "reduced_tensor_product_basis",
     "reduced_symmetric_tensor_product_basis",
     "reduced_antisymmetric_tensor_product_basis",
-    "SymmetricTensorProduct",
     "from_s2grid",
     "to_s2grid",
     "s2_irreps",
