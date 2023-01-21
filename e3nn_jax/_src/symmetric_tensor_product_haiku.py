@@ -29,8 +29,8 @@ class SymmetricTensorProduct(hk.Module):
     Args:
         orders (tuple of int): orders of the tensor product
         keep_irrep_out (optional, set of Irrep): irreps to keep in the output
-        get_parameter (optional, callable): function to get the parameters, by default it uses `hk.get_parameter`
-            it should have the signature `get_parameter(name, shape) -> ndarray` and return a normal distribution
+        get_parameter (optional, callable): function to get the parameters, by default it uses ``hk.get_parameter``
+            it should have the signature ``get_parameter(name, shape) -> ndarray`` and return a normal distribution
             with variance 1
     """
 
