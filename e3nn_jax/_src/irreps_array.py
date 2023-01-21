@@ -630,7 +630,7 @@ class IrrepsArray:
         r"""Return the slice with respect to the multiplicities.
 
         See also:
-            :meth:`e3nn.Irreps.slice_by_mul`
+            :meth:`Irreps.slice_by_mul`
         """
         return _MulIndexSliceHelper(self)
 
@@ -639,7 +639,7 @@ class IrrepsArray:
         r"""Same as ``__getitem__`` in the irreps dimension.
 
         See also:
-            :meth:`e3nn.Irreps.slice_by_dim`
+            :meth:`Irreps.slice_by_dim`
         """
         return _DimIndexSliceHelper(self)
 
@@ -648,7 +648,7 @@ class IrrepsArray:
         r"""Return the slice with respect to the chunks.
 
         See also:
-            :meth:`e3nn.Irreps.slice_by_chunk`
+            :meth:`Irreps.slice_by_chunk`
         """
         return _ChunkIndexSliceHelper(self)
 

@@ -34,7 +34,7 @@ def scatter_sum(
     ``output[dst[i]] += data[i]`` or ``output[i] = sum(data[sum(nel[:i]):sum(nel[:i+1])])``
 
     Args:
-        data (`jax.numpy.ndarray` or `e3nn.IrrepsArray`): array of shape ``(n, ...)``
+        data (`jax.numpy.ndarray` or `IrrepsArray`): array of shape ``(n, ...)``
         dst (optional, `jax.numpy.ndarray`): array of shape ``(n,)``. If not specified, ``nel`` must be specified.
         nel (optional, `jax.numpy.ndarray`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
         output_size (optional, int): size of output array. If not specified, ``nel`` must be specified
@@ -42,7 +42,7 @@ def scatter_sum(
         map_back (bool): whether to map back to the input position
 
     Returns:
-        `jax.numpy.ndarray` or `e3nn.IrrepsArray`: output array of shape ``(output_size, ...)``
+        `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
     """
     if dst is None and nel is None:
         raise ValueError("Either dst or nel must be specified")

@@ -31,44 +31,44 @@ class Linear(hk.Module):
     Example:
         Vanilla::
 
-        >>> import e3nn_jax as e3nn
-        >>> import jax
-        >>>
-        >>> @hk.without_apply_rng
-        ... @hk.transform
-        ... def linear(x):
-        ...     return e3nn.haiku.Linear("0e + 1o")(x)
-        >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
-        >>> params = linear.init(jax.random.PRNGKey(0), x)
-        >>> y = linear.apply(params, x)
-        >>> y.shape
-        (4,)
+            >>> import e3nn_jax as e3nn
+            >>> import jax
+            >>>
+            >>> @hk.without_apply_rng
+            ... @hk.transform
+            ... def linear(x):
+            ...     return e3nn.haiku.Linear("0e + 1o")(x)
+            >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
+            >>> params = linear.init(jax.random.PRNGKey(0), x)
+            >>> y = linear.apply(params, x)
+            >>> y.shape
+            (4,)
 
         External weights::
 
-        >>> @hk.without_apply_rng
-        ... @hk.transform
-        ... def linear(w, x):
-        ...     return e3nn.haiku.Linear("0e + 1o")(w, x)
-        >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
-        >>> w = jnp.array([1., 2., 3., 4.])
-        >>> params = linear.init(jax.random.PRNGKey(0), w, x)
-        >>> y = linear.apply(params, w, x)
-        >>> y.shape
-        (4,)
+            >>> @hk.without_apply_rng
+            ... @hk.transform
+            ... def linear(w, x):
+            ...     return e3nn.haiku.Linear("0e + 1o")(w, x)
+            >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
+            >>> w = jnp.array([1., 2., 3., 4.])
+            >>> params = linear.init(jax.random.PRNGKey(0), w, x)
+            >>> y = linear.apply(params, w, x)
+            >>> y.shape
+            (4,)
 
         External indices::
 
-        >>> @hk.without_apply_rng
-        ... @hk.transform
-        ... def linear(i, x):
-        ...     return e3nn.haiku.Linear("0e + 1o", num_indexed_weights=4)(i, x)
-        >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones((2, 5)))
-        >>> i = jnp.array([2, 3])
-        >>> params = linear.init(jax.random.PRNGKey(0), i, x)
-        >>> y = linear.apply(params, i, x)
-        >>> y.shape
-        (2, 4)
+            >>> @hk.without_apply_rng
+            ... @hk.transform
+            ... def linear(i, x):
+            ...     return e3nn.haiku.Linear("0e + 1o", num_indexed_weights=4)(i, x)
+            >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones((2, 5)))
+            >>> i = jnp.array([2, 3])
+            >>> params = linear.init(jax.random.PRNGKey(0), i, x)
+            >>> y = linear.apply(params, i, x)
+            >>> y.shape
+            (2, 4)
     """
 
     def __init__(

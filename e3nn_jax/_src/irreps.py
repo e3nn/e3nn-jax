@@ -174,7 +174,7 @@ class Irrep:
             `jax.numpy.ndarray`: array of shape :math:`(3, 2l+1, 2l+1)`
 
         See Also:
-            `e3nn.generators`
+            `generators`
         """
         return generators(self.l)
 

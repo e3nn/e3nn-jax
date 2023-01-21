@@ -28,8 +28,8 @@ class MultiLayerPerceptron(flax.linen.Module):
     def __call__(self, x: Union[jnp.ndarray, e3nn.IrrepsArray]) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
         """Evaluate the MLP
 
-        Input and output are either `jnp.ndarray` or `e3nn.IrrepsArray`.
-        If the input is a `e3nn.IrrepsArray`, it must contain only scalars.
+        Input and output are either `jnp.ndarray` or `IrrepsArray`.
+        If the input is a `IrrepsArray`, it must contain only scalars.
 
         Args:
             x (IrrepsArray): input of shape ``[..., input_size]``

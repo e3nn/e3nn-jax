@@ -55,7 +55,7 @@ def tensor_product(
            0.    -0.66   4.08   0.     0.     0.     0.     0.     1.     2.
            3.     4.     5.     9.9   10.97   9.27  -1.97  12.34  15.59  12.73]
 
-        Usage in combination with `Linear`:
+        Usage in combination with `haiku.Linear` or `flax.Linear`:
 
         >>> import flax.linen as nn
         >>> linear = e3nn.flax.Linear("3x1e")

@@ -29,30 +29,30 @@ class Linear(flax.linen.Module):
     Example:
         Vanilla::
 
-        >>> import e3nn_jax as e3nn
-        >>> import jax
-        >>>
-        >>> linear = Linear("2x0e + 1o")
-        >>> x = e3nn.normal("0e + 1o")
-        >>> w = linear.init(jax.random.PRNGKey(0), x)
-        >>> linear.apply(w, x).shape
-        (5,)
+            >>> import e3nn_jax as e3nn
+            >>> import jax
+            >>>
+            >>> linear = Linear("2x0e + 1o")
+            >>> x = e3nn.normal("0e + 1o")
+            >>> w = linear.init(jax.random.PRNGKey(0), x)
+            >>> linear.apply(w, x).shape
+            (5,)
 
         External weights::
 
-        >>> linear = Linear("2x0e + 1o")
-        >>> e = jnp.array([1., 2., 3., 4.])
-        >>> w = linear.init(jax.random.PRNGKey(0), e, x)
-        >>> linear.apply(w, e, x).shape
-        (5,)
+            >>> linear = Linear("2x0e + 1o")
+            >>> e = jnp.array([1., 2., 3., 4.])
+            >>> w = linear.init(jax.random.PRNGKey(0), e, x)
+            >>> linear.apply(w, e, x).shape
+            (5,)
 
         Indexed weights::
 
-        >>> linear = Linear("2x0e + 1o", num_indexed_weights=3)
-        >>> i = jnp.array(2)
-        >>> w = linear.init(jax.random.PRNGKey(0), i, x)
-        >>> linear.apply(w, i, x).shape
-        (5,)
+            >>> linear = Linear("2x0e + 1o", num_indexed_weights=3)
+            >>> i = jnp.array(2)
+            >>> w = linear.init(jax.random.PRNGKey(0), i, x)
+            >>> linear.apply(w, i, x).shape
+            (5,)
     """
     irreps_out: e3nn.Irreps
     irreps_in: Optional[e3nn.Irreps] = None
