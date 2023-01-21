@@ -33,7 +33,7 @@ Amuse-bouche
         # the inputs and outputs are all of type e3nn.IrrepsArray
         Y = e3nn.spherical_harmonics([0, 1, 2], x, False)
         f = e3nn.tensor_product(Y, f)
-        return e3nn.Linear("0e + 0o + 1o")(f)
+        return e3nn.haiku.Linear("0e + 0o + 1o")(f)
 
     # Create some inputs
     x = e3nn.IrrepsArray("1o", jnp.array([1.0, 2.0, 0.0]))
@@ -269,7 +269,7 @@ We use ``dm-haiku`` to create parameterized modules.
     @hk.without_apply_rng
     @hk.transform
     def tp(x1, x2):
-        return e3nn.Linear("1e")(e3nn.tensor_product(x1, x2))
+        return e3nn.haiku.Linear("1e")(e3nn.tensor_product(x1, x2))
 
 Note that the inputs irreps are not yet specified, ``"1e"`` here specify the output.
 Let's define two random inputs and initialize the parameters:

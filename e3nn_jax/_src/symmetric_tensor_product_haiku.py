@@ -15,7 +15,7 @@ class SymmetricTensorProduct(hk.Module):
 
     Equivalent to the following code executed in parallel on the channel dimension::
 
-        e3nn.Linear(irreps_out)(
+        e3nn.haiku.Linear(irreps_out)(
             e3nn.concatenate([
                 x,
                 tensor_product(x, x),  # additionally keeping only the symmetric terms

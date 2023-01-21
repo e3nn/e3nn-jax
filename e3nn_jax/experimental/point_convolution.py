@@ -65,7 +65,7 @@ class Convolution(hk.Module):
         if node_attr is None:
             node_attr = e3nn.IrrepsArray.ones("0e", node_input.shape[:-1])
 
-        node = e3nn.Linear(node_input.irreps + self.irreps_node_output)(e3nn.tensor_product(node_input, node_attr))
+        node = e3nn.haiku.Linear(node_input.irreps + self.irreps_node_output)(e3nn.tensor_product(node_input, node_attr))
         # node_features, node_self_out = node.split([node_input.irreps, self.irreps_node_output])
         node_features, node_self_out = node[:, : node_input.irreps.dim], node[:, node_input.irreps.dim :]
 
@@ -101,7 +101,7 @@ class Convolution(hk.Module):
         )
 
         if self.fc_neurons:
-            weight = e3nn.MultiLayerPerceptron(self.fc_neurons, jax.nn.gelu)(edge_scalar_attr)
+            weight = e3nn.haiku.MultiLayerPerceptron(self.fc_neurons, jax.nn.gelu)(edge_scalar_attr)
 
             weight = [
                 jnp.einsum(
@@ -144,7 +144,7 @@ class Convolution(hk.Module):
 
         ######################################################################################
 
-        node_conv_out = e3nn.Linear(self.irreps_node_output)(e3nn.tensor_product(node_features, node_attr))
+        node_conv_out = e3nn.haiku.Linear(self.irreps_node_output)(e3nn.tensor_product(node_features, node_attr))
 
         ######################################################################################
 

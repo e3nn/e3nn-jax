@@ -82,7 +82,7 @@ def main():
             else:
                 x = e3nn.tensor_product(x1, x2, **kwargs)
 
-            return e3nn.Linear(irreps_out)(x)
+            return e3nn.haiku.Linear(irreps_out)(x)
 
     inputs = (e3nn.normal(irreps_in1, k(), (args.batch,)), e3nn.normal(irreps_in2, k(), (args.batch,)))
 

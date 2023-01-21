@@ -1,8 +1,9 @@
-import jax.numpy as jnp
 import haiku as hk
+import jax.numpy as jnp
+import pytest
+
 import e3nn_jax as e3nn
 from e3nn_jax.util import assert_equivariant
-import pytest
 
 
 @pytest.mark.parametrize("irreps", [e3nn.Irreps("3x0e + 3x0o + 4x1e"), e3nn.Irreps("3x0o + 3x0e + 4x1e")])
@@ -10,7 +11,7 @@ def test_equivariant(keys, irreps):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = e3nn.BatchNorm(irreps=irreps)
+        m = e3nn.haiku.BatchNorm(irreps=irreps)
         return m(x, is_training)
 
     params, state = b.init(next(keys), e3nn.normal(irreps, next(keys), (16,)))
@@ -33,7 +34,7 @@ def test_modes(keys, affine, reduce, normalization, instance):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = e3nn.BatchNorm(irreps=irreps, affine=affine, reduce=reduce, normalization=normalization, instance=instance)
+        m = e3nn.haiku.BatchNorm(irreps=irreps, affine=affine, reduce=reduce, normalization=normalization, instance=instance)
         return m(x, is_training)
 
     params, state = b.init(next(keys), e3nn.normal(irreps, next(keys), (20, 20)))
@@ -57,7 +58,7 @@ def test_normalization(keys, instance):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = e3nn.BatchNorm(irreps=irreps, normalization="norm", instance=instance)
+        m = e3nn.haiku.BatchNorm(irreps=irreps, normalization="norm", instance=instance)
         return m(x, is_training)
 
     params, state = b.init(next(keys), e3nn.normal(irreps, next(keys), (16,)))
@@ -75,7 +76,7 @@ def test_normalization(keys, instance):
     @hk.without_apply_rng
     @hk.transform_with_state
     def b(x, is_training=True):
-        m = e3nn.BatchNorm(irreps=irreps, normalization="component", instance=instance)
+        m = e3nn.haiku.BatchNorm(irreps=irreps, normalization="component", instance=instance)
         return m(x, is_training)
 
     params, state = b.init(next(keys), e3nn.normal(irreps, next(keys), (16,)))

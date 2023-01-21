@@ -76,7 +76,7 @@ def test_normalization_1(keys):
     @hk.without_apply_rng
     @hk.transform
     def model(x):
-        return e3nn.Linear(irreps_out)(x)
+        return e3nn.haiku.Linear(irreps_out)(x)
 
     x = e3nn.normal(irreps_in, next(keys), (1024,))
     w = model.init(next(keys), x)
@@ -92,7 +92,7 @@ def test_normalization_2(keys):
     @hk.without_apply_rng
     @hk.transform
     def model(x):
-        return e3nn.Linear(irreps_out, 5)(x)
+        return e3nn.haiku.Linear(irreps_out, 5)(x)
 
     x = e3nn.normal(irreps_in, next(keys), (1024, 9))
     w = model.init(next(keys), x)
@@ -109,7 +109,7 @@ def test_normalization_3(keys):
     @hk.transform
     def model(x):
         w = hk.get_parameter("w", (32,), init=hk.initializers.Constant(1.0))
-        return e3nn.Linear(irreps_out, 5)(w, x)
+        return e3nn.haiku.Linear(irreps_out, 5)(w, x)
 
     x = e3nn.normal(irreps_in, next(keys), (1024, 9))
     w = model.init(next(keys), x)
