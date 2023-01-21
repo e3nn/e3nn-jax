@@ -27,8 +27,9 @@ class MultiLayerPerceptron(hk.Module):
         *,
         gradient_normalization: Union[str, float] = None,
         output_activation: Union[Callable, bool] = True,
+        name: Optional[str] = None,
     ):
-        super().__init__()
+        super().__init__(name=name)
 
         self.list_neurons = list_neurons
         self.act = act

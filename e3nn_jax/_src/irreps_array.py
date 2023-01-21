@@ -153,6 +153,27 @@ class IrrepsArray:
         return IrrepsArray(irreps=irreps, array=array, list=list)
 
     @staticmethod
+    def as_irreps_array(array: Union[jnp.ndarray, "IrrepsArray"], *, backend=None):
+        """Convert an array to an IrrepsArray.
+
+        Args:
+            array (jax.numpy.ndarray or IrrepsArray): array to convert
+
+        Returns:
+            IrrepsArray
+        """
+        if isinstance(array, IrrepsArray):
+            return array
+
+        jnp = _infer_backend(array) if backend is None else backend
+        array = jnp.asarray(array)
+
+        if array.ndim == 0:
+            raise ValueError("IrrepsArray.as_irreps_array: Cannot convert an array of rank 0 to an IrrepsArray.")
+
+        return IrrepsArray(f"{array.shape[-1]}x0e", array)
+
+    @staticmethod
     def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> "IrrepsArray":
         r"""Create an IrrepsArray of zeros."""
         irreps = Irreps(irreps)
@@ -1019,6 +1040,7 @@ def concatenate(arrays: List[IrrepsArray], axis: int = -1) -> IrrepsArray:
     if len(arrays) == 0:
         raise ValueError("Cannot concatenate empty list of IrrepsArray")
 
+    arrays = [IrrepsArray.as_irreps_array(x) for x in arrays]
     axis = _standardize_axis(axis, arrays[0].ndim)[0]
 
     jnp = _infer_backend([x.array for x in arrays])

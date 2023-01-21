@@ -10,19 +10,20 @@ def test_transformer(keys):
     @hk.without_apply_rng
     @hk.transform
     def model(pos, src, dst, node_feat):
-        edge_attr = e3nn.spherical_harmonics("0e + 1e + 2e", pos[dst] - pos[src], True)
         edge_distance = e3nn.norm(pos[dst] - pos[src]).array[..., 0]
         edge_weight_cutoff = e3nn.sus(3.0 * (2.0 - edge_distance))
-        edge_scalar_attr = e3nn.soft_one_hot_linspace(
-            edge_distance, start=0.0, end=2.0, number=5, basis="smooth_finite", cutoff=True
+        edge_attr = e3nn.concatenate(
+            [
+                e3nn.soft_one_hot_linspace(edge_distance, start=0.0, end=2.0, number=5, basis="smooth_finite", cutoff=True),
+                e3nn.spherical_harmonics("1e + 2e", pos[dst] - pos[src], True),
+            ]
         )
-
         return Transformer(
             "0e + 2x1e + 2e",
             list_neurons=[32, 32],
             act=jax.nn.relu,
             num_heads=2,
-        )(src, dst, edge_scalar_attr, edge_weight_cutoff, edge_attr, node_feat)
+        )(src, dst, edge_weight_cutoff, edge_attr, node_feat)
 
     apply = jax.jit(model.apply)
 
