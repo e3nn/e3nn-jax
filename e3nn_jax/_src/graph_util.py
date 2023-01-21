@@ -131,7 +131,7 @@ def radius_graph(
     fill_src: int = -1,
     fill_dst: int = -1,
 ):
-    r"""Naive and inefficient version of ``torch_cluster.radius_graph``.
+    r"""Try to use ``matscipy.neighbours.neighbour_list`` instead.
 
     Args:
         pos (`jax.numpy.ndarray`): array of shape ``(n, 3)``
@@ -151,6 +151,7 @@ def radius_graph(
         >>> radius_graph(pos, 0.8, batch=batch)
         (Array([ 3,  7, 10, 11, 12, 18], dtype=int32), Array([ 7,  3, 11, 10, 18, 12], dtype=int32))
     """
+    # TODO(mario): replace with the function made for Allan once the project is finished
     if isinstance(pos, e3nn.IrrepsArray):
         pos = pos.array
 
