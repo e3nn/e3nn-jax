@@ -357,6 +357,7 @@ API
     api/radial
     api/haiku
     api/flax
+    api/s2
     api/extra
 
 .. _jax: https://github.com/google/jax
