@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `Signal on the Sphere` section in the documentation
 
+### Removed
+- **[BREAKING]** All the `haiku` modules from the main module. They are now in the `e3nn.haiku` submodule.
+
 
 ## [0.15.0] - 2022-01-20
 ### Added
