@@ -20,7 +20,7 @@ def reduced_tensor_product_basis(
     formula_or_irreps_list: Union[str, List[e3nn.Irreps]],
     *,
     epsilon: float = 1e-5,
-    keep_ir: Optional[List[e3nn.Irrep]] = None,
+    keep_ir: Optional[Union[e3nn.Irreps, List[e3nn.Irrep]]] = None,
     _use_optimized_implementation: bool = True,
     **irreps_dict,
 ) -> e3nn.IrrepsArray:
@@ -57,6 +57,10 @@ def reduced_tensor_product_basis(
           [ 0.     0.     0.   ]]]
     """
     if keep_ir is not None:
+        if isinstance(keep_ir, str):
+            keep_ir = e3nn.Irreps(keep_ir)
+        if isinstance(keep_ir, e3nn.Irrep):
+            keep_ir = [keep_ir]
         keep_ir = frozenset(e3nn.Irrep(ir) for ir in keep_ir)
 
     if isinstance(formula_or_irreps_list, (tuple, list)):
@@ -106,7 +110,7 @@ def reduced_symmetric_tensor_product_basis(
     degree: int,
     *,
     epsilon: float = 1e-5,
-    keep_ir: Optional[List[e3nn.Irrep]] = None,
+    keep_ir: Optional[Union[e3nn.Irreps, List[e3nn.Irrep]]] = None,
     _use_optimized_implementation: bool = True,
 ) -> e3nn.IrrepsArray:
     r"""Reduce a symmetric tensor product, usually called for a single irrep.
@@ -123,6 +127,10 @@ def reduced_symmetric_tensor_product_basis(
             where ``d`` is the dimension of ``irreps``.
     """
     if keep_ir is not None:
+        if isinstance(keep_ir, str):
+            keep_ir = e3nn.Irreps(keep_ir)
+        if isinstance(keep_ir, e3nn.Irrep):
+            keep_ir = [keep_ir]
         keep_ir = frozenset(e3nn.Irrep(ir) for ir in keep_ir)
 
     irreps = e3nn.Irreps(irreps)
@@ -139,7 +147,7 @@ def reduced_antisymmetric_tensor_product_basis(
     degree: int,
     *,
     epsilon: float = 1e-5,
-    keep_ir: Optional[List[e3nn.Irrep]] = None,
+    keep_ir: Optional[Union[e3nn.Irreps, List[e3nn.Irrep]]] = None,
     _use_optimized_implementation: bool = True,
 ) -> e3nn.IrrepsArray:
     r"""Reduce an antisymmetric tensor product.
@@ -156,6 +164,10 @@ def reduced_antisymmetric_tensor_product_basis(
             where ``d`` is the dimension of ``irreps``.
     """
     if keep_ir is not None:
+        if isinstance(keep_ir, str):
+            keep_ir = e3nn.Irreps(keep_ir)
+        if isinstance(keep_ir, e3nn.Irrep):
+            keep_ir = [keep_ir]
         keep_ir = frozenset(e3nn.Irrep(ir) for ir in keep_ir)
 
     irreps = e3nn.Irreps(irreps)
