@@ -10,7 +10,7 @@ def test_dropout(keys):
     @hk.without_apply_rng
     @hk.transform
     def b(rng, x, is_training=True):
-        m = e3nn.Dropout(p=0.75)
+        m = e3nn.haiku.Dropout(p=0.75)
         return m(rng, x, is_training)
 
     x = e3nn.normal(irreps, next(keys), ())

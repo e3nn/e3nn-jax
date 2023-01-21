@@ -74,6 +74,10 @@ def tensor_product(
         input2 = input2.regroup()
 
     if filter_ir_out is not None:
+        if isinstance(filter_ir_out, str):
+            filter_ir_out = Irreps(filter_ir_out)
+        if isinstance(filter_ir_out, Irrep):
+            filter_ir_out = [filter_ir_out]
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
     irreps_out = []

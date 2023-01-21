@@ -10,7 +10,7 @@ def test_normalization():
     @hk.without_apply_rng
     @hk.transform
     def model(x):
-        return e3nn.SymmetricTensorProduct((3,))(x)
+        return e3nn.haiku.SymmetricTensorProduct((3,))(x)
 
     w = jax.jit(model.init)(jax.random.PRNGKey(1), x)
     y = jax.jit(model.apply)(w, x)
