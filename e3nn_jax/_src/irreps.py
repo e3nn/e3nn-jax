@@ -1,12 +1,12 @@
 import collections
 import dataclasses
 import itertools
-from functools import partial
 from typing import Callable, List, NamedTuple, Tuple, Union
 
 import jax
 import jax.numpy as jnp
 import jax.scipy
+
 from e3nn_jax import generators, matrix_to_angles, perm, quaternion_to_angles, wigner_D
 
 IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
@@ -743,7 +743,6 @@ class Irreps(tuple):
         """Representation of the irreps."""
         return "+".join(f"{mul_ir}" for mul_ir in self)
 
-    @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_angles(self, alpha, beta, gamma, k=0):
         r"""Compute the D matrix from the angles.
 
@@ -758,7 +757,6 @@ class Irreps(tuple):
         """
         return jax.scipy.linalg.block_diag(*[ir.D_from_angles(alpha, beta, gamma, k) for mul, ir in self for _ in range(mul)])
 
-    @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_quaternion(self, q, k=0):
         r"""Matrix of the representation.
 
@@ -771,7 +769,6 @@ class Irreps(tuple):
         """
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
-    @partial(jax.jit, static_argnums=(0,), inline=True)
     def D_from_matrix(self, R):
         r"""Matrix of the representation.
 
