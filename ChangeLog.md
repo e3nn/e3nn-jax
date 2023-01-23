@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **[BREAKING]** All the `haiku` modules from the main module. They are now in the `e3nn.haiku` submodule.
 
 
+### Fixed
+- Removed `jax.jit` decorator to `Irreps.D_from_*` that was causing a bug.
+
 ## [0.15.0] - 2022-01-20
 ### Added
 - `e3nn.s2grid_vectors` and `e3nn.pad_to_plot_on_s2grid` to help plotting signals on the sphere
