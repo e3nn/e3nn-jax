@@ -356,7 +356,7 @@ def _rollout_sh(m: jnp.ndarray, lmax: int) -> jnp.ndarray:
     return m_full
 
 
-def s2grid_vectors(y: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+def s2grid_vectors(y: jnp.ndarray, alpha: jnp.ndarray) -> jnp.ndarray:
     r"""Calculate the points on the sphere.
 
     Args:
@@ -368,24 +368,24 @@ def s2grid_vectors(y: np.ndarray, alpha: np.ndarray) -> np.ndarray:
     """
     assert y.ndim == 1
     assert alpha.ndim == 1
-    return np.stack(
+    return jnp.stack(
         [
-            np.sqrt(1.0 - y[:, None] ** 2) * np.sin(alpha),
-            y[:, None] * np.ones_like(alpha),
-            np.sqrt(1.0 - y[:, None] ** 2) * np.cos(alpha),
+            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.sin(alpha),
+            y[:, None] * jnp.ones_like(alpha),
+            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.cos(alpha),
         ],
         axis=2,
     )
 
 
 def pad_to_plot_on_s2grid(
-    y: np.ndarray,  # [beta_res]
-    alpha: np.ndarray,  # [alpha_res]
-    signal: np.ndarray,  # [beta_res, alpha_res]
+    y: jnp.ndarray,  # [beta_res]
+    alpha: jnp.ndarray,  # [alpha_res]
+    signal: jnp.ndarray,  # [beta_res, alpha_res]
     *,
-    translation: Optional[np.ndarray] = None,
+    translation: Optional[jnp.ndarray] = None,
     scale_radius_by_amplitude: bool = False,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
     r"""Postprocess the borders of a given signal to allow the plot it with plotly.
 
     Args:
@@ -396,27 +396,27 @@ def pad_to_plot_on_s2grid(
         scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
 
     Returns:
-        r (np.ndarray): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
-        f (np.ndarray): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
+        r (jnp.ndarray): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
+        f (jnp.ndarray): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
     """
     assert signal.shape == (len(y), len(alpha))
 
-    f = np.array(signal)
+    f = jnp.array(signal)
 
     # y: [-1, 1]
-    one = np.ones_like(y, shape=(1,))
-    ones = np.ones_like(f, shape=(1, len(alpha)))
-    y = np.concatenate([-one, y, one])  # [res_beta + 2]
-    f = np.concatenate([np.mean(f[0]) * ones, f, np.mean(f[-1]) * ones], axis=0)  # [res_beta + 2, res_alpha]
+    one = jnp.ones_like(y, shape=(1,))
+    ones = jnp.ones_like(f, shape=(1, len(alpha)))
+    y = jnp.concatenate([-one, y, one])  # [res_beta + 2]
+    f = jnp.concatenate([jnp.mean(f[0]) * ones, f, jnp.mean(f[-1]) * ones], axis=0)  # [res_beta + 2, res_alpha]
 
     # alpha: [0, 2pi]
-    alpha = np.concatenate([alpha, alpha[:1]])  # [res_alpha + 1]
-    f = np.concatenate([f, f[:, :1]], axis=1)  # [res_beta + 2, res_alpha + 1]
+    alpha = jnp.concatenate([alpha, alpha[:1]])  # [res_alpha + 1]
+    f = jnp.concatenate([f, f[:, :1]], axis=1)  # [res_beta + 2, res_alpha + 1]
 
     r = s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
 
     if scale_radius_by_amplitude:
-        r *= np.abs(f)[:, :, None]
+        r = r * jnp.abs(f)[:, :, None]
 
     if translation is not None:
         r = r + translation
