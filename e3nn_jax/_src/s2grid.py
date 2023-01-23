@@ -41,36 +41,21 @@ from .spherical_harmonics import _sh_alpha, _sh_beta
 
 
 def _quadrature_weights_soft(b: int) -> np.ndarray:
-    r"""
-    function copied from ``lie_learn.spaces.S3``
+    r"""function copied from ``lie_learn.spaces.S3``
     Compute quadrature weights for the grid used by Kostelec & Rockmore [1, 2].
-
-    This grid is:
-    alpha = 2 pi i / 2b
-    beta = pi (2 j + 1) / 4b
-    gamma = 2 pi k / 2b
-    where 0 <= i, j, k < 2b are indices
-
-    Args:
-        b: bandwidth
-
-    Returns:
-        array of shape (2*b) containing quadrature weights
     """
-    k = np.arange(b)
-    w = np.array(
+    assert b % 2 == 0, "res_beta needs to be even for soft quadrature weights to be computed properly"
+    k = np.arange(b // 2)
+    return np.array(
         [
             (
-                (2.0 / b)
-                * np.sin(np.pi * (2.0 * j + 1.0) / (4.0 * b))
-                * ((1.0 / (2 * k + 1)) * np.sin((2 * j + 1) * (2 * k + 1) * np.pi / (4.0 * b))).sum()
+                (4.0 / b)
+                * np.sin(np.pi * (2.0 * j + 1.0) / (2.0 * b))
+                * ((1.0 / (2 * k + 1)) * np.sin((2 * j + 1) * (2 * k + 1) * np.pi / (2.0 * b))).sum()
             )
-            for j in np.arange(2 * b)
+            for j in np.arange(b)
         ],
     )
-
-    w /= 2.0 * ((2 * b) ** 2)
-    return w
 
 
 def s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -91,14 +76,13 @@ def s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarra
         betas = (i + 0.5) / res_beta * np.pi
         y = -np.cos(betas)  # minus sign is here to go from -1 to 1 in both quadratures
 
-        assert res_beta % 2 == 0, "res_beta needs to be even for soft quadrature weights to be computed properly"
-        qw = _quadrature_weights_soft(res_beta // 2) * res_beta**2
+        qw = _quadrature_weights_soft(res_beta)
     elif quadrature == "gausslegendre":
         y, qw = np.polynomial.legendre.leggauss(res_beta)
-        qw /= 2
     else:
         raise Exception("quadrature needs to be 'soft' or 'gausslegendre'")
 
+    qw /= 2.0
     i = np.arange(res_alpha)
     alpha = i / res_alpha * 2 * np.pi
     return y, alpha, qw
