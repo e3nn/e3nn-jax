@@ -10,7 +10,7 @@ import jax.scipy
 import numpy as np
 
 import e3nn_jax as e3nn
-from e3nn_jax import Irreps, axis_angle_to_angles, config, matrix_to_angles, quaternion_to_angles
+from e3nn_jax import Irreps
 from e3nn_jax._src.irreps import IntoIrreps
 
 
@@ -777,7 +777,7 @@ class IrrepsArray:
         Returns:
             `IrrepsArray`: rotated data
         """
-        return self.transform_by_angles(*quaternion_to_angles(q), k)
+        return self.transform_by_angles(*e3nn.quaternion_to_angles(q), k)
 
     def transform_by_axis_angle(self, axis: jnp.ndarray, angle: float, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by an axis and an angle.
@@ -790,7 +790,7 @@ class IrrepsArray:
         Returns:
             `IrrepsArray`: rotated data
         """
-        return self.transform_by_angles(*axis_angle_to_angles(axis, angle), k)
+        return self.transform_by_angles(*e3nn.axis_angle_to_angles(axis, angle), k)
 
     def transform_by_matrix(self, R: jnp.ndarray) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a matrix.
@@ -804,7 +804,19 @@ class IrrepsArray:
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
         k = (1 - d) / 2
-        return self.transform_by_angles(*matrix_to_angles(R), k)
+        return self.transform_by_angles(*e3nn.matrix_to_angles(R), k)
+
+    def transform_by_log_coordinates(self, log_coordinates: jnp.ndarray, k: int = 0) -> "IrrepsArray":
+        r"""Rotate data by a rotation given by log coordinates.
+
+        Args:
+            log_coordinates (`jax.numpy.ndarray`): log coordinates
+            k (int): parity operation
+
+        Returns:
+            `IrrepsArray`: rotated data
+        """
+        return self.transform_by_angles(*e3nn.log_coordinates_to_angles(log_coordinates), k)
 
     def _convert(self, irreps: IntoIrreps) -> "IrrepsArray":
         r"""Convert the list property into an equivalent irreps.
@@ -1202,7 +1214,7 @@ def normal(
     irreps = Irreps(irreps)
 
     if normalization is None:
-        normalization = config("irrep_normalization")
+        normalization = e3nn.config("irrep_normalization")
 
     if key is None:
         warnings.warn("e3nn.normal: the key (random seed) is not provided, use the hash of the irreps as key!")
