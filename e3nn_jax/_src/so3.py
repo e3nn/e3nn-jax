@@ -1,22 +1,6 @@
-import jax
-import jax.numpy as jnp
-import jax.scipy
 import numpy as np
 
 from e3nn_jax._src.su2 import su2_clebsch_gordan, su2_generators
-
-
-def naive_broadcast_decorator(func):
-    def wrapper(*args):
-        args = [jnp.asarray(a) for a in args]
-        shape = jnp.broadcast_shapes(*(arg.shape for arg in args))
-        args = [jnp.broadcast_to(arg, shape) for arg in args]
-        f = func
-        for _ in range(len(shape)):
-            f = jax.vmap(f)
-        return f(*args)
-
-    return wrapper
 
 
 def change_basis_real_to_complex(l: int) -> np.ndarray:
@@ -68,26 +52,3 @@ def generators(l: int) -> np.ndarray:
 
     assert np.all(np.abs(np.imag(X)) < 1e-5)
     return np.real(X)
-
-
-def wigner_D(l: int, alpha: jnp.ndarray, beta: jnp.ndarray, gamma: jnp.ndarray) -> jnp.ndarray:
-    r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
-
-    Args:
-        l (int): the representation order of the irrep
-        alpha (jnp.ndarray): the first Euler angle
-        beta (jnp.ndarray): the second Euler angle
-        gamma (jnp.ndarray): the third Euler angle
-
-    Returns:
-        jnp.ndarray: the Wigner-D matrix
-    """
-    alpha = alpha % (2 * jnp.pi)
-    beta = beta % (2 * jnp.pi)
-    gamma = gamma % (2 * jnp.pi)
-    X = generators(l)
-
-    def f(a, b, c):
-        return jax.scipy.linalg.expm(a * X[1]) @ jax.scipy.linalg.expm(b * X[0]) @ jax.scipy.linalg.expm(c * X[1])
-
-    return naive_broadcast_decorator(f)(alpha, beta, gamma)

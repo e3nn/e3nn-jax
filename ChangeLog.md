@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `Signal on the Sphere` section in the documentation
+- `e3nn.Irreps.D_from_log_coordinates`
+
+### Changed
+- Wigner D matrices are computed from the log coordinates which makes 1 instead of 3 calls to `expm`.
 
 ### Removed
 - **[BREAKING]** All the `haiku` modules from the main module. They are now in the `e3nn.haiku` submodule.
+- **[BREAKING]** `e3nn.wigner_D` in favor of `e3nn.Irrep.D_from_*`
 
 
 ### Fixed
