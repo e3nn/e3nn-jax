@@ -76,6 +76,14 @@ def test_optimized_reduced_symmetric_tensor_product_basis_order_3b():
     np.testing.assert_allclose(Q @ Q.T, P @ P.T, atol=1e-6, rtol=1e-6)
 
 
+def test_optimized_reduced_symmetric_tensor_product_basis_order_4():
+    irreps = e3nn.Irreps.spherical_harmonics(4)
+    Q = e3nn.reduced_symmetric_tensor_product_basis(irreps, 3)
+    P = e3nn.reduced_symmetric_tensor_product_basis(irreps, 3, _use_optimized_implementation=False)
+    assert Q.irreps == P.irreps
+    np.testing.assert_almost_equal(Q.array, P.array)
+
+
 def test_symmetric_tensor_product_basis_1():
     Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
     P = e3nn.reduced_tensor_product_basis("ijk=jki=ikj", i="0e + 1e")
