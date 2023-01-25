@@ -69,6 +69,7 @@ def _round_to_sqrt_rational(x, max_denominator):
 
 
 def round_to_sqrt_rational(x: np.ndarray, max_denominator=4096) -> np.ndarray:
+    """Round a number to the closest number of the form ``sqrt(p)/q`` for ``q <= max_denominator``"""
     x = np.array(x)
     if np.iscomplex(x).any():
         return _round_to_sqrt_rational(np.real(x), max_denominator) + 1j * _round_to_sqrt_rational(np.imag(x), max_denominator)
