@@ -122,7 +122,7 @@ class BatchNorm(hk.Module):
 
     It normalizes by the norm of the representations.
     Note that the norm is invariant only for orthonormal representations.
-    Irreducible representations `e3nn_jax.wigner_D` are orthonormal.
+    Irreducible representations are orthonormal.
 
     Args:
         irreps: Irreducible representations of the input and output (unchanged)

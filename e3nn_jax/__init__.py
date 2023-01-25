@@ -44,7 +44,7 @@ from e3nn_jax._src.rotation import (
     xyz_to_angles,
 )
 from e3nn_jax._src.su2 import su2_clebsch_gordan, su2_generators
-from e3nn_jax._src.so3 import clebsch_gordan, wigner_D, generators
+from e3nn_jax._src.so3 import clebsch_gordan, generators
 from e3nn_jax._src.instruction import Instruction
 from e3nn_jax._src.irreps import Irrep, MulIrrep, Irreps
 from e3nn_jax._src.irreps_array import IrrepsArray, concatenate, stack, mean, norm, normal
@@ -118,7 +118,6 @@ __all__ = [
     "su2_clebsch_gordan",  # not in docs
     "su2_generators",  # not in docs
     "clebsch_gordan",
-    "wigner_D",  # TODO could be moved into Irrep
     "generators",  # TODO could be moved into Irrep
     "Instruction",  # not in docs
     "Irrep",

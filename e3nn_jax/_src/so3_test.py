@@ -3,7 +3,7 @@ import math
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax import Irrep, angles_to_matrix, clebsch_gordan, generators, rand_angles, wigner_D
+from e3nn_jax import Irrep, angles_to_matrix, clebsch_gordan, generators, rand_angles
 
 
 def test_clebsch_gordan_symmetry():
@@ -33,6 +33,10 @@ def test_clebsch_gordan(keys, l1, l2, l3):
 
     C2 = jnp.einsum("ijk,zil,zjm,zkn->zlmn", C, D1, D2, D3)
     assert jnp.allclose(C, C2, atol=1e-3, rtol=1e-3)
+
+
+def wigner_D(l, a, b, c):
+    return Irrep(l, 1).D_from_angles(a, b, c)
 
 
 def test_cartesian(keys):

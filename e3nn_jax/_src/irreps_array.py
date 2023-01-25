@@ -741,6 +741,23 @@ class IrrepsArray:
     repeat_mul_by_last_axis = axis_to_mul
     factor_mul_to_last_axis = mul_to_axis
 
+    def transform_by_log_coordinates(self, log_coordinates: jnp.ndarray, k: int = 0) -> "IrrepsArray":
+        r"""Rotate data by a rotation given by log coordinates.
+
+        Args:
+            log_coordinates (`jax.numpy.ndarray`): log coordinates
+            k (int): parity operation
+
+        Returns:
+            `IrrepsArray`: rotated data
+        """
+        D = {ir: ir.D_from_log_coordinates(log_coordinates, k) for ir in {ir for _, ir in self.irreps}}
+        new_list = [
+            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
+            for (mul, ir), x in zip(self.irreps, self.list)
+        ]
+        return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1], self.dtype)
+
     def transform_by_angles(self, alpha: float, beta: float, gamma: float, k: int = 0) -> "IrrepsArray":
         r"""Rotate the data by angles according to the irreps.
 
@@ -759,13 +776,7 @@ class IrrepsArray:
             >>> x.transform_by_angles(jnp.pi, 0, 0)
             1x2e [ 0.1  0.   1.  -1.   1. ]
         """
-        # Optimization: we use only the list of arrays, not the array data
-        D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _, ir in self.irreps}}
-        new_list = [
-            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
-            for (mul, ir), x in zip(self.irreps, self.list)
-        ]
-        return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1], self.dtype)
+        return self.transform_by_log_coordinates(e3nn.angles_to_log_coordinates(alpha, beta, gamma), k)
 
     def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a quaternion.
@@ -805,18 +816,6 @@ class IrrepsArray:
         R = d[..., None, None] * R
         k = (1 - d) / 2
         return self.transform_by_angles(*e3nn.matrix_to_angles(R), k)
-
-    def transform_by_log_coordinates(self, log_coordinates: jnp.ndarray, k: int = 0) -> "IrrepsArray":
-        r"""Rotate data by a rotation given by log coordinates.
-
-        Args:
-            log_coordinates (`jax.numpy.ndarray`): log coordinates
-            k (int): parity operation
-
-        Returns:
-            `IrrepsArray`: rotated data
-        """
-        return self.transform_by_angles(*e3nn.log_coordinates_to_angles(log_coordinates), k)
 
     def _convert(self, irreps: IntoIrreps) -> "IrrepsArray":
         r"""Convert the list property into an equivalent irreps.

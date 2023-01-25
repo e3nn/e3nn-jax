@@ -406,8 +406,9 @@ def quaternion_to_axis_angle(q):
 
 
 def _normalize(x):
-    n = jnp.linalg.norm(x, axis=-1, keepdims=True)
-    return x / jnp.where(n > 0, n, 1.0)
+    n2 = jnp.sum(x**2, axis=-1, keepdims=True)
+    n2 = jnp.where(n2 > 0.0, n2, 1.0)
+    return x / jnp.sqrt(n2)
 
 
 def matrix_to_axis_angle(R):

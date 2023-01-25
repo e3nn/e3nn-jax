@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 import jax.scipy
 
-from e3nn_jax import generators, matrix_to_angles, perm, quaternion_to_angles, wigner_D
+from e3nn_jax import generators, matrix_to_angles, perm, quaternion_to_angles
 
 IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
 
@@ -104,10 +104,32 @@ class Irrep:
             if l == lmax:
                 break
 
+    def D_from_log_coordinates(self, log_coordinates, k=0):
+        r"""Matrix :math:`p^k D^l(\alpha)`.
+
+        (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`.
+
+        Args:
+            log_coordinates (`jax.numpy.ndarray`): of shape :math:`(..., 3)`
+            k (optional `jax.numpy.ndarray`): of shape :math:`(...)`
+                How many times the parity is applied.
+
+        Returns:
+            `jax.numpy.ndarray`: of shape :math:`(..., 2l+1, 2l+1)`
+
+        See Also:
+            Irreps.D_from_log_coordinates
+        """
+        k = jnp.asarray(k)
+        shape = jnp.broadcast_shapes(log_coordinates.shape[:-1], k.shape)
+        log_coordinates = jnp.broadcast_to(log_coordinates, shape + (3,))
+        k = jnp.broadcast_to(k, shape)
+        return _wigner_D_from_log_coordinates(self.l, log_coordinates) * self.p ** k[..., None, None]
+
     def D_from_angles(self, alpha, beta, gamma, k=0):
         r"""Matrix :math:`p^k D^l(\alpha, \beta, \gamma)`.
 
-        (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`, see `wigner_D`.
+        (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`.
 
         Args:
             alpha (`jax.numpy.ndarray`): of shape :math:`(...)`
@@ -123,12 +145,11 @@ class Irrep:
             `jax.numpy.ndarray`: of shape :math:`(..., 2l+1, 2l+1)`
 
         See Also:
-            e3nn.wigner_D
             Irreps.D_from_angles
         """
-        alpha, beta, gamma, k = jnp.broadcast_arrays(alpha, beta, gamma, k)
         k = jnp.asarray(k)
-        return wigner_D(self.l, alpha, beta, gamma) * self.p ** k[..., None, None]
+        alpha, beta, gamma, k = jnp.broadcast_arrays(alpha, beta, gamma, k)
+        return _wigner_D_from_angles(self.l, alpha, beta, gamma) * self.p ** k[..., None, None]
 
     def D_from_quaternion(self, q, k=0):
         r"""Matrix of the representation, see `Irrep.D_from_angles`.
@@ -743,6 +764,20 @@ class Irreps(tuple):
         """Representation of the irreps."""
         return "+".join(f"{mul_ir}" for mul_ir in self)
 
+    def D_from_log_coordinates(self, log_coordinates, k=0):
+        r"""Matrix of the representation.
+
+        Args:
+            log_coordinates (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
+            k (`jax.numpy.ndarray`, optional): array of shape :math:`(...)`
+
+        Returns:
+            `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+        """
+        return jax.scipy.linalg.block_diag(
+            *[ir.D_from_log_coordinates(log_coordinates, k) for mul, ir in self for _ in range(mul)]
+        )
+
     def D_from_angles(self, alpha, beta, gamma, k=0):
         r"""Compute the D matrix from the angles.
 
@@ -862,3 +897,61 @@ class _ChunkIndexSliceHelper:
             raise IndexError("Irreps.slice_by_chunk only supports slices.")
 
         return Irreps(self.irreps[index])
+
+
+def _naive_broadcast_decorator(func):
+    def wrapper(*args):
+        args = [jnp.asarray(a) for a in args]
+        shape = jnp.broadcast_shapes(*(arg.shape for arg in args))
+        args = [jnp.broadcast_to(arg, shape) for arg in args]
+        f = func
+        for _ in range(len(shape)):
+            f = jax.vmap(f)
+        return f(*args)
+
+    return wrapper
+
+
+def _wigner_D_from_angles(l: int, alpha: jnp.ndarray, beta: jnp.ndarray, gamma: jnp.ndarray) -> jnp.ndarray:
+    r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
+
+    Args:
+        l (int): the representation order of the irrep
+        alpha (jnp.ndarray): the first Euler angle
+        beta (jnp.ndarray): the second Euler angle
+        gamma (jnp.ndarray): the third Euler angle
+
+    Returns:
+        jnp.ndarray: the Wigner-D matrix
+    """
+    alpha = alpha % (2 * jnp.pi)
+    beta = beta % (2 * jnp.pi)
+    gamma = gamma % (2 * jnp.pi)
+    X = generators(l)
+
+    def f(a, b, c):
+        return jax.scipy.linalg.expm(a * X[1]) @ jax.scipy.linalg.expm(b * X[0]) @ jax.scipy.linalg.expm(c * X[1])
+
+    return _naive_broadcast_decorator(f)(alpha, beta, gamma)
+
+
+def _wigner_D_from_log_coordinates(l: int, log_coordinates: jnp.ndarray) -> jnp.ndarray:
+    r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
+
+    Args:
+        l (int): the representation order of the irrep
+        log_coordinates (jnp.ndarray): the log coordinates
+
+    Returns:
+        jnp.ndarray: the Wigner-D matrix
+    """
+    X = generators(l)
+
+    def func(log_coordinates):
+        return jax.scipy.linalg.expm(jnp.einsum("a,aij->ij", log_coordinates, X))
+
+    f = func
+    for _ in range(log_coordinates.ndim - 1):
+        f = jax.vmap(f)
+
+    return f(log_coordinates)
