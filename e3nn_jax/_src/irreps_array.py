@@ -751,10 +751,7 @@ class IrrepsArray:
         Returns:
             `IrrepsArray`: rotated data
         """
-<<<<<<< HEAD
         log_coordinates = log_coordinates.astype(self.dtype)
-=======
->>>>>>> 2b5ec0e (log_coordinates stuff)
         D = {ir: ir.D_from_log_coordinates(log_coordinates, k) for ir in {ir for _, ir in self.irreps}}
         new_list = [
             jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
@@ -780,19 +777,15 @@ class IrrepsArray:
             >>> x.transform_by_angles(jnp.pi, 0, 0)
             1x2e [ 0.1  0.   1.  -1.   1. ]
         """
-<<<<<<< HEAD
-        alpha = jnp.asarray(alpha, dtype=self.dtype)
-        beta = jnp.asarray(beta, dtype=self.dtype)
-        gamma = jnp.asarray(gamma, dtype=self.dtype)
+        alpha = alpha.astype(self.dtype)
+        beta = beta.astype(self.dtype)
+        gamma = gamma.astype(self.dtype)
         D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _, ir in self.irreps}}
         new_list = [
             jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
             for (mul, ir), x in zip(self.irreps, self.list)
         ]
         return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1], self.dtype)
-=======
-        return self.transform_by_log_coordinates(e3nn.angles_to_log_coordinates(alpha, beta, gamma), k)
->>>>>>> 2b5ec0e (log_coordinates stuff)
 
     def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a quaternion.
