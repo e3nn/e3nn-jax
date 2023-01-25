@@ -12,7 +12,7 @@ import numpy as np
 
 import e3nn_jax as e3nn
 from e3nn_jax import perm
-from e3nn_jax._src.util.math_numpy import basis_intersection, round_to_sqrt_rational
+from e3nn_jax._src.util.math_numpy import basis_intersection
 from e3nn_jax._src.util.prod import prod
 
 
@@ -223,11 +223,11 @@ def _reduced_tensor_product_basis(
             (fa, a) = bases[0]
             (fb, b) = bases[1]
             f = frozenset(fa | fb)
-            ab = reduce_basis_product(a, b, keep_ir, round_fn=round_to_sqrt_rational)
+            ab = reduce_basis_product(a, b, keep_ir)
             if len(subrepr_permutation(f, perm_repr)) == 1:
                 return ab.regroup()
             p = reduce_subgroup_permutation(f, perm_repr, dims)
-            ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon, round_fn=round_to_sqrt_rational)
+            ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon)
             return ab.regroup()
 
         # greedy algorithm
@@ -396,7 +396,7 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         # Compute basis product, two terms at a time.
         current_term = non_zero_terms_reshaped[0]
         for next_term in non_zero_terms_reshaped[1:]:
-            current_term = reduce_basis_product(current_term, next_term, round_fn=round_to_sqrt_rational)
+            current_term = reduce_basis_product(current_term, next_term)
         product_basis = current_term
 
         sum_of_permuted_bases = None
