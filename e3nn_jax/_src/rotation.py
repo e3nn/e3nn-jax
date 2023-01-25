@@ -326,6 +326,7 @@ def angles_to_matrix(alpha, beta, gamma):
 
 def matrix_to_angles(R):
     r"""Conversion from matrix to angles.
+    Warning: this function is not differentiable at rotation angles :math:`\pi`.
 
     Args:
         R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
@@ -413,6 +414,7 @@ def _normalize(x):
 
 def matrix_to_axis_angle(R):
     r"""Conversion from matrix to axis-angle.
+    Warning: this function is not differentiable at rotation angles :math:`\pi`.
 
     Args:
         R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
@@ -422,8 +424,8 @@ def matrix_to_axis_angle(R):
         angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
     """
     # assert jnp.allclose(jnp.linalg.det(R), 1)
-    tr = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]
-    angle = jnp.arccos(jnp.clip((tr - 1) / 2, -1, 1))
+    trace = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]
+    angle = jnp.arccos(jnp.clip((trace - 1.0) / 2.0, -1.0, 1.0))
     axis = jnp.stack(
         [
             R[..., 2, 1] - R[..., 1, 2],
@@ -652,7 +654,7 @@ def angles_to_xyz(alpha, beta):
 
 
 def xyz_to_angles(xyz):
-    r"""Convert a point :math:`\vec r = (x, y, z)` on the sphere into angles :math:`(\alpha, \beta)`.
+    r"""The rotation :math:`R(\alpha, \beta, 0)` such that :math:`\vec r = R \vec e_y`.
 
     .. math::
 
