@@ -751,6 +751,7 @@ class IrrepsArray:
         Returns:
             `IrrepsArray`: rotated data
         """
+        log_coordinates = log_coordinates.astype(self.dtype)
         D = {ir: ir.D_from_log_coordinates(log_coordinates, k) for ir in {ir for _, ir in self.irreps}}
         new_list = [
             jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
@@ -776,7 +777,15 @@ class IrrepsArray:
             >>> x.transform_by_angles(jnp.pi, 0, 0)
             1x2e [ 0.1  0.   1.  -1.   1. ]
         """
-        return self.transform_by_log_coordinates(e3nn.angles_to_log_coordinates(alpha, beta, gamma), k)
+        alpha = alpha.astype(self.dtype)
+        beta = beta.astype(self.dtype)
+        gamma = gamma.astype(self.dtype)
+        D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _, ir in self.irreps}}
+        new_list = [
+            jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
+            for (mul, ir), x in zip(self.irreps, self.list)
+        ]
+        return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1], self.dtype)
 
     def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a quaternion.
@@ -788,7 +797,7 @@ class IrrepsArray:
         Returns:
             `IrrepsArray`: rotated data
         """
-        return self.transform_by_angles(*e3nn.quaternion_to_angles(q), k)
+        return self.transform_by_log_coordinates(*e3nn.quaternion_to_log_coordinates(q), k)
 
     def transform_by_axis_angle(self, axis: jnp.ndarray, angle: float, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by an axis and an angle.
@@ -801,7 +810,7 @@ class IrrepsArray:
         Returns:
             `IrrepsArray`: rotated data
         """
-        return self.transform_by_angles(*e3nn.axis_angle_to_angles(axis, angle), k)
+        return self.transform_by_log_coordinates(*e3nn.axis_angle_to_log_coordinates(axis, angle), k)
 
     def transform_by_matrix(self, R: jnp.ndarray) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a matrix.

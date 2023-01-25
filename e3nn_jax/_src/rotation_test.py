@@ -173,3 +173,20 @@ def test_matrix_xyz(keys):
 
     y = jnp.einsum("zij,zj->zi", e3nn.matrix_z(phi), x)
     assert jnp.max(jnp.abs(x[:, 2] - y[:, 2])) < float_tolerance
+
+
+# TODO: fix this
+# def test_matrix_to_axis_angle_stability():
+#     R = jnp.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+#     axis, angle = jax.jacobian(e3nn.matrix_to_axis_angle)(R)
+#     assert jnp.isnan(axis).sum() == 0
+#     assert jnp.isnan(angle).sum() == 0
+
+
+# TODO: fix this
+# def test_matrix_to_angles_stability():
+#     R = jnp.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+#     alpha, beta, gamma = jax.jacobian(e3nn.matrix_to_angles)(R)
+#     assert jnp.isnan(alpha).sum() == 0
+#     assert jnp.isnan(beta).sum() == 0
+#     assert jnp.isnan(gamma).sum() == 0
