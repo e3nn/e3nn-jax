@@ -399,7 +399,11 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         # Compute basis product, two terms at a time.
         current_term = non_zero_terms_reshaped[0]
         for next_term in non_zero_terms_reshaped[1:]:
+<<<<<<< HEAD
             current_term = reduce_basis_product(current_term, next_term)
+=======
+            current_term = reduce_basis_product(current_term, next_term, round_fn=round_to_sqrt_rational)
+>>>>>>> 4b9fe59 (fix _optimized_reduced_symmetric_tensor_product_basis)
         product_basis = current_term
 
         sum_of_permuted_bases = None
