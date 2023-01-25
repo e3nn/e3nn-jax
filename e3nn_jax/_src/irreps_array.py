@@ -797,7 +797,7 @@ class IrrepsArray:
         Returns:
             `IrrepsArray`: rotated data
         """
-        return self.transform_by_log_coordinates(*e3nn.quaternion_to_log_coordinates(q), k)
+        return self.transform_by_log_coordinates(e3nn.quaternion_to_log_coordinates(q), k)
 
     def transform_by_axis_angle(self, axis: jnp.ndarray, angle: float, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by an axis and an angle.
