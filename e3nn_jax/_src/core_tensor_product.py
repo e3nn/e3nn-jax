@@ -3,7 +3,7 @@
 import collections
 import itertools
 from functools import lru_cache, partial
-from math import sqrt
+from math import prod, sqrt
 from typing import Callable, List, Optional, Tuple, Union
 
 import jax
@@ -13,7 +13,6 @@ from jax.experimental.sparse import BCOO, sparsify
 from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
 from e3nn_jax._src.einsum import einsum as opt_einsum
 from e3nn_jax._src.util.dtype import get_pytree_dtype
-from e3nn_jax._src.util.prod import prod
 
 
 class FunctionalTensorProduct:

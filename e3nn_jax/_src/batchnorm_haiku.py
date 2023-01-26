@@ -1,11 +1,11 @@
 from functools import partial
+from math import prod
 
 import haiku as hk
 import jax
 import jax.numpy as jnp
 
 from e3nn_jax import Irreps, IrrepsArray, config
-from e3nn_jax._src.util.prod import prod
 
 
 @partial(jax.jit, static_argnums=(5, 6, 7, 8, 9, 10, 11))
