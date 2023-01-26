@@ -8,9 +8,12 @@ from e3nn_jax import Irreps, IrrepsArray
 def overload_for_irreps_without_array(irrepsarray_argnums=None, irrepsarray_argnames=None, shape=()):
     def decorator(func):
         # TODO: this is very bad to use a function from the internal API
-        from jax._src.api import _infer_argnums_and_argnames
+        try:
+            from jax._src.api import _infer_argnums_and_argnames as infer_argnums_and_argnames
+        except ImportError:
+            from jax._src.api_util import infer_argnums_and_argnames
 
-        argnums, argnames = _infer_argnums_and_argnames(inspect.signature(func), irrepsarray_argnums, irrepsarray_argnames)
+        argnums, argnames = infer_argnums_and_argnames(inspect.signature(func), irrepsarray_argnums, irrepsarray_argnames)
 
         @wraps(func)
         def wrapper(*args, **kwargs):
