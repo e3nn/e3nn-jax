@@ -7,6 +7,7 @@ History of the different versions of the code:
 """
 import functools
 import itertools
+from math import prod
 from typing import FrozenSet, Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -14,7 +15,6 @@ import numpy as np
 import e3nn_jax as e3nn
 from e3nn_jax import perm
 from e3nn_jax._src.util.math_numpy import basis_intersection, round_to_sqrt_rational
-from e3nn_jax._src.util.prod import prod
 
 
 def reduced_tensor_product_basis(
