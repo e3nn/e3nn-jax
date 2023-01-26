@@ -54,7 +54,7 @@ def assert_output_dtype(fun: Callable, *args, **kwargs):
         raise ValueError("This test requires jax_enable_x64=True")
 
     dtype = get_pytree_dtype(args, kwargs, real_part=True)
-    assert get_pytree_dtype(jax.eval_shape(fun, *args, **kwargs), dtype, real_part=True) == dtype
+    assert get_pytree_dtype(jax.eval_shape(fun, *args, **kwargs), default_dtype=dtype, real_part=True) == dtype
 
     def astype(x, dtype):
         if x.dtype.kind == "f":
@@ -69,7 +69,7 @@ def assert_output_dtype(fun: Callable, *args, **kwargs):
         kwargs = jax.tree_util.tree_map(lambda x: astype(x, dtype), kwargs)
 
         out = jax.eval_shape(fun, *args, **kwargs)
-        if get_pytree_dtype(out, dtype, real_part=True) != dtype:
+        if get_pytree_dtype(out, default_dtype=dtype, real_part=True) != dtype:
             in_dtype = jax.tree_util.tree_map(lambda x: x.dtype, args)
             out_dtype = jax.tree_util.tree_map(lambda x: x.dtype, out)
 
