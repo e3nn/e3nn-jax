@@ -4,7 +4,7 @@ import jax.numpy as jnp
 # matrix
 
 
-def rand_matrix(key, shape, dtype=jnp.float32):
+def rand_matrix(key, shape=(), dtype=jnp.float32):
     r"""Random rotation matrix.
 
     Args:
@@ -20,7 +20,7 @@ def rand_matrix(key, shape, dtype=jnp.float32):
 # angles
 
 
-def identity_angles(shape, dtype=jnp.float32):
+def identity_angles(shape=(), dtype=jnp.float32):
     r"""Angles of the identity rotation.
 
     Args:
@@ -34,7 +34,7 @@ def identity_angles(shape, dtype=jnp.float32):
     return jnp.zeros(shape, dtype), jnp.zeros(shape, dtype), jnp.zeros(shape, dtype)
 
 
-def rand_angles(key, shape, dtype=jnp.float32):
+def rand_angles(key, shape=(), dtype=jnp.float32):
     r"""Random rotation angles.
 
     Args:
@@ -92,7 +92,7 @@ def inverse_angles(a, b, c):
 # quaternions
 
 
-def identity_quaternion(shape, dtype=jnp.float32):
+def identity_quaternion(shape=(), dtype=jnp.float32):
     r"""Quaternion of identity rotation.
 
     Args:
@@ -105,7 +105,7 @@ def identity_quaternion(shape, dtype=jnp.float32):
     return q.at[..., 0].set(1)  # or -1...
 
 
-def rand_quaternion(key, shape, dtype=jnp.float32):
+def rand_quaternion(key, shape=(), dtype=jnp.float32):
     r"""Generate random quaternion.
 
     Args:
@@ -157,7 +157,7 @@ def inverse_quaternion(q):
 # axis-angle
 
 
-def rand_axis_angle(key, shape, dtype=jnp.float32):
+def rand_axis_angle(key, shape=(), dtype=jnp.float32):
     r"""Generate random rotation as axis-angle.
 
     Args:
@@ -192,7 +192,7 @@ def compose_axis_angle(axis1, angle1, axis2, angle2):
 # log coordinates
 
 
-def identity_log_coordinates(shape, dtype=jnp.float32):
+def identity_log_coordinates(shape=(), dtype=jnp.float32):
     r"""Log coordinates of identity rotation.
 
     Args:
@@ -204,7 +204,7 @@ def identity_log_coordinates(shape, dtype=jnp.float32):
     return jnp.zeros(shape + (3,), dtype=dtype)
 
 
-def rand_log_coordinates(key, shape, dtype=jnp.float32):
+def rand_log_coordinates(key, shape=(), dtype=jnp.float32):
     r"""Generate random rotation as log coordinates.
 
     Args:
