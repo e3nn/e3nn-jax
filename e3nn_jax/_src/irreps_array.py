@@ -777,9 +777,9 @@ class IrrepsArray:
             >>> x.transform_by_angles(jnp.pi, 0, 0)
             1x2e [ 0.1  0.   1.  -1.   1. ]
         """
-        alpha = alpha.astype(self.dtype)
-        beta = beta.astype(self.dtype)
-        gamma = gamma.astype(self.dtype)
+        alpha = jnp.asarray(alpha, dtype=self.dtype)
+        beta = jnp.asarray(beta, dtype=self.dtype)
+        gamma = jnp.asarray(gamma, dtype=self.dtype)
         D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _, ir in self.irreps}}
         new_list = [
             jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
