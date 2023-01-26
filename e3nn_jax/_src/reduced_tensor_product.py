@@ -3,6 +3,7 @@ History of the different versions of the code:
 - Initially developed by Mario Geiger in `e3nn`
 - Ported in julia by Song Kim https://github.com/songk42/ReducedTensorProduct.jl
 - Ported in `e3nn-jax` by Mario Geiger
+- Optimized the symmetric case by Ameya Daigavane and Mario Geiger
 """
 import functools
 import itertools
@@ -12,7 +13,7 @@ import numpy as np
 
 import e3nn_jax as e3nn
 from e3nn_jax import perm
-from e3nn_jax._src.util.math_numpy import basis_intersection
+from e3nn_jax._src.util.math_numpy import basis_intersection, round_to_sqrt_rational
 from e3nn_jax._src.util.prod import prod
 
 
@@ -190,8 +191,10 @@ def _reduced_tensor_product_basis(
         and len(irreps_tuple) > 1
         and irreps_tuple[0].num_irreps > 1
     ):
-        return _optimized_reduced_symmetric_tensor_product_basis(
-            irreps_tuple[0], len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir
+        return _rounding(
+            _optimized_reduced_symmetric_tensor_product_basis(
+                irreps_tuple[0], len(irreps_tuple), epsilon=epsilon, keep_ir=keep_ir
+            )
         )
 
     # General case
@@ -228,7 +231,7 @@ def _reduced_tensor_product_basis(
                 return ab.regroup()
             p = reduce_subgroup_permutation(f, perm_repr, dims)
             ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon)
-            return ab.regroup()
+            return _rounding(ab.regroup())
 
         # greedy algorithm
         min_p = np.inf
@@ -621,3 +624,9 @@ def reduce_permutation_matrix(
     np.testing.assert_allclose(Q @ Q.T, np.eye(d_sym))
 
     return Q.reshape(d_sym, *dims)
+
+
+def _rounding(x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+    # print(round_to_sqrt_rational(1/2 + 1e-13, 2**20) == 0.5)  # True
+    # print(round_to_sqrt_rational(1/2 + 1e-12, 2**20) == 0.5)  # False
+    return e3nn.IrrepsArray(x.irreps, round_to_sqrt_rational(x.array, 2**20))

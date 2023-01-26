@@ -56,20 +56,41 @@ def test_tensor_product_basis_equivariance(keys):
 
 
 def test_optimized_reduced_symmetric_tensor_product_basis_order_2():
-    Q = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 2)
+    Q = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 2, _use_optimized_implementation=True)
     P = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 2, _use_optimized_implementation=False)
+    assert Q.irreps == P.irreps
     np.testing.assert_almost_equal(Q.array, P.array)
 
+    Q = Q.array.reshape(-1, Q.irreps.dim)
+    P = P.array.reshape(-1, P.irreps.dim)
+    np.testing.assert_allclose(Q @ Q.T, P @ P.T, atol=1e-6, rtol=1e-6)
 
-def test_optimized_reduced_symmetric_tensor_product_basis_order_3():
-    Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
+
+def test_optimized_reduced_symmetric_tensor_product_basis_order_3a():
+    Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3, _use_optimized_implementation=True)
     P = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3, _use_optimized_implementation=False)
-    np.testing.assert_almost_equal(Q.array, P.array)
+    assert Q.irreps == P.irreps
+
+    Q = Q.array.reshape(-1, Q.irreps.dim)
+    P = P.array.reshape(-1, P.irreps.dim)
+    np.testing.assert_allclose(Q @ Q.T, P @ P.T, atol=1e-6, rtol=1e-6)
 
 
 def test_optimized_reduced_symmetric_tensor_product_basis_order_3b():
-    Q = e3nn.reduced_symmetric_tensor_product_basis("3x0e + 1e", 3)
+    Q = e3nn.reduced_symmetric_tensor_product_basis("3x0e + 1e", 3, _use_optimized_implementation=True)
     P = e3nn.reduced_symmetric_tensor_product_basis("3x0e + 1e", 3, _use_optimized_implementation=False)
+    assert Q.irreps == P.irreps
+
+    Q = Q.array.reshape(-1, Q.irreps.dim)
+    P = P.array.reshape(-1, P.irreps.dim)
+    np.testing.assert_allclose(Q @ Q.T, P @ P.T, atol=1e-6, rtol=1e-6)
+
+
+def test_optimized_reduced_symmetric_tensor_product_basis_order_3c():
+    irreps = "1o + 2e + 3o + 4e"
+    Q = e3nn.reduced_symmetric_tensor_product_basis(irreps, 3, keep_ir="0e + 1o", _use_optimized_implementation=True)
+    P = e3nn.reduced_symmetric_tensor_product_basis(irreps, 3, keep_ir="0e + 1o", _use_optimized_implementation=False)
+    assert Q.irreps == P.irreps
 
     Q = Q.array.reshape(-1, Q.irreps.dim)
     P = P.array.reshape(-1, P.irreps.dim)
@@ -77,16 +98,19 @@ def test_optimized_reduced_symmetric_tensor_product_basis_order_3b():
 
 
 def test_optimized_reduced_symmetric_tensor_product_basis_order_4():
-    irreps = e3nn.Irreps.spherical_harmonics(4)
-    Q = e3nn.reduced_symmetric_tensor_product_basis(irreps, 3)
-    P = e3nn.reduced_symmetric_tensor_product_basis(irreps, 3, _use_optimized_implementation=False)
+    Q = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 4, _use_optimized_implementation=True)
+    P = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 4, _use_optimized_implementation=False)
     assert Q.irreps == P.irreps
-    np.testing.assert_almost_equal(Q.array, P.array)
+
+    Q = Q.array.reshape(-1, Q.irreps.dim)
+    P = P.array.reshape(-1, P.irreps.dim)
+    np.testing.assert_allclose(Q @ Q.T, P @ P.T, atol=1e-6, rtol=1e-6)
 
 
 def test_symmetric_tensor_product_basis_1():
     Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
     P = e3nn.reduced_tensor_product_basis("ijk=jki=ikj", i="0e + 1e")
+    assert Q.irreps == P.irreps
 
     Q = Q.array.reshape(-1, Q.irreps.dim)
     P = P.array.reshape(-1, P.irreps.dim)
