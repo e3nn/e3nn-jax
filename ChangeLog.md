@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `Signal on the Sphere` section in the documentation
 - `e3nn.Irreps.D_from_log_coordinates`
+- `rotation_angle_from_*` functions
 
 ### Changed
 - Wigner D matrices are computed from the log coordinates which makes 1 instead of 3 calls to `expm`.
