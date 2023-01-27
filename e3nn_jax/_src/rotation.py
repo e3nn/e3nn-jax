@@ -198,7 +198,9 @@ def rotation_angle_from_quaternion(q1, q2):
         `jax.numpy.ndarray`: array of shape :math:`(...)`
     """
     q1, q2 = jnp.broadcast_arrays(q1, q2)
-    return 2.0 * jnp.arccos(jnp.abs(jnp.sum(q1 * q2, axis=-1)))
+    dot = jnp.sum(q1 * q2, axis=-1)
+    cap = jnp.minimum(jnp.abs(dot), 1.0)
+    return 2.0 * jnp.arccos(cap)
 
 
 # axis-angle
@@ -626,8 +628,10 @@ def log_coordinates_to_axis_angle(log_coordinates):
         axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
         angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
     """
-    axis = _normalize(log_coordinates)
-    angle = jnp.linalg.norm(log_coordinates, axis=-1)
+    n2 = jnp.sum(log_coordinates**2, axis=-1)
+    n2_ = jnp.where(n2 > 0.0, n2, 1.0)
+    axis = log_coordinates / jnp.sqrt(n2_)[..., None]
+    angle = jnp.where(n2 > 0.0, jnp.sqrt(n2_), 0.0)
     return axis, angle
 
 
