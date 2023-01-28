@@ -1383,7 +1383,7 @@ class _MulIndexSliceHelper:
 
     def __getitem__(self, index: slice) -> Irreps:
         if not isinstance(index, slice):
-            raise IndexError("IrrepsArray.slice_by_mul only supports slices.")
+            raise IndexError("IrrepsArray.slice_by_mul only supports one slices (like IrrepsArray.slice_by_mul[2:4]).")
         start, stop, stride = index.indices(self.irreps_array.irreps.num_irreps)
         if stride != 1:
             raise NotImplementedError("IrrepsArray.slice_by_mul does not support strides.")
@@ -1411,7 +1411,7 @@ class _DimIndexSliceHelper:
 
     def __getitem__(self, index: slice) -> Irreps:
         if not isinstance(index, slice):
-            raise IndexError("IrrepsArray.slice_by_dim only supports slices.")
+            raise IndexError("IrrepsArray.slice_by_dim only supports slices (like IrrepsArray.slice_by_dim[2:4]).")
         return self.irreps_array[..., index]
 
 
@@ -1423,7 +1423,7 @@ class _ChunkIndexSliceHelper:
 
     def __getitem__(self, index: slice) -> Irreps:
         if not isinstance(index, slice):
-            raise IndexError("IrrepsArray.slice_by_chunk only supports slices.")
+            raise IndexError("IrrepsArray.slice_by_chunk only supports slices (like IrrepsArray.slice_by_chunk[2:4]).")
         start, stop, stride = index.indices(len(self.irreps_array.irreps))
 
         return IrrepsArray.from_list(
