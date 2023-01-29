@@ -422,6 +422,21 @@ def _check_parities(irreps: e3nn.Irreps, p_val: Optional[int] = None, p_arg: Opt
             )
         return p_val, p_arg
 
+    if p_val is not None:
+        if p_even is None:
+            p_even = p_val
+        if p_even != p_val:
+            raise ValueError(f"irrep ({irreps}) parities are not compatible with the given p_val ({p_val}).")
+
+    if p_arg is not None:
+        if p_odd is None and p_even is not None:
+            p_odd = p_even * p_arg
+        elif p_odd is not None and p_even is None:
+            p_even = p_odd * p_arg
+        elif p_odd is not None and p_even is not None:
+            if p_odd != p_even * p_arg:
+                raise ValueError(f"irrep ({irreps}) parities are not compatible with the given p_arg ({p_arg}).")
+
     if p_even is not None and p_odd is not None:
         return p_even, p_even * p_odd
 
@@ -500,6 +515,23 @@ def from_s2grid(
     return e3nn.IrrepsArray(irreps, int_b)
 
 
+def _normalization(lmax: int, normalization: str, dtype) -> jnp.ndarray:
+    if normalization == "component":
+        # normalize such that all l has the same variance on the sphere
+        # given that all component has mean 0 and variance 1
+        return (
+            jnp.sqrt(4 * jnp.pi) * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], dtype) / jnp.sqrt(lmax + 1)
+        )
+    if normalization == "norm":
+        # normalize such that all l has the same variance on the sphere
+        # given that all component has mean 0 and variance 1/(2L+1)
+        return jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, dtype) / jnp.sqrt(lmax + 1)
+    if normalization == "integral":
+        return jnp.ones(lmax + 1, dtype)
+
+    raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
+
+
 def to_s2grid(
     coeffs: e3nn.IrrepsArray,
     res_beta: int,
@@ -522,6 +554,8 @@ def to_s2grid(
         normalization ({'norm', 'component', 'integral'}): normalization of the basis
         quadrature (str): "soft" or "gausslegendre"
         fft (bool): True if we use FFT, False if we use the naive implementation
+        p_val (int, optional): parity of the value of the signal
+        p_arg (int, optional): parity of the argument of the signal
 
     Returns:
         `SphericalSignal`: signal on the sphere of shape ``(..., y/beta, alpha)``
@@ -542,23 +576,7 @@ def to_s2grid(
 
     _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature, dtype=coeffs.dtype)
 
-    n = None
-    if normalization == "component":
-        # normalize such that all l has the same variance on the sphere
-        # given that all component has mean 0 and variance 1
-        n = (
-            jnp.sqrt(4 * jnp.pi)
-            * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], coeffs.dtype)
-            / jnp.sqrt(lmax + 1)
-        )
-    elif normalization == "norm":
-        # normalize such that all l has the same variance on the sphere
-        # given that all component has mean 0 and variance 1/(2L+1)
-        n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, coeffs.dtype) / jnp.sqrt(lmax + 1)
-    elif normalization == "integral":
-        n = jnp.ones(lmax + 1, coeffs.dtype)
-    else:
-        raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
+    n = _normalization(lmax, normalization, coeffs.dtype)
 
     m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), coeffs.dtype)  # [l, m, j]
     m_out = jnp.asarray(_expand_matrix(coeffs.irreps.ls), coeffs.dtype)  # [l, m, i]
@@ -578,6 +596,52 @@ def to_s2grid(
         signal = jnp.einsum("...bm,am->...ba", signal_b, sha)  # [..., res_beta, res_alpha]
 
     return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
+
+
+def to_s2point(
+    coeffs: e3nn.IrrepsArray,
+    point: e3nn.IrrepsArray,
+    *,
+    normalization: str = "component",
+) -> e3nn.IrrepsArray:
+    """Evaluate a signal on the sphere given by the coefficient in the spherical harmonics basis.
+
+    It computes the same thing as :func:`e3nn_jax.to_s2grid` but at a single point.
+
+    Args:
+        coeffs (`e3nn_jax.IrrepsArray`): coefficient array of shape ``(*shape1, irreps)``
+        point (`jax.numpy.ndarray`): point on the sphere of shape ``(*shape2, 3)``
+        normalization ({'norm', 'component', 'integral'}): normalization of the basis
+
+    Returns:
+        `jax.numpy.ndarray`: the value of the signal at the point, of shape ``(*shape1, *shape2, irreps)``
+    """
+    coeffs = coeffs.regroup()
+
+    if not all(mul == 1 for mul, _ in coeffs.irreps):
+        raise ValueError(f"Multiplicities should be ones. Got {coeffs.irreps}.")
+
+    if not isinstance(point, e3nn.IrrepsArray):
+        raise TypeError(f"point should be an e3nn.IrrepsArray, got {type(point)}.")
+
+    if point.irreps not in ["1e", "1o"]:
+        raise ValueError(f"point should be of irreps '1e' or '1o', got {point.irreps}.")
+
+    p_arg = point.irreps[0].ir.p
+    p_val, _ = _check_parities(coeffs.irreps, None, p_arg)
+
+    sh = e3nn.spherical_harmonics(coeffs.irreps.ls, point, True, "integral")  # [*shape2, irreps]
+    n = _normalization(sh.irreps.lmax, normalization, coeffs.dtype)[jnp.array(sh.irreps.ls)]  # [num_irreps]
+    sh = sh * n
+
+    shape1 = coeffs.shape[:-1]
+    coeffs = coeffs.reshape((-1, coeffs.shape[-1]))
+    shape2 = point.shape[:-1]
+    sh = sh.reshape((-1, sh.shape[-1]))
+
+    return e3nn.IrrepsArray(
+        {1: "0e", -1: "0o"}[p_val], jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,))
+    )
 
 
 def _rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:

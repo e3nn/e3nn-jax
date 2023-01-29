@@ -8,6 +8,9 @@ Signal on the Sphere
 .. autofunction:: e3nn_jax.to_s2grid
 
 
+.. autofunction:: e3nn_jax.to_s2point
+
+
 .. autofunction:: e3nn_jax.s2_irreps
 
 

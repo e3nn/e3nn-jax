@@ -90,3 +90,21 @@ def test_fft_dtype():
 
     assert_output_dtype_matches_input_dtype(lambda x: _rfft(x, 4), jnp.ones((10, 11)))
     assert_output_dtype_matches_input_dtype(lambda x: _irfft(x, 11), jnp.ones((10, 11)))
+
+
+@pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
+@pytest.mark.parametrize("normalization", ["component", "norm", "integral"])
+@pytest.mark.parametrize("irreps", ["0e + 1e", "2e + 1o"])
+def test_to_s2point(keys, irreps, normalization, quadrature):
+    jax.config.update("jax_enable_x64", True)
+
+    coeffs = e3nn.normal(irreps, keys[0], ())
+
+    s = e3nn.to_s2grid(coeffs, 20, 19, normalization=normalization, quadrature=quadrature)
+
+    vec = e3nn.IrrepsArray({1: "1e", -1: "1o"}[s.p_arg], s.grid_vectors)
+    values = e3nn.to_s2point(coeffs, vec, normalization=normalization)
+
+    np.testing.assert_allclose(values.array[..., 0], s.grid_values, atol=1e-7, rtol=1e-7)
+
+    jax.config.update("jax_enable_x64", False)
