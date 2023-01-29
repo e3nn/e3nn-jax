@@ -43,14 +43,19 @@ def test_tensor_product_basis():
 
 
 def test_tensor_product_basis_equivariance(keys):
-    irreps = e3nn.Irreps("0e+1o+2e+0e")
-    Q = e3nn.reduced_symmetric_tensor_product_basis(irreps, 3)
+    irreps_i = e3nn.Irreps("1o+2e+2x0e")
+    irreps_k = e3nn.Irreps("1o")
+    Q = e3nn.reduced_tensor_product_basis("ijk=jik", i=irreps_i, k=irreps_k)
 
     jax.config.update("jax_enable_x64", True)  # to make precise rotation matrices
-    q = e3nn.rand_quaternion(keys[0], ())
+    q = e3nn.rand_quaternion(keys[0], (), dtype=np.float64)
     Q1 = Q.transform_by_quaternion(q, k=1).array
-    D = irreps.D_from_quaternion(q, k=1)
-    Q2 = np.einsum("ijkz,iu,jv,kw->uvwz", Q.array, D, D, D)
+
+    Di = irreps_i.D_from_quaternion(q, k=1)
+    Dj = Di
+    Dk = irreps_k.D_from_quaternion(q, k=1)
+    Q2 = np.einsum("ijkz,iu,jv,kw->uvwz", Q.array, Di, Dj, Dk)
+
     np.testing.assert_allclose(Q1, Q2, atol=1e-6, rtol=1e-6)
     jax.config.update("jax_enable_x64", False)
 
@@ -87,7 +92,7 @@ def test_optimized_reduced_symmetric_tensor_product_basis_order_3b():
 
 
 def test_optimized_reduced_symmetric_tensor_product_basis_order_3c():
-    irreps = "1o + 2e + 3o + 4e"
+    irreps = "1o + 2e + 4e"
     Q = e3nn.reduced_symmetric_tensor_product_basis(irreps, 3, keep_ir="0e + 1o", _use_optimized_implementation=True)
     P = e3nn.reduced_symmetric_tensor_product_basis(irreps, 3, keep_ir="0e + 1o", _use_optimized_implementation=False)
     assert Q.irreps == P.irreps

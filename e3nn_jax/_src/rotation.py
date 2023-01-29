@@ -17,6 +17,19 @@ def rand_matrix(key, shape=(), dtype=jnp.float32):
     return angles_to_matrix(*rand_angles(key, shape, dtype=dtype))
 
 
+def rotation_angle_from_matrix(R):
+    r"""Angle of rotation from a rotation matrix.
+
+    Args:
+        m (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
+
+    Returns:
+        `jax.numpy.ndarray`: array of shape :math:`(...)`
+    """
+    trace = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]
+    return jnp.arccos(jnp.clip((trace - 1.0) / 2.0, -1.0, 1.0))
+
+
 # angles
 
 
@@ -89,6 +102,26 @@ def inverse_angles(a, b, c):
     return -c, -b, -a
 
 
+def rotation_angle_from_angles(a1, b1, c1, a2, b2, c2):
+    r"""Angle of rotation from two triplets of angles.
+
+    Args:
+        alpha1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        beta1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        gamma1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        alpha2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        beta2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        gamma2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+
+    Returns:
+        `jax.numpy.ndarray`: array of shape :math:`(...)`
+    """
+    R1 = angles_to_matrix(a1, b1, c1)
+    R2 = angles_to_matrix(a2, b2, c2)
+    R1, R2 = jnp.broadcast_arrays(R1, R2)
+    return rotation_angle_from_matrix(R1 @ R2.T)
+
+
 # quaternions
 
 
@@ -154,6 +187,22 @@ def inverse_quaternion(q):
     return q.at[..., 1:].multiply(-1)
 
 
+def rotation_angle_from_quaternion(q1, q2):
+    r"""Rotation angle between two quaternions.
+
+    Args:
+        q1 (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+        q2 (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
+
+    Returns:
+        `jax.numpy.ndarray`: array of shape :math:`(...)`
+    """
+    q1, q2 = jnp.broadcast_arrays(q1, q2)
+    dot = jnp.sum(q1 * q2, axis=-1)
+    cap = jnp.minimum(jnp.abs(dot), 1.0)
+    return 2.0 * jnp.arccos(cap)
+
+
 # axis-angle
 
 
@@ -186,6 +235,24 @@ def compose_axis_angle(axis1, angle1, axis2, angle2):
     """
     return quaternion_to_axis_angle(
         compose_quaternion(axis_angle_to_quaternion(axis1, angle1), axis_angle_to_quaternion(axis2, angle2))
+    )
+
+
+def rotation_angle_from_axis_angle(axis1, angle1, axis2, angle2):
+    r"""Rotation angle between :math:`(\vec x_1, \alpha_1)` and :math:`(\vec x_2, \alpha_2)`.
+
+    Args:
+        axis1 (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
+        angle1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        axis2 (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
+        angle2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+
+    Returns:
+        `jax.numpy.ndarray`: array of shape :math:`(...)`
+    """
+    return rotation_angle_from_quaternion(
+        axis_angle_to_quaternion(axis1, angle1),
+        axis_angle_to_quaternion(axis2, angle2),
     )
 
 
@@ -242,6 +309,22 @@ def inverse_log_coordinates(log):
         log coordinates (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
     """
     return -log
+
+
+def rotation_angle_from_log_coordinates(log1, log2):
+    r"""Rotation angle between a pair of log coordinates.
+
+    Args:
+        log1 (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
+        log2 (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
+
+    Returns:
+        `jax.numpy.ndarray`: array of shape :math:`(...)`
+    """
+    return rotation_angle_from_quaternion(
+        log_coordinates_to_quaternion(log1),
+        log_coordinates_to_quaternion(log2),
+    )
 
 
 # conversions
@@ -424,8 +507,7 @@ def matrix_to_axis_angle(R):
         angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
     """
     # assert jnp.allclose(jnp.linalg.det(R), 1)
-    trace = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]
-    angle = jnp.arccos(jnp.clip((trace - 1.0) / 2.0, -1.0, 1.0))
+    angle = rotation_angle_from_matrix(R)
     axis = jnp.stack(
         [
             R[..., 2, 1] - R[..., 1, 2],
@@ -546,8 +628,10 @@ def log_coordinates_to_axis_angle(log_coordinates):
         axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
         angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
     """
-    axis = _normalize(log_coordinates)
-    angle = jnp.linalg.norm(log_coordinates, axis=-1)
+    n2 = jnp.sum(log_coordinates**2, axis=-1)
+    n2_ = jnp.where(n2 > 0.0, n2, 1.0)
+    axis = log_coordinates / jnp.sqrt(n2_)[..., None]
+    angle = jnp.where(n2 > 0.0, jnp.sqrt(n2_), 0.0)
     return axis, angle
 
 

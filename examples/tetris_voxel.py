@@ -1,11 +1,12 @@
-import e3nn_jax as e3nn
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-from e3nn_jax.experimental.voxel_convolution import Convolution
 from tqdm.auto import tqdm
+
+import e3nn_jax as e3nn
+from e3nn_jax.experimental.voxel_convolution import Convolution
 
 
 def tetris():

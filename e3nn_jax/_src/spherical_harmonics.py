@@ -37,6 +37,15 @@ def sh(
     return spherical_harmonics(irreps_out, input, normalize, normalization, algorithm=algorithm).array
 
 
+def _check_is_vector(irreps: Irreps):
+    if irreps.num_irreps != 1:
+        raise ValueError("Input must be a single vector (1x1o or 1x1e).")
+    [(mul, ir)] = irreps
+    if not (mul == 1 and ir.l == 1):
+        raise ValueError("Input must be a vector (1x1o or 1x1e).")
+    return ir.p
+
+
 def spherical_harmonics(
     irreps_out: Union[Irreps, int, Sequence[int]],
     input: Union[IrrepsArray, jnp.ndarray],
@@ -93,14 +102,16 @@ def spherical_harmonics(
 
     if isinstance(irreps_out, int):
         l = irreps_out
-        assert isinstance(input, IrrepsArray)
-        [(mul, ir)] = input.irreps
-        irreps_out = Irreps([(1, (l, ir.p**l))])
+        if not isinstance(input, IrrepsArray):
+            raise ValueError("If irreps_out is an int, input must be an IrrepsArray.")
+        vec_p = _check_is_vector(input.irreps)
+        irreps_out = Irreps([(1, (l, vec_p**l))])
 
     if all(isinstance(l, int) for l in irreps_out):
-        assert isinstance(input, IrrepsArray)
-        [(mul, ir)] = input.irreps
-        irreps_out = Irreps([(1, (l, ir.p**l)) for l in irreps_out])
+        if not isinstance(input, IrrepsArray):
+            raise ValueError("If irreps_out is a list of int, input must be an IrrepsArray.")
+        vec_p = _check_is_vector(input.irreps)
+        irreps_out = Irreps([(1, (l, vec_p**l)) for l in irreps_out])
 
     irreps_out = Irreps(irreps_out)
 
@@ -120,10 +131,10 @@ def spherical_harmonics(
     assert all(keyword in ["legendre", "recursive", "dense", "sparse", "custom_jvp"] for keyword in algorithm)
 
     if isinstance(input, IrrepsArray):
-        [(mul, ir)] = input.irreps
-        assert mul == 1
-        assert ir.l == 1
-        assert all([ir.p == p for _, (l, p) in irreps_out if l % 2 == 1])
+        vec_p = _check_is_vector(input.irreps)
+        if not all([vec_p == p for _, (l, p) in irreps_out if l % 2 == 1]):
+            raise ValueError(f"Input ({input.irreps}) and output ({irreps_out}) must have a compatible parity.")
+
         x = input.array
     else:
         x = input

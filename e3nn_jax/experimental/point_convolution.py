@@ -1,151 +1,183 @@
-from functools import partial
-from typing import List
+from typing import Callable, Sequence, Tuple
 
-import e3nn_jax as e3nn
+import flax
 import haiku as hk
 import jax
 import jax.numpy as jnp
 
+import e3nn_jax as e3nn
 
-class Convolution(hk.Module):
-    r"""Equivariant Point Convolution.
+_docstring_class = r"""Message passing convolution
+
+Args:
+    target_irreps (e3nn.Irreps): irreps of the output
+    radial_basis (Callable[[jnp.ndarray], jnp.ndarray]): radial basis functions
+    avg_num_neighbors (float): average number of neighbors
+    sh_lmax (int): maximum spherical harmonics degree
+    num_radial_basis (int): number of radial basis functions
+    mlp_neurons (List[int]): number of neurons in each layer of the MLP
+    mlp_activation (Callable[[jnp.ndarray], jnp.ndarray]): activation function of the MLP
+"""
+
+_docstring_call = r"""Compute the message passing convolution
+
+Args:
+    positions (e3nn.IrrepsArray): positions of the nodes
+    node_feats (e3nn.IrrepsArray): features of the nodes
+    senders (jnp.ndarray): indices of the sender nodes
+    receivers (jnp.ndarray): indices of the receiver nodes
+
+Returns:
+    e3nn.IrrepsArray: features of the nodes
+"""
+
+
+def radial_basis(r, cutoff, num_radial_basis):
+    """Radial basis functions
+
+    This can be used as the `radial_basis` argument of `MessagePassingConvolution`::
+
+        lambda r: radial_basis(r, 6.0, 8)
 
     Args:
-        irreps_node_output : `Irreps`
-            representation of the output node features
+        r (jnp.ndarray): distances
+        cutoff (float): cutoff radius
+        num_radial_basis (int): number of radial basis functions
 
-        fc_neurons : list of int
-            number of neurons per layers in the fully connected network
-            first layer and hidden layers but not the output layer
-
-        num_neighbors : float
-            typical number of nodes convolved over
-
-        mixing : float
-            mixing between self interaction and neighbors interaction,
-            0 for only self interaction, 1 for only neighbors interaction
+    Returns:
+        jnp.ndarray: radial basis functions
     """
+    # TODO: determine if we need a normalization factor
+    r = r / cutoff
+    return e3nn.bessel(r, num_radial_basis) * e3nn.soft_envelope(r)[:, None]
 
+
+def _call(self, positions, node_feats, senders, receivers, Linear, MultiLayerPerceptron):
+    if not isinstance(positions, e3nn.IrrepsArray):
+        raise TypeError(
+            f"positions must be an e3nn.IrrepsArray with shape (n_nodes, 3) and irreps '1o' or '1e'. Got {type(positions)}"
+        )
+    if not isinstance(node_feats, e3nn.IrrepsArray):
+        raise TypeError(f"node_feats must be an e3nn.IrrepsArray with shape (n_nodes, irreps). Got {type(node_feats)}")
+
+    assert positions.ndim == 2
+    assert node_feats.ndim == 2
+
+    vectors = positions[receivers] - positions[senders]  # [n_edges, 1e or 1o]
+    r = e3nn.norm(vectors).array[:, 0]
+    edge_attrs = e3nn.concatenate(
+        [
+            self.radial_basis(r),
+            e3nn.spherical_harmonics(list(range(1, self.sh_lmax + 1)), vectors, True),
+        ]
+    )
+
+    node_feats = Linear(node_feats.irreps, name="linear_up")(node_feats)
+
+    messages = node_feats[senders]
+
+    messages = e3nn.concatenate(
+        [
+            messages.filter(self.target_irreps),
+            e3nn.tensor_product(
+                messages,
+                edge_attrs.filter(drop="0e"),
+                filter_ir_out=self.target_irreps,
+            ),
+        ]
+    ).regroup()  # [n_edges, irreps]
+
+    mix = MultiLayerPerceptron(
+        self.mlp_neurons + (messages.irreps.num_irreps,),
+        self.mlp_activation,
+        output_activation=False,
+    )(
+        edge_attrs.filter(keep="0e")
+    )  # [n_edges, num_irreps]
+
+    messages = messages * mix  # [n_edges, irreps]
+
+    zeros = e3nn.IrrepsArray.zeros(messages.irreps, node_feats.shape[:1], messages.dtype)
+    node_feats = zeros.at[receivers].add(messages)  # [n_nodes, irreps]
+
+    node_feats = node_feats / jnp.sqrt(self.avg_num_neighbors)
+
+    node_feats = Linear(self.target_irreps, name="linear_down")(node_feats)
+
+    return node_feats
+
+
+class MessagePassingConvolutionHaiku(hk.Module):
     def __init__(
         self,
-        irreps_node_output: e3nn.Irreps,
-        fc_neurons: List[int],
-        num_neighbors: float,
+        target_irreps: e3nn.Irreps,
+        radial_basis: Callable[[jnp.ndarray], jnp.ndarray],
         *,
-        mixing: float = 0.15,
-        mixing_angle: float = None,
+        avg_num_neighbors: float,
+        sh_lmax: int = 3,
+        num_radial_basis: int = 8,
+        mlp_neurons: Sequence[int] = (64,),
+        mlp_activation: Callable[[jnp.ndarray], jnp.ndarray] = jax.nn.gelu,
+        name: str = None,
     ):
-        super().__init__()
+        super().__init__(name=name)
+        self.target_irreps = e3nn.Irreps(target_irreps)
+        self.radial_basis = radial_basis
+        self.avg_num_neighbors = avg_num_neighbors
+        self.sh_lmax = sh_lmax
+        self.num_radial_basis = num_radial_basis
+        self.mlp_neurons = tuple(mlp_neurons)
+        self.mlp_activation = mlp_activation
 
-        self.irreps_node_output = e3nn.Irreps(irreps_node_output)
-        self.fc_neurons = fc_neurons
-        self.num_neighbors = num_neighbors
-
-        if mixing_angle is not None:
-            self.mixing = jnp.sin(mixing_angle) ** 2
-        else:
-            self.mixing = mixing
-
-    @partial(jax.profiler.annotate_function, name="convolution")
     def __call__(
         self,
-        node_input: e3nn.IrrepsArray,
-        edge_src: jnp.ndarray,
-        edge_dst: jnp.ndarray,
-        edge_attr: e3nn.IrrepsArray,
-        node_attr: e3nn.IrrepsArray = None,
-        edge_scalar_attr: jnp.ndarray = None,
-    ) -> e3nn.IrrepsArray:
-        assert isinstance(node_input, e3nn.IrrepsArray)
-        assert node_input.ndim == 2  # [num_nodes, irreps]
-
-        assert isinstance(edge_attr, e3nn.IrrepsArray)
-        assert edge_attr.ndim == 2  # [num_edges, irreps]
-
-        if node_attr is None:
-            node_attr = e3nn.IrrepsArray.ones("0e", node_input.shape[:-1])
-
-        node = e3nn.haiku.Linear(node_input.irreps + self.irreps_node_output)(e3nn.tensor_product(node_input, node_attr))
-        # node_features, node_self_out = node.split([node_input.irreps, self.irreps_node_output])
-        node_features, node_self_out = node[:, : node_input.irreps.dim], node[:, node_input.irreps.dim :]
-
-        edge_features = node_features[edge_src]
-        del node_features
-
-        ######################################################################################
-        irreps_mid = []
-        instructions = []
-        for i, (mul, ir_in) in enumerate(node_input.irreps):
-            for j, (_, ir_edge) in enumerate(edge_attr.irreps):
-                for ir_out in ir_in * ir_edge:
-                    if ir_out in self.irreps_node_output or ir_out.is_scalar():
-                        k = len(irreps_mid)
-                        irreps_mid.append((mul, ir_out))
-                        instructions.append((i, j, k, "uvu", True))
-        irreps_mid = e3nn.Irreps(irreps_mid)
-
-        assert irreps_mid.dim > 0, (
-            f"irreps_node_input={node_input.irreps} "
-            f"time irreps_edge_attr={edge_attr.irreps} "
-            f"produces nothing in irreps_node_output={self.irreps_node_output}"
+        positions: e3nn.IrrepsArray,  # [n_edges, 1o or 1e]
+        node_feats: e3nn.IrrepsArray,  # [n_nodes, irreps]
+        senders: jnp.ndarray,  # [n_edges, ]
+        receivers: jnp.ndarray,  # [n_edges, ]
+    ) -> e3nn.IrrepsArray:  # [n_nodes, irreps]
+        return _call(
+            self,
+            positions,
+            node_feats,
+            senders,
+            receivers,
+            e3nn.haiku.Linear,
+            e3nn.haiku.MultiLayerPerceptron,
         )
 
-        irreps_mid, p, _ = irreps_mid.sort()
-        instructions = [(i_1, i_2, p[i_out], mode, train) for i_1, i_2, i_out, mode, train in instructions]
 
-        tp = e3nn.FunctionalTensorProduct(
-            node_input.irreps,
-            edge_attr.irreps,
-            irreps_mid,
-            instructions,
+MessagePassingConvolutionHaiku.__doc__ = _docstring_class
+MessagePassingConvolutionHaiku.__call__.__doc__ = _docstring_call
+
+
+class MessagePassingConvolutionFlax(flax.linen.Module):
+    target_irreps: e3nn.Irreps
+    radial_basis: Callable[[jnp.ndarray], jnp.ndarray]
+    avg_num_neighbors: float
+    sh_lmax: int = 3
+    num_radial_basis: int = 8
+    mlp_neurons: Tuple[int, ...] = (64,)
+    mlp_activation: Callable[[jnp.ndarray], jnp.ndarray] = jax.nn.gelu
+
+    @flax.linen.compact
+    def __call__(
+        self,
+        positions: e3nn.IrrepsArray,  # [n_edges, 1o or 1e]
+        node_feats: e3nn.IrrepsArray,  # [n_nodes, irreps]
+        senders: jnp.ndarray,  # [n_edges, ]
+        receivers: jnp.ndarray,  # [n_edges, ]
+    ) -> e3nn.IrrepsArray:  # [n_nodes, irreps]
+        return _call(
+            self,
+            positions,
+            node_feats,
+            senders,
+            receivers,
+            e3nn.flax.Linear,
+            e3nn.flax.MultiLayerPerceptron,
         )
 
-        if self.fc_neurons:
-            weight = e3nn.haiku.MultiLayerPerceptron(self.fc_neurons, jax.nn.gelu)(edge_scalar_attr)
 
-            weight = [
-                jnp.einsum(
-                    "x...,ex->e...",
-                    hk.get_parameter(
-                        (
-                            f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] "
-                            f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
-                        ),
-                        shape=(weight.shape[1],) + ins.path_shape,
-                        init=hk.initializers.RandomNormal(ins.weight_std),
-                    )
-                    / weight.shape[1] ** 0.5,
-                    weight,
-                )
-                for ins in tp.instructions
-            ]
-
-            edge_features: e3nn.IrrepsArray = jax.vmap(tp.left_right, (0, 0, 0), 0)(weight, edge_features, edge_attr)
-        else:
-            weight = [
-                hk.get_parameter(
-                    (
-                        f"w[{ins.i_in1},{ins.i_in2},{ins.i_out}] "
-                        f"{tp.irreps_in1[ins.i_in1]},{tp.irreps_in2[ins.i_in2]},{tp.irreps_out[ins.i_out]}"
-                    ),
-                    shape=ins.path_shape,
-                    init=hk.initializers.RandomNormal(ins.weight_std),
-                )
-                for ins in tp.instructions
-            ]
-            edge_features: e3nn.IrrepsArray = jax.vmap(tp.left_right, (None, 0, 0), 0)(weight, edge_features, edge_attr)
-
-        edge_features = edge_features.remove_nones().simplify()
-
-        ######################################################################################
-
-        node_features = e3nn.index_add(edge_dst, edge_features, out_dim=node_input.shape[0])
-        node_features = node_features / self.num_neighbors**0.5
-
-        ######################################################################################
-
-        node_conv_out = e3nn.haiku.Linear(self.irreps_node_output)(e3nn.tensor_product(node_features, node_attr))
-
-        ######################################################################################
-
-        return jnp.sqrt(1.0 - self.mixing) * node_self_out + jnp.sqrt(self.mixing) * node_conv_out
+MessagePassingConvolutionFlax.__doc__ = _docstring_class
+MessagePassingConvolutionFlax.__call__.__doc__ = _docstring_call
