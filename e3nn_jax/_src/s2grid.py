@@ -216,10 +216,11 @@ class SphericalSignal:
 
         return list(set(iii).intersection(set(jjj)))
 
+    # TODO: add tests for this function
     def find_peaks(self, lmax: int):
         r"""Locate peaks on the signal on the sphere."""
         grid_resolution = self.grid_resolution
-        x1, f1 = e3nn.s2grid_vectors(self.grid_y, self.grid_alpha), self.grid_values
+        x1, f1 = self.grid_vectors, self.grid_values
 
         # Rotate signal.
         abc = np.array([jnp.pi / 2, jnp.pi / 2, jnp.pi / 2])
