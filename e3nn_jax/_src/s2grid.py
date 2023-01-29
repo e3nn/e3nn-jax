@@ -34,6 +34,10 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import chex
+from dataclasses import dataclass
+from typing import Callable, List, Optional, Sequence, Tuple, Union
+
+import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -784,8 +788,10 @@ def from_s2grid(
 
     # integrate over alpha
     if fft:
+        int_a = _rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
         int_a = rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
     else:
+        int_a = jnp.einsum("...ba,am->...bm", x.grid_values, sha) / res_alpha  # [..., res_beta, 2*l+1]
         int_a = jnp.einsum("...ba,am->...bm", x.grid_values, sha) / res_alpha  # [..., res_beta, 2*l+1]
 
     # integrate over beta
@@ -962,6 +968,47 @@ def to_s2point(
     return e3nn.IrrepsArray(
         {1: "0e", -1: "0o"}[p_val], jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,))
     )
+    # Compute the parity of the irreps, and check that they are consistent with user input.
+    def _extract_element(seq: Sequence[int]) -> int:
+        """Extracts the first element of the sequence, otherwise None."""
+        for e in seq:
+            return e
+        return None
+
+    def _compute_parities(p_even: Optional[int], p_odd: Optional[int]) -> Tuple[Optional[int], Optional[int]]:
+        """Maps (p_even, p_odd) -> (p_val, p_arg)."""
+        computed_p_val = p_even
+        try:
+            computed_p_arg = p_even * p_odd
+        except TypeError:
+            computed_p_arg = None
+        return computed_p_val, computed_p_arg
+
+    def _check_consistency(provided_val: Optional[int], computed_val: Optional[int], name: str) -> int:
+        """Checks that the provided value and the computed value are consistent."""
+        # Exactly one of the values is not None?
+        # Then, we return the non-None value.
+        no_check = (provided_val is None) ^ (computed_val is None)
+        if no_check:
+            return provided_val or computed_p_val
+
+        # Both are None?
+        # Then, we must error out.
+        if provided_val is None:
+            raise ValueError(f"Could not compute a value for {name}. Please provide a value.")
+
+        # Both are not None.
+        # Then, both of the values should be equal.
+        if provided_val != computed_val:
+            raise ValueError(f"Provided parity {name} {p_val} inconsistent with {p_val} computed from coeffs.")
+        return provided_val
+
+    p_even = _extract_element({ir.p for _, ir in coeffs.irreps if ir.l % 2 == 0})
+    p_odd = _extract_element({ir.p for _, ir in coeffs.irreps if ir.l % 2 == 1})
+    computed_p_val, computed_p_arg = _compute_parities(p_even, p_odd)
+    p_val = _check_consistency(p_val, computed_p_val, "p_val")
+    p_arg = _check_consistency(p_arg, computed_p_arg, "p_arg")
+    return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
 
 
 def _rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
