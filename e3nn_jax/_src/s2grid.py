@@ -83,13 +83,10 @@ class SphericalSignal:
             )
         if (self.p_val, self.p_arg) != (other.p_val, other.p_arg):
             raise ValueError("Parity for both signals must be identical.")
+        if self.quadrature != other.quadrature:
+            raise ValueError("Quadrature for both signals must be identical.")
 
-        return SphericalSignal(
-            self.grid_values + other.grid_values,
-            self.quadrature,
-            self.p_val,
-            self.p_arg,
-        )
+        return SphericalSignal(self.grid_values + other.grid_values, self.quadrature, self.p_val, self.p_arg)
 
     def __sub__(self, other: "SphericalSignal") -> "SphericalSignal":
         """Subtract another SphericalSignal."""
@@ -100,13 +97,10 @@ class SphericalSignal:
             )
         if (self.p_val, self.p_arg) != (other.p_val, other.p_arg):
             raise ValueError("Parity for both signals must be identical.")
+        if self.quadrature != other.quadrature:
+            raise ValueError("Quadrature for both signals must be identical.")
 
-        return SphericalSignal(
-            self.grid_values - other.grid_values,
-            self.quadrature,
-            self.p_val,
-            self.p_arg,
-        )
+        return SphericalSignal(self.grid_values - other.grid_values, self.quadrature, self.p_val, self.p_arg)
 
     @property
     def shape(self) -> Tuple[int, ...]:
