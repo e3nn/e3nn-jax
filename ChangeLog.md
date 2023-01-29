@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Wigner D matrices are computed from the log coordinates which makes 1 instead of 3 calls to `expm`.
+- **[BREAKING]** Update `experimental.point_convolution` to use the last changes.
 
 ### Removed
 - **[BREAKING]** All the `haiku` modules from the main module. They are now in the `e3nn.haiku` submodule.
