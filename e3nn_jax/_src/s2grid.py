@@ -131,6 +131,12 @@ class SphericalSignal:
         return alpha
 
     @property
+    def grid_vectors(self) -> chex.Array:
+        """The points on the sphere."""
+        y, alpha, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
+        return _s2grid_vectors(y, alpha)
+
+    @property
     def quadrature_weights(self) -> chex.Array:
         """Returns quadrature weights for this signal."""
         _, _, qw = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
@@ -264,7 +270,7 @@ class SphericalSignal:
         alpha = jnp.concatenate([alpha, alpha[:1]])  # [res_alpha + 1]
         f = jnp.concatenate([f, f[:, :1]], axis=1)  # [res_beta + 2, res_alpha + 1]
 
-        r = s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
+        r = _s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
 
         if scale_radius_by_amplitude:
             r = r * jnp.abs(f)[:, :, None]
@@ -293,6 +299,17 @@ jax.tree_util.register_pytree_node(
     lambda x: ((x.grid_values,), (x.quadrature, x.p_val, x.p_arg)),
     lambda aux, grid_values: SphericalSignal(grid_values=grid_values[0], quadrature=aux[0], p_val=aux[1], p_arg=aux[2]),
 )
+
+
+def _s2grid_vectors(y: chex.Array, alpha: chex.Array) -> chex.Array:
+    return jnp.stack(
+        [
+            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.sin(alpha),
+            y[:, None] * jnp.ones_like(alpha),
+            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.cos(alpha),
+        ],
+        axis=2,
+    )
 
 
 def sum_of_diracs(positions: chex.Array, values: chex.Array, lmax: int, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
@@ -329,7 +346,7 @@ def _quadrature_weights_soft(b: int) -> np.ndarray:
     )
 
 
-def _s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _s2grid(res_beta: int, res_alpha: int, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""grid on the sphere
     Args:
         res_beta (int): :math:`N`
@@ -646,25 +663,3 @@ def _rollout_sh(m: jnp.ndarray, lmax: int) -> jnp.ndarray:
             m_full = m_full.at[..., i_mid + i].set(m[..., l * (l + 1) // 2 + i])
             m_full = m_full.at[..., i_mid - i].set(m[..., l * (l + 1) // 2 + i])
     return m_full
-
-
-def s2grid_vectors(y: jnp.ndarray, alpha: jnp.ndarray) -> jnp.ndarray:
-    r"""Calculate the points on the sphere.
-
-    Args:
-        y: array with y values, shape ``(res_beta)``
-        alpha: array with alpha values, shape ``(res_alpha)``
-
-    Returns:
-        r: array of vectors, shape ``(res_beta, res_alpha, 3)``
-    """
-    assert y.ndim == 1
-    assert alpha.ndim == 1
-    return jnp.stack(
-        [
-            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.sin(alpha),
-            y[:, None] * jnp.ones_like(alpha),
-            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.cos(alpha),
-        ],
-        axis=2,
-    )

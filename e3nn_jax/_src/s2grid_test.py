@@ -34,15 +34,25 @@ def test_fft(keys):
 
 
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
-def test_s2grid_vectors(quadrature):
-    y, alpha, sh_y, sh_alpha, _ = _spherical_harmonics_s2grid(lmax=1, res_beta=4, res_alpha=5, quadrature=quadrature)
-    r = e3nn.s2grid_vectors(y, alpha)
+def test_grid_vectors(quadrature):
+    _, _, sh_y, sh_alpha, _ = _spherical_harmonics_s2grid(lmax=1, res_beta=4, res_alpha=5, quadrature=quadrature)
+    r = e3nn.SphericalSignal(jnp.empty((4, 5)), quadrature).grid_vectors
 
     sh_y = np.stack([sh_y[:, 2], sh_y[:, 1], sh_y[:, 2]], axis=1)  # for l=1
     sh = sh_y[:, None, :] * sh_alpha
     sh = sh / np.linalg.norm(sh, axis=2, keepdims=True)
 
     np.testing.assert_allclose(sh, r, atol=1e-7)
+
+
+def test_properties():
+    x = e3nn.SphericalSignal(jnp.ones((3, 10, 11)), quadrature="soft")
+    assert x.res_beta == 10
+    assert x.res_alpha == 11
+    assert x.quadrature == "soft"
+    assert x.grid_vectors.shape == (10, 11, 3)
+    assert x.dtype == x.grid_values.dtype
+    assert x.shape == x.grid_values.shape
 
 
 @pytest.mark.parametrize("normalization", ["component", "norm"])
