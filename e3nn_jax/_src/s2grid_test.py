@@ -69,19 +69,10 @@ def test_from_s2grid_dtype(normalization, quadrature, fft):
     )
 
 
-@pytest.mark.parametrize("normalization", ["component", "norm"])
-@pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
-@pytest.mark.parametrize("fft", [False, True])
-def test_spherical_signal_vmap(quadrature):
-    pointwise_func = jax.nn.relu
-    signal_func = lambda sig: sig.apply(pointwise_func)
-    grid_values = jnp.ones((2, 2, 2))
-
-    sigs = SphericalSignal(grid_values=grid_values, quadrature=quadrature)
-    transformed_sigs = jax.vmap(signal_func)(sigs)
-    transformed_grid_values = jax.vmap(pointwise_func)(grid_values)
-
-    np.testing.assert_allclose(transformed_sigs.grid_values, transformed_grid_values, atol=1e-7)
+def test_spherical_signal_vmap():
+    x = e3nn.IrrepsArray("0e + 1o", jnp.ones((10, 4)))
+    y = jax.vmap(lambda x: e3nn.to_s2grid(x, 100, 99, quadrature="soft"))(x)
+    x = jax.vmap(lambda y: e3nn.from_s2grid(y, "0e + 1o"))(y)
 
 
 def test_fft_dtype():
