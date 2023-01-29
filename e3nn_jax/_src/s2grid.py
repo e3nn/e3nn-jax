@@ -28,8 +28,6 @@ The discrete representation is therefore
 
 .. math:: \{ h_{ij} = f(x_{ij}) \}_{ij}
 """
-
-from dataclasses import dataclass
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import chex
@@ -45,7 +43,6 @@ from .spherical_harmonics import _sh_alpha, _sh_beta
 
 
 class SphericalSignal:
-
     grid_values: chex.Array
     quadrature: str
     p_val: int
@@ -221,7 +218,6 @@ class SphericalSignal:
 
         # Rotate signal.
         abc = np.array([jnp.pi / 2, jnp.pi / 2, jnp.pi / 2])
-        R = e3nn.angles_to_matrix(*abc)
         rotated_signal = self.transform_by_angles(*abc, lmax=lmax)
         rotated_vectors = e3nn.IrrepsArray("1o", x1).transform_by_angles(*abc)
         x2, f2 = rotated_vectors, rotated_signal.grid_values
@@ -391,12 +387,26 @@ def s2_irreps(lmax: int, p_val: int = 1, p_arg: int = -1) -> e3nn.Irreps:
     return e3nn.Irreps([(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)])
 
 
-def _check_parities(irreps: e3nn.Irreps):
-    if not (
-        {ir.p for mul, ir in irreps if ir.l % 2 == 0} in [{1}, {-1}, set()]
-        and {ir.p for mul, ir in irreps if ir.l % 2 == 1} in [{1}, {-1}, set()]
-    ):
+def _check_parities(irreps: e3nn.Irreps, p_val: Optional[int] = None, p_arg: Optional[int] = None) -> Tuple[int, int]:
+    p_even = {ir.p for mul, ir in irreps if ir.l % 2 == 0}
+    p_odd = {ir.p for mul, ir in irreps if ir.l % 2 == 1}
+    if not (p_even in [{1}, {-1}, set()] and p_odd in [{1}, {-1}, set()]):
         raise ValueError("irrep parities should be of the form (p_val * p_arg**l) for all l, where p_val and p_arg are ±1")
+
+    p_even = p_even.pop() if p_even else None
+    p_odd = p_odd.pop() if p_odd else None
+
+    if p_val is not None and p_arg is not None:
+        if not (p_even in [p_val, None] and p_odd in [p_val * p_arg, None]):
+            raise ValueError(
+                f"irrep ({irreps}) parities are not compatible with the given p_val ({p_val}) and p_arg ({p_arg})."
+            )
+        return p_val, p_arg
+
+    if p_even is not None and p_odd is not None:
+        return p_even, p_even * p_odd
+
+    return p_even, None
 
 
 def from_s2grid(
@@ -430,7 +440,7 @@ def from_s2grid(
     if not all(mul == 1 for mul, _ in irreps.regroup()):
         raise ValueError("multiplicities should be ones")
 
-    _check_parities(irreps)
+    _check_parities(irreps, x.p_val, x.p_arg)
 
     lmax = max(irreps.ls)
 
@@ -501,9 +511,15 @@ def to_s2grid(
     lmax = coeffs.irreps.ls[-1]
 
     if not all(mul == 1 for mul, _ in coeffs.irreps):
-        raise ValueError("multiplicities should be ones")
+        raise ValueError(f"Multiplicities should be ones. Got {coeffs.irreps}.")
 
-    _check_parities(coeffs.irreps)
+    if (p_val is not None) != (p_arg is not None):
+        raise ValueError("p_val and p_arg should be both None or both not None.")
+
+    p_val, p_arg = _check_parities(coeffs.irreps, p_val, p_arg)
+
+    if p_val is None or p_arg is None:
+        raise ValueError(f"p_val and p_arg cannot be determined from the irreps {coeffs.irreps}, please specify them.")
 
     _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature, dtype=coeffs.dtype)
 
@@ -542,46 +558,6 @@ def to_s2grid(
     else:
         signal = jnp.einsum("...bm,am->...ba", signal_b, sha)  # [..., res_beta, res_alpha]
 
-    # Compute the parity of the irreps, and check that they are consistent with user input.
-    def _extract_element(seq: Sequence[int]) -> int:
-        """Extracts the first element of the sequence, otherwise None."""
-        for e in seq:
-            return e
-        return None
-
-    def _compute_parities(p_even: Optional[int], p_odd: Optional[int]) -> Tuple[Optional[int], Optional[int]]:
-        """Maps (p_even, p_odd) -> (p_val, p_arg)."""
-        computed_p_val = p_even
-        try:
-            computed_p_arg = p_even * p_odd
-        except TypeError:
-            computed_p_arg = None
-        return computed_p_val, computed_p_arg
-
-    def _check_consistency(provided_val: Optional[int], computed_val: Optional[int], name: str) -> int:
-        """Checks that the provided value and the computed value are consistent."""
-        # Exactly one of the values is not None?
-        # Then, we return the non-None value.
-        no_check = (provided_val is None) ^ (computed_val is None)
-        if no_check:
-            return provided_val or computed_p_val
-
-        # Both are None?
-        # Then, we must error out.
-        if provided_val is None:
-            raise ValueError(f"Could not compute a value for {name}. Please provide a value.")
-
-        # Both are not None.
-        # Then, both of the values should be equal.
-        if provided_val != computed_val:
-            raise ValueError(f"Provided parity {name} {p_val} inconsistent with {p_val} computed from coeffs.")
-        return provided_val
-
-    p_even = _extract_element({ir.p for _, ir in coeffs.irreps if ir.l % 2 == 0})
-    p_odd = _extract_element({ir.p for _, ir in coeffs.irreps if ir.l % 2 == 1})
-    computed_p_val, computed_p_arg = _compute_parities(p_even, p_odd)
-    p_val = _check_consistency(p_val, computed_p_val, "p_val")
-    p_arg = _check_consistency(p_arg, computed_p_arg, "p_arg")
     return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
 
 
