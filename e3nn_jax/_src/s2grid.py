@@ -733,6 +733,52 @@ def to_s2point(
     return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
 
 
+def to_s2point(
+    coeffs: e3nn.IrrepsArray,
+    point: e3nn.IrrepsArray,
+    *,
+    normalization: str = "component",
+) -> e3nn.IrrepsArray:
+    """Evaluate a signal on the sphere given by the coefficient in the spherical harmonics basis.
+
+    It computes the same thing as :func:`e3nn_jax.to_s2grid` but at a single point.
+
+    Args:
+        coeffs (`e3nn_jax.IrrepsArray`): coefficient array of shape ``(*shape1, irreps)``
+        point (`jax.numpy.ndarray`): point on the sphere of shape ``(*shape2, 3)``
+        normalization ({'norm', 'component', 'integral'}): normalization of the basis
+
+    Returns:
+        `jax.numpy.ndarray`: the value of the signal at the point, of shape ``(*shape1, *shape2, irreps)``
+    """
+    coeffs = coeffs.regroup()
+
+    if not all(mul == 1 for mul, _ in coeffs.irreps):
+        raise ValueError(f"Multiplicities should be ones. Got {coeffs.irreps}.")
+
+    if not isinstance(point, e3nn.IrrepsArray):
+        raise TypeError(f"point should be an e3nn.IrrepsArray, got {type(point)}.")
+
+    if point.irreps not in ["1e", "1o"]:
+        raise ValueError(f"point should be of irreps '1e' or '1o', got {point.irreps}.")
+
+    p_arg = point.irreps[0].ir.p
+    p_val, _ = _check_parities(coeffs.irreps, None, p_arg)
+
+    sh = e3nn.spherical_harmonics(coeffs.irreps.ls, point, True, "integral")  # [*shape2, irreps]
+    n = _normalization(sh.irreps.lmax, normalization, coeffs.dtype)[jnp.array(sh.irreps.ls)]  # [num_irreps]
+    sh = sh * n
+
+    shape1 = coeffs.shape[:-1]
+    coeffs = coeffs.reshape((-1, coeffs.shape[-1]))
+    shape2 = point.shape[:-1]
+    sh = sh.reshape((-1, sh.shape[-1]))
+
+    return e3nn.IrrepsArray(
+        {1: "0e", -1: "0o"}[p_val], jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,))
+    )
+
+
 def _rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
     r"""Real fourier transform
     Args:
