@@ -1,5 +1,4 @@
 import time
-from typing import Tuple
 
 import flax
 import jax
@@ -7,6 +6,7 @@ import jax.numpy as jnp
 import optax
 
 import e3nn_jax as e3nn
+from e3nn_jax.experimental.point_convolution import MessagePassingConvolutionFlax
 
 
 def tetris():
@@ -45,48 +45,26 @@ def tetris():
     return pos, labels, batch
 
 
-class Convolution(flax.linen.Module):
-    irreps_node_output: e3nn.Irreps
-    fc_neurons: Tuple[int, ...]
-    num_neighbors: float
-
-    @flax.linen.compact
-    def __call__(
-        self, node_input: e3nn.IrrepsArray, edge_src: jnp.ndarray, edge_dst: jnp.ndarray, edge_attr: e3nn.IrrepsArray
-    ) -> e3nn.IrrepsArray:
-        node_input = e3nn.flax.Linear(node_input.irreps)(node_input)  # [num_nodes, irreps]
-
-        edge_invariant = edge_attr.filter(keep="0e")
-        edge_equivariant = edge_attr.filter(drop="0e")
-
-        messages = e3nn.concatenate([e3nn.tensor_product(node_input[edge_src], edge_equivariant), node_input[edge_src]])
-        factors = e3nn.flax.MultiLayerPerceptron(
-            self.fc_neurons + (messages.irreps.num_irreps,), act=jax.nn.silu, output_activation=False
-        )(edge_invariant)
-        messages = e3nn.elementwise_tensor_product(messages, factors)
-
-        node_output = e3nn.IrrepsArray.zeros(messages.irreps, (node_input.shape[0],), dtype=messages.dtype)
-        node_output = node_output.at[edge_dst].add(messages) / jnp.sqrt(self.num_neighbors)
-
-        node_output = e3nn.flax.Linear(self.irreps_node_output)(node_output)
-        return node_output
-
-
 class Model(flax.linen.Module):
     @flax.linen.compact
     def __call__(self, pos, edge_src, edge_dst):
+        pos = e3nn.IrrepsArray("1o", pos)
         node_feat = e3nn.IrrepsArray.ones("0e", (pos.shape[0],), pos.dtype)
-        edge_attr = e3nn.spherical_harmonics("0e + 1o + 2e", pos[edge_dst] - pos[edge_src], True)
 
         kw = dict(
-            fc_neurons=[],
-            num_neighbors=1.5,
+            radial_basis=lambda r: jnp.ones_like(r)[:, None],
+            mlp_neurons=[32, 32],
+            avg_num_neighbors=1.5,
+            sh_lmax=2,
+            num_radial_basis=2,
         )
 
         for _ in range(4):
-            node_feat = Convolution("32x0e + 32x0o + 16x0e + 8x1e + 8x1o", **kw)(node_feat, edge_src, edge_dst, edge_attr)
+            node_feat = MessagePassingConvolutionFlax("32x0e + 32x0o + 16x0e + 8x1e + 8x1o", **kw)(
+                pos, node_feat, edge_src, edge_dst
+            )
             node_feat = e3nn.gate(node_feat)
-        node_feat = Convolution("0o + 7x0e", **kw)(node_feat, edge_src, edge_dst, edge_attr)
+        node_feat = MessagePassingConvolutionFlax("0o + 7x0e", **kw)(pos, node_feat, edge_src, edge_dst)
 
         return node_feat.array
 
