@@ -275,6 +275,7 @@ class SphericalSignal:
         return r, f
 
     def plotly_surface(self, translation: chex.Array, scale_radius_by_amplitude: bool = True):
+        # TODO: test this function (because it does not work)
         y, alpha, _ = e3nn.s2grid(*self.grid_resolution, quadrature=self.quadrature)
         r, f = self.pad_to_plot(translation=translation, scale_radius_by_amplitude=scale_radius_by_amplitude)
         return dict(
@@ -283,6 +284,8 @@ class SphericalSignal:
             z=r[:, :, 2],
             surfacecolor=f,
         )
+
+    # TODO: add `integral` method to compute the integral of the signal on the sphere
 
 
 jax.tree_util.register_pytree_node(
@@ -469,7 +472,7 @@ def from_s2grid(
 
     # integrate over alpha
     if fft:
-        int_a = rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
+        int_a = _rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
     else:
         int_a = jnp.einsum("...ba,am->...bm", x.grid_values, sha) / res_alpha  # [..., res_beta, 2*l+1]
 
@@ -553,14 +556,14 @@ def to_s2grid(
         if res_alpha % 2 == 0:
             raise ValueError("res_alpha must be odd for fft")
 
-        signal = irfft(signal_b, res_alpha) * res_alpha  # [..., res_beta, res_alpha]
+        signal = _irfft(signal_b, res_alpha) * res_alpha  # [..., res_beta, res_alpha]
     else:
         signal = jnp.einsum("...bm,am->...ba", signal_b, sha)  # [..., res_beta, res_alpha]
 
     return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
 
 
-def rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
+def _rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
     r"""Real fourier transform
     Args:
         x (`jax.numpy.ndarray`): input array of shape ``(..., res_beta, res_alpha)``
@@ -581,7 +584,7 @@ def rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
     return x_transformed.reshape((*x.shape[:-1], 2 * l + 1))
 
 
-def irfft(x: jnp.ndarray, res: int) -> jnp.ndarray:
+def _irfft(x: jnp.ndarray, res: int) -> jnp.ndarray:
     r"""Inverse of the real fourier transform
     Args:
         x (`jax.numpy.ndarray`): array of shape ``(..., 2*l + 1)``
