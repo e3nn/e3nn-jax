@@ -139,7 +139,6 @@ class SphericalSignal:
     @property
     def res_beta(self) -> int:
         """Grid resolution for beta."""
-        print("baa", self.grid_values)
         return self.grid_values.shape[-2]
 
     @property
@@ -193,7 +192,7 @@ class SphericalSignal:
 
     def apply(self, func: Callable[[chex.Array], chex.Array]):
         """Applies a function pointwise on the grid."""
-        jax.debug.print("inside apply {x}", x=self.grid_values)
+        # TODO: obtain the parity of the function and compute the new parity, see `e3nn.scalar_activation`
         return SphericalSignal(func(self.grid_values), self.quadrature)
 
     @staticmethod
