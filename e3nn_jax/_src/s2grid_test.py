@@ -15,7 +15,7 @@ from e3nn_jax.util import assert_output_dtype_matches_input_dtype
 def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
     @jax.jit
     def f(c):
-        res = e3nn.to_s2grid(c, 30, 51, quadrature=quadrature, fft=fft_to, p_arg=-1)
+        res = e3nn.to_s2grid(c, 30, 51, quadrature=quadrature, fft=fft_to, p_val=1, p_arg=-1)
         return e3nn.from_s2grid(res, c.irreps, fft=fft_from)
 
     a = e3nn.normal(irreps, keys[0])
@@ -52,7 +52,7 @@ def test_to_s2grid_dtype(normalization, quadrature, fft):
     jax.config.update("jax_enable_x64", True)
 
     assert_output_dtype_matches_input_dtype(
-        lambda x: e3nn.to_s2grid(x, 4, 5, normalization=normalization, quadrature=quadrature, fft=fft, p_arg=1),
+        lambda x: e3nn.to_s2grid(x, 4, 5, normalization=normalization, quadrature=quadrature, fft=fft, p_val=1, p_arg=1),
         e3nn.IrrepsArray("0e", jnp.array([1.0])),
     )
 
