@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.util.assert_output_dtype` renamed to `e3nn.util.assert_output_dtype_matches_input_dtype`
 - `e3nn.Irreps.D_from_log_coordinates`
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> d8864dd (fix changelog)
 - `rotation_angle_from_*` functions
 - `e3nn.to_s2point` function
 
