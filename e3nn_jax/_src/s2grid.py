@@ -157,19 +157,17 @@ class SphericalSignal:
         """Grid resolution for (beta, alpha)."""
         return (self.res_beta, self.res_alpha)
 
-    def resample(self, grid_resolution: Tuple[int, int], lmax: int) -> "SphericalSignal":
+    def resample(self, grid_resolution: Tuple[int, int], lmax: int, quadrature: Optional[str] = None) -> "SphericalSignal":
         """Resamples a signal via the spherical harmonic coefficients."""
-        coeffs = self._coeffs(lmax)
-        return e3nn.to_s2grid(coeffs, *grid_resolution, quadrature=self.quadrature)
+        if quadrature is None:
+            quadrature = self.quadrature
+        coeffs = e3nn.from_s2grid(self, s2_irreps(lmax, self.p_val, self.p_arg))
+        return e3nn.to_s2grid(coeffs, *grid_resolution, quadrature=quadrature, p_val=self.p_val, p_arg=self.p_arg)
 
-    def _coeffs(self, lmax: int) -> e3nn.IrrepsArray:
-        """Returns the coefficients for the spherical harmonics upto l = lmax."""
-        irreps = s2_irreps(lmax, p_val=self.p_val, p_arg=self.p_arg)
-        return e3nn.from_s2grid(self, irreps)
-
+    # TODO: Add tests for this function!
     def _transform_by(self, transform_type: str, transform_kwargs: Tuple[Union[float, int], ...], lmax: int):
         """A wrapper for different transform_by functions."""
-        coeffs = self._coeffs(lmax)
+        coeffs = e3nn.from_s2grid(self, s2_irreps(lmax, self.p_val, self.p_arg))
         transforms = {
             "angles": coeffs.transform_by_angles,
             "matrix": coeffs.transform_by_matrix,
@@ -177,8 +175,9 @@ class SphericalSignal:
             "quaternion": coeffs.transform_by_quaternion,
         }
         transformed_coeffs = transforms[transform_type](**transform_kwargs)
-        transformed_grid_values = e3nn.to_s2grid(transformed_coeffs, *self.grid_resolution, quadrature=self.quadrature)
-        return SphericalSignal(transformed_grid_values, self.quadrature, self.p_val, self.p_arg)
+        return e3nn.to_s2grid(
+            transformed_coeffs, *self.grid_resolution, quadrature=self.quadrature, p_val=self.p_val, p_arg=self.p_arg
+        )
 
     def transform_by_angles(self, alpha: float, beta: float, gamma: float, lmax: int) -> "SphericalSignal":
         """Rotate the signal by the given Euler angles."""
