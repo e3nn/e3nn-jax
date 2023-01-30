@@ -259,7 +259,7 @@ class SphericalSignal:
         translation: Optional[jnp.ndarray] = None,
         scale_radius_by_amplitude: bool = False,
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        r"""Postprocess the borders of a given signal to allow the plot it with plotly.
+        r"""Postprocess the borders of a given signal to allow to plot with plotly.
 
         Args:
             translation (optional): translation vector
@@ -291,8 +291,14 @@ class SphericalSignal:
 
         return r, f
 
-    def plotly_surface(self, translation: chex.Array, scale_radius_by_amplitude: bool = True):
-        # TODO: test this function (because it does not work)
+    def plotly_surface(self, translation: Optional[chex.Array] = None, scale_radius_by_amplitude: bool = True):
+        """Returns a dictionary that can be plotted with plotly.
+        
+        For example,
+            >>> import plotly; import plotly.graph_objects as go
+            >>> go.Figure([go.Surface(sig.plotly_surface())])
+            ...
+        """
         r, f = self.pad_to_plot(translation=translation, scale_radius_by_amplitude=scale_radius_by_amplitude)
         return dict(
             x=r[:, :, 0],
@@ -362,7 +368,8 @@ def _quadrature_weights_soft(b: int) -> np.ndarray:
 
 
 def _s2grid(res_beta: int, res_alpha: int, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    r"""grid on the sphere
+    r"""Returns arrays describing the grid on the sphere.
+
     Args:
         res_beta (int): :math:`N`
         res_alpha (int): :math:`M`
