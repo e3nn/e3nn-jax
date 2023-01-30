@@ -568,7 +568,7 @@ class SphericalSignal:
         alpha = jnp.concatenate([alpha, alpha[:1]])  # [res_alpha + 1]
         f = jnp.concatenate([f, f[:, :1]], axis=1)  # [res_beta + 2, res_alpha + 1]
 
-        r = s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
+        r = _s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
 
         if scale_radius_by_amplitude:
             r = r * jnp.abs(f)[:, :, None]
@@ -579,7 +579,6 @@ class SphericalSignal:
         return r, f
 
     def plotly_surface(self, translation: chex.Array, scale_radius_by_amplitude: bool = True):
-        y, alpha, _ = e3nn.s2grid(*self.grid_resolution, quadrature=self.quadrature)
         r, f = self.pad_to_plot(translation=translation, scale_radius_by_amplitude=scale_radius_by_amplitude)
         return dict(
             x=r[:, :, 0],
@@ -789,9 +788,7 @@ def from_s2grid(
     # integrate over alpha
     if fft:
         int_a = _rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
-        int_a = rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
     else:
-        int_a = jnp.einsum("...ba,am->...bm", x.grid_values, sha) / res_alpha  # [..., res_beta, 2*l+1]
         int_a = jnp.einsum("...ba,am->...bm", x.grid_values, sha) / res_alpha  # [..., res_beta, 2*l+1]
 
     # integrate over beta

@@ -4,7 +4,7 @@ import pytest
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.s2grid import irfft, rfft, _spherical_harmonics_s2grid, SphericalSignal
+from e3nn_jax._src.s2grid import _irfft, _rfft, _spherical_harmonics_s2grid, SphericalSignal
 from e3nn_jax.util import assert_output_dtype_matches_input_dtype
 
 
@@ -15,7 +15,7 @@ from e3nn_jax.util import assert_output_dtype_matches_input_dtype
 def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
     @jax.jit
     def f(c):
-        res = e3nn.to_s2grid(c, 30, 51, quadrature=quadrature, fft=fft_to, p_arg=-1)
+        res = e3nn.to_s2grid(c, 30, 51, quadrature=quadrature, fft=fft_to, p_val=1, p_arg=-1)
         return e3nn.from_s2grid(res, c.irreps, fft=fft_from)
 
     a = e3nn.normal(irreps, keys[0])
@@ -62,7 +62,7 @@ def test_to_s2grid_dtype(normalization, quadrature, fft):
     jax.config.update("jax_enable_x64", True)
 
     assert_output_dtype_matches_input_dtype(
-        lambda x: e3nn.to_s2grid(x, 4, 5, normalization=normalization, quadrature=quadrature, fft=fft, p_arg=1),
+        lambda x: e3nn.to_s2grid(x, 4, 5, normalization=normalization, quadrature=quadrature, fft=fft, p_val=1, p_arg=1),
         e3nn.IrrepsArray("0e", jnp.array([1.0])),
     )
 
@@ -82,16 +82,13 @@ def test_from_s2grid_dtype(normalization, quadrature, fft):
 @pytest.mark.parametrize("normalization", ["component", "norm"])
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
 @pytest.mark.parametrize("fft", [False, True])
-def test_spherical_signal_vmap(quadrature):
-    pointwise_func = jax.nn.relu
-    signal_func = lambda sig: sig.apply(pointwise_func)
-    grid_values = jnp.ones((2, 2, 2))
+def test_spherical_signal_vmap(normalization, quadrature, fft):
+    irreps = "0e + 1o"
+    coeffs_orig = e3nn.IrrepsArray(irreps, jnp.ones((10, 4)))
+    sigs = jax.vmap(lambda x: e3nn.to_s2grid(x, 100, 99, normalization=normalization, quadrature=quadrature))(coeffs_orig)
+    coeffs_new = jax.vmap(lambda y: e3nn.from_s2grid(y, irreps, normalization=normalization, fft=fft))(sigs)
 
-    sigs = SphericalSignal(grid_values=grid_values, quadrature=quadrature)
-    transformed_sigs = jax.vmap(signal_func)(sigs)
-    transformed_grid_values = jax.vmap(pointwise_func)(grid_values)
-
-    np.testing.assert_allclose(transformed_sigs.grid_values, transformed_grid_values, atol=1e-7)
+    np.testing.assert_allclose(coeffs_orig.array, coeffs_new.array, atol=1e-7, rtol=1e-7)
 
 
 def test_fft_dtype():
@@ -103,17 +100,82 @@ def test_fft_dtype():
 
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
 @pytest.mark.parametrize("normalization", ["component", "norm", "integral"])
-@pytest.mark.parametrize("irreps", ["0e + 1e", "2e + 1o"])
+@pytest.mark.parametrize("irreps", ["0e + 1e", "1o + 2e"])
 def test_to_s2point(keys, irreps, normalization, quadrature):
     jax.config.update("jax_enable_x64", True)
 
     coeffs = e3nn.normal(irreps, keys[0], ())
-
     s = e3nn.to_s2grid(coeffs, 20, 19, normalization=normalization, quadrature=quadrature)
-
     vec = e3nn.IrrepsArray({1: "1e", -1: "1o"}[s.p_arg], s.grid_vectors)
     values = e3nn.to_s2point(coeffs, vec, normalization=normalization)
 
     np.testing.assert_allclose(values.array[..., 0], s.grid_values, atol=1e-7, rtol=1e-7)
 
     jax.config.update("jax_enable_x64", False)
+
+
+@pytest.mark.parametrize("alpha", [0.1, 0.2])
+@pytest.mark.parametrize("beta", [0.1, 0.2])
+@pytest.mark.parametrize("gamma", [0.1, 0.2])
+@pytest.mark.parametrize("irreps", ["0e + 1e", "1o + 2e"])
+def test_transform_by_angles(keys, irreps, alpha, beta, gamma):
+    irreps = e3nn.Irreps(irreps)
+
+    coeffs = e3nn.normal(irreps, keys[0], ())
+    sig = e3nn.to_s2grid(coeffs, 20, 19, quadrature="soft")
+    rotated_sig = sig.transform_by_angles(alpha, beta, gamma, lmax=irreps.lmax)
+    rotated_coeffs = e3nn.from_s2grid(rotated_sig, irreps)
+    expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
+
+    np.testing.assert_allclose(rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.parametrize("alpha", [0.1, 0.2])
+@pytest.mark.parametrize("beta", [0.1, 0.2])
+@pytest.mark.parametrize("gamma", [0.1, 0.2])
+@pytest.mark.parametrize("irreps", ["0e + 1e", "1o + 2e"])
+def test_transform_by_angles(keys, irreps, alpha, beta, gamma):
+    irreps = e3nn.Irreps(irreps)
+
+    coeffs = e3nn.normal(irreps, keys[0], ())
+    sig = e3nn.to_s2grid(coeffs, 20, 19, quadrature="soft")
+    R = e3nn.angles_to_matrix(alpha, beta, gamma)
+    rotated_sig = sig.transform_by_matrix(R, lmax=irreps.lmax)
+    rotated_coeffs = e3nn.from_s2grid(rotated_sig, irreps)
+    expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
+
+    np.testing.assert_allclose(rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.parametrize("alpha", [0.1, 0.2])
+@pytest.mark.parametrize("beta", [0.1, 0.2])
+@pytest.mark.parametrize("gamma", [0.1, 0.2])
+@pytest.mark.parametrize("irreps", ["0e + 1e", "1o + 2e"])
+def test_transform_by_axis_angle(keys, irreps, alpha, beta, gamma):
+    irreps = e3nn.Irreps(irreps)
+
+    coeffs = e3nn.normal(irreps, keys[0], ())
+    sig = e3nn.to_s2grid(coeffs, 20, 19, quadrature="soft")
+    axis_angle = e3nn.angles_to_axis_angle(alpha, beta, gamma)
+    rotated_sig = sig.transform_by_axis_angle(*axis_angle, lmax=irreps.lmax)
+    rotated_coeffs = e3nn.from_s2grid(rotated_sig, irreps)
+    expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
+
+    np.testing.assert_allclose(rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.parametrize("alpha", [0.1, 0.2])
+@pytest.mark.parametrize("beta", [0.1, 0.2])
+@pytest.mark.parametrize("gamma", [0.1, 0.2])
+@pytest.mark.parametrize("irreps", ["0e + 1e", "1o + 2e"])
+def test_transform_by_quaternion(keys, irreps, alpha, beta, gamma):
+    irreps = e3nn.Irreps(irreps)
+
+    coeffs = e3nn.normal(irreps, keys[0], ())
+    sig = e3nn.to_s2grid(coeffs, 20, 19, quadrature="soft")
+    q = e3nn.angles_to_quaternion(alpha, beta, gamma)
+    rotated_sig = sig.transform_by_quaternion(q, lmax=irreps.lmax)
+    rotated_coeffs = e3nn.from_s2grid(rotated_sig, irreps)
+    expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
+
+    np.testing.assert_allclose(rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5)
