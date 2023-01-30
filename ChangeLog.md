@@ -9,18 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Signal on the Sphere` section in the documentation
 - `e3nn.util.assert_output_dtype` renamed to `e3nn.util.assert_output_dtype_matches_input_dtype`
 - `e3nn.Irreps.D_from_log_coordinates`
-<<<<<<< HEAD
 - `rotation_angle_from_*` functions
 - `e3nn.to_s2point` function
 
 ### Changed
 - Wigner D matrices are computed from the log coordinates which makes 1 instead of 3 calls to `expm`.
 - **[BREAKING]** Update `experimental.point_convolution` to use the last changes.
-=======
-
-### Changed
-- Wigner D matrices are computed from the log coordinates which makes 1 instead of 3 calls to `expm`.
->>>>>>> 2b5ec0e (log_coordinates stuff)
 
 ### Removed
 - **[BREAKING]** All the `haiku` modules from the main module. They are now in the `e3nn.haiku` submodule.
