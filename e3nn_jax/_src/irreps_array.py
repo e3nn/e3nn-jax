@@ -810,7 +810,7 @@ class IrrepsArray:
         Returns:
             `IrrepsArray`: rotated data
         """
-        return self.transform_by_log_coordinates(*e3nn.axis_angle_to_log_coordinates(axis, angle), k)
+        return self.transform_by_log_coordinates(e3nn.axis_angle_to_log_coordinates(axis, angle), k)
 
     def transform_by_matrix(self, R: jnp.ndarray) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a matrix.
