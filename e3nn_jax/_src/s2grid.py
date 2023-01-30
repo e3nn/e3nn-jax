@@ -43,6 +43,7 @@ import scipy.spatial
 import e3nn_jax as e3nn
 
 from .spherical_harmonics import _sh_alpha, _sh_beta
+from .activation import parity_function
 
 
 class SphericalSignal:
@@ -51,18 +52,21 @@ class SphericalSignal:
     p_val: int
     p_arg: int
 
-    def __init__(self, grid_values: chex.Array, quadrature: str, p_val: int = 1, p_arg: int = -1) -> None:
-        # if len(grid_values.shape) < 2:
-        #     raise ValueError("Grid values of wrong shape.")
+    def __init__(
+        self, grid_values: chex.Array, quadrature: str, p_val: int = 1, p_arg: int = -1, _perform_checks: bool = True
+    ) -> None:
+        if _perform_checks:
+            if len(grid_values.shape) < 2:
+                raise ValueError(f"Grid values should have atleast 2 axes. Got grid_values of shape {grid_values.shape}.")
 
-        if quadrature not in ["soft", "gausslegendre"]:
-            raise ValueError(f"Invalid quadrature for SphericalSignal: {quadrature}")
+            if quadrature not in ["soft", "gausslegendre"]:
+                raise ValueError(f"Invalid quadrature for SphericalSignal: {quadrature}")
 
-        if p_val not in (-1, 1):
-            raise ValueError(f"Parity p_val must be either +1 or -1. Received: {p_val}")
+            if p_val not in (-1, 1):
+                raise ValueError(f"Parity p_val must be either +1 or -1. Received: {p_val}")
 
-        if p_arg not in (-1, 1):
-            raise ValueError(f"Parity p_arg must be either +1 or -1. Received: {p_arg}")
+            if p_arg not in (-1, 1):
+                raise ValueError(f"Parity p_arg must be either +1 or -1. Received: {p_arg}")
 
         self.grid_values = grid_values
         self.quadrature = quadrature
@@ -162,7 +166,9 @@ class SphericalSignal:
         return e3nn.to_s2grid(coeffs, *grid_resolution, quadrature=quadrature, p_val=self.p_val, p_arg=self.p_arg)
 
     # TODO: Add tests for this function!
-    def _transform_by(self, transform_type: str, transform_kwargs: Tuple[Union[float, int], ...], lmax: int):
+    def _transform_by(
+        self, transform_type: str, transform_kwargs: Tuple[Union[float, int], ...], lmax: int
+    ) -> "SphericalSignal":
         """A wrapper for different transform_by functions."""
         coeffs = e3nn.from_s2grid(self, s2_irreps(lmax, self.p_val, self.p_arg))
         transforms = {
@@ -194,8 +200,12 @@ class SphericalSignal:
 
     def apply(self, func: Callable[[chex.Array], chex.Array]):
         """Applies a function pointwise on the grid."""
-        # TODO: obtain the parity of the function and compute the new parity, see `e3nn.scalar_activation`
-        return SphericalSignal(func(self.grid_values), self.quadrature)
+        new_p_val = parity_function(func) if self.p_val == -1 else self.p_val
+        if new_p_val == 0:
+            raise ValueError(
+                "Activation: the parity is violated! The input scalar is odd but the activation is neither even nor odd."
+            )
+        return SphericalSignal(func(self.grid_values), self.quadrature, p_val=new_p_val, p_arg=self.p_arg)
 
     @staticmethod
     def _find_peaks_2d(x: np.ndarray) -> List[Tuple[int, int]]:
@@ -289,12 +299,15 @@ class SphericalSignal:
         )
 
     # TODO: add `integral` method to compute the integral of the signal on the sphere
-
+    def integrate(self):
+        raise NotImplementedError
 
 jax.tree_util.register_pytree_node(
     SphericalSignal,
     lambda x: ((x.grid_values,), (x.quadrature, x.p_val, x.p_arg)),
-    lambda aux, grid_values: SphericalSignal(grid_values=grid_values[0], quadrature=aux[0], p_val=aux[1], p_arg=aux[2]),
+    lambda aux, grid_values: SphericalSignal(
+        grid_values=grid_values[0], quadrature=aux[0], p_val=aux[1], p_arg=aux[2], _perform_checks=False
+    ),
 )
 
 
@@ -343,7 +356,7 @@ def _quadrature_weights_soft(b: int) -> np.ndarray:
     )
 
 
-def _s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _s2grid(res_beta: int, res_alpha: int, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""grid on the sphere
     Args:
         res_beta (int): :math:`N`
@@ -391,7 +404,7 @@ def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, qua
         sh_alpha (`jax.numpy.ndarray`): array of shape ``(res_alpha, 2 * lmax + 1)``
         qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
     """
-    y, alphas, qw = _s2grid(res_beta, res_alpha, quadrature=quadrature)
+    y, alphas, qw = _s2grid(res_beta, res_alpha, quadrature)
     y, alphas, qw = jax.tree_util.tree_map(lambda x: jnp.asarray(x, dtype), (y, alphas, qw))
     sh_alpha = _sh_alpha(lmax, alphas)  # [..., 2 * l + 1]
     sh_y = _sh_beta(lmax, y)  # [..., (lmax + 1) * (lmax + 2) // 2]
@@ -501,10 +514,8 @@ def from_s2grid(
 
     # integrate over alpha
     if fft:
-<<<<<<< HEAD
         int_a = _rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
         int_a = _rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
-        int_a = rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
     else:
         int_a = jnp.einsum("...ba,am->...bm", x.grid_values, sha) / res_alpha  # [..., res_beta, 2*l+1]
 
@@ -682,9 +693,8 @@ def to_s2point(
     shape2 = point.shape[:-1]
     sh = sh.reshape((-1, sh.shape[-1]))
 
-    return e3nn.IrrepsArray(
-        {1: "0e", -1: "0o"}[p_val], jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,))
-    )
+    irreps = {1: "0e", -1: "0o"}[p_val]
+    return e3nn.IrrepsArray(irreps, jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,)))
 
 def to_s2point(
     coeffs: e3nn.IrrepsArray,

@@ -55,7 +55,6 @@ def assert_output_dtype_matches_input_dtype(fun: Callable, *args, **kwargs):
         raise ValueError("This test requires jax_enable_x64=True")
 
     dtype = get_pytree_dtype(args, kwargs, real_part=True)
-    print("args dtype is", dtype)
     assert get_pytree_dtype(jax.eval_shape(fun, *args, **kwargs), default_dtype=dtype, real_part=True) == dtype
 
     def astype(x, dtype):
