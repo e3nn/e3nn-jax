@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.s2grid import SphericalSignal, _irfft, _rfft, _spherical_harmonics_s2grid
+from e3nn_jax._src.s2grid import _irfft, _rfft, _spherical_harmonics_s2grid
 from e3nn_jax.util import assert_output_dtype_matches_input_dtype
 
 
@@ -75,7 +75,7 @@ def test_from_s2grid_dtype(normalization, quadrature, fft):
 
     assert_output_dtype_matches_input_dtype(
         lambda x: e3nn.from_s2grid(x, "0e + 4e", normalization=normalization, fft=fft),
-        SphericalSignal(jnp.ones((10, 11)), quadrature=quadrature),
+        e3nn.SphericalSignal(jnp.ones((10, 11)), quadrature=quadrature),
     )
 
 
@@ -181,21 +181,28 @@ def test_transform_by_quaternion(keys, irreps, alpha, beta, gamma):
     np.testing.assert_allclose(rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5)
 
 
-# TODO (mariogeiger): Uncomment once to_s2point is fixed.
-# @pytest.mark.parametrize("lmax", [1, 4, 10])
-# def test_sum_of_diracs(lmax):
-#     pos = jnp.asarray([
-#         [1.0, 0.0, 0.0],
-#         [0.0, 1.0, 0.0],
-#     ])
-#     val = jnp.asarray([
-#         -1.0,
-#         1.0,
-#     ])
-#     coeffs = sum_of_diracs(positions=pos, values=val, lmax=lmax, p_val=1, p_arg=-1)
-#     points = e3nn.IrrepsArray(irreps="1o", array=jnp.asarray(pos))
-#     extracted_val = e3nn.to_s2point(coeffs, point=points)
-#     np.testing.assert_allclose(extracted_val.array, val.array, atol=1e-7, rtol=1e-7)
+def test_s2_sum_of_diracs_1():
+    jax.config.update("jax_enable_x64", True)
+
+    x = e3nn.s2_sum_of_diracs(jnp.array([[0.0, 1.0, 0.0]]), jnp.array([1.0]), lmax=45, p_val=1, p_arg=-1)
+    sig = e3nn.to_s2grid(x, 200, 59, quadrature="gausslegendre")
+
+    # The integral of a Dirac delta is 1
+    np.testing.assert_allclose(sig.integral().array, 1.0)
+
+    # All the weight should be located at the north pole
+    sig.grid_values = sig.grid_values.at[-60:].set(0.0)
+    np.testing.assert_allclose(sig.integral().array, 0.0, atol=0.05)
+
+
+@pytest.mark.parametrize("lmax", [1, 2, 3, 4])
+def test_s2_sum_of_diracs_2(lmax):
+    positions = jnp.array([[0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    weights = jnp.array([1.0, -1.0])
+    x = e3nn.s2_sum_of_diracs(positions, weights, lmax=lmax, p_val=1, p_arg=-1)
+    sig = e3nn.to_s2grid(x, 200, 59, quadrature="gausslegendre")
+
+    np.testing.assert_allclose(sig.integral().array, jnp.sum(weights), atol=1e-6)
 
 
 @pytest.mark.parametrize("quadrature", ["gausslegendre", "soft"])

@@ -49,7 +49,7 @@ class SphericalSignal:
     p_arg: int
 
     def __init__(
-        self, grid_values: jnp.ndarray, quadrature: str, p_val: int = 1, p_arg: int = -1, _perform_checks: bool = True
+        self, grid_values: jnp.ndarray, quadrature: str, *, p_val: int = 1, p_arg: int = -1, _perform_checks: bool = True
     ) -> None:
         if _perform_checks:
             if len(grid_values.shape) < 2:
@@ -333,20 +333,16 @@ jax.tree_util.register_pytree_node(
 )
 
 
-def sum_of_diracs(positions: jnp.ndarray, values: jnp.ndarray, lmax: int, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
-    r"""Sum of (almost-)Dirac deltas
+def s2_sum_of_diracs(positions: jnp.ndarray, weights: jnp.ndarray, lmax: int, *, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
+    r"""Spherical harmonics coefficients of the sum of (almost-)Dirac deltas on the sphere.
 
-    .. math::
-
-        f(x) = \sum_i v_i \delta^L(\vec r_i)
-
-    where :math:`\delta^L` is the approximation of a Dirac delta.
+    The integral of each Dirac delta is 1.
     """
-    values = values[..., None]
-    positions, _ = jnp.broadcast_arrays(positions, values)
+    weights = weights[..., None]
+    positions, _ = jnp.broadcast_arrays(positions, weights)
     irreps = s2_irreps(lmax, p_val, p_arg)
     y = e3nn.spherical_harmonics(irreps, positions, normalize=True, normalization="integral")  # [..., N, dim]
-    return e3nn.sum(y * values, axis=-2) * 4 * jnp.pi / (lmax + 1) ** 2
+    return e3nn.sum(y * weights, axis=-2) / jnp.sqrt(4 * jnp.pi)
 
 
 def s2_irreps(lmax: int, p_val: int = 1, p_arg: int = -1) -> e3nn.Irreps:
