@@ -1,4 +1,4 @@
-__conf = {
+__default_conf = {
     "irrep_normalization": "component",  # "component" or "norm"
     "path_normalization": "element",  # "element" or "path"
     "gradient_normalization": "path",  # "element", "path" or float,
@@ -9,6 +9,8 @@ __conf = {
     "fused": False,
     "sparse_tp": False,
 }
+
+__conf = __default_conf.copy()
 
 
 def config(name, value=None):

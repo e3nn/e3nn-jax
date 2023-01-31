@@ -22,8 +22,7 @@ def keys():
 
 @pytest.fixture(autouse=True)
 def e3nn_config():
-    e3nn.config("irrep_normalization", "component")
-    e3nn.config("path_normalization", "element")
-    e3nn.config("gradient_normalization", "path")
-    e3nn.config("spherical_harmonics_algorithm", "automatic")
-    e3nn.config("spherical_harmonics_normalization", "component")
+    from e3nn_jax._src.config import __default_conf
+
+    for key, value in __default_conf.items():
+        e3nn.config(key, value)
