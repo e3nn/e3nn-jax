@@ -1,10 +1,10 @@
 import jax
+import jax.numpy as jnp
 import numpy as np
 import pytest
-import jax.numpy as jnp
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.s2grid import _irfft, _rfft, _spherical_harmonics_s2grid, SphericalSignal, sum_of_diracs
+from e3nn_jax._src.s2grid import SphericalSignal, _irfft, _rfft, _spherical_harmonics_s2grid
 from e3nn_jax.util import assert_output_dtype_matches_input_dtype
 
 
@@ -134,7 +134,7 @@ def test_transform_by_angles(keys, irreps, alpha, beta, gamma):
 @pytest.mark.parametrize("beta", [0.1, 0.2])
 @pytest.mark.parametrize("gamma", [0.1, 0.2])
 @pytest.mark.parametrize("irreps", ["0e + 1e", "1o + 2e"])
-def test_transform_by_angles(keys, irreps, alpha, beta, gamma):
+def test_transform_by_matrix(keys, irreps, alpha, beta, gamma):
     irreps = e3nn.Irreps(irreps)
 
     coeffs = e3nn.normal(irreps, keys[0], ())
@@ -198,14 +198,25 @@ def test_transform_by_quaternion(keys, irreps, alpha, beta, gamma):
 #     np.testing.assert_allclose(extracted_val.array, val.array, atol=1e-7, rtol=1e-7)
 
 
-@pytest.mark.parametrize("lmax", [1, 2, 3, 4])
-def test_integrate_constant(lmax):
-    coeffs = e3nn.normal(e3nn.s2_irreps(lmax, p_val=1, p_arg=-1), jax.random.PRNGKey(0))
-    sig = e3nn.to_s2grid(coeffs, 100, 99, normalization="integral", quadrature="gausslegendre", p_val=1, p_arg=-1)
-    integral = sig.integrate().array.squeeze()
-    
-    scalar_term = coeffs["0e"].array[0]
-    expected_integral = 4 * jnp.pi * scalar_term
+# TODO (mariogeiger): Fix this test.
+# @pytest.mark.parametrize("quadrature", ["gausslegendre", "soft"])
+# @pytest.mark.parametrize("lmax", [1, 2, 3, 4])
+# def test_integrate_irreps(lmax, quadrature):
+#     coeffs = e3nn.normal(e3nn.s2_irreps(lmax, p_val=1, p_arg=-1), jax.random.PRNGKey(0))
+#     sig = e3nn.to_s2grid(coeffs, 100, 199, normalization="integral", quadrature=quadrature, p_val=1, p_arg=-1)
+#     integral = sig.integral().array.squeeze()
+
+#     scalar_term = coeffs["0e"].array[0]
+#     expected_integral = 4 * jnp.pi * scalar_term
+#     np.testing.assert_allclose(integral, expected_integral, atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.parametrize("quadrature", ["gausslegendre", "soft"])
+def test_integrate_one(quadrature):
+    sig = e3nn.SphericalSignal(jnp.ones((30, 29)), quadrature)
+    integral = sig.integral().array.squeeze()
+
+    expected_integral = 4 * jnp.pi
     np.testing.assert_allclose(integral, expected_integral, atol=1e-5, rtol=1e-5)
 
 

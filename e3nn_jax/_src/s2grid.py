@@ -30,14 +30,6 @@ The discrete representation is therefore
 """
 from typing import Callable, List, Optional, Tuple, Union
 
-from dataclasses import dataclass
-from typing import Callable, List, Optional, Sequence, Tuple, Union
-
-import chex
-from dataclasses import dataclass
-from typing import Callable, List, Optional, Sequence, Tuple, Union
-
-import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -46,18 +38,18 @@ import scipy.spatial
 
 import e3nn_jax as e3nn
 
-from .spherical_harmonics import _sh_alpha, _sh_beta
 from .activation import parity_function
+from .spherical_harmonics import _sh_alpha, _sh_beta
 
 
 class SphericalSignal:
-    grid_values: chex.Array
+    grid_values: jnp.ndarray
     quadrature: str
     p_val: int
     p_arg: int
 
     def __init__(
-        self, grid_values: chex.Array, quadrature: str, p_val: int = 1, p_arg: int = -1, _perform_checks: bool = True
+        self, grid_values: jnp.ndarray, quadrature: str, p_val: int = 1, p_arg: int = -1, _perform_checks: bool = True
     ) -> None:
         if _perform_checks:
             if len(grid_values.shape) < 2:
@@ -124,25 +116,25 @@ class SphericalSignal:
         return self.grid_values.dtype
 
     @property
-    def grid_y(self) -> chex.Array:
+    def grid_y(self) -> jnp.ndarray:
         """Returns y-values on the grid for this signal."""
         y, _, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return y
 
     @property
-    def grid_alpha(self) -> chex.Array:
+    def grid_alpha(self) -> jnp.ndarray:
         """Returns alpha values on the grid for this signal."""
         _, alpha, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return alpha
 
     @property
-    def grid_vectors(self) -> chex.Array:
+    def grid_vectors(self) -> jnp.ndarray:
         """Returns the coordinates of the points on the sphere."""
         y, alpha, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return _s2grid_vectors(y, alpha)
 
     @property
-    def quadrature_weights(self) -> chex.Array:
+    def quadrature_weights(self) -> jnp.ndarray:
         """Returns quadrature weights along the y-coordinates."""
         _, _, qw = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return qw
@@ -189,19 +181,19 @@ class SphericalSignal:
         """Rotate the signal by the given Euler angles."""
         return self._transform_by("angles", transform_kwargs=dict(alpha=alpha, beta=beta, gamma=gamma), lmax=lmax)
 
-    def transform_by_matrix(self, R: chex.Array, lmax: int) -> "SphericalSignal":
+    def transform_by_matrix(self, R: jnp.ndarray, lmax: int) -> "SphericalSignal":
         """Rotate the signal by the given rotation matrix."""
         return self._transform_by("matrix", transform_kwargs=dict(R=R), lmax=lmax)
 
-    def transform_by_axis_angle(self, axis: chex.Array, angle: float, lmax: int) -> "SphericalSignal":
+    def transform_by_axis_angle(self, axis: jnp.ndarray, angle: float, lmax: int) -> "SphericalSignal":
         """Rotate the signal by the given angle around an axis."""
         return self._transform_by("axis_angle", transform_kwargs=dict(axis=axis, angle=angle), lmax=lmax)
 
-    def transform_by_quaternion(self, q: chex.Array, lmax: int) -> "SphericalSignal":
+    def transform_by_quaternion(self, q: jnp.ndarray, lmax: int) -> "SphericalSignal":
         """Rotate the signal by the given quaternion."""
         return self._transform_by("quaternion", transform_kwargs=dict(q=q), lmax=lmax)
 
-    def apply(self, func: Callable[[chex.Array], chex.Array]):
+    def apply(self, func: Callable[[jnp.ndarray], jnp.ndarray]):
         """Applies a function pointwise on the grid."""
         new_p_val = parity_function(func) if self.p_val == -1 else self.p_val
         if new_p_val == 0:
@@ -291,7 +283,7 @@ class SphericalSignal:
 
         return r, f
 
-    def plotly_surface(self, translation: Optional[chex.Array] = None, scale_radius_by_amplitude: bool = False):
+    def plotly_surface(self, translation: Optional[jnp.ndarray] = None, scale_radius_by_amplitude: bool = False):
         """Returns a dictionary that can be plotted with plotly.
 
         For example:
@@ -307,16 +299,14 @@ class SphericalSignal:
             surfacecolor=f,
         )
 
-    # TODO: add `integral` method to compute the integral of the signal on the sphere
-    def integrate(self) -> e3nn.IrrepsArray:
-        values = self.quadrature_weights[:, None] * self.grid_values
-        values = jnp.sum(values, axis=0)
-        values = jnp.mean(values, keepdims=True) * jnp.float_power(4 * jnp.pi, 1.5)
+    def integral(self) -> e3nn.IrrepsArray:
+        values = self.quadrature_weights[..., None] * self.grid_values
+        values = jnp.sum(values, axis=-2)
+        values = jnp.mean(values, axis=-1, keepdims=True) * 4 * jnp.pi
         # The integral has parity.
         integral_irreps = {1: "0e", -1: "0o"}[self.p_val]
-        return e3nn.IrrepsArray(
-            integral_irreps, values
-        )
+        return e3nn.IrrepsArray(integral_irreps, values)
+
 
 jax.tree_util.register_pytree_node(
     SphericalSignal,
@@ -327,7 +317,7 @@ jax.tree_util.register_pytree_node(
 )
 
 
-def _s2grid_vectors(y: chex.Array, alpha: chex.Array) -> chex.Array:
+def _s2grid_vectors(y: jnp.ndarray, alpha: jnp.ndarray) -> jnp.ndarray:
     return jnp.stack(
         [
             jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.sin(alpha),
@@ -338,7 +328,7 @@ def _s2grid_vectors(y: chex.Array, alpha: chex.Array) -> chex.Array:
     )
 
 
-def sum_of_diracs(positions: chex.Array, values: chex.Array, lmax: int, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
+def sum_of_diracs(positions: jnp.ndarray, values: jnp.ndarray, lmax: int, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
     r"""Sum of (almost-)Dirac deltas
 
     .. math::
@@ -351,7 +341,7 @@ def sum_of_diracs(positions: chex.Array, values: chex.Array, lmax: int, p_val: i
     positions, _ = jnp.broadcast_arrays(positions, values)
     irreps = s2_irreps(lmax, p_val, p_arg)
     y = e3nn.spherical_harmonics(irreps, positions, normalize=True, normalization="integral")  # [..., N, dim]
-    return e3nn.sum(4 * jnp.pi / (lmax + 1) ** 2 * (y * values), axis=-2)
+    return e3nn.sum(y * values, axis=-2) * 4 * jnp.pi / (lmax + 1) ** 2
 
 
 def _quadrature_weights_soft(b: int) -> np.ndarray:

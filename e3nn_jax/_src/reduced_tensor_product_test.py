@@ -112,16 +112,6 @@ def test_optimized_reduced_symmetric_tensor_product_basis_order_4():
     np.testing.assert_allclose(Q @ Q.T, P @ P.T, atol=1e-6, rtol=1e-6)
 
 
-def test_optimized_reduced_symmetric_tensor_product_basis_order_4():
-    Q = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 4, _use_optimized_implementation=True)
-    P = e3nn.reduced_symmetric_tensor_product_basis("1e + 2o", 4, _use_optimized_implementation=False)
-    assert Q.irreps == P.irreps
-
-    Q = Q.array.reshape(-1, Q.irreps.dim)
-    P = P.array.reshape(-1, P.irreps.dim)
-    np.testing.assert_allclose(Q @ Q.T, P @ P.T, atol=1e-6, rtol=1e-6)
-
-
 def test_symmetric_tensor_product_basis_1():
     Q = e3nn.reduced_symmetric_tensor_product_basis("0e + 1e", 3)
     P = e3nn.reduced_tensor_product_basis("ijk=jki=ikj", i="0e + 1e")
