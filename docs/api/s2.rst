@@ -8,13 +8,10 @@ Signal on the Sphere
 .. autofunction:: e3nn_jax.to_s2grid
 
 
+.. autofunction:: e3nn_jax.to_s2point
+
+
 .. autofunction:: e3nn_jax.s2_irreps
 
 
-.. autofunction:: e3nn_jax.s2grid
-
-
-.. autofunction:: e3nn_jax.s2grid_vectors
-
-
-.. autofunction:: e3nn_jax.pad_to_plot_on_s2grid
+.. autofunction:: e3nn_jax.SphericalSignal

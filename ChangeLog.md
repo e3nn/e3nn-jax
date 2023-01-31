@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `Signal on the Sphere` section in the documentation
+- `e3nn.util.assert_output_dtype` renamed to `e3nn.util.assert_output_dtype_matches_input_dtype`
 - `e3nn.Irreps.D_from_log_coordinates`
 - `rotation_angle_from_*` functions
+- `e3nn.to_s2point` function
 
 ### Changed
 - Wigner D matrices are computed from the log coordinates which makes 1 instead of 3 calls to `expm`.

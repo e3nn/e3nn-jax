@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import pytest
 
 import e3nn_jax as e3nn
-from e3nn_jax.util import assert_output_dtype
+from e3nn_jax.util import assert_output_dtype_matches_input_dtype
 
 
 @pytest.mark.parametrize("irreps_in", ["5x0e", "1e + 2e + 4x1e + 3x3o", "2x1o + 0x3e", "0x0e"])
@@ -58,4 +58,4 @@ def test_linear_dtype(keys, irreps_in, irreps_out):
     x = e3nn.normal(irreps_in, next(keys), (128,))
     w = linear.init(next(keys), x)
 
-    assert_output_dtype(linear.apply, w, x)
+    assert_output_dtype_matches_input_dtype(linear.apply, w, x)

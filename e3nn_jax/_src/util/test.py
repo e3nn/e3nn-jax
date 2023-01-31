@@ -49,7 +49,8 @@ def assert_equivariant(
     jax.tree_util.tree_map(assert_, out1, out2)
 
 
-def assert_output_dtype(fun: Callable, *args, **kwargs):
+def assert_output_dtype_matches_input_dtype(fun: Callable, *args, **kwargs):
+    """Checks that the dtype of fun(*args, **kwargs) matches that of the input (*args, **kwargs)."""
     if not jax.config.read("jax_enable_x64"):
         raise ValueError("This test requires jax_enable_x64=True")
 

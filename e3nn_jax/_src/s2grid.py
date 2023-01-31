@@ -28,16 +28,330 @@ The discrete representation is therefore
 
 .. math:: \{ h_{ij} = f(x_{ij}) \}_{ij}
 """
+from typing import Callable, List, Optional, Tuple, Union
 
-from typing import List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
+import chex
+from dataclasses import dataclass
+from typing import Callable, List, Optional, Sequence, Tuple, Union
+
+import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
+import scipy.signal
+import scipy.spatial
 
 import e3nn_jax as e3nn
 
 from .spherical_harmonics import _sh_alpha, _sh_beta
+from .activation import parity_function
+
+
+class SphericalSignal:
+    grid_values: chex.Array
+    quadrature: str
+    p_val: int
+    p_arg: int
+
+    def __init__(
+        self, grid_values: chex.Array, quadrature: str, p_val: int = 1, p_arg: int = -1, _perform_checks: bool = True
+    ) -> None:
+        if _perform_checks:
+            if len(grid_values.shape) < 2:
+                raise ValueError(f"Grid values should have atleast 2 axes. Got grid_values of shape {grid_values.shape}.")
+
+            if quadrature not in ["soft", "gausslegendre"]:
+                raise ValueError(f"Invalid quadrature for SphericalSignal: {quadrature}")
+
+            if p_val not in (-1, 1):
+                raise ValueError(f"Parity p_val must be either +1 or -1. Received: {p_val}")
+
+            if p_arg not in (-1, 1):
+                raise ValueError(f"Parity p_arg must be either +1 or -1. Received: {p_arg}")
+
+        self.grid_values = grid_values
+        self.quadrature = quadrature
+        self.p_val = p_val
+        self.p_arg = p_arg
+
+    def __mul__(self, scalar: float) -> "SphericalSignal":
+        """Multiply SphericalSignal by a scalar."""
+        return SphericalSignal(self.grid_values * scalar, self.quadrature, self.p_val, self.p_arg)
+
+    def __rmul__(self, scalar: float) -> "SphericalSignal":
+        """Multiply SphericalSignal by a scalar."""
+        return SphericalSignal(self.grid_values * scalar, self.quadrature, self.p_val, self.p_arg)
+
+    def __add__(self, other: "SphericalSignal") -> "SphericalSignal":
+        """Add to another SphericalSignal."""
+        if self.grid_resolution != other.grid_resolution:
+            raise ValueError(
+                "Grid resolutions for both signals must be identical. "
+                "Use .resample() to change one of the grid resolutions."
+            )
+        if (self.p_val, self.p_arg) != (other.p_val, other.p_arg):
+            raise ValueError("Parity for both signals must be identical.")
+        if self.quadrature != other.quadrature:
+            raise ValueError("Quadrature for both signals must be identical.")
+
+        return SphericalSignal(self.grid_values + other.grid_values, self.quadrature, self.p_val, self.p_arg)
+
+    def __sub__(self, other: "SphericalSignal") -> "SphericalSignal":
+        """Subtract another SphericalSignal."""
+        if self.grid_resolution != other.grid_resolution:
+            raise ValueError(
+                "Grid resolutions for both signals must be identical. "
+                "Use .resample() to change one of the grid resolutions."
+            )
+        if (self.p_val, self.p_arg) != (other.p_val, other.p_arg):
+            raise ValueError("Parity for both signals must be identical.")
+        if self.quadrature != other.quadrature:
+            raise ValueError("Quadrature for both signals must be identical.")
+
+        return SphericalSignal(self.grid_values - other.grid_values, self.quadrature, self.p_val, self.p_arg)
+
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        """Returns the shape of this signal."""
+        return self.grid_values.shape
+
+    @property
+    def dtype(self) -> jnp.dtype:
+        """Returns the dtype of this signal."""
+        return self.grid_values.dtype
+
+    @property
+    def grid_y(self) -> chex.Array:
+        """Returns y-values on the grid for this signal."""
+        y, _, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
+        return y
+
+    @property
+    def grid_alpha(self) -> chex.Array:
+        """Returns alpha values on the grid for this signal."""
+        _, alpha, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
+        return alpha
+
+    @property
+    def grid_vectors(self) -> chex.Array:
+        """Returns the coordinates of the points on the sphere."""
+        y, alpha, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
+        return _s2grid_vectors(y, alpha)
+
+    @property
+    def quadrature_weights(self) -> chex.Array:
+        """Returns quadrature weights along the y-coordinates."""
+        _, _, qw = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
+        return qw
+
+    @property
+    def res_beta(self) -> int:
+        """Grid resolution for beta."""
+        return self.grid_values.shape[-2]
+
+    @property
+    def res_alpha(self) -> int:
+        """Grid resolution for alpha."""
+        return self.grid_values.shape[-1]
+
+    @property
+    def grid_resolution(self) -> Tuple[int, int]:
+        """Grid resolution for (beta, alpha)."""
+        return (self.res_beta, self.res_alpha)
+
+    def resample(self, grid_resolution: Tuple[int, int], lmax: int, quadrature: Optional[str] = None) -> "SphericalSignal":
+        """Resamples a signal via the spherical harmonic coefficients."""
+        if quadrature is None:
+            quadrature = self.quadrature
+        coeffs = e3nn.from_s2grid(self, s2_irreps(lmax, self.p_val, self.p_arg))
+        return e3nn.to_s2grid(coeffs, *grid_resolution, quadrature=quadrature, p_val=self.p_val, p_arg=self.p_arg)
+
+    def _transform_by(
+        self, transform_type: str, transform_kwargs: Tuple[Union[float, int], ...], lmax: int
+    ) -> "SphericalSignal":
+        """A wrapper for different transform_by functions."""
+        coeffs = e3nn.from_s2grid(self, s2_irreps(lmax, self.p_val, self.p_arg))
+        transforms = {
+            "angles": coeffs.transform_by_angles,
+            "matrix": coeffs.transform_by_matrix,
+            "axis_angle": coeffs.transform_by_axis_angle,
+            "quaternion": coeffs.transform_by_quaternion,
+        }
+        transformed_coeffs = transforms[transform_type](**transform_kwargs)
+        return e3nn.to_s2grid(
+            transformed_coeffs, *self.grid_resolution, quadrature=self.quadrature, p_val=self.p_val, p_arg=self.p_arg
+        )
+
+    def transform_by_angles(self, alpha: float, beta: float, gamma: float, lmax: int) -> "SphericalSignal":
+        """Rotate the signal by the given Euler angles."""
+        return self._transform_by("angles", transform_kwargs=dict(alpha=alpha, beta=beta, gamma=gamma), lmax=lmax)
+
+    def transform_by_matrix(self, R: chex.Array, lmax: int) -> "SphericalSignal":
+        """Rotate the signal by the given rotation matrix."""
+        return self._transform_by("matrix", transform_kwargs=dict(R=R), lmax=lmax)
+
+    def transform_by_axis_angle(self, axis: chex.Array, angle: float, lmax: int) -> "SphericalSignal":
+        """Rotate the signal by the given angle around an axis."""
+        return self._transform_by("axis_angle", transform_kwargs=dict(axis=axis, angle=angle), lmax=lmax)
+
+    def transform_by_quaternion(self, q: chex.Array, lmax: int) -> "SphericalSignal":
+        """Rotate the signal by the given quaternion."""
+        return self._transform_by("quaternion", transform_kwargs=dict(q=q), lmax=lmax)
+
+    def apply(self, func: Callable[[chex.Array], chex.Array]):
+        """Applies a function pointwise on the grid."""
+        new_p_val = parity_function(func) if self.p_val == -1 else self.p_val
+        if new_p_val == 0:
+            raise ValueError(
+                "Activation: the parity is violated! The input scalar is odd but the activation is neither even nor odd."
+            )
+        return SphericalSignal(func(self.grid_values), self.quadrature, p_val=new_p_val, p_arg=self.p_arg)
+
+    @staticmethod
+    def _find_peaks_2d(x: np.ndarray) -> List[Tuple[int, int]]:
+        """Helper for finding peaks in a 2D signal."""
+        iii = []
+        for i in range(x.shape[0]):
+            jj, _ = scipy.signal.find_peaks(x[i, :])
+            iii += [(i, j) for j in jj]
+
+        jjj = []
+        for j in range(x.shape[1]):
+            ii, _ = scipy.signal.find_peaks(x[:, j])
+            jjj += [(i, j) for i in ii]
+
+        return list(set(iii).intersection(set(jjj)))
+
+    # TODO: add tests for this function
+    def find_peaks(self, lmax: int):
+        r"""Locate peaks on the signal on the sphere."""
+        grid_resolution = self.grid_resolution
+        x1, f1 = self.grid_vectors, self.grid_values
+
+        # Rotate signal.
+        abc = np.array([jnp.pi / 2, jnp.pi / 2, jnp.pi / 2])
+        rotated_signal = self.transform_by_angles(*abc, lmax=lmax)
+        rotated_vectors = e3nn.IrrepsArray("1o", x1).transform_by_angles(*abc)
+        x2, f2 = rotated_vectors, rotated_signal.grid_values
+
+        ij = self._find_peaks_2d(f1)
+        x1p = np.stack([x1[i, j] for i, j in ij])
+        f1p = np.stack([f1[i, j] for i, j in ij])
+
+        ij = self._find_peaks_2d(f2)
+        x2p = np.stack([x2[i, j] for i, j in ij])
+        f2p = np.stack([f2[i, j] for i, j in ij])
+
+        # Union of the results
+        mask = scipy.spatial.distance.cdist(x1p, x2p) < 2 * jnp.pi / max(*grid_resolution)
+        x = np.concatenate([x1p[mask.sum(axis=1) == 0], x2p])
+        f = np.concatenate([f1p[mask.sum(axis=1) == 0], f2p])
+
+        return x, f
+
+    def pad_to_plot(
+        self,
+        *,
+        translation: Optional[jnp.ndarray] = None,
+        scale_radius_by_amplitude: bool = False,
+    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        r"""Postprocess the borders of a given signal to allow to plot with plotly.
+
+        Args:
+            translation (optional): translation vector
+            scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
+
+        Returns:
+            r (jnp.ndarray): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
+            f (jnp.ndarray): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
+        """
+        f, y, alpha = self.grid_values, self.grid_y, self.grid_alpha
+
+        # y: [-1, 1]
+        one = jnp.ones_like(y, shape=(1,))
+        ones = jnp.ones_like(f, shape=(1, len(alpha)))
+        y = jnp.concatenate([-one, y, one])  # [res_beta + 2]
+        f = jnp.concatenate([jnp.mean(f[0]) * ones, f, jnp.mean(f[-1]) * ones], axis=0)  # [res_beta + 2, res_alpha]
+
+        # alpha: [0, 2pi]
+        alpha = jnp.concatenate([alpha, alpha[:1]])  # [res_alpha + 1]
+        f = jnp.concatenate([f, f[:, :1]], axis=1)  # [res_beta + 2, res_alpha + 1]
+
+        # Coordinate vectors of the grid.
+        r = _s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
+
+        if scale_radius_by_amplitude:
+            r = r * jnp.abs(f)[:, :, None]
+
+        if translation is not None:
+            r = r + translation
+
+        return r, f
+
+    def plotly_surface(self, translation: Optional[chex.Array] = None, scale_radius_by_amplitude: bool = False):
+        """Returns a dictionary that can be plotted with plotly.
+
+        For example:
+        >>> import plotly; import plotly.graph_objects as go
+        >>> go.Figure([go.Surface(sig.plotly_surface())])
+        ...
+        """
+        r, f = self.pad_to_plot(translation=translation, scale_radius_by_amplitude=scale_radius_by_amplitude)
+        return dict(
+            x=r[:, :, 0],
+            y=r[:, :, 1],
+            z=r[:, :, 2],
+            surfacecolor=f,
+        )
+
+    # TODO: add `integral` method to compute the integral of the signal on the sphere
+    def integrate(self) -> e3nn.IrrepsArray:
+        values = self.quadrature_weights[:, None] * self.grid_values
+        values = jnp.sum(values, axis=0)
+        values = jnp.mean(values, keepdims=True) * jnp.float_power(4 * jnp.pi, 1.5)
+        # The integral has parity.
+        integral_irreps = {1: "0e", -1: "0o"}[self.p_val]
+        return e3nn.IrrepsArray(
+            integral_irreps, values
+        )
+
+jax.tree_util.register_pytree_node(
+    SphericalSignal,
+    lambda x: ((x.grid_values,), (x.quadrature, x.p_val, x.p_arg)),
+    lambda aux, grid_values: SphericalSignal(
+        grid_values=grid_values[0], quadrature=aux[0], p_val=aux[1], p_arg=aux[2], _perform_checks=False
+    ),
+)
+
+
+def _s2grid_vectors(y: chex.Array, alpha: chex.Array) -> chex.Array:
+    return jnp.stack(
+        [
+            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.sin(alpha),
+            y[:, None] * jnp.ones_like(alpha),
+            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.cos(alpha),
+        ],
+        axis=2,
+    )
+
+
+def sum_of_diracs(positions: chex.Array, values: chex.Array, lmax: int, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
+    r"""Sum of (almost-)Dirac deltas
+
+    .. math::
+
+        f(x) = \sum_i v_i \delta^L(\vec r_i)
+
+    where :math:`\delta^L` is the approximation of a Dirac delta.
+    """
+    values = values[..., None]
+    positions, _ = jnp.broadcast_arrays(positions, values)
+    irreps = s2_irreps(lmax, p_val, p_arg)
+    y = e3nn.spherical_harmonics(irreps, positions, normalize=True, normalization="integral")  # [..., N, dim]
+    return e3nn.sum(4 * jnp.pi / (lmax + 1) ** 2 * (y * values), axis=-2)
 
 
 def _quadrature_weights_soft(b: int) -> np.ndarray:
@@ -58,8 +372,9 @@ def _quadrature_weights_soft(b: int) -> np.ndarray:
     )
 
 
-def s2grid(res_beta: int, res_alpha: int, *, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    r"""grid on the sphere
+def _s2grid(res_beta: int, res_alpha: int, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""Returns arrays describing the grid on the sphere.
+
     Args:
         res_beta (int): :math:`N`
         res_alpha (int): :math:`M`
@@ -106,7 +421,7 @@ def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, qua
         sh_alpha (`jax.numpy.ndarray`): array of shape ``(res_alpha, 2 * lmax + 1)``
         qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
     """
-    y, alphas, qw = s2grid(res_beta, res_alpha, quadrature=quadrature)
+    y, alphas, qw = _s2grid(res_beta, res_alpha, quadrature)
     y, alphas, qw = jax.tree_util.tree_map(lambda x: jnp.asarray(x, dtype), (y, alphas, qw))
     sh_alpha = _sh_alpha(lmax, alphas)  # [..., 2 * l + 1]
     sh_y = _sh_beta(lmax, y)  # [..., (lmax + 1) * (lmax + 2) // 2]
@@ -114,23 +429,52 @@ def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, qua
 
 
 def s2_irreps(lmax: int, p_val: int = 1, p_arg: int = -1) -> e3nn.Irreps:
+    """Returns all Irreps upto l = lmax and of the required parity."""
     return e3nn.Irreps([(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)])
 
 
-def _check_parities(irreps: e3nn.Irreps):
-    if not (
-        {ir.p for mul, ir in irreps if ir.l % 2 == 0} in [{1}, {-1}, set()]
-        and {ir.p for mul, ir in irreps if ir.l % 2 == 1} in [{1}, {-1}, set()]
-    ):
+def _check_parities(irreps: e3nn.Irreps, p_val: Optional[int] = None, p_arg: Optional[int] = None) -> Tuple[int, int]:
+    p_even = {ir.p for mul, ir in irreps if ir.l % 2 == 0}
+    p_odd = {ir.p for mul, ir in irreps if ir.l % 2 == 1}
+    if not (p_even in [{1}, {-1}, set()] and p_odd in [{1}, {-1}, set()]):
         raise ValueError("irrep parities should be of the form (p_val * p_arg**l) for all l, where p_val and p_arg are ±1")
+
+    p_even = p_even.pop() if p_even else None
+    p_odd = p_odd.pop() if p_odd else None
+
+    if p_val is not None and p_arg is not None:
+        if not (p_even in [p_val, None] and p_odd in [p_val * p_arg, None]):
+            raise ValueError(
+                f"irrep ({irreps}) parities are not compatible with the given p_val ({p_val}) and p_arg ({p_arg})."
+            )
+        return p_val, p_arg
+
+    if p_val is not None:
+        if p_even is None:
+            p_even = p_val
+        if p_even != p_val:
+            raise ValueError(f"irrep ({irreps}) parities are not compatible with the given p_val ({p_val}).")
+
+    if p_arg is not None:
+        if p_odd is None and p_even is not None:
+            p_odd = p_even * p_arg
+        elif p_odd is not None and p_even is None:
+            p_even = p_odd * p_arg
+        elif p_odd is not None and p_even is not None:
+            if p_odd != p_even * p_arg:
+                raise ValueError(f"irrep ({irreps}) parities are not compatible with the given p_arg ({p_arg}).")
+
+    if p_even is not None and p_odd is not None:
+        return p_even, p_even * p_odd
+
+    return p_even, None
 
 
 def from_s2grid(
-    x: jnp.ndarray,
+    x: SphericalSignal,
     irreps: e3nn.Irreps,
     *,
     normalization: str = "component",
-    quadrature: str,
     lmax_in: Optional[int] = None,
     fft: bool = True,
 ):
@@ -141,31 +485,30 @@ def from_s2grid(
     The inverse transformation of :func:`e3nn_jax.to_s2grid`
 
     Args:
-        x (`jax.numpy.ndarray`): signal on the sphere of shape ``(..., y/beta, alpha)``
+        x (`SphericalSignal`): signal on the sphere of shape ``(..., y/beta, alpha)``
         irreps (e3nn.Irreps): irreps of the coefficients
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical harmonics basis
         lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
-        quadrature (str): "soft" or "gausslegendre"
         fft (bool): True if we use FFT, False if we use the naive implementation
 
     Returns:
         `e3nn_jax.IrrepsArray`: coefficient array of shape ``(..., (lmax+1)^2)``
     """
-    res_beta, res_alpha = x.shape[-2:]
+    res_beta, res_alpha = x.grid_resolution
 
     irreps = e3nn.Irreps(irreps)
 
     if not all(mul == 1 for mul, _ in irreps.regroup()):
         raise ValueError("multiplicities should be ones")
 
-    _check_parities(irreps)
+    _check_parities(irreps, x.p_val, x.p_arg)
 
     lmax = max(irreps.ls)
 
     if lmax_in is None:
         lmax_in = lmax
 
-    _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature, dtype=x.dtype)
+    _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=x.quadrature, dtype=x.dtype)
     # sh_y: (res_beta, (l+1)(l+2)/2)
 
     # normalize such that it is the inverse of ToS2Grid
@@ -188,15 +531,32 @@ def from_s2grid(
 
     # integrate over alpha
     if fft:
-        int_a = rfft(x, lmax) / res_alpha  # [..., res_beta, 2*l+1]
+        int_a = _rfft(x.grid_values, lmax) / res_alpha  # [..., res_beta, 2*l+1]
     else:
-        int_a = jnp.einsum("...ba,am->...bm", x, sha) / res_alpha  # [..., res_beta, 2*l+1]
+        int_a = jnp.einsum("...ba,am->...bm", x.grid_values, sha) / res_alpha  # [..., res_beta, 2*l+1]
 
     # integrate over beta
     int_b = jnp.einsum("mbi,...bm->...i", sh_y, int_a)  # [..., irreps]
 
     # convert to IrrepsArray
     return e3nn.IrrepsArray(irreps, int_b)
+
+
+def _normalization(lmax: int, normalization: str, dtype) -> jnp.ndarray:
+    if normalization == "component":
+        # normalize such that all l has the same variance on the sphere
+        # given that all component has mean 0 and variance 1
+        return (
+            jnp.sqrt(4 * jnp.pi) * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], dtype) / jnp.sqrt(lmax + 1)
+        )
+    if normalization == "norm":
+        # normalize such that all l has the same variance on the sphere
+        # given that all component has mean 0 and variance 1/(2L+1)
+        return jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, dtype) / jnp.sqrt(lmax + 1)
+    if normalization == "integral":
+        return jnp.ones(lmax + 1, dtype)
+
+    raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
 
 def to_s2grid(
@@ -207,7 +567,9 @@ def to_s2grid(
     normalization: str = "component",
     quadrature: str,
     fft: bool = True,
-):
+    p_val: Optional[int] = None,
+    p_arg: Optional[int] = None,
+) -> SphericalSignal:
     r"""Sample a signal on the sphere given by the coefficient in the spherical harmonics basis.
 
     The inverse transformation of :func:`e3nn_jax.from_s2grid`
@@ -219,37 +581,29 @@ def to_s2grid(
         normalization ({'norm', 'component', 'integral'}): normalization of the basis
         quadrature (str): "soft" or "gausslegendre"
         fft (bool): True if we use FFT, False if we use the naive implementation
+        p_val (int, optional): parity of the value of the signal
+        p_arg (int, optional): parity of the argument of the signal
 
     Returns:
-        `jax.numpy.ndarray`: signal on the sphere of shape ``(..., y/beta, alpha)``
+        `SphericalSignal`: signal on the sphere of shape ``(..., y/beta, alpha)``
     """
     coeffs = coeffs.regroup()
     lmax = coeffs.irreps.ls[-1]
 
     if not all(mul == 1 for mul, _ in coeffs.irreps):
-        raise ValueError("multiplicities should be ones")
+        raise ValueError(f"Multiplicities should be ones. Got {coeffs.irreps}.")
 
-    _check_parities(coeffs.irreps)
+    if (p_val is not None) != (p_arg is not None):
+        raise ValueError("p_val and p_arg should be both None or both not None.")
+
+    p_val, p_arg = _check_parities(coeffs.irreps, p_val, p_arg)
+
+    if p_val is None or p_arg is None:
+        raise ValueError(f"p_val and p_arg cannot be determined from the irreps {coeffs.irreps}, please specify them.")
 
     _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature, dtype=coeffs.dtype)
 
-    n = None
-    if normalization == "component":
-        # normalize such that all l has the same variance on the sphere
-        # given that all component has mean 0 and variance 1
-        n = (
-            jnp.sqrt(4 * jnp.pi)
-            * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], coeffs.dtype)
-            / jnp.sqrt(lmax + 1)
-        )
-    elif normalization == "norm":
-        # normalize such that all l has the same variance on the sphere
-        # given that all component has mean 0 and variance 1/(2L+1)
-        n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, coeffs.dtype) / jnp.sqrt(lmax + 1)
-    elif normalization == "integral":
-        n = jnp.ones(lmax + 1, coeffs.dtype)
-    else:
-        raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
+    n = _normalization(lmax, normalization, coeffs.dtype)
 
     m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), coeffs.dtype)  # [l, m, j]
     m_out = jnp.asarray(_expand_matrix(coeffs.irreps.ls), coeffs.dtype)  # [l, m, i]
@@ -264,14 +618,60 @@ def to_s2grid(
         if res_alpha % 2 == 0:
             raise ValueError("res_alpha must be odd for fft")
 
-        signal = irfft(signal_b, res_alpha) * res_alpha  # [..., res_beta, res_alpha]
+        signal = _irfft(signal_b, res_alpha) * res_alpha  # [..., res_beta, res_alpha]
     else:
         signal = jnp.einsum("...bm,am->...ba", signal_b, sha)  # [..., res_beta, res_alpha]
 
-    return signal
+    return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
 
 
-def rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
+def to_s2point(
+    coeffs: e3nn.IrrepsArray,
+    point: e3nn.IrrepsArray,
+    *,
+    normalization: str = "component",
+) -> e3nn.IrrepsArray:
+    """Evaluate a signal on the sphere given by the coefficient in the spherical harmonics basis.
+
+    It computes the same thing as :func:`e3nn_jax.to_s2grid` but at a single point.
+
+    Args:
+        coeffs (`e3nn_jax.IrrepsArray`): coefficient array of shape ``(*shape1, irreps)``
+        point (`jax.numpy.ndarray`): point on the sphere of shape ``(*shape2, 3)``
+        normalization ({'norm', 'component', 'integral'}): normalization of the basis
+
+    Returns:
+        `jax.numpy.ndarray`: the value of the signal at the point, of shape ``(*shape1, *shape2, irreps)``
+    """
+    coeffs = coeffs.regroup()
+
+    if not all(mul == 1 for mul, _ in coeffs.irreps):
+        raise ValueError(f"Multiplicities should be ones. Got {coeffs.irreps}.")
+
+    if not isinstance(point, e3nn.IrrepsArray):
+        raise TypeError(f"point should be an e3nn.IrrepsArray, got {type(point)}.")
+
+    if point.irreps not in ["1e", "1o"]:
+        raise ValueError(f"point should be of irreps '1e' or '1o', got {point.irreps}.")
+
+    p_arg = point.irreps[0].ir.p
+    p_val, _ = _check_parities(coeffs.irreps, None, p_arg)
+
+    sh = e3nn.spherical_harmonics(coeffs.irreps.ls, point, True, "integral")  # [*shape2, irreps]
+    n = _normalization(sh.irreps.lmax, normalization, coeffs.dtype)[jnp.array(sh.irreps.ls)]  # [num_irreps]
+    sh = sh * n
+
+    shape1 = coeffs.shape[:-1]
+    coeffs = coeffs.reshape((-1, coeffs.shape[-1]))
+    shape2 = point.shape[:-1]
+    sh = sh.reshape((-1, sh.shape[-1]))
+
+    return e3nn.IrrepsArray(
+        {1: "0e", -1: "0o"}[p_val], jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,))
+    )
+
+
+def _rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
     r"""Real fourier transform
     Args:
         x (`jax.numpy.ndarray`): input array of shape ``(..., res_beta, res_alpha)``
@@ -292,7 +692,7 @@ def rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
     return x_transformed.reshape((*x.shape[:-1], 2 * l + 1))
 
 
-def irfft(x: jnp.ndarray, res: int) -> jnp.ndarray:
+def _irfft(x: jnp.ndarray, res: int) -> jnp.ndarray:
     r"""Inverse of the real fourier transform
     Args:
         x (`jax.numpy.ndarray`): array of shape ``(..., 2*l + 1)``
@@ -354,71 +754,3 @@ def _rollout_sh(m: jnp.ndarray, lmax: int) -> jnp.ndarray:
             m_full = m_full.at[..., i_mid + i].set(m[..., l * (l + 1) // 2 + i])
             m_full = m_full.at[..., i_mid - i].set(m[..., l * (l + 1) // 2 + i])
     return m_full
-
-
-def s2grid_vectors(y: jnp.ndarray, alpha: jnp.ndarray) -> jnp.ndarray:
-    r"""Calculate the points on the sphere.
-
-    Args:
-        y: array with y values, shape ``(res_beta)``
-        alpha: array with alpha values, shape ``(res_alpha)``
-
-    Returns:
-        r: array of vectors, shape ``(res_beta, res_alpha, 3)``
-    """
-    assert y.ndim == 1
-    assert alpha.ndim == 1
-    return jnp.stack(
-        [
-            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.sin(alpha),
-            y[:, None] * jnp.ones_like(alpha),
-            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.cos(alpha),
-        ],
-        axis=2,
-    )
-
-
-def pad_to_plot_on_s2grid(
-    y: jnp.ndarray,  # [beta_res]
-    alpha: jnp.ndarray,  # [alpha_res]
-    signal: jnp.ndarray,  # [beta_res, alpha_res]
-    *,
-    translation: Optional[jnp.ndarray] = None,
-    scale_radius_by_amplitude: bool = False,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    r"""Postprocess the borders of a given signal to allow the plot it with plotly.
-
-    Args:
-        y: array with y values, shape ``(res_beta)``
-        alpha: array with alpha values, shape ``(res_alpha)``
-        signal: array with the signal on the sphere, shape ``(res_beta, res_alpha)``
-        translation (optional): translation vector
-        scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
-
-    Returns:
-        r (jnp.ndarray): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
-        f (jnp.ndarray): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
-    """
-    assert signal.shape == (len(y), len(alpha))
-
-    f = jnp.array(signal)
-
-    # y: [-1, 1]
-    one = jnp.ones_like(y, shape=(1,))
-    ones = jnp.ones_like(f, shape=(1, len(alpha)))
-    y = jnp.concatenate([-one, y, one])  # [res_beta + 2]
-    f = jnp.concatenate([jnp.mean(f[0]) * ones, f, jnp.mean(f[-1]) * ones], axis=0)  # [res_beta + 2, res_alpha]
-
-    # alpha: [0, 2pi]
-    alpha = jnp.concatenate([alpha, alpha[:1]])  # [res_alpha + 1]
-    f = jnp.concatenate([f, f[:, :1]], axis=1)  # [res_beta + 2, res_alpha + 1]
-
-    r = s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
-
-    if scale_radius_by_amplitude:
-        r = r * jnp.abs(f)[:, :, None]
-
-    if translation is not None:
-        r = r + translation
-
-    return r, f
