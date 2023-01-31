@@ -342,7 +342,7 @@ def from_s2grid(
     x: SphericalSignal,
     irreps: e3nn.Irreps,
     *,
-    normalization: str = "component",
+    normalization: str = "integral",
     lmax_in: Optional[int] = None,
     fft: bool = True,
 ):
@@ -415,7 +415,7 @@ def to_s2grid(
     res_beta: int,
     res_alpha: int,
     *,
-    normalization: str = "component",
+    normalization: str = "integral",
     quadrature: str,
     fft: bool = True,
     p_val: Optional[int] = None,
@@ -480,7 +480,7 @@ def to_s2point(
     coeffs: e3nn.IrrepsArray,
     point: e3nn.IrrepsArray,
     *,
-    normalization: str = "component",
+    normalization: str = "integral",
 ) -> e3nn.IrrepsArray:
     """Evaluate a signal on the sphere given by the coefficient in the spherical harmonics basis.
 
