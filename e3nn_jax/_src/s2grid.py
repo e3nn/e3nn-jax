@@ -137,13 +137,13 @@ class SphericalSignal:
 
     @property
     def grid_vectors(self) -> chex.Array:
-        """The points on the sphere."""
+        """Returns the coordinates of the points on the sphere."""
         y, alpha, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return _s2grid_vectors(y, alpha)
 
     @property
     def quadrature_weights(self) -> chex.Array:
-        """Returns quadrature weights for this signal."""
+        """Returns quadrature weights along the y-coordinates."""
         _, _, qw = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return qw
 
@@ -169,7 +169,6 @@ class SphericalSignal:
         coeffs = e3nn.from_s2grid(self, s2_irreps(lmax, self.p_val, self.p_arg))
         return e3nn.to_s2grid(coeffs, *grid_resolution, quadrature=quadrature, p_val=self.p_val, p_arg=self.p_arg)
 
-    # TODO: Add tests for this function!
     def _transform_by(
         self, transform_type: str, transform_kwargs: Tuple[Union[float, int], ...], lmax: int
     ) -> "SphericalSignal":
@@ -281,6 +280,7 @@ class SphericalSignal:
         alpha = jnp.concatenate([alpha, alpha[:1]])  # [res_alpha + 1]
         f = jnp.concatenate([f, f[:, :1]], axis=1)  # [res_beta + 2, res_alpha + 1]
 
+        # Coordinate vectors of the grid.
         r = _s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
 
         if scale_radius_by_amplitude:
@@ -291,13 +291,13 @@ class SphericalSignal:
 
         return r, f
 
-    def plotly_surface(self, translation: Optional[chex.Array] = None, scale_radius_by_amplitude: bool = True):
+    def plotly_surface(self, translation: Optional[chex.Array] = None, scale_radius_by_amplitude: bool = False):
         """Returns a dictionary that can be plotted with plotly.
-        
-        For example,
-            >>> import plotly; import plotly.graph_objects as go
-            >>> go.Figure([go.Surface(sig.plotly_surface())])
-            ...
+
+        For example:
+        >>> import plotly; import plotly.graph_objects as go
+        >>> go.Figure([go.Surface(sig.plotly_surface())])
+        ...
         """
         r, f = self.pad_to_plot(translation=translation, scale_radius_by_amplitude=scale_radius_by_amplitude)
         return dict(
@@ -308,10 +308,15 @@ class SphericalSignal:
         )
 
     # TODO: add `integral` method to compute the integral of the signal on the sphere
-    def integrate(self):
-        print(self.quadrature_weights.shape, self.grid_values.shape)
-        return jnp.sum(self.quadrature_weights, self.grid_values)
-
+    def integrate(self) -> e3nn.IrrepsArray:
+        values = self.quadrature_weights[:, None] * self.grid_values
+        values = jnp.sum(values, axis=0)
+        values = jnp.mean(values, keepdims=True) * jnp.float_power(4 * jnp.pi, 1.5)
+        # The integral has parity.
+        integral_irreps = {1: "0e", -1: "0o"}[self.p_val]
+        return e3nn.IrrepsArray(
+            integral_irreps, values
+        )
 
 jax.tree_util.register_pytree_node(
     SphericalSignal,

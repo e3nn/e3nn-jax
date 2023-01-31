@@ -4,7 +4,7 @@ import pytest
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.s2grid import _irfft, _rfft, _spherical_harmonics_s2grid, SphericalSignal
+from e3nn_jax._src.s2grid import _irfft, _rfft, _spherical_harmonics_s2grid, SphericalSignal, sum_of_diracs
 from e3nn_jax.util import assert_output_dtype_matches_input_dtype
 
 
@@ -170,12 +170,56 @@ def test_transform_by_axis_angle(keys, irreps, alpha, beta, gamma):
 @pytest.mark.parametrize("irreps", ["0e + 1e", "1o + 2e"])
 def test_transform_by_quaternion(keys, irreps, alpha, beta, gamma):
     irreps = e3nn.Irreps(irreps)
-
     coeffs = e3nn.normal(irreps, keys[0], ())
     sig = e3nn.to_s2grid(coeffs, 20, 19, quadrature="soft")
+
     q = e3nn.angles_to_quaternion(alpha, beta, gamma)
     rotated_sig = sig.transform_by_quaternion(q, lmax=irreps.lmax)
     rotated_coeffs = e3nn.from_s2grid(rotated_sig, irreps)
     expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
 
     np.testing.assert_allclose(rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5)
+
+
+# TODO (mariogeiger): Uncomment once to_s2point is fixed.
+# @pytest.mark.parametrize("lmax", [1, 4, 10])
+# def test_sum_of_diracs(lmax):
+#     pos = jnp.asarray([
+#         [1.0, 0.0, 0.0],
+#         [0.0, 1.0, 0.0],
+#     ])
+#     val = jnp.asarray([
+#         -1.0,
+#         1.0,
+#     ])
+#     coeffs = sum_of_diracs(positions=pos, values=val, lmax=lmax, p_val=1, p_arg=-1)
+#     points = e3nn.IrrepsArray(irreps="1o", array=jnp.asarray(pos))
+#     extracted_val = e3nn.to_s2point(coeffs, point=points)
+#     np.testing.assert_allclose(extracted_val.array, val.array, atol=1e-7, rtol=1e-7)
+
+
+@pytest.mark.parametrize("lmax", [1, 2, 3, 4])
+def test_integrate_constant(lmax):
+    coeffs = e3nn.normal(e3nn.s2_irreps(lmax, p_val=1, p_arg=-1), jax.random.PRNGKey(0))
+    sig = e3nn.to_s2grid(coeffs, 100, 99, normalization="integral", quadrature="gausslegendre", p_val=1, p_arg=-1)
+    integral = sig.integrate().array.squeeze()
+    
+    scalar_term = coeffs["0e"].array[0]
+    expected_integral = 4 * jnp.pi * scalar_term
+    np.testing.assert_allclose(integral, expected_integral, atol=1e-5, rtol=1e-5)
+
+
+# @pytest.mark.parametrize("lmax", [1, 4, 10])
+# def test_find_peaks(lmax):
+#     pos = jnp.asarray([
+#         [1.0, 0.0, 0.0],
+#         [0.0, 1.0, 0.0],
+#     ])
+#     val = jnp.asarray([
+#         -1.0,
+#         1.0,
+#     ])
+#     coeffs = sum_of_diracs(positions=pos, values=val, lmax=lmax, p_val=1, p_arg=-1)
+#     sig = e3nn.to_s2grid(coeffs, 15, 19, quadrature="gausslegendre")
+
+#     print(sig.find_peaks(lmax))
