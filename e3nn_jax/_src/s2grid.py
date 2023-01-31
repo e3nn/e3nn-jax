@@ -69,6 +69,13 @@ class SphericalSignal:
         self.p_val = p_val
         self.p_arg = p_arg
 
+    def __repr__(self) -> str:
+        return (
+            "SphericalSignal("
+            f"res_beta={self.res_beta}, res_alpha={self.res_alpha}, "
+            f"quadrature={self.quadrature}, p_val={self.p_val}, p_arg={self.p_arg})"
+        )
+
     def __mul__(self, scalar: float) -> "SphericalSignal":
         """Multiply SphericalSignal by a scalar."""
         return SphericalSignal(self.grid_values * scalar, self.quadrature, self.p_val, self.p_arg)
@@ -286,10 +293,19 @@ class SphericalSignal:
     def plotly_surface(self, translation: Optional[jnp.ndarray] = None, scale_radius_by_amplitude: bool = False):
         """Returns a dictionary that can be plotted with plotly.
 
-        For example:
-        >>> import plotly; import plotly.graph_objects as go
-        >>> go.Figure([go.Surface(sig.plotly_surface())])
-        ...
+        Args:
+            translation (optional): translation vector
+            scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
+
+        Returns:
+            dict: dictionary that can be plotted with plotly
+
+        Example::
+
+            import plotly
+            import plotly.graph_objects as go
+
+            go.Figure([go.Surface(sig.plotly_surface())])
         """
         r, f = self.pad_to_plot(translation=translation, scale_radius_by_amplitude=scale_radius_by_amplitude)
         return dict(
@@ -415,8 +431,8 @@ def to_s2grid(
     res_beta: int,
     res_alpha: int,
     *,
-    normalization: str = "integral",
     quadrature: str,
+    normalization: str = "integral",
     fft: bool = True,
     p_val: Optional[int] = None,
     p_arg: Optional[int] = None,
