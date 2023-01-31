@@ -114,9 +114,9 @@ def test_to_s2point(keys, irreps, normalization, quadrature):
     jax.config.update("jax_enable_x64", False)
 
 
-@pytest.mark.parametrize("alpha", [np.pi / 2])
-@pytest.mark.parametrize("beta", [np.pi / 2])
-@pytest.mark.parametrize("gamma", [np.pi / 2])
+@pytest.mark.parametrize("alpha", [0.1, 0.2])
+@pytest.mark.parametrize("beta", [0.1, 0.2])
+@pytest.mark.parametrize("gamma", [0.1, 0.2])
 @pytest.mark.parametrize("irreps", ["0e + 1e", "1o + 2e"])
 def test_transform_by_angles(keys, irreps, alpha, beta, gamma):
     irreps = e3nn.Irreps(irreps)
