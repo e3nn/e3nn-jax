@@ -395,17 +395,7 @@ def from_s2grid(
     _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=x.quadrature, dtype=x.dtype)
     # sh_y: (res_beta, (l+1)(l+2)/2)
 
-    # normalize such that it is the inverse of ToS2Grid
-    n = None
-    # lmax_in = max frequency in input; lmax = max freq in output
-    if normalization == "component":
-        n = jnp.sqrt(4 * jnp.pi) * jnp.asarray([jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], x.dtype) * jnp.sqrt(lmax_in + 1)
-    elif normalization == "norm":
-        n = jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, x.dtype) * jnp.sqrt(lmax_in + 1)
-    elif normalization == "integral":
-        n = 4 * jnp.pi * jnp.ones(lmax + 1, x.dtype)
-    else:
-        raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
+    n = _normalization(lmax, normalization, x.dtype, "from_s2", lmax_in)
 
     # prepare beta integrand
     m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), x.dtype)  # [l, m, j]
@@ -470,7 +460,7 @@ def to_s2grid(
 
     _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(lmax, res_beta, res_alpha, quadrature=quadrature, dtype=coeffs.dtype)
 
-    n = _normalization(lmax, normalization, coeffs.dtype)
+    n = _normalization(lmax, normalization, coeffs.dtype, "to_s2")
 
     m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), coeffs.dtype)  # [l, m, j]
     m_out = jnp.asarray(_expand_matrix(coeffs.irreps.ls), coeffs.dtype)  # [l, m, i]
@@ -525,7 +515,7 @@ def to_s2point(
     p_val, _ = _check_parities(coeffs.irreps, None, p_arg)
 
     sh = e3nn.spherical_harmonics(coeffs.irreps.ls, point, True, "integral")  # [*shape2, irreps]
-    n = _normalization(sh.irreps.lmax, normalization, coeffs.dtype)[jnp.array(sh.irreps.ls)]  # [num_irreps]
+    n = _normalization(sh.irreps.lmax, normalization, coeffs.dtype, "to_s2")[jnp.array(sh.irreps.ls)]  # [num_irreps]
     sh = sh * n
 
     shape1 = coeffs.shape[:-1]
@@ -660,19 +650,37 @@ def _check_parities(irreps: e3nn.Irreps, p_val: Optional[int] = None, p_arg: Opt
     return p_even, None
 
 
-def _normalization(lmax: int, normalization: str, dtype) -> jnp.ndarray:
+def _normalization(lmax: int, normalization: str, dtype, direction: str, lmax_in=None) -> jnp.ndarray:
+    assert direction in ["to_s2", "from_s2"]
+
     if normalization == "component":
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1
-        return (
-            jnp.sqrt(4 * jnp.pi) * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], dtype) / jnp.sqrt(lmax + 1)
-        )
+        if direction == "to_s2":
+            return (
+                jnp.sqrt(4 * jnp.pi)
+                * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], dtype)
+                / jnp.sqrt(lmax + 1)
+            )
+        else:
+            return (
+                jnp.sqrt(4 * jnp.pi)
+                * jnp.asarray([jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], dtype)
+                * jnp.sqrt(lmax_in + 1)
+            )
     if normalization == "norm":
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1/(2L+1)
-        return jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, dtype) / jnp.sqrt(lmax + 1)
+        if direction == "to_s2":
+            return jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, dtype) / jnp.sqrt(lmax + 1)
+        else:
+            return jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, dtype) * jnp.sqrt(lmax_in + 1)
     if normalization == "integral":
-        return jnp.ones(lmax + 1, dtype)
+        # normalize such that the coefficient L=0 is equal to 4 pi the integral of the function
+        if direction == "to_s2":
+            return jnp.ones(lmax + 1, dtype) * jnp.sqrt(4 * jnp.pi)
+        else:
+            return jnp.ones(lmax + 1, dtype) * jnp.sqrt(4 * jnp.pi)
 
     raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
