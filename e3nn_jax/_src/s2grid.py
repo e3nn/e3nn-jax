@@ -317,17 +317,6 @@ jax.tree_util.register_pytree_node(
 )
 
 
-def _s2grid_vectors(y: jnp.ndarray, alpha: jnp.ndarray) -> jnp.ndarray:
-    return jnp.stack(
-        [
-            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.sin(alpha),
-            y[:, None] * jnp.ones_like(alpha),
-            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.cos(alpha),
-        ],
-        axis=2,
-    )
-
-
 def sum_of_diracs(positions: jnp.ndarray, values: jnp.ndarray, lmax: int, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
     r"""Sum of (almost-)Dirac deltas
 
@@ -344,120 +333,9 @@ def sum_of_diracs(positions: jnp.ndarray, values: jnp.ndarray, lmax: int, p_val:
     return e3nn.sum(y * values, axis=-2) * 4 * jnp.pi / (lmax + 1) ** 2
 
 
-def _quadrature_weights_soft(b: int) -> np.ndarray:
-    r"""function copied from ``lie_learn.spaces.S3``
-    Compute quadrature weights for the grid used by Kostelec & Rockmore [1, 2].
-    """
-    assert b % 2 == 0, "res_beta needs to be even for soft quadrature weights to be computed properly"
-    k = np.arange(b // 2)
-    return np.array(
-        [
-            (
-                (4.0 / b)
-                * np.sin(np.pi * (2.0 * j + 1.0) / (2.0 * b))
-                * ((1.0 / (2 * k + 1)) * np.sin((2 * j + 1) * (2 * k + 1) * np.pi / (2.0 * b))).sum()
-            )
-            for j in np.arange(b)
-        ],
-    )
-
-
-def _s2grid(res_beta: int, res_alpha: int, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    r"""Returns arrays describing the grid on the sphere.
-
-    Args:
-        res_beta (int): :math:`N`
-        res_alpha (int): :math:`M`
-        quadrature (str): "soft" or "gausslegendre"
-
-    Returns:
-        y (`numpy.ndarray`): array of shape ``(res_beta)``
-        alpha (`numpy.ndarray`): array of shape ``(res_alpha)``
-        qw (`numpy.ndarray`): array of shape ``(res_beta)``, ``sum(qw) = 1``
-    """
-
-    if quadrature == "soft":
-        i = np.arange(res_beta)
-        betas = (i + 0.5) / res_beta * np.pi
-        y = -np.cos(betas)  # minus sign is here to go from -1 to 1 in both quadratures
-
-        qw = _quadrature_weights_soft(res_beta)
-    elif quadrature == "gausslegendre":
-        y, qw = np.polynomial.legendre.leggauss(res_beta)
-    else:
-        raise Exception("quadrature needs to be 'soft' or 'gausslegendre'")
-
-    qw /= 2.0
-    i = np.arange(res_alpha)
-    alpha = i / res_alpha * 2 * np.pi
-    return y, alpha, qw
-
-
-def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str, dtype: np.dtype = np.float32):
-    r"""spherical harmonics evaluated on the grid on the sphere
-    .. math::
-        f(x) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot Y^l(x)
-        f(\beta, \alpha) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot S^l(\alpha) P^l(\cos(\beta))
-    Args:
-        lmax (int): :math:`l_{\mathit{max}}`
-        res_beta (int): :math:`N`
-        res_alpha (int): :math:`M`
-        quadrature (str): "soft" or "gausslegendre"
-
-    Returns:
-        y (`jax.numpy.ndarray`): array of shape ``(res_beta)``
-        alphas (`jax.numpy.ndarray`): array of shape ``(res_alpha)``
-        sh_y (`jax.numpy.ndarray`): array of shape ``(res_beta, (lmax + 1)(lmax + 2)/2)``
-        sh_alpha (`jax.numpy.ndarray`): array of shape ``(res_alpha, 2 * lmax + 1)``
-        qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
-    """
-    y, alphas, qw = _s2grid(res_beta, res_alpha, quadrature)
-    y, alphas, qw = jax.tree_util.tree_map(lambda x: jnp.asarray(x, dtype), (y, alphas, qw))
-    sh_alpha = _sh_alpha(lmax, alphas)  # [..., 2 * l + 1]
-    sh_y = _sh_beta(lmax, y)  # [..., (lmax + 1) * (lmax + 2) // 2]
-    return y, alphas, sh_y, sh_alpha, qw
-
-
 def s2_irreps(lmax: int, p_val: int = 1, p_arg: int = -1) -> e3nn.Irreps:
     """Returns all Irreps upto l = lmax and of the required parity."""
     return e3nn.Irreps([(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)])
-
-
-def _check_parities(irreps: e3nn.Irreps, p_val: Optional[int] = None, p_arg: Optional[int] = None) -> Tuple[int, int]:
-    p_even = {ir.p for mul, ir in irreps if ir.l % 2 == 0}
-    p_odd = {ir.p for mul, ir in irreps if ir.l % 2 == 1}
-    if not (p_even in [{1}, {-1}, set()] and p_odd in [{1}, {-1}, set()]):
-        raise ValueError("irrep parities should be of the form (p_val * p_arg**l) for all l, where p_val and p_arg are ±1")
-
-    p_even = p_even.pop() if p_even else None
-    p_odd = p_odd.pop() if p_odd else None
-
-    if p_val is not None and p_arg is not None:
-        if not (p_even in [p_val, None] and p_odd in [p_val * p_arg, None]):
-            raise ValueError(
-                f"irrep ({irreps}) parities are not compatible with the given p_val ({p_val}) and p_arg ({p_arg})."
-            )
-        return p_val, p_arg
-
-    if p_val is not None:
-        if p_even is None:
-            p_even = p_val
-        if p_even != p_val:
-            raise ValueError(f"irrep ({irreps}) parities are not compatible with the given p_val ({p_val}).")
-
-    if p_arg is not None:
-        if p_odd is None and p_even is not None:
-            p_odd = p_even * p_arg
-        elif p_odd is not None and p_even is None:
-            p_even = p_odd * p_arg
-        elif p_odd is not None and p_even is not None:
-            if p_odd != p_even * p_arg:
-                raise ValueError(f"irrep ({irreps}) parities are not compatible with the given p_arg ({p_arg}).")
-
-    if p_even is not None and p_odd is not None:
-        return p_even, p_even * p_odd
-
-    return p_even, None
 
 
 def from_s2grid(
@@ -530,23 +408,6 @@ def from_s2grid(
 
     # convert to IrrepsArray
     return e3nn.IrrepsArray(irreps, int_b)
-
-
-def _normalization(lmax: int, normalization: str, dtype) -> jnp.ndarray:
-    if normalization == "component":
-        # normalize such that all l has the same variance on the sphere
-        # given that all component has mean 0 and variance 1
-        return (
-            jnp.sqrt(4 * jnp.pi) * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], dtype) / jnp.sqrt(lmax + 1)
-        )
-    if normalization == "norm":
-        # normalize such that all l has the same variance on the sphere
-        # given that all component has mean 0 and variance 1/(2L+1)
-        return jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, dtype) / jnp.sqrt(lmax + 1)
-    if normalization == "integral":
-        return jnp.ones(lmax + 1, dtype)
-
-    raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
 
 def to_s2grid(
@@ -659,6 +520,145 @@ def to_s2point(
     return e3nn.IrrepsArray(
         {1: "0e", -1: "0o"}[p_val], jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,))
     )
+
+
+def _s2grid_vectors(y: jnp.ndarray, alpha: jnp.ndarray) -> jnp.ndarray:
+    return jnp.stack(
+        [
+            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.sin(alpha),
+            y[:, None] * jnp.ones_like(alpha),
+            jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.cos(alpha),
+        ],
+        axis=2,
+    )
+
+
+def _quadrature_weights_soft(b: int) -> np.ndarray:
+    r"""function copied from ``lie_learn.spaces.S3``
+    Compute quadrature weights for the grid used by Kostelec & Rockmore [1, 2].
+    """
+    assert b % 2 == 0, "res_beta needs to be even for soft quadrature weights to be computed properly"
+    k = np.arange(b // 2)
+    return np.array(
+        [
+            (
+                (4.0 / b)
+                * np.sin(np.pi * (2.0 * j + 1.0) / (2.0 * b))
+                * ((1.0 / (2 * k + 1)) * np.sin((2 * j + 1) * (2 * k + 1) * np.pi / (2.0 * b))).sum()
+            )
+            for j in np.arange(b)
+        ],
+    )
+
+
+def _s2grid(res_beta: int, res_alpha: int, quadrature: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""Returns arrays describing the grid on the sphere.
+
+    Args:
+        res_beta (int): :math:`N`
+        res_alpha (int): :math:`M`
+        quadrature (str): "soft" or "gausslegendre"
+
+    Returns:
+        y (`numpy.ndarray`): array of shape ``(res_beta)``
+        alpha (`numpy.ndarray`): array of shape ``(res_alpha)``
+        qw (`numpy.ndarray`): array of shape ``(res_beta)``, ``sum(qw) = 1``
+    """
+
+    if quadrature == "soft":
+        i = np.arange(res_beta)
+        betas = (i + 0.5) / res_beta * np.pi
+        y = -np.cos(betas)  # minus sign is here to go from -1 to 1 in both quadratures
+
+        qw = _quadrature_weights_soft(res_beta)
+    elif quadrature == "gausslegendre":
+        y, qw = np.polynomial.legendre.leggauss(res_beta)
+    else:
+        raise Exception("quadrature needs to be 'soft' or 'gausslegendre'")
+
+    qw /= 2.0
+    i = np.arange(res_alpha)
+    alpha = i / res_alpha * 2 * np.pi
+    return y, alpha, qw
+
+
+def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str, dtype: np.dtype = np.float32):
+    r"""spherical harmonics evaluated on the grid on the sphere
+    .. math::
+        f(x) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot Y^l(x)
+        f(\beta, \alpha) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot S^l(\alpha) P^l(\cos(\beta))
+    Args:
+        lmax (int): :math:`l_{\mathit{max}}`
+        res_beta (int): :math:`N`
+        res_alpha (int): :math:`M`
+        quadrature (str): "soft" or "gausslegendre"
+
+    Returns:
+        y (`jax.numpy.ndarray`): array of shape ``(res_beta)``
+        alphas (`jax.numpy.ndarray`): array of shape ``(res_alpha)``
+        sh_y (`jax.numpy.ndarray`): array of shape ``(res_beta, (lmax + 1)(lmax + 2)/2)``
+        sh_alpha (`jax.numpy.ndarray`): array of shape ``(res_alpha, 2 * lmax + 1)``
+        qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
+    """
+    y, alphas, qw = _s2grid(res_beta, res_alpha, quadrature)
+    y, alphas, qw = jax.tree_util.tree_map(lambda x: jnp.asarray(x, dtype), (y, alphas, qw))
+    sh_alpha = _sh_alpha(lmax, alphas)  # [..., 2 * l + 1]
+    sh_y = _sh_beta(lmax, y)  # [..., (lmax + 1) * (lmax + 2) // 2]
+    return y, alphas, sh_y, sh_alpha, qw
+
+
+def _check_parities(irreps: e3nn.Irreps, p_val: Optional[int] = None, p_arg: Optional[int] = None) -> Tuple[int, int]:
+    p_even = {ir.p for mul, ir in irreps if ir.l % 2 == 0}
+    p_odd = {ir.p for mul, ir in irreps if ir.l % 2 == 1}
+    if not (p_even in [{1}, {-1}, set()] and p_odd in [{1}, {-1}, set()]):
+        raise ValueError("irrep parities should be of the form (p_val * p_arg**l) for all l, where p_val and p_arg are ±1")
+
+    p_even = p_even.pop() if p_even else None
+    p_odd = p_odd.pop() if p_odd else None
+
+    if p_val is not None and p_arg is not None:
+        if not (p_even in [p_val, None] and p_odd in [p_val * p_arg, None]):
+            raise ValueError(
+                f"irrep ({irreps}) parities are not compatible with the given p_val ({p_val}) and p_arg ({p_arg})."
+            )
+        return p_val, p_arg
+
+    if p_val is not None:
+        if p_even is None:
+            p_even = p_val
+        if p_even != p_val:
+            raise ValueError(f"irrep ({irreps}) parities are not compatible with the given p_val ({p_val}).")
+
+    if p_arg is not None:
+        if p_odd is None and p_even is not None:
+            p_odd = p_even * p_arg
+        elif p_odd is not None and p_even is None:
+            p_even = p_odd * p_arg
+        elif p_odd is not None and p_even is not None:
+            if p_odd != p_even * p_arg:
+                raise ValueError(f"irrep ({irreps}) parities are not compatible with the given p_arg ({p_arg}).")
+
+    if p_even is not None and p_odd is not None:
+        return p_even, p_even * p_odd
+
+    return p_even, None
+
+
+def _normalization(lmax: int, normalization: str, dtype) -> jnp.ndarray:
+    if normalization == "component":
+        # normalize such that all l has the same variance on the sphere
+        # given that all component has mean 0 and variance 1
+        return (
+            jnp.sqrt(4 * jnp.pi) * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], dtype) / jnp.sqrt(lmax + 1)
+        )
+    if normalization == "norm":
+        # normalize such that all l has the same variance on the sphere
+        # given that all component has mean 0 and variance 1/(2L+1)
+        return jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, dtype) / jnp.sqrt(lmax + 1)
+    if normalization == "integral":
+        return jnp.ones(lmax + 1, dtype)
+
+    raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
 
 def _rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
