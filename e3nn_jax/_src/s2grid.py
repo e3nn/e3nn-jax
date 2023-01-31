@@ -30,14 +30,6 @@ The discrete representation is therefore
 """
 from typing import Callable, List, Optional, Tuple, Union
 
-from dataclasses import dataclass
-from typing import Callable, List, Optional, Sequence, Tuple, Union
-
-import chex
-from dataclasses import dataclass
-from typing import Callable, List, Optional, Sequence, Tuple, Union
-
-import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -48,7 +40,6 @@ import e3nn_jax as e3nn
 
 from .activation import parity_function
 from .spherical_harmonics import _sh_alpha, _sh_beta
-from .activation import parity_function
 
 
 class SphericalSignal:
@@ -232,7 +223,7 @@ class SphericalSignal:
 
     def find_peaks(self, lmax: int):
         r"""Locate peaks on the signal on the sphere.
-        
+
         Currently cannot be wrapped with jax.jit().
         """
         grid_resolution = self.grid_resolution
@@ -332,6 +323,7 @@ class SphericalSignal:
         # Handle parity of integral.
         integral_irreps = {1: "0e", -1: "0o"}[self.p_val]
         return e3nn.IrrepsArray(integral_irreps, values)
+
 
 jax.tree_util.register_pytree_node(
     SphericalSignal,
@@ -842,6 +834,7 @@ def to_s2point(
 
     irreps = {1: "0e", -1: "0o"}[p_val]
     return e3nn.IrrepsArray(irreps, jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,)))
+
 
 def _rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
     r"""Real fourier transform
