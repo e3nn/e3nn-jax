@@ -5,21 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.16.0] - 2022-02-01
 ### Added
+- `e3nn.SphericalSignal` class to represent signals on the sphere
 - `Signal on the Sphere` section in the documentation
-- `e3nn.util.assert_output_dtype` renamed to `e3nn.util.assert_output_dtype_matches_input_dtype`
 - `e3nn.Irreps.D_from_log_coordinates`
 - `rotation_angle_from_*` functions
 - `e3nn.to_s2point` function
 
 ### Changed
 - Wigner D matrices are computed from the log coordinates which makes 1 instead of 3 calls to `expm`.
+- **[BREAKING]** `e3nn.util.assert_output_dtype` renamed to `e3nn.util.assert_output_dtype_matches_input_dtype`
 - **[BREAKING]** Update `experimental.point_convolution` to use the last changes.
+- **[BREAKING]** changed the `e3nn.to_s2grid` and `e3nn.from_s2grid` signature and default normalization.
 
 ### Removed
 - **[BREAKING]** All the `haiku` modules from the main module. They are now in the `e3nn.haiku` submodule.
 - **[BREAKING]** `e3nn.wigner_D` in favor of `e3nn.Irrep.D_from_*`
-
 
 ### Fixed
 - Removed `jax.jit` decorator to `Irreps.D_from_*` that was causing a bug.
