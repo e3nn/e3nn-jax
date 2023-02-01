@@ -413,8 +413,10 @@ def s2_sum_of_diracs(
                         eye=dict(x=0.0, y=0.0, z=1.5),
                         up=dict(x=0.0, y=1.0, z=0.0),
                     ),
-                    aspectratio=dict(x=3.2*1.2, y=1*1.2, z=1*1.2),
+                    aspectratio=dict(x=3.2, y=1, z=1),
                 ),
+                width=800,
+                height=400,
             ),
         )
     """

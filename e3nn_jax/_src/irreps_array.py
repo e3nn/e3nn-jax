@@ -1400,7 +1400,13 @@ class _MulIndexSliceHelper:
                 list.append(x[..., max(start, i) - i : min(stop, i + mul) - i, :])
 
             i += mul
-        return IrrepsArray.from_list(irreps, list, self.irreps_array.shape[:-1], self.irreps_array.dtype)
+        return IrrepsArray.from_list(
+            irreps,
+            list,
+            self.irreps_array.shape[:-1],
+            self.irreps_array.dtype,
+            backend=_infer_backend(self.irreps_array.array),
+        )
 
 
 class _DimIndexSliceHelper:
@@ -1431,4 +1437,5 @@ class _ChunkIndexSliceHelper:
             self.irreps_array.list[start:stop:stride],
             self.irreps_array.shape[:-1],
             self.irreps_array.dtype,
+            backend=_infer_backend(self.irreps_array.array),
         )
