@@ -320,6 +320,13 @@ class SphericalSignal:
         )
 
     def integrate(self) -> e3nn.IrrepsArray:
+        """Integrate the signal on the sphere.
+
+        The integral of a constant signal of value 1 is 4pi.
+
+        Returns:
+            e3nn.IrrepsArray: integral of the signal
+        """
         values = self.quadrature_weights[..., None] * self.grid_values
         values = jnp.sum(values, axis=-2)
         values = jnp.mean(values, axis=-1, keepdims=True) * 4 * jnp.pi
