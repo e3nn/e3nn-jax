@@ -65,7 +65,6 @@ def assert_output_dtype_matches_input_dtype(fun: Callable, *args, **kwargs):
         return x
 
     for dtype in [jnp.float32, jnp.float64]:
-
         args = jax.tree_util.tree_map(lambda x: astype(x, dtype), args)
         kwargs = jax.tree_util.tree_map(lambda x: astype(x, dtype), kwargs)
 

@@ -175,7 +175,6 @@ class Linear(hk.Module):
                 output = linear_indexed(input, lin, self.get_parameter, weights, self.num_indexed_weights)
 
             elif weights.dtype.kind in "fc" and self.num_indexed_weights is None:
-
                 if self.weights_per_channel:
                     output = linear_mixed_per_channel(input, lin, self.get_parameter, weights, self.gradient_normalization)
                 else:

@@ -129,7 +129,6 @@ class Linear(flax.linen.Module):
                 output = linear_indexed(input, lin, param, weights, self.num_indexed_weights)
 
             elif weights.dtype.kind in "fc" and self.num_indexed_weights is None:
-
                 gradient_normalization = self.gradient_normalization
                 if gradient_normalization is None:
                     gradient_normalization = e3nn.config("gradient_normalization")

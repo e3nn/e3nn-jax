@@ -70,6 +70,7 @@ class SymmetricTensorProduct(hk.Module):
         Returns:
             IrrepsArray: output of shape ``(..., num_channel, irreps_out)``
         """
+
         # TODO: normalize by taking into account the correlation, like in TensorSquare
         def fn(x: e3nn.IrrepsArray):
             # TODO: what do we do with num_channel?

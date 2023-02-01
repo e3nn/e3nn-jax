@@ -85,7 +85,6 @@ def tensor_product(
     for i_1, (mul_1, ir_1) in enumerate(input1.irreps):
         for i_2, (mul_2, ir_2) in enumerate(input2.irreps):
             for ir_out in ir_1 * ir_2:
-
                 if filter_ir_out is not None and ir_out not in filter_ir_out:
                     continue
 
@@ -170,7 +169,6 @@ def elementwise_tensor_product(
     for i, ((mul, ir_1), (mul_2, ir_2)) in enumerate(zip(irreps_in1, irreps_in2)):
         assert mul == mul_2
         for ir in ir_1 * ir_2:
-
             if filter_ir_out is not None and ir not in filter_ir_out:
                 continue
 
@@ -237,7 +235,6 @@ def tensor_square(
     for i_1, (mul_1, ir_1) in enumerate(input.irreps):
         for i_2, (mul_2, ir_2) in enumerate(input.irreps):
             for ir_out in ir_1 * ir_2:
-
                 if normalized_input:
                     if irrep_normalization == "component":
                         alpha = ir_1.dim * ir_2.dim * ir_out.dim
