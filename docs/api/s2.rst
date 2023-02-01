@@ -2,16 +2,17 @@ Signal on the Sphere
 ====================
 
 
-.. autofunction:: e3nn_jax.from_s2grid
-
-
-.. autofunction:: e3nn_jax.to_s2grid
+.. autofunction:: e3nn_jax.s2_irreps
 
 
 .. autofunction:: e3nn_jax.to_s2point
 
 
-.. autofunction:: e3nn_jax.s2_irreps
+.. autofunction:: e3nn_jax.to_s2grid
 
 
-.. autofunction:: e3nn_jax.SphericalSignal
+.. autofunction:: e3nn_jax.from_s2grid
+
+
+.. autoclass:: e3nn_jax.SphericalSignal
+    :members:

@@ -43,6 +43,26 @@ from .spherical_harmonics import _sh_alpha, _sh_beta
 
 
 class SphericalSignal:
+    r"""Representation of a signal on the sphere.
+
+    Args:
+        grid_values: values of the signal on a grid, shape ``(res_beta, res_alpha)``
+        quadrature: quadrature used to create the grid, either ``"soft"`` or ``"gausslegendre"``
+        p_val: parity of the signal, either ``+1`` or ``-1``
+        p_arg: parity of the argument of the signal, either ``+1`` or ``-1``
+
+    Examples:
+        >>> coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1, 2, 0, 0.0]))
+        >>> signal = e3nn.to_s2grid(coeffs, 50, 49, quadrature="soft")
+        >>> signal.integrate()
+        1x0e [12.566371]
+
+        >>> jnp.set_printoptions(precision=2, suppress=True)
+        >>> signal = signal.apply(jnp.exp)
+        >>> coeffs = e3nn.from_s2grid(signal, e3nn.s2_irreps(2))
+        >>> coeffs
+        1x0e+1x1o+1x2e [12.52 15.47 -0.    0.    0.    0.   -5.35  0.   -9.27]
+    """
     grid_values: jnp.ndarray
     quadrature: str
     p_val: int
@@ -83,6 +103,10 @@ class SphericalSignal:
     def __rmul__(self, scalar: float) -> "SphericalSignal":
         """Multiply SphericalSignal by a scalar."""
         return SphericalSignal(self.grid_values * scalar, self.quadrature, self.p_val, self.p_arg)
+
+    def __truediv__(self, scalar: float) -> "SphericalSignal":
+        """Divide SphericalSignal by a scalar."""
+        return SphericalSignal(self.grid_values / scalar, self.quadrature, self.p_val, self.p_arg)
 
     def __add__(self, other: "SphericalSignal") -> "SphericalSignal":
         """Add to another SphericalSignal."""
@@ -161,12 +185,22 @@ class SphericalSignal:
         """Grid resolution for (beta, alpha)."""
         return (self.res_beta, self.res_alpha)
 
-    def resample(self, grid_resolution: Tuple[int, int], lmax: int, quadrature: Optional[str] = None) -> "SphericalSignal":
-        """Resamples a signal via the spherical harmonic coefficients."""
+    def resample(self, res_beta: int, res_alpha: int, lmax: int, quadrature: Optional[str] = None) -> "SphericalSignal":
+        """Resamples a signal via the spherical harmonic coefficients.
+
+        Args:
+            res_beta: New resolution for beta.
+            res_alpha: New resolution for alpha.
+            lmax: Maximum l for the spherical harmonics.
+            quadrature: Quadrature to use. Defaults to reusing the current quadrature.
+
+        Returns:
+            A new SphericalSignal with the new resolution.
+        """
         if quadrature is None:
             quadrature = self.quadrature
         coeffs = e3nn.from_s2grid(self, s2_irreps(lmax, self.p_val, self.p_arg))
-        return e3nn.to_s2grid(coeffs, *grid_resolution, quadrature=quadrature, p_val=self.p_val, p_arg=self.p_arg)
+        return e3nn.to_s2grid(coeffs, res_beta, res_alpha, quadrature=quadrature, p_val=self.p_val, p_arg=self.p_arg)
 
     def _transform_by(
         self, transform_type: str, transform_kwargs: Tuple[Union[float, int], ...], lmax: int
@@ -224,7 +258,7 @@ class SphericalSignal:
 
         return list(set(iii).intersection(set(jjj)))
 
-    def find_peaks(self, lmax: int):
+    def find_peaks(self, lmax: int) -> Tuple[np.ndarray, np.ndarray]:
         r"""Locate peaks on the signal on the sphere.
 
         Currently cannot be wrapped with jax.jit().
@@ -304,12 +338,15 @@ class SphericalSignal:
         Returns:
             dict: dictionary that can be plotted with plotly
 
-        Example::
+        Example:
 
-            import plotly
+        .. jupyter-execute::
+
+            coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1, 2, 0, 0.0]))
+            signal = e3nn.to_s2grid(coeffs, 50, 69, quadrature="gausslegendre")
+
             import plotly.graph_objects as go
-
-            go.Figure([go.Surface(sig.plotly_surface())])
+            go.Figure([go.Surface(signal.plotly_surface())])
         """
         r, f = self.pad_to_plot(translation=translation, scale_radius_by_amplitude=scale_radius_by_amplitude)
         return dict(
