@@ -52,12 +52,12 @@ class SphericalSignal:
         p_arg: parity of the argument of the signal, either ``+1`` or ``-1``
 
     Examples:
+        >>> jnp.set_printoptions(precision=2, suppress=True)
         >>> coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1, 2, 0, 0.0]))
         >>> signal = e3nn.to_s2grid(coeffs, 50, 49, quadrature="soft")
         >>> signal.integrate()
-        1x0e [12.566371]
+        1x0e [12.57]
 
-        >>> jnp.set_printoptions(precision=2, suppress=True)
         >>> signal = signal.apply(jnp.exp)
         >>> coeffs = e3nn.from_s2grid(signal, e3nn.s2_irreps(2))
         >>> coeffs
