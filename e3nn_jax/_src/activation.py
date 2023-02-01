@@ -87,23 +87,6 @@ def scalar_activation(input: IrrepsArray, acts: List[Optional[Callable[[float], 
     return IrrepsArray.from_list(irreps_out, list, input.shape[:-1], input.dtype)
 
 
-# TODO remove this class and follow the same pattern as scalar_activation
-class KeyValueActivation:
-    irreps_key: Irreps
-    irreps_value: Irreps
-    irreps_out: Irreps
-
-    def __init__(self, irreps_key, irreps_value, phi):
-        self.irreps_key = Irreps(irreps_key)
-        self.irreps_value = Irreps(irreps_value)
-
-        # TODO compute irreps_out
-        # irreps_out =
-
-    def __call__(self, keys, values):
-        return [jax.vmap(key_value_activation)(self.phi, k, v) for k, v in zip(keys, values)]
-
-
 def key_value_activation(phi, key, value):
     assert key.ndim == 1
     assert value.ndim == 1

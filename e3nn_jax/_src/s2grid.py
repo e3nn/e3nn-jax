@@ -416,7 +416,6 @@ def from_s2grid(
     return e3nn.IrrepsArray(irreps, int_b)
 
 
-# TODO (mariogeiger): consider making default normalization as "integral" for correct quadrature.
 def to_s2grid(
     coeffs: e3nn.IrrepsArray,
     res_beta: int,
