@@ -5,6 +5,9 @@ Signal on the Sphere
 .. autofunction:: e3nn_jax.s2_irreps
 
 
+.. autofunction:: e3nn_jax.s2_sum_of_diracs
+
+
 .. autofunction:: e3nn_jax.to_s2point
 
 

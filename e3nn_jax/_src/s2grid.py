@@ -383,11 +383,71 @@ jax.tree_util.register_pytree_node(
 )
 
 
-def s2_sum_of_diracs(positions: jnp.ndarray, weights: jnp.ndarray, lmax: int, *, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
+def s2_sum_of_diracs(
+    positions: jnp.ndarray, lmax: int, weights: Optional[jnp.ndarray] = None, *, p_val: int, p_arg: int
+) -> e3nn.IrrepsArray:
     r"""Spherical harmonics coefficients of the sum of (almost-)Dirac deltas on the sphere.
 
     The integral of each Dirac delta is 1.
+
+    Args:
+        positions (jnp.ndarray): positions of the Dirac deltas, shape ``(N, 3)``
+        lmax (int): maximum degree of the spherical harmonics expansion
+        weights (optional): weights of the Dirac deltas, shape ``(N,)``
+        p_val (int): parity of the value of the signal on the sphere (1 or -1)
+        p_arg (int): parity of the argument of the signal on the sphere (1 or -1)
+
+    Returns:
+        e3nn.IrrepsArray: spherical harmonics coefficients
+
+    Example:
+
+    .. jupyter-execute::
+        :hide-code:
+
+        import jax.numpy as jnp
+        import e3nn_jax as e3nn
+        import plotly.graph_objects as go
+
+    .. jupyter-execute::
+
+        positions = jnp.array([[0.0, 0.0, 1.0]])
+        signal1 = e3nn.to_s2grid(e3nn.s2_sum_of_diracs(positions, 3, p_val=1, p_arg=-1), 50, 69, quadrature="gausslegendre")
+        signal2 = e3nn.to_s2grid(e3nn.s2_sum_of_diracs(positions, 6, p_val=1, p_arg=-1), 50, 69, quadrature="gausslegendre")
+        signal3 = e3nn.to_s2grid(e3nn.s2_sum_of_diracs(positions, 9, p_val=1, p_arg=-1), 50, 69, quadrature="gausslegendre")
+
+    .. jupyter-execute::
+        :hide-code:
+
+        axis = dict(
+            showbackground=False,
+            showgrid=False,
+            showline=False,
+            showticklabels=False,
+            ticks="",
+            title="",
+        )
+        go.Figure(
+            [
+                go.Surface(dict(**signal1.plotly_surface(jnp.array([-2.1, 0, 0])), showscale=False)),
+                go.Surface(dict(**signal2.plotly_surface(), showscale=False)),
+                go.Surface(dict(**signal3.plotly_surface(jnp.array([2.1, 0, 0])), showscale=False)),
+            ],
+            layout=go.Layout(
+                scene=dict(
+                    xaxis=axis,
+                    yaxis=axis,
+                    zaxis=axis,
+                    camera=dict(
+                        eye=dict(x=0.0, y=0.0, z=1.5),
+                        up=dict(x=0.0, y=1.0, z=0.0),
+                    ),
+                ),
+            ),
+        )
     """
+    if weights is None:
+        weights = jnp.ones_like(positions[..., 0])
     weights = weights[..., None]
     positions, _ = jnp.broadcast_arrays(positions, weights)
     irreps = s2_irreps(lmax, p_val, p_arg)
