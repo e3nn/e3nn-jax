@@ -343,7 +343,7 @@ class SphericalSignal:
         .. jupyter-execute::
 
             import jax.numpy as jnp
-            import e3nn-jax as e3nn
+            import e3nn_jax as e3nn
             coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1, 2, 0, 0.0]))
             signal = e3nn.to_s2grid(coeffs, 50, 69, quadrature="gausslegendre")
 
