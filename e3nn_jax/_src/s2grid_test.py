@@ -122,7 +122,7 @@ def test_transform_by_angles(keys, irreps, alpha, beta, gamma):
     irreps = e3nn.Irreps(irreps)
 
     coeffs = e3nn.normal(irreps, keys[0], ())
-    sig = e3nn.to_s2grid(coeffs, 20, 19, quadrature="soft")
+    sig = e3nn.to_s2grid(coeffs, 20, 19, quadrature="gausslegendre")
     rotated_sig = sig.transform_by_angles(alpha, beta, gamma, lmax=irreps.lmax)
     rotated_coeffs = e3nn.from_s2grid(rotated_sig, irreps)
     expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
@@ -188,11 +188,11 @@ def test_s2_sum_of_diracs_1():
     sig = e3nn.to_s2grid(x, 200, 59, quadrature="gausslegendre")
 
     # The integral of a Dirac delta is 1
-    np.testing.assert_allclose(sig.integral().array, 1.0)
+    np.testing.assert_allclose(sig.integrate().array, 1.0)
 
     # All the weight should be located at the north pole
     sig.grid_values = sig.grid_values.at[-60:].set(0.0)
-    np.testing.assert_allclose(sig.integral().array, 0.0, atol=0.05)
+    np.testing.assert_allclose(sig.integrate().array, 0.0, atol=0.05)
 
 
 @pytest.mark.parametrize("lmax", [1, 2, 3, 4])
@@ -202,41 +202,52 @@ def test_s2_sum_of_diracs_2(lmax):
     x = e3nn.s2_sum_of_diracs(positions, weights, lmax=lmax, p_val=1, p_arg=-1)
     sig = e3nn.to_s2grid(x, 200, 59, quadrature="gausslegendre")
 
-    np.testing.assert_allclose(sig.integral().array, jnp.sum(weights), atol=1e-6)
+    np.testing.assert_allclose(sig.integrate().array, jnp.sum(weights), atol=1e-6)
 
 
-@pytest.mark.parametrize("quadrature", ["gausslegendre", "soft"])
 @pytest.mark.parametrize("lmax", [1, 2, 3, 4])
-def test_integrate_irreps(keys, lmax, quadrature):
-    coeffs = e3nn.normal(e3nn.s2_irreps(lmax, p_val=1, p_arg=-1), keys[0])
-    sig = e3nn.to_s2grid(coeffs, 100, 199, quadrature=quadrature, p_val=1, p_arg=-1)
-    integral = sig.integral().array.squeeze()
+@pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
+def test_integrate_scalar(lmax, quadrature):
+    coeffs = e3nn.normal(e3nn.s2_irreps(lmax, p_val=1, p_arg=-1), jax.random.PRNGKey(0))
+    sig = e3nn.to_s2grid(coeffs, 100, 99, normalization="integral", quadrature=quadrature, p_val=1, p_arg=-1)
+    integral = sig.integrate().array.squeeze()
 
     scalar_term = coeffs["0e"].array[0]
     expected_integral = 4 * jnp.pi * scalar_term
     np.testing.assert_allclose(integral, expected_integral, atol=1e-5, rtol=1e-5)
 
 
-@pytest.mark.parametrize("quadrature", ["gausslegendre", "soft"])
-def test_integrate_one(quadrature):
-    sig = e3nn.SphericalSignal(jnp.ones((30, 29)), quadrature)
-    integral = sig.integral().array.squeeze()
+@pytest.mark.parametrize("degree", range(10))
+def test_integrate_polynomials(degree):
+    sig = e3nn.SphericalSignal(np.empty((26, 17)), "gausslegendre")
+    sig.grid_values = (sig.grid_y**degree)[:, None] * jnp.ones_like(sig.grid_values)
+    integral = sig.integrate().array.squeeze()
 
-    expected_integral = 4 * jnp.pi
+    expected_integral = 4 * jnp.pi / (degree + 1) if degree % 2 == 0 else 0
     np.testing.assert_allclose(integral, expected_integral, atol=1e-5, rtol=1e-5)
 
 
-# @pytest.mark.parametrize("lmax", [1, 4, 10])
-# def test_find_peaks(lmax):
-#     pos = jnp.asarray([
-#         [1.0, 0.0, 0.0],
-#         [0.0, 1.0, 0.0],
-#     ])
-#     val = jnp.asarray([
-#         -1.0,
-#         1.0,
-#     ])
-#     coeffs = sum_of_diracs(positions=pos, values=val, lmax=lmax, p_val=1, p_arg=-1)
-#     sig = e3nn.to_s2grid(coeffs, 15, 19, quadrature="gausslegendre")
+@pytest.mark.parametrize("lmax", [2, 4, 10])
+def test_find_peaks(lmax):
+    pos = jnp.asarray(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ]
+    )
+    val = jnp.asarray(
+        [
+            1.0,
+            -1.0,
+        ]
+    )
+    coeffs = e3nn.s2_sum_of_diracs(positions=pos, weights=val, lmax=lmax, p_val=1, p_arg=-1)
+    sig = e3nn.to_s2grid(coeffs, 50, 49, quadrature="gausslegendre")
 
-#     print(sig.find_peaks(lmax))
+    x, f = sig.find_peaks(lmax)
+    positive_peak = x[f.argmax()]
+    np.testing.assert_allclose(positive_peak, pos[0], atol=4e-1 / lmax)
+
+    x, f = sig.apply(lambda val: -val).find_peaks(lmax)
+    negative_peak = x[f.argmax()]
+    np.testing.assert_allclose(negative_peak, pos[1], atol=4e-1 / lmax)

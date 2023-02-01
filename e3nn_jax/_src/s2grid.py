@@ -224,17 +224,21 @@ class SphericalSignal:
 
         return list(set(iii).intersection(set(jjj)))
 
-    # TODO: add tests for this function
     def find_peaks(self, lmax: int):
-        r"""Locate peaks on the signal on the sphere."""
+        r"""Locate peaks on the signal on the sphere.
+
+        Currently cannot be wrapped with jax.jit().
+        """
         grid_resolution = self.grid_resolution
         x1, f1 = self.grid_vectors, self.grid_values
+        x1, f1 = jax.tree_map(lambda arr: np.asarray(arr.copy()), (x1, f1))
 
         # Rotate signal.
-        abc = np.array([jnp.pi / 2, jnp.pi / 2, jnp.pi / 2])
+        abc = (np.pi / 2, np.pi / 2, np.pi / 2)
         rotated_signal = self.transform_by_angles(*abc, lmax=lmax)
-        rotated_vectors = e3nn.IrrepsArray("1o", x1).transform_by_angles(*abc)
+        rotated_vectors = e3nn.IrrepsArray("1o", x1).transform_by_angles(*abc).array
         x2, f2 = rotated_vectors, rotated_signal.grid_values
+        x2, f2 = jax.tree_map(lambda arr: np.asarray(arr.copy()), (x2, f2))
 
         ij = self._find_peaks_2d(f1)
         x1p = np.stack([x1[i, j] for i, j in ij])
@@ -245,7 +249,7 @@ class SphericalSignal:
         f2p = np.stack([f2[i, j] for i, j in ij])
 
         # Union of the results
-        mask = scipy.spatial.distance.cdist(x1p, x2p) < 2 * jnp.pi / max(*grid_resolution)
+        mask = scipy.spatial.distance.cdist(x1p, x2p) < 2 * np.pi / max(*grid_resolution)
         x = np.concatenate([x1p[mask.sum(axis=1) == 0], x2p])
         f = np.concatenate([f1p[mask.sum(axis=1) == 0], f2p])
 
@@ -315,11 +319,11 @@ class SphericalSignal:
             surfacecolor=f,
         )
 
-    def integral(self) -> e3nn.IrrepsArray:
+    def integrate(self) -> e3nn.IrrepsArray:
         values = self.quadrature_weights[..., None] * self.grid_values
         values = jnp.sum(values, axis=-2)
         values = jnp.mean(values, axis=-1, keepdims=True) * 4 * jnp.pi
-        # The integral has parity.
+        # Handle parity of integral.
         integral_irreps = {1: "0e", -1: "0o"}[self.p_val]
         return e3nn.IrrepsArray(integral_irreps, values)
 
@@ -412,6 +416,7 @@ def from_s2grid(
     return e3nn.IrrepsArray(irreps, int_b)
 
 
+# TODO (mariogeiger): consider making default normalization as "integral" for correct quadrature.
 def to_s2grid(
     coeffs: e3nn.IrrepsArray,
     res_beta: int,
@@ -519,12 +524,21 @@ def to_s2point(
     shape2 = point.shape[:-1]
     sh = sh.reshape((-1, sh.shape[-1]))
 
-    return e3nn.IrrepsArray(
-        {1: "0e", -1: "0o"}[p_val], jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,))
-    )
+    irreps = {1: "0e", -1: "0o"}[p_val]
+    return e3nn.IrrepsArray(irreps, jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,)))
 
 
 def _s2grid_vectors(y: jnp.ndarray, alpha: jnp.ndarray) -> jnp.ndarray:
+    r"""Calculate the coordinates of the points on the sphere.
+
+    Args:
+        y: array with y values, shape ``(res_beta)``
+        alpha: array with alpha values, shape ``(res_alpha)``
+
+    Returns:
+        r: array of vectors, shape ``(res_beta, res_alpha, 3)``
+    """
+
     return jnp.stack(
         [
             jnp.sqrt(1.0 - y[:, None] ** 2) * jnp.sin(alpha),
@@ -646,7 +660,8 @@ def _check_parities(irreps: e3nn.Irreps, p_val: Optional[int] = None, p_arg: Opt
     return p_even, None
 
 
-def _normalization(lmax: int, normalization: str, dtype, direction: str, lmax_in=None) -> jnp.ndarray:
+def _normalization(lmax: int, normalization: str, dtype, direction: str, lmax_in: Optional[int] = None) -> jnp.ndarray:
+    """Handles normalization of different components of IrrepsArrays."""
     assert direction in ["to_s2", "from_s2"]
 
     if normalization == "component":
@@ -673,10 +688,8 @@ def _normalization(lmax: int, normalization: str, dtype, direction: str, lmax_in
             return jnp.sqrt(4 * jnp.pi) * jnp.ones(lmax + 1, dtype) * jnp.sqrt(lmax_in + 1)
     if normalization == "integral":
         # normalize such that the coefficient L=0 is equal to 4 pi the integral of the function
-        if direction == "to_s2":
-            return jnp.ones(lmax + 1, dtype) * jnp.sqrt(4 * jnp.pi)
-        else:
-            return jnp.ones(lmax + 1, dtype) * jnp.sqrt(4 * jnp.pi)
+        # for "integral" normalization, the direction does not matter.
+        return jnp.ones(lmax + 1, dtype) * jnp.sqrt(4 * jnp.pi)
 
     raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
