@@ -233,6 +233,7 @@ class SphericalSignal:
 
         Currently cannot be wrapped with jax.jit().
         """
+        # TODO: Still has the bug `ValueError: buffer source array is read-only`
         grid_resolution = self.grid_resolution
         x1, f1 = self.grid_vectors, self.grid_values
         x1, f1 = jax.tree_map(lambda arr: np.asarray(arr.copy()), (x1, f1))
