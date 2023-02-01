@@ -1,33 +1,3 @@
-r"""Transformation between two representations of a signal on the sphere.
-
-.. math:: f: S^2 \longrightarrow \mathbb{R}
-
-is a signal on the sphere.
-
-It can be decomposed into the basis of the spherical harmonics:
-
-.. math:: f(x) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot Y^l(x)
-
-it is made of :math:`(l_{\mathit{max}} + 1)^2` real numbers represented in the above formula by the familly of vectors
-:math:`F^l \in \mathbb{R}^{2l+1}`.
-
-Another representation is the discretization around the sphere. For this representation we chose a particular grid of size
-:math:`(N, M)`
-
-.. math::
-
-    x_{ij} &= (\sin(\beta_i) \sin(\alpha_j), \cos(\beta_i), \sin(\beta_i) \cos(\alpha_j))
-
-    \beta_i &= \pi (i + 0.5) / N
-
-    \alpha_j &= 2 \pi j / M
-
-In the code, :math:`N` is called ``res_beta`` and :math:`M` is ``res_alpha``.
-
-The discrete representation is therefore
-
-.. math:: \{ h_{ij} = f(x_{ij}) \}_{ij}
-"""
 from typing import Callable, List, Optional, Tuple, Union
 
 import jax
@@ -302,8 +272,8 @@ class SphericalSignal:
             scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
 
         Returns:
-            r (jnp.ndarray): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
-            f (jnp.ndarray): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
+            r (`jax.numpy.ndarrayy`): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
+            f (`jax.numpy.ndarrayy`): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
         """
         f, y, alpha = self.grid_values, self.grid_y, self.grid_alpha
 
@@ -364,7 +334,7 @@ class SphericalSignal:
         The integral of a constant signal of value 1 is 4pi.
 
         Returns:
-            e3nn.IrrepsArray: integral of the signal
+            `IrrepsArray`: integral of the signal
         """
         values = self.quadrature_weights[..., None] * self.grid_values
         values = jnp.sum(values, axis=-2)
@@ -391,14 +361,14 @@ def s2_sum_of_diracs(
     The integral of each Dirac delta is 1.
 
     Args:
-        positions (jnp.ndarray): positions of the Dirac deltas, shape ``(N, 3)``
+        positions (`jax.numpy.ndarray`): positions of the Dirac deltas, shape ``(N, 3)``
         lmax (int): maximum degree of the spherical harmonics expansion
         weights (optional): weights of the Dirac deltas, shape ``(N,)``
         p_val (int): parity of the value of the signal on the sphere (1 or -1)
         p_arg (int): parity of the argument of the signal on the sphere (1 or -1)
 
     Returns:
-        e3nn.IrrepsArray: spherical harmonics coefficients
+        `IrrepsArray`: spherical harmonics coefficients
 
     Example:
 
@@ -442,6 +412,7 @@ def s2_sum_of_diracs(
                         eye=dict(x=0.0, y=0.0, z=1.5),
                         up=dict(x=0.0, y=1.0, z=0.0),
                     ),
+                    aspectratio=dict(x=3.2*1.2, y=1*1.2, z=1*1.2),
                 ),
             ),
         )
@@ -483,22 +454,22 @@ def from_s2grid(
     normalization: str = "integral",
     lmax_in: Optional[int] = None,
     fft: bool = True,
-):
+) -> e3nn.IrrepsArray:
     r"""Transform signal on the sphere into spherical harmonics coefficients.
 
     The output has degree :math:`l` between 0 and lmax, and parity :math:`p = p_{val}p_{arg}^l`
 
-    The inverse transformation of :func:`e3nn_jax.to_s2grid`
+    The inverse transformation of :func:`to_s2grid`
 
     Args:
         x (`SphericalSignal`): signal on the sphere of shape ``(..., y/beta, alpha)``
-        irreps (e3nn.Irreps): irreps of the coefficients
+        irreps (`Irreps`): irreps of the coefficients
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical harmonics basis
         lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
         fft (bool): True if we use FFT, False if we use the naive implementation
 
     Returns:
-        `e3nn_jax.IrrepsArray`: coefficient array of shape ``(..., (lmax+1)^2)``
+        `IrrepsArray`: coefficient array of shape ``(..., (lmax+1)^2)``
     """
     res_beta, res_alpha = x.grid_resolution
 
@@ -551,10 +522,10 @@ def to_s2grid(
 ) -> SphericalSignal:
     r"""Sample a signal on the sphere given by the coefficient in the spherical harmonics basis.
 
-    The inverse transformation of :func:`e3nn_jax.from_s2grid`
+    The inverse transformation of :func:`from_s2grid`
 
     Args:
-        coeffs (`e3nn_jax.IrrepsArray`): coefficient array
+        coeffs (`IrrepsArray`): coefficient array
         res_beta (int): number of points on the sphere in the :math:`\theta` direction
         res_alpha (int): number of points on the sphere in the :math:`\phi` direction
         normalization ({'norm', 'component', 'integral'}): normalization of the basis
@@ -612,15 +583,15 @@ def to_s2point(
 ) -> e3nn.IrrepsArray:
     """Evaluate a signal on the sphere given by the coefficient in the spherical harmonics basis.
 
-    It computes the same thing as :func:`e3nn_jax.to_s2grid` but at a single point.
+    It computes the same thing as :func:`to_s2grid` but at a single point.
 
     Args:
-        coeffs (`e3nn_jax.IrrepsArray`): coefficient array of shape ``(*shape1, irreps)``
+        coeffs (`IrrepsArray`): coefficient array of shape ``(*shape1, irreps)``
         point (`jax.numpy.ndarray`): point on the sphere of shape ``(*shape2, 3)``
         normalization ({'norm', 'component', 'integral'}): normalization of the basis
 
     Returns:
-        `jax.numpy.ndarray`: the value of the signal at the point, of shape ``(*shape1, *shape2, irreps)``
+        `IrrepsArray`: signal on the sphere of shape ``(*shape1, *shape2, irreps)``
     """
     coeffs = coeffs.regroup()
 
@@ -886,9 +857,9 @@ def _rollout_sh(m: jnp.ndarray, lmax: int) -> jnp.ndarray:
     """
     Expand spherical harmonic representation.
     Args:
-        m: jnp.ndarray of shape (..., (lmax+1)*(lmax+2)/2)
+        m (`jax.numpy.ndarray`): of shape (..., (lmax+1)*(lmax+2)/2)
     Returns:
-        jnp.ndarray of shape (..., (lmax+1)**2)
+        `jax.numpy.ndarray` of shape (..., (lmax+1)**2)
     """
     assert m.shape[-1] == (lmax + 1) * (lmax + 2) // 2
     m_full = jnp.zeros((*m.shape[:-1], (lmax + 1) ** 2), dtype=m.dtype)
