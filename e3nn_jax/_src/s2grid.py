@@ -676,6 +676,57 @@ def to_s2grid(
 
     Returns:
         `SphericalSignal`: signal on the sphere of shape ``(..., y/beta, alpha)``
+
+    Notes:
+
+        We use a rectangular grid for the :math:`\beta` and :math:`\alpha` angles.
+        The grid is uniform in the :math:`\alpha` angle while for :math:`\beta`, two different quadratures are available:
+
+        * The `soft <https://link.springer.com/article/10.1007/s00041-008-9013-5>`_
+          quadrature is a uniform sampling of the beta angle.
+        * The `gauss-legendre <https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature>`_
+          quadrature is a quadrature rule that is exact for polynomials of degree ``2 res_beta - 1``.
+          On the sphere it is exact only for polynomials of :math:`y`.
+
+        .. jupyter-execute::
+            :hide-code:
+
+            import jax.numpy as jnp
+            import e3nn_jax as e3nn
+            import plotly.graph_objects as go
+
+            soft = e3nn.SphericalSignal.zeros(10, 19, "soft")
+            gauss = e3nn.SphericalSignal.zeros(10, 19, "gausslegendre")
+
+            axis = dict(showticklabels=False, title="", range=[-1.1, 1.1])
+
+            go.Figure(
+                data=[
+                    go.Scatter3d(
+                        x=s.grid_vectors[:, :, 0].reshape(-1),
+                        y=s.grid_vectors[:, :, 1].reshape(-1),
+                        z=s.grid_vectors[:, :, 2].reshape(-1),
+                        mode="markers",
+                        marker=dict(
+                            color=c,
+                            size=100 * jnp.broadcast_to(s.quadrature_weights[:, None], s.grid_resolution).reshape(-1)
+                        ),
+                        name=s.quadrature,
+                    )
+                    for s, c in zip([soft, gauss], ["blue", "red"])
+                ],
+                layout=go.Layout(
+                    scene=dict(
+                        xaxis=axis,
+                        yaxis=axis,
+                        zaxis=axis,
+                        camera=dict(
+                            eye=dict(x=0.4, y=0.0, z=1.3),
+                            up=dict(x=0.0, y=1.0, z=0.0),
+                        ),
+                    ),
+                ),
+            )
     """
     coeffs = coeffs.regroup()
     lmax = coeffs.irreps.ls[-1]
