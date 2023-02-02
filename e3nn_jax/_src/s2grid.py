@@ -391,11 +391,18 @@ class SphericalSignal:
 
             import jax.numpy as jnp
             import e3nn_jax as e3nn
-            coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1.0, 2.0, 0.0, 0.0]))
-            signal = e3nn.to_s2grid(coeffs, 50, 69, quadrature="gausslegendre")
+            coeffs = e3nn.normal(e3nn.s2_irreps(5), jax.random.PRNGKey(0))
+            signal = e3nn.to_s2grid(coeffs, 70, 141, quadrature="gausslegendre")
 
             import plotly.graph_objects as go
             go.Figure([go.Surface(signal.plotly_surface())])
+
+        One can also scale the radius of the sphere by the amplitude of the signal:
+
+        .. jupyter-execute::
+
+            go.Figure([go.Surface(signal.plotly_surface(scale_radius_by_amplitude=True))])
+
         """
         r, f = self.pad_to_plot(translation=translation, scale_radius_by_amplitude=scale_radius_by_amplitude)
         return dict(
