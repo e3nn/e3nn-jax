@@ -362,8 +362,10 @@ class SphericalSignal:
             key (`jax.numpy.ndarray`): random key
 
         Returns:
-            beta_index (`jax.numpy.ndarray`): index of the sampled beta
-            alpha_index (`jax.numpy.ndarray`): index of the sampled alpha
+            (tuple): tuple containing:
+
+                beta_index (`jax.numpy.ndarray`): index of the sampled beta
+                alpha_index (`jax.numpy.ndarray`): index of the sampled alpha
 
         Example:
 
@@ -729,9 +731,10 @@ def _s2grid(res_beta: int, res_alpha: int, quadrature: str) -> Tuple[np.ndarray,
         quadrature (str): "soft" or "gausslegendre"
 
     Returns:
-        y (`numpy.ndarray`): array of shape ``(res_beta)``
-        alpha (`numpy.ndarray`): array of shape ``(res_alpha)``
-        qw (`numpy.ndarray`): array of shape ``(res_beta)``, ``sum(qw) = 1``
+        (tuple): tuple containing:
+            y (`numpy.ndarray`): array of shape ``(res_beta)``
+            alpha (`numpy.ndarray`): array of shape ``(res_alpha)``
+            qw (`numpy.ndarray`): array of shape ``(res_beta)``, ``sum(qw) = 1``
     """
 
     if quadrature == "soft":
@@ -763,11 +766,12 @@ def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, qua
         quadrature (str): "soft" or "gausslegendre"
 
     Returns:
-        y (`jax.numpy.ndarray`): array of shape ``(res_beta)``
-        alphas (`jax.numpy.ndarray`): array of shape ``(res_alpha)``
-        sh_y (`jax.numpy.ndarray`): array of shape ``(res_beta, (lmax + 1)(lmax + 2)/2)``
-        sh_alpha (`jax.numpy.ndarray`): array of shape ``(res_alpha, 2 * lmax + 1)``
-        qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
+        (tuple): tuple containing:
+            y (`jax.numpy.ndarray`): array of shape ``(res_beta)``
+            alphas (`jax.numpy.ndarray`): array of shape ``(res_alpha)``
+            sh_y (`jax.numpy.ndarray`): array of shape ``(res_beta, (lmax + 1)(lmax + 2)/2)``
+            sh_alpha (`jax.numpy.ndarray`): array of shape ``(res_alpha, 2 * lmax + 1)``
+            qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
     """
     y, alphas, qw = _s2grid(res_beta, res_alpha, quadrature)
     y, alphas, qw = jax.tree_util.tree_map(lambda x: jnp.asarray(x, dtype), (y, alphas, qw))

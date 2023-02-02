@@ -106,10 +106,12 @@ def basis_intersection(
         round_fn (function, optional): Function to round the vectors. Defaults to lambda x: x.
 
     Returns:
-        np.ndarray: A projection matrix that projects vectors of the first basis in the intersection of the two bases.
-            Shape ``(dim_intersection, n1)``
-        np.ndarray: A projection matrix that projects vectors of the second basis in the intersection of the two bases.
-            Shape ``(dim_intersection, n2)``
+        (tuple): tuple containing:
+
+            np.ndarray: A projection matrix that projects vectors of the first basis in the intersection of the two bases.
+                Shape ``(dim_intersection, n1)``
+            np.ndarray: A projection matrix that projects vectors of the second basis in the intersection of the two bases.
+                Shape ``(dim_intersection, n2)``
 
     Example:
         >>> basis1 = np.array([[1, 0, 0], [0, 0, 1.0]])
