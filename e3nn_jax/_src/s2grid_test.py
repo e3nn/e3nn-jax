@@ -227,6 +227,22 @@ def test_integrate_polynomials(degree):
     np.testing.assert_allclose(integral, expected_integral, atol=1e-5, rtol=1e-5)
 
 
+def test_sample(keys):
+    p = e3nn.to_s2grid(0.5 * e3nn.normal(e3nn.s2_irreps(4), keys[0]), 30, 51, quadrature="gausslegendre").apply(jnp.exp)
+    p: e3nn.SphericalSignal = p / p.integrate()
+    keys = jax.random.split(keys[1], 100_000)
+    beta_index, alpha_index = jax.vmap(lambda k: p.sample(k))(keys)
+
+    f = jnp.zeros_like(p.grid_values)
+    f = f.at[beta_index, alpha_index].add(1.0)
+
+    f = e3nn.SphericalSignal(f / p.quadrature_weights[:, None], p.quadrature)
+    f = f / f.integrate()
+
+    err = (p - f).apply(jnp.square).integrate().array[0]
+    assert err < 2e-3
+
+
 @pytest.mark.parametrize("lmax", [2, 4, 10])
 def test_find_peaks(lmax):
     pytest.skip("Still has the bug `ValueError: buffer source array is read-only`")  # TODO

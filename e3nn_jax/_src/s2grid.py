@@ -1,3 +1,4 @@
+import math
 from typing import Callable, List, Optional, Tuple, Union
 
 import jax
@@ -68,15 +69,24 @@ class SphericalSignal:
 
     def __mul__(self, scalar: float) -> "SphericalSignal":
         """Multiply SphericalSignal by a scalar."""
-        return SphericalSignal(self.grid_values * scalar, self.quadrature, self.p_val, self.p_arg)
+        if isinstance(scalar, SphericalSignal):
+            raise ValueError("Multiplication of two SphericalSignals is not supported.")
+
+        if isinstance(scalar, e3nn.IrrepsArray):
+            if scalar.irreps != e3nn.Irreps("0e"):
+                raise ValueError("Scalar must be a 0e IrrepsArray.")
+            scalar = scalar.array[..., 0]
+
+        scalar = jnp.asarray(scalar)[..., None, None]
+        return SphericalSignal(self.grid_values * scalar, self.quadrature, p_val=self.p_val, p_arg=self.p_arg)
 
     def __rmul__(self, scalar: float) -> "SphericalSignal":
         """Multiply SphericalSignal by a scalar."""
-        return SphericalSignal(self.grid_values * scalar, self.quadrature, self.p_val, self.p_arg)
+        return self * scalar
 
     def __truediv__(self, scalar: float) -> "SphericalSignal":
         """Divide SphericalSignal by a scalar."""
-        return SphericalSignal(self.grid_values / scalar, self.quadrature, self.p_val, self.p_arg)
+        return self * (1 / scalar)
 
     def __add__(self, other: "SphericalSignal") -> "SphericalSignal":
         """Add to another SphericalSignal."""
@@ -90,21 +100,15 @@ class SphericalSignal:
         if self.quadrature != other.quadrature:
             raise ValueError("Quadrature for both signals must be identical.")
 
-        return SphericalSignal(self.grid_values + other.grid_values, self.quadrature, self.p_val, self.p_arg)
+        return SphericalSignal(self.grid_values + other.grid_values, self.quadrature, p_val=self.p_val, p_arg=self.p_arg)
 
     def __sub__(self, other: "SphericalSignal") -> "SphericalSignal":
         """Subtract another SphericalSignal."""
-        if self.grid_resolution != other.grid_resolution:
-            raise ValueError(
-                "Grid resolutions for both signals must be identical. "
-                "Use .resample() to change one of the grid resolutions."
-            )
-        if (self.p_val, self.p_arg) != (other.p_val, other.p_arg):
-            raise ValueError("Parity for both signals must be identical.")
-        if self.quadrature != other.quadrature:
-            raise ValueError("Quadrature for both signals must be identical.")
+        return self + (-other)
 
-        return SphericalSignal(self.grid_values - other.grid_values, self.quadrature, self.p_val, self.p_arg)
+    def __neg__(self) -> "SphericalSignal":
+        """Negate SphericalSignal."""
+        return SphericalSignal(-self.grid_values, self.quadrature, p_val=self.p_val, p_arg=self.p_arg)
 
     @property
     def shape(self) -> Tuple[int, ...]:
@@ -115,6 +119,11 @@ class SphericalSignal:
     def dtype(self) -> jnp.dtype:
         """Returns the dtype of this signal."""
         return self.grid_values.dtype
+
+    @property
+    def ndim(self) -> int:
+        """Returns the number of dimensions of this signal."""
+        return self.grid_values.ndim
 
     @property
     def grid_y(self) -> jnp.ndarray:
@@ -130,7 +139,7 @@ class SphericalSignal:
 
     @property
     def grid_vectors(self) -> jnp.ndarray:
-        """Returns the coordinates of the points on the sphere."""
+        """Returns the coordinates of the points on the sphere. Shape: ``(res_beta, res_alpha, 3)``."""
         y, alpha, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return _s2grid_vectors(y, alpha)
 
@@ -343,6 +352,47 @@ class SphericalSignal:
         # Handle parity of integral.
         integral_irreps = {1: "0e", -1: "0o"}[self.p_val]
         return e3nn.IrrepsArray(integral_irreps, values)
+
+    def sample(self, key: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """Sample a point on the sphere using the signal as a probability distribution.
+
+        The probability distribution does not need to be normalized.
+
+        Args:
+            key (`jax.numpy.ndarray`): random key
+
+        Returns:
+            beta_index (`jax.numpy.ndarray`): index of the sampled beta
+            alpha_index (`jax.numpy.ndarray`): index of the sampled alpha
+
+        Example:
+
+        .. jupyter-execute::
+
+            coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1, 2, 0, 0.0]))
+            signal = e3nn.to_s2grid(coeffs, 50, 69, quadrature="gausslegendre")
+            signal = signal.apply(jnp.exp)
+
+            beta_index, alpha_index = signal.sample(jax.random.PRNGKey(0))
+            print(beta_index, alpha_index)
+            print(signal.grid_vectors[beta_index, alpha_index])
+        """
+
+        def f(k, p_ya):  # single signal only
+            assert k.shape == (2,)
+            assert p_ya.shape == (self.res_beta, self.res_alpha)
+            k1, k2 = jax.random.split(k)
+            p_y = self.quadrature_weights * jnp.sum(p_ya, axis=1)  # [y]
+            y_index = jax.random.choice(k1, jnp.arange(self.res_beta), p=p_y)  # []
+            alpha_index = jax.random.choice(k2, jnp.arange(self.res_alpha), p=p_ya[y_index])  # []
+            return y_index, alpha_index
+
+        vf = f
+        for _ in range(self.ndim - 2):
+            vf = jax.vmap(vf)
+
+        keys = jax.random.split(key, math.prod(self.shape[:-2])).reshape(self.shape[:-2] + key.shape)
+        return vf(keys, self.grid_values)
 
 
 jax.tree_util.register_pytree_node(
