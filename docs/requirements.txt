@@ -9,7 +9,4 @@ matplotlib
 plotly
 jupyter-sphinx
 
-jax
-dm-haiku
-
 .

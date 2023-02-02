@@ -23,16 +23,76 @@ class SphericalSignal:
         p_arg: parity of the argument of the signal, either ``+1`` or ``-1``
 
     Examples:
-        >>> jnp.set_printoptions(precision=2, suppress=True)
-        >>> coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1, 2, 0, 0.0]))
-        >>> signal = e3nn.to_s2grid(coeffs, 50, 49, quadrature="soft")
-        >>> signal.integrate()
-        1x0e [12.57]
 
-        >>> signal = signal.apply(jnp.exp)
-        >>> coeffs = e3nn.from_s2grid(signal, e3nn.s2_irreps(2))
-        >>> coeffs
-        1x0e+1x1o+1x2e [12.52 15.47 -0.    0.    0.    0.   -5.35  0.   -9.27]
+        .. jupyter-execute::
+            :hide-code:
+
+            import e3nn_jax as e3nn
+            import jax
+            import jax.numpy as jnp
+            jnp.set_printoptions(precision=3, suppress=True)
+
+        Create a null signal:
+
+        .. jupyter-execute::
+
+            e3nn.SphericalSignal.zeros(50, 49, quadrature="soft")
+
+        Create a signal from a spherical harmonic expansion:
+
+        .. jupyter-execute::
+
+            coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1.0, 0.0, 2.0, 0.0]))
+            signal = e3nn.to_s2grid(coeffs, 50, 49, quadrature="soft")
+            signal
+
+        Apply a function to the signal:
+
+        .. jupyter-execute::
+
+            signal = signal.apply(jnp.exp)
+            signal
+
+        Convert the signal back to a spherical harmonic expansion:
+
+        .. jupyter-execute::
+
+            irreps = e3nn.s2_irreps(4)
+            coeffs = e3nn.from_s2grid(signal, irreps)
+            coeffs["4e"]
+
+        Resample the signal to a different grid resolution:
+
+        .. jupyter-execute::
+
+            signal = signal.resample(100, 99, lmax=5)
+            signal
+
+        Compute the integral of the signal:
+
+        .. jupyter-execute::
+
+            signal.integrate()
+
+        Rotate the signal (we need to determine ``lmax`` because the rotation is done in the Fourier domain):
+
+        .. jupyter-execute::
+
+            signal = signal.transform_by_angles(jnp.pi / 2, jnp.pi / 3, 0.0, lmax=5)
+
+        Sample a point on the sphere, using the signal as a density function:
+
+        .. jupyter-execute::
+
+            indices = signal.sample(jax.random.PRNGKey(0))
+            signal.grid_vectors[indices], signal.grid_values[indices]
+
+        Plot the signal:
+
+        .. jupyter-execute::
+
+            import plotly.graph_objects as go
+            go.Figure([go.Surface(signal.plotly_surface())])
     """
     grid_values: jnp.ndarray
     quadrature: str
@@ -59,6 +119,13 @@ class SphericalSignal:
         self.quadrature = quadrature
         self.p_val = p_val
         self.p_arg = p_arg
+
+    @staticmethod
+    def zeros(
+        res_beta: int, res_alpha: int, quadrature: str, *, p_val: int = 1, p_arg: int = -1, dtype: jnp.dtype = jnp.float32
+    ) -> "SphericalSignal":
+        """Create a null signal on a grid."""
+        return SphericalSignal(jnp.zeros((res_beta, res_alpha), dtype), quadrature, p_val=p_val, p_arg=p_arg)
 
     def __repr__(self) -> str:
         return (
@@ -282,8 +349,8 @@ class SphericalSignal:
             scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
 
         Returns:
-            r (`jax.numpy.ndarrayy`): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
-            f (`jax.numpy.ndarrayy`): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
+            r (`jax.numpy.ndarray`): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
+            f (`jax.numpy.ndarray`): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
         """
         f, y, alpha = self.grid_values, self.grid_y, self.grid_alpha
 
@@ -324,7 +391,7 @@ class SphericalSignal:
 
             import jax.numpy as jnp
             import e3nn_jax as e3nn
-            coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1, 2, 0, 0.0]))
+            coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1.0, 2.0, 0.0, 0.0]))
             signal = e3nn.to_s2grid(coeffs, 50, 69, quadrature="gausslegendre")
 
             import plotly.graph_objects as go
@@ -379,7 +446,7 @@ class SphericalSignal:
 
         .. jupyter-execute::
 
-            coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1, 2, 0, 0.0]))
+            coeffs = e3nn.IrrepsArray("0e + 1o", jnp.array([1.0, 2.0, 0.0, 0.0]))
             signal = e3nn.to_s2grid(coeffs, 50, 69, quadrature="gausslegendre")
             signal = signal.apply(jnp.exp)
 
@@ -443,40 +510,43 @@ def s2_sum_of_diracs(
     .. jupyter-execute::
 
         positions = jnp.array([[0.0, 0.0, 1.0]])
-        signal1 = e3nn.to_s2grid(e3nn.s2_sum_of_diracs(positions, 3, p_val=1, p_arg=-1), 50, 69, quadrature="gausslegendre")
-        signal2 = e3nn.to_s2grid(e3nn.s2_sum_of_diracs(positions, 6, p_val=1, p_arg=-1), 50, 69, quadrature="gausslegendre")
-        signal3 = e3nn.to_s2grid(e3nn.s2_sum_of_diracs(positions, 9, p_val=1, p_arg=-1), 50, 69, quadrature="gausslegendre")
+
+        coeffs_3 = e3nn.s2_sum_of_diracs(positions, 3, p_val=1, p_arg=-1)
+        coeffs_6 = e3nn.s2_sum_of_diracs(positions, 6, p_val=1, p_arg=-1)
+        coeffs_9 = e3nn.s2_sum_of_diracs(positions, 9, p_val=1, p_arg=-1)
 
     .. jupyter-execute::
         :hide-code:
 
+        signal_3 = e3nn.to_s2grid(coeffs_3, 50, 69, quadrature="gausslegendre")
+        signal_6 = e3nn.to_s2grid(coeffs_6, 50, 69, quadrature="gausslegendre")
+        signal_9 = e3nn.to_s2grid(coeffs_9, 50, 69, quadrature="gausslegendre")
+
         axis = dict(
-            showbackground=False,
-            showgrid=False,
-            showline=False,
+            # showbackground=False,
+            # showgrid=False,
+            # showline=False,
             showticklabels=False,
-            ticks="",
+            # ticks="",
             title="",
         )
         go.Figure(
             [
-                go.Surface(dict(**signal1.plotly_surface(jnp.array([-2.1, 0, 0])), showscale=False)),
-                go.Surface(dict(**signal2.plotly_surface(), showscale=False)),
-                go.Surface(dict(**signal3.plotly_surface(jnp.array([2.1, 0, 0])), showscale=False)),
+                go.Surface(dict(**signal_3.plotly_surface(jnp.array([-2.1, 0, 0])), showscale=False)),
+                go.Surface(dict(**signal_6.plotly_surface(), showscale=False)),
+                go.Surface(dict(**signal_9.plotly_surface(jnp.array([2.1, 0, 0])), showscale=False)),
             ],
             layout=go.Layout(
                 scene=dict(
-                    xaxis=axis,
-                    yaxis=axis,
-                    zaxis=axis,
+                    xaxis=dict(range=[-3.1, 3.1], **axis),
+                    yaxis=dict(range=[-1, 1], **axis),
+                    zaxis=dict(range=[-1, 1], **axis),
                     camera=dict(
-                        eye=dict(x=0.0, y=0.0, z=1.5),
+                        eye=dict(x=0.0, y=1.0, z=3.0),
                         up=dict(x=0.0, y=1.0, z=0.0),
                     ),
-                    aspectratio=dict(x=3.2, y=1, z=1),
+                    aspectratio=dict(x=3.1, y=1, z=1),
                 ),
-                width=800,
-                height=400,
             ),
         )
     """
@@ -924,7 +994,7 @@ def _rollout_sh(m: jnp.ndarray, lmax: int) -> jnp.ndarray:
     Args:
         m (`jax.numpy.ndarray`): of shape (..., (lmax+1)*(lmax+2)/2)
     Returns:
-        `jax.numpy.ndarray` of shape (..., (lmax+1)**2)
+        `jax.numpy.ndarray`: of shape (..., (lmax+1)**2)
     """
     assert m.shape[-1] == (lmax + 1) * (lmax + 2) // 2
     m_full = jnp.zeros((*m.shape[:-1], (lmax + 1) ** 2), dtype=m.dtype)
