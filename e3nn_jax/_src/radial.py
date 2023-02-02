@@ -4,6 +4,7 @@ from typing import Callable
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 
 def sus(x):
@@ -247,14 +248,11 @@ def _constraint(x: float, derivative: int, degree: int):
 def solve_polynomial(constraints) -> jnp.ndarray:
     with jax.ensure_compile_time_eval():
         degree = len(constraints)
-        A = jnp.array(
-            [_constraint(x, derivative, degree) for x, derivative, _ in sorted(constraints)],
-            dtype=jnp.float64,
-        )
-        B = jnp.array([y for _, _, y in sorted(constraints)], dtype=jnp.float64)
-        c = jnp.linalg.solve(A, B)
+        A = np.array([_constraint(x, derivative, degree) for x, derivative, _ in sorted(constraints)])
+        B = np.array([y for _, _, y in sorted(constraints)])
+        c = np.linalg.solve(A, B)[::-1]
 
-    return jax.jit(lambda x: jnp.polyval(c[::-1].astype(x.dtype), x))
+    return jax.jit(lambda x: jnp.polyval(c.astype(x.dtype), x))
 
 
 def poly_envelope(n0: int, n1: int, x_max: float = 1.0) -> Callable[[float], float]:
