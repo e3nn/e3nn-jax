@@ -26,7 +26,7 @@ class Linear(flax.linen.Module):
         num_indexed_weights (optional int): number of indexed weights. See example below.
         weights_per_channel (bool): whether to have one set of weights per channel.
 
-    Example:
+    Examples:
         Vanilla::
 
             >>> import e3nn_jax as e3nn

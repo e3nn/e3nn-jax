@@ -113,7 +113,7 @@ def basis_intersection(
             np.ndarray: A projection matrix that projects vectors of the second basis in the intersection of the two bases.
                 Shape ``(dim_intersection, n2)``
 
-    Example:
+    Examples:
         >>> basis1 = np.array([[1, 0, 0], [0, 0, 1.0]])
         >>> basis2 = np.array([[1, 1, 0], [0, 1, 0.0]])
         >>> P1, P2 = basis_intersection(basis1, basis2)

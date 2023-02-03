@@ -19,7 +19,7 @@ def __getattr__(name: str):
     r"""Creates an Irreps obeject by reflection.
 
     Args:
-        name (str): the o3 object name prefixed by l. Example: ``l1o == Irrep("1o")``
+        name (str): the o3 object name prefixed by l. Examples: ``l1o == Irrep("1o")``
 
     Returns:
         Irrep: the Irrep object

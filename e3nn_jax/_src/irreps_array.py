@@ -201,7 +201,7 @@ class IrrepsArray:
     def list(self) -> List[Optional[jnp.ndarray]]:
         r"""List of arrays matching each item of the ``.irreps``.
 
-        Example:
+        Examples:
             >>> x = IrrepsArray("2x0e + 0e", jnp.arange(3))
             >>> len(x.list)
             2
@@ -505,7 +505,7 @@ class IrrepsArray:
         Returns:
             IrrepsArray: new IrrepsArray
 
-        Example:
+        Examples:
             >>> IrrepsArray("2x0e + 1o", jnp.ones((6, 5))).reshape((2, 3, 5))
             2x0e+1x1o
             [[[1. 1. 1. 1. 1.]
@@ -566,7 +566,7 @@ class IrrepsArray:
     def unify(self) -> "IrrepsArray":
         r"""Unify the irreps.
 
-        Example:
+        Examples:
             >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).unify()
             1x0e+0x1e+1x0e [1. 1.]
         """
@@ -575,7 +575,7 @@ class IrrepsArray:
     def sort(self) -> "IrrepsArray":
         r"""Sort the irreps.
 
-        Example:
+        Examples:
             >>> IrrepsArray("0e + 1o + 2x0e", jnp.arange(6)).sorted()
             1x0e+2x0e+1x1o [0 4 5 1 2 3]
         """
@@ -591,7 +591,7 @@ class IrrepsArray:
 
         Equivalent to :meth:`sorted` followed by :meth:`simplify`.
 
-        Example:
+        Examples:
             >>> IrrepsArray("0e + 1o + 2x0e", jnp.arange(6)).regroup()
             3x0e+1x1o [0 4 5 1 2 3]
         """
@@ -609,7 +609,7 @@ class IrrepsArray:
             keep (Irreps or list of `Irrep` or function): list of irrep to keep
             exclude (Irreps or list of `Irrep` or function): list of irrep to exclude
 
-        Example:
+        Examples:
             >>> IrrepsArray("0e + 2x1o + 2x0e", jnp.arange(9)).filtered(["1o"])
             2x1o [1 2 3 4 5 6]
         """
@@ -655,7 +655,7 @@ class IrrepsArray:
     def axis_to_irreps(self, axis: int = -2) -> "IrrepsArray":
         r"""Repeat the irreps by the last axis of the array.
 
-        Example:
+        Examples:
             >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
             >>> x.axis_to_irreps()
             1x0e+1x1e+1x0e+1x1e [0 1 2 3 4 5 6 7]
@@ -685,7 +685,7 @@ class IrrepsArray:
             factor (int or None): factor the multiplicities by this number
             axis (int): the new axis will be placed before this axis
 
-        Example:
+        Examples:
             >>> x = IrrepsArray("6x0e + 3x1e", jnp.arange(15))
             >>> x.mul_to_axis()
             2x0e+1x1e
@@ -719,7 +719,7 @@ class IrrepsArray:
         Args:
             axis (int): axis to convert into multiplicity
 
-        Example:
+        Examples:
             >>> x = IrrepsArray("0e + 1e", jnp.arange(2 * 4).reshape(2, 4))
             >>> x.axis_to_mul()
             2x0e+2x1e [0 4 1 2 3 5 6 7]
@@ -771,7 +771,7 @@ class IrrepsArray:
         Returns:
             `IrrepsArray`: rotated data
 
-        Example:
+        Examples:
             >>> np.set_printoptions(precision=3, suppress=True)
             >>> x = IrrepsArray("2e", jnp.array([0.1, 0, 1.0, 1, 1]))
             >>> x.transform_by_angles(jnp.pi, 0, 0)
@@ -838,7 +838,7 @@ class IrrepsArray:
         Raises:
             ValueError: if the irreps are not compatible
 
-        Example:
+        Examples:
             >>> x = IrrepsArray.from_list("6x0e + 4x0e", [None, jnp.ones((4, 1))], ())
             >>> x._convert("5x0e + 5x0e").list
             [None, Array([[0.],
@@ -1146,7 +1146,7 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
     Returns:
         IrrepsArray: norm of the input array
 
-    Example:
+    Examples:
         >>> x = e3nn.IrrepsArray("2x0e + 1e + 2e", jnp.arange(10))
         >>> e3nn.norm(x)
         2x0e+1x0e+1x0e [ 0.     1.     5.385 15.969]

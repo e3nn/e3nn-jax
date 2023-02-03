@@ -111,7 +111,7 @@ def index_add(
     Returns:
         `jax.numpy.ndarray` or ``IrrepsArray``: output
 
-    Example:
+    Examples:
        >>> i = jnp.array([0, 2, 2, 0])
        >>> x = jnp.array([1.0, 2.0, 3.0, -10.0])
        >>> index_add(i, x, out_dim=4)
@@ -146,7 +146,7 @@ def radius_graph(
             jax.numpy.ndarray: source indices
             jax.numpy.ndarray: destination indices
 
-    Example:
+    Examples:
         >>> key = jax.random.PRNGKey(0)
         >>> pos = jax.random.normal(key, (20, 3))
         >>> batch = jnp.arange(20) < 10

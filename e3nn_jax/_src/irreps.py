@@ -492,7 +492,7 @@ class Irreps(tuple):
     def __mul__(self, other):
         r"""Multiply the multiplicities of the irreps.
 
-        Example:
+        Examples:
             >>> Irreps('0e + 1e') * 2
             2x0e+2x1e
         """
@@ -503,7 +503,7 @@ class Irreps(tuple):
     def __rmul__(self, other):
         r"""Multiply the multiplicities of the irreps.
 
-        Example:
+        Examples:
             >>> 2 * Irreps('0e + 1e')
             2x0e+2x1e
         """
@@ -512,7 +512,7 @@ class Irreps(tuple):
     def __floordiv__(self, other):
         r"""Divide the multiplicities of the irreps.
 
-        Example:
+        Examples:
             >>> Irreps('12x0e + 14x1e') // 2
             6x0e+7x1e
         """
@@ -534,7 +534,7 @@ class Irreps(tuple):
     def repeat(self, n: int) -> "Irreps":
         r"""Repeat the representation ``n`` times.
 
-        Example:
+        Examples:
             >>> Irreps('0e + 1e').repeat(2)
             1x0e+1x1e+1x0e+1x1e
         """
@@ -724,7 +724,7 @@ class Irreps(tuple):
     def dim(self) -> int:
         r"""Dimension of the irreps.
 
-        Example:
+        Examples:
             >>> Irreps("3x0e + 2x1e").dim
             9
         """
@@ -734,7 +734,7 @@ class Irreps(tuple):
     def num_irreps(self) -> int:
         """Sum of the multiplicities.
 
-        Example:
+        Examples:
             >>> Irreps("3x0e + 2x1e").num_irreps
             5
         """
@@ -744,7 +744,7 @@ class Irreps(tuple):
     def ls(self) -> List[int]:
         """List of the l values.
 
-        Example:
+        Examples:
             >>> Irreps("3x0e + 2x1e").ls
             [0, 0, 0, 1, 1]
         """
@@ -754,7 +754,7 @@ class Irreps(tuple):
     def lmax(self) -> int:
         """Maximum l value.
 
-        Example:
+        Examples:
             >>> Irreps("3x0e + 2x1e").lmax
             1
         """

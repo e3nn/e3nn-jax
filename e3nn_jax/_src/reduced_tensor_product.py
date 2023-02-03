@@ -41,7 +41,7 @@ def reduced_tensor_product_basis(
             The shape is ``(d1, ..., dn, irreps_out.dim)``
             where ``di`` is the dimension of the index ``i`` and ``n`` is the number of indices in the formula.
 
-    Example:
+    Examples:
         >>> np.set_printoptions(precision=3, suppress=True)
         >>> reduced_tensor_product_basis("ij=-ji", i="1x1o")
         1x1e

@@ -28,7 +28,7 @@ class Linear(hk.Module):
         weights_per_channel (bool): whether to have one set of weights per channel.
         name (optional str): name of the module.
 
-    Example:
+    Examples:
         Vanilla::
 
             >>> import e3nn_jax as e3nn

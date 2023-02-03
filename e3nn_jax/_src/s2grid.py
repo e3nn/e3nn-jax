@@ -385,7 +385,7 @@ class SphericalSignal:
         Returns:
             dict: dictionary that can be plotted with plotly
 
-        Example:
+        Examples:
 
         .. jupyter-execute::
 
@@ -441,7 +441,7 @@ class SphericalSignal:
                 beta_index (`jax.numpy.ndarray`): index of the sampled beta
                 alpha_index (`jax.numpy.ndarray`): index of the sampled alpha
 
-        Example:
+        Examples:
 
         .. jupyter-execute::
             :hide-code:
@@ -504,7 +504,7 @@ def s2_dirac(position: jnp.ndarray, lmax: int, *, p_val: int, p_arg: int) -> e3n
     Returns:
         `IrrepsArray`: Spherical harmonics coefficients
 
-    Example:
+    Examples:
 
     .. jupyter-execute::
         :hide-code:
@@ -555,6 +555,17 @@ def s2_dirac(position: jnp.ndarray, lmax: int, *, p_val: int, p_arg: int) -> e3n
                 ),
             ),
         )
+
+    Note:
+
+        To compute a sum of weighted Dirac deltas, use:
+
+        .. jupyter-execute::
+
+            positions = jnp.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1.0]])
+            weights = jnp.array([1, 1, -1, -1.0])
+
+            e3nn.sum(e3nn.s2_dirac(positions, 4, p_val=1, p_arg=-1) * weights[:, None], axis=0)
     """
     irreps = s2_irreps(lmax, p_val, p_arg)
     coeffs = e3nn.spherical_harmonics(irreps, position, normalize=True, normalization="integral")  # [dim]
@@ -672,7 +683,7 @@ def to_s2grid(
     Returns:
         `SphericalSignal`: signal on the sphere of shape ``(..., y/beta, alpha)``
 
-    Notes:
+    Note:
 
         We use a rectangular grid for the :math:`\beta` and :math:`\alpha` angles.
         The grid is uniform in the :math:`\alpha` angle while for :math:`\beta`, two different quadratures are available:
