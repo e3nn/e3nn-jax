@@ -181,10 +181,10 @@ def test_transform_by_quaternion(keys, irreps, alpha, beta, gamma):
     np.testing.assert_allclose(rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5)
 
 
-def test_s2_sum_of_diracs_1():
+def test_s2_dirac():
     jax.config.update("jax_enable_x64", True)
 
-    x = e3nn.s2_sum_of_diracs(jnp.array([[0.0, 1.0, 0.0]]), lmax=45, p_val=1, p_arg=-1)
+    x = e3nn.s2_dirac(jnp.array([0.0, 1.0, 0.0]), lmax=45, p_val=1, p_arg=-1)
     sig = e3nn.to_s2grid(x, 200, 59, quadrature="gausslegendre")
 
     # The integral of a Dirac delta is 1
@@ -193,16 +193,6 @@ def test_s2_sum_of_diracs_1():
     # All the weight should be located at the north pole
     sig.grid_values = sig.grid_values.at[-60:].set(0.0)
     np.testing.assert_allclose(sig.integrate().array, 0.0, atol=0.05)
-
-
-@pytest.mark.parametrize("lmax", [1, 2, 3, 4])
-def test_s2_sum_of_diracs_2(lmax):
-    positions = jnp.array([[0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
-    weights = jnp.array([1.0, -1.0])
-    x = e3nn.s2_sum_of_diracs(positions, lmax, weights, p_val=1, p_arg=-1)
-    sig = e3nn.to_s2grid(x, 200, 59, quadrature="gausslegendre")
-
-    np.testing.assert_allclose(sig.integrate().array, jnp.sum(weights), atol=1e-6)
 
 
 @pytest.mark.parametrize("lmax", [1, 2, 3, 4])

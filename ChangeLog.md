@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `e3nn.SphericalSignal.sample` to sample a point on the sphere
 
+### Changed
+- **[BREAKING]** Removed `e3nn.s2_sum_of_diracs` in favor of `e3nn.s2_dirac`
+
 ### Fixed
 - `e3nn.SphericalSignal` arithmetic operations
 

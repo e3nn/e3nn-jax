@@ -488,22 +488,21 @@ jax.tree_util.register_pytree_node(
 )
 
 
-def s2_sum_of_diracs(
-    positions: jnp.ndarray, lmax: int, weights: Optional[jnp.ndarray] = None, *, p_val: int, p_arg: int
-) -> e3nn.IrrepsArray:
-    r"""Spherical harmonics coefficients of the sum of (almost-)Dirac deltas on the sphere.
+def s2_dirac(position: jnp.ndarray, lmax: int, *, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
+    r"""Spherical harmonics expansion of a Dirac delta on the sphere.
 
-    The integral of each Dirac delta is 1.
+    The integral of the Dirac delta is 1.
 
     Args:
-        positions (`jax.numpy.ndarray`): positions of the Dirac deltas, shape ``(N, 3)``
+        position (`jax.numpy.ndarray`): position of the delta, shape ``(3,)``.
+            It will be normalized to have a norm of 1.
+
         lmax (int): maximum degree of the spherical harmonics expansion
-        weights (optional): weights of the Dirac deltas, shape ``(N,)``
         p_val (int): parity of the value of the signal on the sphere (1 or -1)
         p_arg (int): parity of the argument of the signal on the sphere (1 or -1)
 
     Returns:
-        `IrrepsArray`: spherical harmonics coefficients
+        `IrrepsArray`: Spherical harmonics coefficients
 
     Example:
 
@@ -516,11 +515,11 @@ def s2_sum_of_diracs(
 
     .. jupyter-execute::
 
-        positions = jnp.array([[0.0, 0.0, 1.0]])
+        position = jnp.array([0.0, 0.0, 1.0])
 
-        coeffs_3 = e3nn.s2_sum_of_diracs(positions, 3, p_val=1, p_arg=-1)
-        coeffs_6 = e3nn.s2_sum_of_diracs(positions, 6, p_val=1, p_arg=-1)
-        coeffs_9 = e3nn.s2_sum_of_diracs(positions, 9, p_val=1, p_arg=-1)
+        coeffs_3 = e3nn.s2_dirac(position, 3, p_val=1, p_arg=-1)
+        coeffs_6 = e3nn.s2_dirac(position, 6, p_val=1, p_arg=-1)
+        coeffs_9 = e3nn.s2_dirac(position, 9, p_val=1, p_arg=-1)
 
     .. jupyter-execute::
         :hide-code:
@@ -557,13 +556,9 @@ def s2_sum_of_diracs(
             ),
         )
     """
-    if weights is None:
-        weights = jnp.ones_like(positions[..., 0])
-    weights = weights[..., None]
-    positions, _ = jnp.broadcast_arrays(positions, weights)
     irreps = s2_irreps(lmax, p_val, p_arg)
-    y = e3nn.spherical_harmonics(irreps, positions, normalize=True, normalization="integral")  # [..., N, dim]
-    return e3nn.sum(y * weights, axis=-2) / jnp.sqrt(4 * jnp.pi)
+    coeffs = e3nn.spherical_harmonics(irreps, position, normalize=True, normalization="integral")  # [dim]
+    return coeffs / jnp.sqrt(4 * jnp.pi)
 
 
 def s2_irreps(lmax: int, p_val: int = 1, p_arg: int = -1) -> e3nn.Irreps:
