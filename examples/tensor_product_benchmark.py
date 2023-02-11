@@ -7,6 +7,7 @@ import jax.numpy as jnp
 import jaxlib
 
 import e3nn_jax as e3nn
+from e3nn_jax._src.util.jit import jit_code
 
 
 # https://stackoverflow.com/a/15008806/1008938
@@ -126,19 +127,8 @@ def main():
     print()
     print(f"{1e3 * perloop:.2f} ms")
 
-    c = jax.xla_computation(f)(w, *inputs)
-
-    backend = jax.lib.xla_bridge.get_backend()
-    e = backend.compile(c)
-    import jaxlib.xla_extension as xla_ext
-
-    option = xla_ext.HloPrintOptions.fingerprint()
-    option.print_operand_shape = False
-    option.print_result_shape = False
-    option.print_program_shape = True
-
-    with open("xla.txt", "wt") as f:
-        f.write(e.hlo_modules()[0].to_string(option))
+    with open("xla.txt", "wt") as file:
+        file.write(jit_code(f, w, *inputs))
 
 
 if __name__ == "__main__":
