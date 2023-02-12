@@ -33,12 +33,18 @@ def main():
     parser.add_argument("--extrachannels", type=t_or_f, default=False)
     parser.add_argument("--fused", type=t_or_f, default=False)
     parser.add_argument("--sparse", type=t_or_f, default=False)
+    parser.add_argument("--weights", type=t_or_f, default=True)
     parser.add_argument("--lists", type=t_or_f, default=False)
     parser.add_argument("--module", type=t_or_f, default=False)
     parser.add_argument("-n", type=int, default=1000)
     parser.add_argument("--batch", type=int, default=64)
 
     args = parser.parse_args()
+
+    args.irreps_in1 = e3nn.Irreps(args.irreps_in1 if args.irreps_in1 else args.irreps)
+    args.irreps_in2 = e3nn.Irreps(args.irreps_in2 if args.irreps_in2 else args.irreps)
+    args.irreps_out = e3nn.Irreps(args.irreps_out if args.irreps_out else args.irreps)
+    del args.irreps
 
     def k():
         k.key, x = jax.random.split(k.key)
@@ -56,10 +62,6 @@ def main():
         print(f"{key:>18} : {val}")
     print("=" * 40)
 
-    irreps_in1 = e3nn.Irreps(args.irreps_in1 if args.irreps_in1 else args.irreps)
-    irreps_in2 = e3nn.Irreps(args.irreps_in2 if args.irreps_in2 else args.irreps)
-    irreps_out = e3nn.Irreps(args.irreps_out if args.irreps_out else args.irreps)
-
     kwargs = dict(
         custom_einsum_jvp=args.custom_einsum_jvp,
         fused=args.fused,
@@ -71,7 +73,8 @@ def main():
     def tp(x1, x2):
         if args.module:
             assert not args.extrachannels
-            return e3nn.haiku.FullyConnectedTensorProduct(irreps_out)(x1, x2, **kwargs)
+            assert args.weights
+            return e3nn.haiku.FullyConnectedTensorProduct(args.irreps_out)(x1, x2, **kwargs)
         else:
             if args.extrachannels:
                 assert not args.module
@@ -83,11 +86,16 @@ def main():
             else:
                 x = e3nn.tensor_product(x1, x2, **kwargs)
 
-            return e3nn.haiku.Linear(irreps_out)(x)
+            if args.weights:
+                return e3nn.haiku.Linear(args.irreps_out)(x)
+            else:
+                return x.filter(keep=args.irreps_out)
 
-    inputs = (e3nn.normal(irreps_in1, k(), (args.batch,)), e3nn.normal(irreps_in2, k(), (args.batch,)))
-
+    inputs = (e3nn.normal(args.irreps_in1, k(), (args.batch,)), e3nn.normal(args.irreps_in2, k(), (args.batch,)))
     w = tp.init(k(), *inputs)
+
+    # Ensure everything is on the GPU (shouldn't be necessary, but just in case)
+    w, inputs = jax.tree_util.tree_map(jax.device_put, (w, inputs))
 
     print(f"{sum(x.size for x in jax.tree_util.tree_leaves(w))} parameters")
 
@@ -100,6 +108,7 @@ def main():
         f = lambda w, x1, x2: f_1(w, x1, x2).array
 
     if args.backward:
+        assert args.weights
         # tanh() forces it to realize the grad as a full size matrix rather than expanded (stride 0) ones
         f_2 = f
         f = jax.value_and_grad(
