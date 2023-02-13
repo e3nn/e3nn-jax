@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **[BREAKING]** Removed `e3nn.s2_sum_of_diracs` in favor of `e3nn.s2_dirac`
+- **[BREAKING]** `e3nn.grad` now regroups the output by default. It can be disabled with `regroup_output=False`
 
 ### Fixed
 - `e3nn.SphericalSignal` arithmetic operations

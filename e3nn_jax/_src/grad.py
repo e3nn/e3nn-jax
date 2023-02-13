@@ -11,11 +11,15 @@ def grad(
     fun: Callable[[e3nn.IrrepsArray], e3nn.IrrepsArray],
     argnums: int = 0,
     has_aux: bool = False,
+    regroup_output: bool = True,
 ) -> e3nn.IrrepsArray:
     r"""Take the gradient of an equivariant function and reduce it into irreps.
 
     Args:
         fun: An equivariant function.
+        argnums: The argument number to differentiate with respect to.
+        has_aux: If True, the function returns a tuple of the output and an auxiliary value.
+        regroup_output (bool, optional): Regroup the outputs into irreps. Defaults to True.
 
     Returns:
         The gradient of the function. Also an equivariant function.
@@ -84,6 +88,8 @@ def grad(
                         ).reshape(leading_shape_out + leading_shape_in + (mir_out.mul * mir_in.mul, ir.dim))
                     )
         output = e3nn.IrrepsArray.from_list(irreps, lst, leading_shape_out + leading_shape_in, x.dtype)
+        if regroup_output:
+            output = output.regroup()
         if has_aux:
             return output, aux
         else:
