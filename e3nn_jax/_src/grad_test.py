@@ -15,7 +15,7 @@ def test_simple_grad():
         return e3nn.sum(0.5 * e3nn.norm(x, squared=True).simplify())
 
     x = e3nn.normal("2e + 0e + 2x1o", random.PRNGKey(0), ())
-    np.testing.assert_allclose(e3nn.grad(fn)(x).array, x.array, atol=1e-6, rtol=1e-6)
+    np.testing.assert_allclose(e3nn.grad(fn, regroup_output=False)(x).array, x.array, atol=1e-6, rtol=1e-6)
 
 
 def test_aux():
