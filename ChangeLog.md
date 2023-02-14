@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `e3nn.SphericalSignal` arithmetic operations
+- `e3nn.Irreps.D_from_angles` computes (again!) the Wigner D matrices using the J matrices for L <= 11. This is faster and more accurate than using the expm.
 
 ## [0.16.0] - 2022-02-01
 ### Added

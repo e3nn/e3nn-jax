@@ -9,6 +9,8 @@ import jax.scipy
 
 from e3nn_jax import generators, matrix_to_angles, perm, quaternion_to_angles
 
+from .J import Jd
+
 IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
 
 
@@ -929,10 +931,23 @@ def _wigner_D_from_angles(l: int, alpha: jnp.ndarray, beta: jnp.ndarray, gamma: 
     alpha = alpha % (2 * jnp.pi)
     beta = beta % (2 * jnp.pi)
     gamma = gamma % (2 * jnp.pi)
-    X = generators(l)
 
     def f(a, b, c):
-        return jax.scipy.linalg.expm(a * X[1]) @ jax.scipy.linalg.expm(b * X[0]) @ jax.scipy.linalg.expm(c * X[1])
+        def rot_y(phi):
+            M = jnp.zeros((2 * l + 1, 2 * l + 1), dtype=phi.dtype)
+            inds = jnp.arange(0, 2 * l + 1, 1)
+            reversed_inds = jnp.arange(2 * l, -1, -1)
+            frequencies = jnp.arange(l, -l - 1, -1.0, dtype=phi.dtype)
+            M = M.at[inds, reversed_inds].set(jnp.sin(frequencies * phi))
+            M = M.at[inds, inds].set(jnp.cos(frequencies * phi))
+            return M
+
+        if l < len(Jd):
+            J = Jd[l]
+            return rot_y(alpha) @ J @ rot_y(beta) @ J @ rot_y(gamma)
+        else:
+            X = generators(l)
+            return jax.scipy.linalg.expm(a * X[1]) @ jax.scipy.linalg.expm(b * X[0]) @ jax.scipy.linalg.expm(c * X[1])
 
     return _naive_broadcast_decorator(f)(alpha, beta, gamma)
 
