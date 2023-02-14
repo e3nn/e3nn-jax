@@ -944,7 +944,7 @@ def _wigner_D_from_angles(l: int, alpha: jnp.ndarray, beta: jnp.ndarray, gamma: 
 
         if l < len(Jd):
             J = Jd[l]
-            return rot_y(alpha) @ J @ rot_y(beta) @ J @ rot_y(gamma)
+            return rot_y(a) @ J @ rot_y(b) @ J @ rot_y(c)
         else:
             X = generators(l)
             return jax.scipy.linalg.expm(a * X[1]) @ jax.scipy.linalg.expm(b * X[0]) @ jax.scipy.linalg.expm(c * X[1])
