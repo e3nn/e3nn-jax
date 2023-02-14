@@ -159,22 +159,22 @@ def soft_one_hot_linspace(
         raise ValueError("end_zero must be specified")
 
     if start_zero and end_zero:
-        values = jnp.linspace(start, end, number + 2)
+        values = jnp.linspace(start, end, number + 2, dtype=input.dtype)
         step = values[1] - values[0]
         values = values[1:-1]
 
     if start_zero and not end_zero:
-        values = jnp.linspace(start, end, number + 1)
+        values = jnp.linspace(start, end, number + 1, dtype=input.dtype)
         step = values[1] - values[0]
         values = values[1:]
 
     if not start_zero and end_zero:
-        values = jnp.linspace(start, end, number + 1)
+        values = jnp.linspace(start, end, number + 1, dtype=input.dtype)
         step = values[1] - values[0]
         values = values[:-1]
 
     if not start_zero and not end_zero:
-        values = jnp.linspace(start, end, number)
+        values = jnp.linspace(start, end, number, dtype=input.dtype)
         step = values[1] - values[0]
 
     diff = (input[..., None] - values) / step

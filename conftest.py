@@ -26,3 +26,7 @@ def e3nn_config():
 
     for key, value in __default_conf.items():
         e3nn.config(key, value)
+
+    jax.config.update("jax_enable_x64", False)
+    jax.config.update("jax_debug_nans", True)
+    jax.config.update("jax_debug_infs", True)

@@ -175,7 +175,9 @@ class FunctionalLinear:
             mul_out, ir_out = self.irreps_out[ins.i_out]
             output = output.at[self.irreps_in.slices()[ins.i_in], self.irreps_out.slices()[ins.i_out]].add(
                 ins.path_weight
-                * jnp.einsum("uw,ij->uiwj", w, jnp.eye(ir_in.dim)).reshape((mul_in * ir_in.dim, mul_out * ir_out.dim))
+                * jnp.einsum("uw,ij->uiwj", w, jnp.eye(ir_in.dim, dtype=dtype)).reshape(
+                    (mul_in * ir_in.dim, mul_out * ir_out.dim)
+                )
             )
         return output
 

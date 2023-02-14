@@ -1,11 +1,11 @@
-import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
 
 import e3nn_jax as e3nn
-from e3nn_jax.experimental.voxel_convolution import Convolution
+from e3nn_jax._src.util.test import assert_output_dtype_matches_input_dtype
+from e3nn_jax.experimental.voxel_convolution import ConvolutionFlax
 
 
 def test_convolution(keys):
@@ -13,18 +13,14 @@ def test_convolution(keys):
     irreps_out = e3nn.Irreps("0e + 2x1e + 2e")
     irreps_sh = e3nn.Irreps("0e + 1e + 2e")
 
-    @hk.without_apply_rng
-    @hk.transform
-    def c(x, z):
-        x = Convolution(
-            irreps_out=irreps_out,
-            irreps_sh=irreps_sh,
-            diameter=3.9,
-            num_radial_basis={0: 3, 1: 2, 2: 1},
-            relative_starts={0: 0.0, 1: 0.0, 2: 0.5},
-            steps=(1.0, 1.0, 1.0),
-        )(x, z)
-        return x
+    c = ConvolutionFlax(
+        irreps_out=irreps_out,
+        irreps_sh=irreps_sh,
+        diameter=3.9,
+        num_radial_basis={0: 3, 1: 2, 2: 1},
+        relative_starts={0: 0.0, 1: 0.0, 2: 0.5},
+        steps=(1.0, 1.0, 1.0),
+    )
 
     f = jax.jit(c.apply)
 
@@ -53,17 +49,13 @@ def test_convolution_defaults(keys):
     irreps_out = e3nn.Irreps("0e + 2x1e + 2e")
     irreps_sh = e3nn.Irreps("0e + 1e + 2e")
 
-    @hk.without_apply_rng
-    @hk.transform
-    def c(x):
-        x = Convolution(
-            irreps_out=irreps_out,
-            irreps_sh=irreps_sh,
-            diameter=3.9,
-            num_radial_basis=3,
-            steps=(1.0, 1.0, 1.0),
-        )(x)
-        return x
+    c = ConvolutionFlax(
+        irreps_out=irreps_out,
+        irreps_sh=irreps_sh,
+        diameter=3.9,
+        num_radial_basis=3,
+        steps=(1.0, 1.0, 1.0),
+    )
 
     f = jax.jit(c.apply)
 
@@ -81,3 +73,6 @@ def test_convolution_defaults(keys):
     y2 = y2.transform_by_angles(0.0, jnp.pi / 2, 0.0)
 
     assert jnp.allclose(y1.array, y2.array, atol=1e-5)
+
+    jax.config.update("jax_enable_x64", True)
+    assert_output_dtype_matches_input_dtype(f, w, x0)

@@ -4,13 +4,14 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from e3nn_jax._src.radial import u
+from e3nn_jax._src.util.test import assert_output_dtype_matches_input_dtype
 
 
 def test_sus():
     np.testing.assert_allclose(e3nn.sus(0.0), 0.0)
     np.testing.assert_allclose(e3nn.sus(1e7), 1.0, atol=1e-6)
 
-    x = np.linspace(-10.0, 10.0, 100)
+    x = jnp.linspace(-10.0, 10.0, 100)
 
     assert np.all(e3nn.sus(x) >= 0.0)
     assert np.all(e3nn.sus(x) <= 1.0)
@@ -23,16 +24,24 @@ def test_soft_one_hot_linspace(basis: str, start_zero: bool, end_zero: bool):
     if basis == "fourier" and start_zero != end_zero:
         pytest.skip()
 
-    x = np.linspace(0.2, 0.8, 100)
+    x = jnp.linspace(0.2, 0.8, 100)
     y = e3nn.soft_one_hot_linspace(x, start=0.0, end=1.0, number=5, basis=basis, start_zero=start_zero, end_zero=end_zero)
     assert y.shape == (100, 5)
 
     np.testing.assert_allclose(jnp.sum(y**2, axis=1), 1.0, atol=0.4)
 
+    jax.config.update("jax_enable_x64", True)
+    assert_output_dtype_matches_input_dtype(
+        lambda x: e3nn.soft_one_hot_linspace(
+            x, start=0.0, end=1.0, number=5, basis=basis, start_zero=start_zero, end_zero=end_zero
+        ),
+        x,
+    )
+
 
 @pytest.mark.parametrize("n", [1, 2, 4])
 def test_bessel(n: int):
-    x = np.linspace(0.0, 1.0, 100)
+    x = jnp.linspace(0.0, 1.0, 100)
     y = e3nn.bessel(x, n)
     assert y.shape == (100, n)
 
