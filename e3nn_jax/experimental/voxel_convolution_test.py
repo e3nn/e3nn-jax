@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.util.test import assert_output_dtype_matches_input_dtype
 from e3nn_jax.experimental.voxel_convolution import ConvolutionFlax
+from e3nn_jax.util import assert_output_dtype_matches_input_dtype
 
 
 def test_convolution(keys):

@@ -4,10 +4,11 @@ import jax.numpy as jnp
 
 import e3nn_jax as e3nn
 from e3nn_jax.experimental.point_convolution import MessagePassingConvolutionHaiku, radial_basis
-from e3nn_jax.util import assert_equivariant
+from e3nn_jax.util import assert_equivariant, assert_output_dtype_matches_input_dtype
 
 
 def test_point_convolution(keys):
+    jax.config.update("jax_enable_x64", True)
     cutoff = 2.0
 
     @hk.without_apply_rng
@@ -53,3 +54,4 @@ def test_point_convolution(keys):
         jax.random.PRNGKey(0),
         args_in=[pos, feat],
     )
+    assert_output_dtype_matches_input_dtype(model_apply, w, pos, feat, src, dst)

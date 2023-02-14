@@ -84,6 +84,8 @@ def test_from_s2grid_dtype(normalization, quadrature, fft):
 @pytest.mark.parametrize("fft", [False, True])
 @pytest.mark.parametrize("irreps", ["0e + 1o", "1o + 2e", e3nn.s2_irreps(4)])
 def test_inverse(keys, normalization, quadrature, fft, irreps):
+    jax.config.update("jax_enable_x64", True)
+
     coeffs_orig = e3nn.normal(irreps, keys[0], (12,))
     sigs = jax.vmap(lambda x: e3nn.to_s2grid(x, 100, 99, normalization=normalization, quadrature=quadrature))(coeffs_orig)
     coeffs_new = jax.vmap(lambda y: e3nn.from_s2grid(y, irreps, normalization=normalization, fft=fft))(sigs)
