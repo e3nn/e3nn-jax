@@ -173,6 +173,11 @@ class IrrepsArray:
 
         return IrrepsArray(f"{array.shape[-1]}x0e", array)
 
+    @property
+    def pure(self) -> "IrrepsArray":
+        """Just (irreps, array) without the list optimization."""
+        return IrrepsArray(irreps=self.irreps, array=self.array)
+
     @staticmethod
     def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> "IrrepsArray":
         r"""Create an IrrepsArray of zeros."""
