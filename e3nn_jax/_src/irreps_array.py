@@ -773,9 +773,9 @@ class IrrepsArray:
 
         Examples:
             >>> np.set_printoptions(precision=3, suppress=True)
-            >>> x = IrrepsArray("2e", jnp.array([0.1, 0, 1.0, 1, 1]))
+            >>> x = IrrepsArray("2e", jnp.array([0.1, 2, 1.0, 1, 1]))
             >>> x.transform_by_angles(jnp.pi, 0, 0)
-            1x2e [ 0.1  0.   1.  -1.   1. ]
+            1x2e [ 0.1 -2.   1.  -1.   1. ]
         """
         alpha = jnp.asarray(alpha, dtype=self.dtype)
         beta = jnp.asarray(beta, dtype=self.dtype)
