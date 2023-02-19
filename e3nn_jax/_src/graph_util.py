@@ -44,6 +44,57 @@ def scatter_sum(
     Returns:
         `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
     """
+    return _scatter_op("sum", 0.0, data, dst=dst, nel=nel, output_size=output_size, map_back=map_back)
+
+
+def scatter_max(
+    data: Union[jnp.ndarray, e3nn.IrrepsArray],
+    *,
+    dst: Optional[jnp.ndarray] = None,
+    nel: Optional[jnp.ndarray] = None,
+    initial: float = -jnp.inf,
+    output_size: Optional[int] = None,
+    map_back: bool = False,
+) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+    r"""Scatter max of data.
+
+    Performs either of the following two operations::
+
+        output[i] = max(initial, *(x for j, x in zip(dst, data) if j == i))
+
+    or::
+
+        output[i] = max(initial, *data[sum(nel[:i]):sum(nel[:i+1])])
+
+    Args:
+        data (`jax.numpy.ndarray` or `IrrepsArray`): array of shape ``(n, ...)``
+        dst (optional, `jax.numpy.ndarray`): array of shape ``(n,)``. If not specified, ``nel`` must be specified.
+        nel (optional, `jax.numpy.ndarray`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
+        initial (float): initial value to compare to
+        output_size (optional, int): size of output array. If not specified, ``nel`` must be specified
+            or ``map_back`` must be ``True``.
+        map_back (bool): whether to map back to the input position
+
+    Returns:
+        `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
+    """
+    if isinstance(data, e3nn.IrrepsArray):
+        if not data.irreps.is_scalar():
+            raise ValueError("scatter_max only works with scalar IrrepsArray")
+
+    return _scatter_op("max", initial, data, dst=dst, nel=nel, output_size=output_size, map_back=map_back)
+
+
+def _scatter_op(
+    op: str,
+    initial: float,
+    data: Union[jnp.ndarray, e3nn.IrrepsArray],
+    *,
+    dst: Optional[jnp.ndarray] = None,
+    nel: Optional[jnp.ndarray] = None,
+    output_size: Optional[int] = None,
+    map_back: bool = False,
+) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
     if dst is None and nel is None:
         raise ValueError("Either dst or nel must be specified")
     if dst is not None and nel is not None:
@@ -70,10 +121,14 @@ def scatter_sum(
         output_size = dst.shape[0]
         dst = _distinct_but_small(dst)
 
-    output = jax.tree_util.tree_map(
-        lambda x: jnp.zeros((output_size,) + x.shape[1:], x.dtype).at[(dst,)].add(x, indices_are_sorted=indices_are_sorted),
-        data,
-    )
+    def _op(x):
+        z = initial * jnp.ones((output_size,) + x.shape[1:], x.dtype)
+        if op == "sum":
+            return z.at[(dst,)].add(x, indices_are_sorted=indices_are_sorted)
+        elif op == "max":
+            return z.at[(dst,)].max(x, indices_are_sorted=indices_are_sorted)
+
+    output = jax.tree_util.tree_map(_op, data)
 
     if map_back:
         output = output[(dst,)]

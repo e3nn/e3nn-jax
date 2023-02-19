@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `e3nn.SphericalSignal.sample` to sample a point on the sphere
+- `e3nn.scatter_max`
 
 ### Changed
 - **[BREAKING]** Removed `e3nn.s2_sum_of_diracs` in favor of `e3nn.s2_dirac`

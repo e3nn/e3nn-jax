@@ -67,7 +67,7 @@ from e3nn_jax._src.tensor_products import (
 from e3nn_jax._src.grad import grad
 from e3nn_jax._src.activation import scalar_activation, normalize_function
 from e3nn_jax._src.gate import gate
-from e3nn_jax._src.graph_util import index_add, radius_graph, scatter_sum
+from e3nn_jax._src.graph_util import index_add, radius_graph, scatter_sum, scatter_max
 from e3nn_jax._src.reduced_tensor_product import (
     reduced_tensor_product_basis,
     reduced_symmetric_tensor_product_basis,
@@ -159,6 +159,7 @@ __all__ = [
     "index_add",
     "radius_graph",
     "scatter_sum",
+    "scatter_max",
     "poly_envelope",
     "soft_envelope",
     "reduced_tensor_product_basis",
