@@ -108,6 +108,8 @@ def _scatter_op(
         num_elements = data.shape[0]
         dst = jnp.repeat(jnp.arange(output_size), nel, total_repeat_length=num_elements)
         indices_are_sorted = True
+        if map_back:
+            output_size = None
     else:
         indices_are_sorted = False
 
