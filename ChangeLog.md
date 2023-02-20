@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.17.0] - 2023-02-20
 ### Added
 - `e3nn.SphericalSignal.sample` to sample a point on the sphere
 - `e3nn.scatter_max`
@@ -17,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `e3nn.SphericalSignal` arithmetic operations
 - `e3nn.Irreps.D_from_angles` computes (again!) the Wigner D matrices using the J matrices for L <= 11. This is faster and more accurate than using the expm.
 
-## [0.16.0] - 2022-02-01
+## [0.16.0] - 2023-02-01
 ### Added
 - `e3nn.SphericalSignal` class to represent signals on the sphere
 - `Signal on the Sphere` section in the documentation
@@ -38,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Removed `jax.jit` decorator to `Irreps.D_from_*` that was causing a bug.
 
-## [0.15.0] - 2022-01-20
+## [0.15.0] - 2023-01-20
 ### Added
 - `e3nn.s2grid_vectors` and `e3nn.pad_to_plot_on_s2grid` to help plotting signals on the sphere
 - `e3nn.util.assert_output_dtype` to check the output dtype of a function
