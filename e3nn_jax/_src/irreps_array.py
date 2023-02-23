@@ -81,7 +81,7 @@ class IrrepsArray:
         self._list = list
 
         if _perform_checks:
-            if not isinstance(self.array, jnp.ndarray):
+            if not isinstance(self.array, (np.ndarray, jnp.ndarray)):
                 raise ValueError(f"IrrepsArray: Array must be a jax.numpy.ndarray, got {type(self.array)}")
             if self.array.shape[-1] != self.irreps.dim:
                 raise ValueError(
