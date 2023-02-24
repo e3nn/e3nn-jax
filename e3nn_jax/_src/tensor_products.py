@@ -69,6 +69,9 @@ def tensor_product(
         >>> e3nn.tensor_product("2x1e + 2e", "2e")
         1x0e+3x1e+3x2e+3x3e+1x4e
     """
+    input1 = IrrepsArray.as_irreps_array(input1)
+    input2 = IrrepsArray.as_irreps_array(input2)
+
     if regroup_output:
         input1 = input1.regroup()
         input2 = input2.regroup()
