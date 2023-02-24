@@ -1161,6 +1161,9 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
     jnp = _infer_backend(array.array)
 
     def f(x):
+        if x is None:
+            return None
+
         x = jnp.sum(x**2, axis=-1, keepdims=True)
         if not squared:
             x = jnp.sqrt(x)
