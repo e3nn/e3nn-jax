@@ -1166,7 +1166,9 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
 
         x = jnp.sum(x**2, axis=-1, keepdims=True)
         if not squared:
-            x = jnp.sqrt(x)
+            x_safe = jnp.where(x == 0.0, 1.0, x)
+            x_safe = jnp.sqrt(x_safe)
+            x = jnp.where(x == 0.0, 0.0, x_safe)
         return x
 
     return IrrepsArray.from_list(
