@@ -3,7 +3,7 @@ import jax
 
 def jit_code(f, *args, **kwargs):
     """Jit a function with JAX. and return the jitted code as a string."""
-    from jax._src.lib import xla_bridge
+    from jax.lib import xla_bridge
     import jaxlib.xla_extension as xla_ext
 
     f_jax = jax.jit(f)
