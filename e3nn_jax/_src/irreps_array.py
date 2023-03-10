@@ -1143,20 +1143,27 @@ def stack(arrays: List[IrrepsArray], axis=0) -> IrrepsArray:
     )
 
 
-def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
+def norm(array: IrrepsArray, *, squared: bool = False, per_irrep: bool = True) -> IrrepsArray:
     """Norm of IrrepsArray.
 
     Args:
         array (IrrepsArray): input array
         squared (bool): if True, return the squared norm
+        per_irrep (bool): if True, return the norm of each irrep individually
 
     Returns:
         IrrepsArray: norm of the input array
 
     Examples:
-        >>> x = e3nn.IrrepsArray("2x0e + 1e + 2e", jnp.arange(10))
+        >>> x = e3nn.IrrepsArray("2x0e + 1e + 2e", jnp.arange(10.0))
         >>> e3nn.norm(x)
         2x0e+1x0e+1x0e [ 0.     1.     5.385 15.969]
+
+        >>> e3nn.norm(x, squared=True)
+        2x0e+1x0e+1x0e [  0.   1.  29. 255.]
+
+        >>> e3nn.norm(x, per_irrep=False)
+        1x0e [16.882]
     """
     jnp = _infer_backend(array.array)
 
@@ -1171,20 +1178,24 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
             x = jnp.where(x == 0.0, 0.0, x_safe)
         return x
 
-    return IrrepsArray.from_list(
-        [(mul, "0e") for mul, _ in array.irreps],
-        [f(x) for x in array.list],
-        array.shape[:-1],
-        array.dtype,
-    )
+    if per_irrep:
+        return IrrepsArray.from_list(
+            [(mul, "0e") for mul, _ in array.irreps],
+            [f(x) for x in array.list],
+            array.shape[:-1],
+            array.dtype,
+        )
+    else:
+        return IrrepsArray("0e", f(array.array))
 
 
-def dot(a: IrrepsArray, b: IrrepsArray) -> IrrepsArray:
+def dot(a: IrrepsArray, b: IrrepsArray, per_irrep: bool = False) -> IrrepsArray:
     """Dot product of two IrrepsArray.
 
     Args:
         a (IrrepsArray): first array (this array get complex conjugated)
         b (IrrepsArray): second array
+        per_irrep (bool): if True, return the dot product of each irrep individually
 
     Returns:
         IrrepsArray: dot product of the two input arrays, as a scalar
@@ -1194,6 +1205,9 @@ def dot(a: IrrepsArray, b: IrrepsArray) -> IrrepsArray:
         >>> y = e3nn.IrrepsArray("0e + 1e", jnp.array([1.0, 2.0, 1.0, 1.0]))
         >>> e3nn.dot(x, y)
         1x0e [2.-1.j]
+
+        >>> e3nn.dot(x, y, per_irrep=True)
+        1x0e+1x0e [0.-1.j 2.+0.j]
     """
     jnp = _infer_backend([a.array, b.array])
 
@@ -1203,13 +1217,31 @@ def dot(a: IrrepsArray, b: IrrepsArray) -> IrrepsArray:
     if a.irreps != b.irreps:
         raise ValueError("Dot product is only defined for IrrepsArray with the same irreps.")
 
-    out = 0.0
-    for x, y in zip(a.list, b.list):
-        if x is None or y is None:
-            continue
-        out += jnp.sum(jnp.conj(x) * y, axis=(-2, -1))
-    out = jnp.reshape(out, a.shape[:-1] + (1,))
-    return IrrepsArray("0e", out)
+    if per_irrep:
+        out = []
+        dtype = a.dtype
+        for x, y in zip(a.list, b.list):
+            if x is None or y is None:
+                out.append(None)
+            else:
+                out.append(jnp.sum(jnp.conj(x) * y, axis=-1, keepdims=True))
+                dtype = out[-1].dtype
+        return IrrepsArray.from_list(
+            [(mul, "0e") for mul, _ in a.irreps],
+            out,
+            a.shape[:-1],
+            dtype,
+        )
+    else:
+        out = 0.0
+        for x, y in zip(a.list, b.list):
+            if x is None or y is None:
+                continue
+            out = out + jnp.sum(jnp.conj(x) * y, axis=(-2, -1))
+        if isinstance(out, float):
+            shape = jnp.broadcast_shapes(a.shape[:-1], b.shape[:-1])
+            return IrrepsArray.zeros("0e", shape, dtype=a.dtype)
+        return IrrepsArray("0e", out[..., None])
 
 
 def normal(

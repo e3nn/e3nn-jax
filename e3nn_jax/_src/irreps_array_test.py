@@ -175,3 +175,28 @@ def test_slice_by_mul():
     assert y.irreps == ""
     assert y.array.shape == (0,)
     assert len(y.list) == 0
+
+
+def test_norm():
+    x = e3nn.IrrepsArray("2x0e + 1x1e", jnp.array([[1.0, 2, 3, 4, 5], [4.0, 5, 6, 6, 6]]))
+
+    assert e3nn.norm(x).shape == (2, 3)
+    assert e3nn.norm(x, per_irrep=True).shape == (2, 3)
+    assert e3nn.norm(x, per_irrep=False).shape == (2, 1)
+
+    x = e3nn.IrrepsArray.from_list("2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64)
+
+    assert e3nn.norm(x).shape == (2, 3)
+
+
+def test_dot():
+    x = e3nn.IrrepsArray("2x0e + 1x1e", jnp.array([[1.0, 2, 3, 4, 5], [4.0, 5, 6, 6, 6]]))
+    y = e3nn.IrrepsArray("2x0e + 1x1e", jnp.array([[1.0j, 2, 3, 4, 5], [4.0, 5, 6, 6, 6]]))
+
+    assert e3nn.dot(x, y).shape == (2, 1)
+    assert e3nn.dot(x, y, per_irrep=True).shape == (2, 3)
+    assert e3nn.dot(x, y, per_irrep=False).shape == (2, 1)
+
+    y = e3nn.IrrepsArray.from_list("2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64)
+
+    assert e3nn.dot(x, y).shape == (2, 1)
