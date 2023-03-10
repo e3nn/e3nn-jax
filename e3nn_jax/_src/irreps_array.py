@@ -1398,7 +1398,7 @@ class _IndexUpdateRef:
                 list=[fn(x, y, mul, ir) for (mul, ir), x, y in zip(self.irreps, self.list, values.list)],
             )
 
-        raise NotImplementedError(f"x.add[i].set(v) with v={type(values)} is not implemented.")
+        raise NotImplementedError(f"x.at[i].set(v) with v={type(values)} is not implemented.")
 
     def add(self, values: Any) -> IrrepsArray:
         index = self.index
@@ -1449,7 +1449,7 @@ class _IndexUpdateRef:
                 list=[fn(x, y, mul, ir) for (mul, ir), x, y in zip(self.irreps, self.list, values.list)],
             )
 
-        raise NotImplementedError(f"x.add[i].add(v) with v={type(values)} is not implemented.")
+        raise NotImplementedError(f"x.at[i].add(v) with v={type(values)} is not implemented.")
 
 
 class _MulIndexSliceHelper:
