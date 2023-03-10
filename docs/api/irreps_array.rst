@@ -14,8 +14,10 @@ IrrepsArray
 .. autofunction:: e3nn_jax.norm
 
 
+.. autofunction:: e3nn_jax.dot
+
+
 .. autofunction:: e3nn_jax.normal
 
 
 .. autofunction:: e3nn_jax.sum
-
