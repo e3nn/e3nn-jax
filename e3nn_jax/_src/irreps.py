@@ -766,6 +766,8 @@ class Irreps(tuple):
 
     def __repr__(self):
         """Representation of the irreps."""
+        if len(self) == 0:
+            return "Irreps()"
         return "+".join(f"{mul_ir}" for mul_ir in self)
 
     def D_from_log_coordinates(self, log_coordinates, k=0):

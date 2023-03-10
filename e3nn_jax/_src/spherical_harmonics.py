@@ -100,23 +100,39 @@ def spherical_harmonics(
         normalization = config("spherical_harmonics_normalization")
     assert normalization in ["integral", "component", "norm"]
 
-    if isinstance(irreps_out, int):
-        l = irreps_out
-        if not isinstance(input, IrrepsArray):
-            raise ValueError("If irreps_out is an int, input must be an IrrepsArray.")
-        vec_p = _check_is_vector(input.irreps)
-        irreps_out = Irreps([(1, (l, vec_p**l))])
+    if isinstance(irreps_out, str):
+        irreps_out = Irreps(irreps_out)
 
-    if all(isinstance(l, int) for l in irreps_out):
-        if not isinstance(input, IrrepsArray):
-            raise ValueError("If irreps_out is a list of int, input must be an IrrepsArray.")
-        vec_p = _check_is_vector(input.irreps)
-        irreps_out = Irreps([(1, (l, vec_p**l)) for l in irreps_out])
+    if not isinstance(irreps_out, Irreps):
+        if isinstance(irreps_out, int):
+            l = irreps_out
+            if not isinstance(input, IrrepsArray):
+                raise ValueError("If irreps_out is an int, input must be an IrrepsArray.")
+            vec_p = _check_is_vector(input.irreps)
+            irreps_out = Irreps([(1, (l, vec_p**l))])
+
+        if all(isinstance(l, int) for l in irreps_out):
+            if not isinstance(input, IrrepsArray):
+                raise ValueError("If irreps_out is a list of int, input must be an IrrepsArray.")
+            vec_p = _check_is_vector(input.irreps)
+            irreps_out = Irreps([(1, (l, vec_p**l)) for l in irreps_out])
 
     irreps_out = Irreps(irreps_out)
 
     assert all([l % 2 == 1 or p == 1 for _, (l, p) in irreps_out])
     assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) <= 1
+
+    if isinstance(input, IrrepsArray):
+        vec_p = _check_is_vector(input.irreps)
+        if not all([vec_p == p for _, (l, p) in irreps_out if l % 2 == 1]):
+            raise ValueError(f"Input ({input.irreps}) and output ({irreps_out}) must have a compatible parity.")
+
+        x = input.array
+    else:
+        x = input
+
+    if irreps_out.num_irreps == 0:
+        return IrrepsArray(irreps_out, jnp.zeros(x.shape[:-1] + (0,)))
 
     if algorithm is None:
         if config("spherical_harmonics_algorithm") == "automatic":
@@ -129,15 +145,6 @@ def spherical_harmonics(
             algorithm = config("spherical_harmonics_algorithm")
 
     assert all(keyword in ["legendre", "recursive", "dense", "sparse", "custom_jvp"] for keyword in algorithm)
-
-    if isinstance(input, IrrepsArray):
-        vec_p = _check_is_vector(input.irreps)
-        if not all([vec_p == p for _, (l, p) in irreps_out if l % 2 == 1]):
-            raise ValueError(f"Input ({input.irreps}) and output ({irreps_out}) must have a compatible parity.")
-
-        x = input.array
-    else:
-        x = input
 
     assert x.shape[-1] == 3
     if normalize:
