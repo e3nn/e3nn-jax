@@ -1164,7 +1164,7 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
         if x is None:
             return None
 
-        x = jnp.sum(x**2, axis=-1, keepdims=True)
+        x = jnp.sum(jnp.conj(x) * x, axis=-1, keepdims=True)
         if not squared:
             x_safe = jnp.where(x == 0.0, 1.0, x)
             x_safe = jnp.sqrt(x_safe)
@@ -1177,6 +1177,39 @@ def norm(array: IrrepsArray, *, squared: bool = False) -> IrrepsArray:
         array.shape[:-1],
         array.dtype,
     )
+
+
+def dot(a: IrrepsArray, b: IrrepsArray) -> IrrepsArray:
+    """Dot product of two IrrepsArray.
+
+    Args:
+        a (IrrepsArray): first array (this array get complex conjugated)
+        b (IrrepsArray): second array
+
+    Returns:
+        IrrepsArray: dot product of the two input arrays, as a scalar
+
+    Examples:
+        >>> x = e3nn.IrrepsArray("0e + 1e", jnp.array([1.0j, 1.0, 0.0, 0.0]))
+        >>> y = e3nn.IrrepsArray("0e + 1e", jnp.array([1.0, 2.0, 1.0, 1.0]))
+        >>> e3nn.dot(x, y)
+        1x0e [2.-1.j]
+    """
+    jnp = _infer_backend([a.array, b.array])
+
+    a = a.simplify()
+    b = b.simplify()
+
+    if a.irreps != b.irreps:
+        raise ValueError("Dot product is only defined for IrrepsArray with the same irreps.")
+
+    out = 0.0
+    for x, y in zip(a.list, b.list):
+        if x is None or y is None:
+            continue
+        out += jnp.sum(jnp.conj(x) * y, axis=(-2, -1))
+    out = jnp.reshape(out, a.shape[:-1] + (1,))
+    return IrrepsArray("0e", out)
 
 
 def normal(
