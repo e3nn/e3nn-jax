@@ -6,7 +6,7 @@ import optax
 from tqdm.auto import tqdm
 
 import e3nn_jax as e3nn
-from e3nn_jax.experimental.voxel_convolution import Convolution
+from e3nn_jax.experimental.voxel_convolution import ConvolutionHaiku
 
 
 def tetris():
@@ -65,9 +65,9 @@ def train(steps=2000):
 
         # for _ in range(2):
         for _ in range(5):
-            x = g(Convolution(f"{mul0}x0e + {mul0}x0o + {2 * mul1}x0e + {mul1}x1e + {mul1}x1o", **kw)(x))
+            x = g(ConvolutionHaiku(f"{mul0}x0e + {mul0}x0o + {2 * mul1}x0e + {mul1}x1e + {mul1}x1o", **kw)(x))
 
-        x = Convolution("0o + 7x0e", **kw)(x)
+        x = ConvolutionHaiku("0o + 7x0e", **kw)(x)
 
         x = x.array
         x = jnp.sum(x, axis=(1, 2, 3))
