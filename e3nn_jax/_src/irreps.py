@@ -346,7 +346,7 @@ class Irreps(tuple):
         Empty Irreps
 
         >>> Irreps(), Irreps("")
-        (, )
+        (Irreps(), Irreps())
     """
 
     def __new__(cls, irreps: IntoIrreps = None):

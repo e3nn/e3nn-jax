@@ -61,7 +61,7 @@ def tensor_product(
         >>> linear = e3nn.flax.Linear("3x1e")
         >>> params = linear.init(jax.random.PRNGKey(0), e3nn.tensor_product(x, y))
         >>> jax.tree_util.tree_structure(params)
-        PyTreeDef(CustomNode(FrozenDict[()], [{'params': {'w[1,0] 2x1e,3x1e': *}}]))
+        PyTreeDef(CustomNode(FrozenDict[('params',)], [{'w[1,0] 2x1e,3x1e': *}]))
         >>> z = linear.apply(params, e3nn.tensor_product(x, y))
 
         The irreps can be determined without providing input data:
