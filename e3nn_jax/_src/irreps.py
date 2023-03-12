@@ -949,7 +949,8 @@ def _wigner_D_from_angles(l: int, alpha: jnp.ndarray, beta: jnp.ndarray, gamma: 
             return rot_y(a) @ J @ rot_y(b) @ J @ rot_y(c)
         else:
             X = generators(l)
-            return jax.scipy.linalg.expm(a * X[1]) @ jax.scipy.linalg.expm(b * X[0]) @ jax.scipy.linalg.expm(c * X[1])
+            exp = jax.scipy.linalg.expm
+            return exp(a * X[1]) @ exp(b * X[0]) @ exp(c * X[1])
 
     return _naive_broadcast_decorator(f)(alpha, beta, gamma)
 

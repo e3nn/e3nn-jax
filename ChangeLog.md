@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `e3nn.dot`: compute the dot product between two `IrrepsArray`
 - `per_irrep` argument to `e3nn.norm`: compute the norm of each irrep independently if `per_irrep=True`
+- `e3nn.tensor_product_with_spherical_harmonics` from https://arxiv.org/pdf/2302.03655.pdf
 
 ### Changed
 - `__repr__(Irreps())` has been changed from `""` to `"Irreps()"`

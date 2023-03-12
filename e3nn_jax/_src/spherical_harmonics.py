@@ -104,6 +104,9 @@ def spherical_harmonics(
         irreps_out = Irreps(irreps_out)
 
     if not isinstance(irreps_out, Irreps):
+        if isinstance(irreps_out, range):
+            irreps_out = list(irreps_out)
+
         if isinstance(irreps_out, int):
             l = irreps_out
             if not isinstance(input, IrrepsArray):

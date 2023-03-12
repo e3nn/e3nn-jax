@@ -75,6 +75,7 @@ from e3nn_jax._src.reduced_tensor_product import (
     reduced_antisymmetric_tensor_product_basis,
 )
 from e3nn_jax._src.s2grid import s2_irreps, to_s2grid, to_s2point, from_s2grid, s2_dirac, SphericalSignal
+from e3nn_jax._src.tensor_product_with_spherical_harmonics import tensor_product_with_spherical_harmonics
 
 # make submodules flax and haiku available
 from e3nn_jax import flax, haiku
@@ -173,6 +174,7 @@ __all__ = [
     "from_s2grid",
     "s2_dirac",
     "SphericalSignal",
+    "tensor_product_with_spherical_harmonics",
     "flax",
     "haiku",
 ]
