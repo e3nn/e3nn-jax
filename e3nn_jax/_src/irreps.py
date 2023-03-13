@@ -1,7 +1,7 @@
 import collections
 import dataclasses
 import itertools
-from typing import Callable, List, NamedTuple, Tuple, Union
+from typing import Callable, List, NamedTuple, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -150,7 +150,31 @@ class Irrep:
             Irreps.D_from_angles
         """
         k = jnp.asarray(k)
-        alpha, beta, gamma, k = jnp.broadcast_arrays(alpha, beta, gamma, k)
+        if isinstance(alpha, (int, float)) and alpha == 0:
+            alpha = None
+        else:
+            alpha = jnp.asarray(alpha)
+
+        if isinstance(beta, (int, float)) and beta == 0:
+            beta = None
+        else:
+            beta = jnp.asarray(beta)
+
+        if isinstance(gamma, (int, float)) and gamma == 0:
+            gamma = None
+        else:
+            gamma = jnp.asarray(gamma)
+
+        shape = jnp.broadcast_shapes(*[a.shape for a in [alpha, beta, gamma] if a is not None], k.shape)
+
+        if alpha is not None:
+            alpha = jnp.broadcast_to(alpha, shape)
+        if beta is not None:
+            beta = jnp.broadcast_to(beta, shape)
+        if gamma is not None:
+            gamma = jnp.broadcast_to(gamma, shape)
+        k = jnp.broadcast_to(k, shape)
+
         return _wigner_D_from_angles(self.l, alpha, beta, gamma) * self.p ** k[..., None, None]
 
     def D_from_quaternion(self, q, k=0):
@@ -905,20 +929,9 @@ class _ChunkIndexSliceHelper:
         return Irreps(self.irreps[index])
 
 
-def _naive_broadcast_decorator(func):
-    def wrapper(*args):
-        args = [jnp.asarray(a) for a in args]
-        shape = jnp.broadcast_shapes(*(arg.shape for arg in args))
-        args = [jnp.broadcast_to(arg, shape) for arg in args]
-        f = func
-        for _ in range(len(shape)):
-            f = jax.vmap(f)
-        return f(*args)
-
-    return wrapper
-
-
-def _wigner_D_from_angles(l: int, alpha: jnp.ndarray, beta: jnp.ndarray, gamma: jnp.ndarray) -> jnp.ndarray:
+def _wigner_D_from_angles(
+    l: int, alpha: Optional[jnp.ndarray], beta: Optional[jnp.ndarray], gamma: Optional[jnp.ndarray]
+) -> jnp.ndarray:
     r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
 
     Args:
@@ -930,9 +943,16 @@ def _wigner_D_from_angles(l: int, alpha: jnp.ndarray, beta: jnp.ndarray, gamma: 
     Returns:
         jnp.ndarray: the Wigner-D matrix
     """
-    alpha = alpha % (2 * jnp.pi)
-    beta = beta % (2 * jnp.pi)
-    gamma = gamma % (2 * jnp.pi)
+    shape = ()
+    if alpha is not None:
+        alpha = alpha % (2 * jnp.pi)
+        shape = alpha.shape
+    if beta is not None:
+        beta = beta % (2 * jnp.pi)
+        shape = beta.shape
+    if gamma is not None:
+        gamma = gamma % (2 * jnp.pi)
+        shape = gamma.shape
 
     def f(a, b, c):
         def rot_y(phi):
@@ -944,15 +964,39 @@ def _wigner_D_from_angles(l: int, alpha: jnp.ndarray, beta: jnp.ndarray, gamma: 
             M = M.at[inds, inds].set(jnp.cos(frequencies * phi))
             return M
 
+        R = []
         if l < len(Jd):
-            J = Jd[l]
-            return rot_y(a) @ J @ rot_y(b) @ J @ rot_y(c)
+            if a is not None:
+                R += [rot_y(a)]
+            if b is not None:
+                J = Jd[l]
+                R += [J @ rot_y(b) @ J]
+            if c is not None:
+                R += [rot_y(c)]
         else:
             X = generators(l)
             exp = jax.scipy.linalg.expm
-            return exp(a * X[1]) @ exp(b * X[0]) @ exp(c * X[1])
 
-    return _naive_broadcast_decorator(f)(alpha, beta, gamma)
+            if a is not None:
+                R += [exp(a * X[1])]
+            if b is not None:
+                R += [exp(b * X[0])]
+            if c is not None:
+                R += [exp(c * X[1])]
+
+        if len(R) == 0:
+            return jnp.eye(2 * l + 1)
+
+        r = R[0]
+        for r_ in R[1:]:
+            r = r @ r_
+        return r
+
+    f_vec = f
+    for _ in range(len(shape)):
+        f_vec = jax.vmap(f_vec)
+
+    return f_vec(alpha, beta, gamma)
 
 
 def _wigner_D_from_log_coordinates(l: int, log_coordinates: jnp.ndarray) -> jnp.ndarray:
