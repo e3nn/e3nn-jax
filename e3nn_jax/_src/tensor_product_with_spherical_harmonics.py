@@ -60,7 +60,7 @@ def impl(input: e3nn.IrrepsArray, vector: e3nn.IrrepsArray, degree: int) -> e3nn
 
     # Calculate the rotation and align the input with the vector axis
     alpha, beta = e3nn.xyz_to_angles(vector.array)  # <-- ops
-    input = input.transform_by_angles(0.0, -beta, -alpha)  # <-- ops
+    input = input.transform_by_angles(alpha, beta, 0.0, inverse=True)  # <-- ops
 
     # Compute the spherical harmonics but only at compilation time
     with jax.ensure_compile_time_eval():

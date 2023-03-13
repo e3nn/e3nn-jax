@@ -766,7 +766,7 @@ class IrrepsArray:
         ]
         return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1], self.dtype)
 
-    def transform_by_angles(self, alpha: float, beta: float, gamma: float, k: int = 0) -> "IrrepsArray":
+    def transform_by_angles(self, alpha: float, beta: float, gamma: float, k: int = 0, inverse: bool = False) -> "IrrepsArray":
         r"""Rotate the data by angles according to the irreps.
 
         Args:
@@ -774,6 +774,7 @@ class IrrepsArray:
             beta (float): second rotation angle around the first axis (in radians)
             gamma (float): first rotation angle around the second axis (in radians)
             k (int): parity operation
+            inverse (bool): if True, apply the inverse rotation
 
         Returns:
             `IrrepsArray`: rotated data
@@ -788,6 +789,8 @@ class IrrepsArray:
         beta = beta if isinstance(beta, (int, float)) else jnp.asarray(beta, dtype=self.dtype)
         gamma = gamma if isinstance(gamma, (int, float)) else jnp.asarray(gamma, dtype=self.dtype)
         D = {ir: ir.D_from_angles(alpha, beta, gamma, k) for ir in {ir for _, ir in self.irreps}}
+        if inverse:
+            D = {ir: jnp.swapaxes(D[ir], -2, -1) for ir in D}
         new_list = [
             jnp.reshape(jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)) if x is not None else None
             for (mul, ir), x in zip(self.irreps, self.list)
