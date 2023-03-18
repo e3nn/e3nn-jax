@@ -20,6 +20,28 @@ def test_xyz(keys):
     assert jnp.max(jnp.abs(a - a2)) < float_tolerance
     assert jnp.max(jnp.abs(b - b2)) < float_tolerance
 
+    rs = jnp.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, -1.0, 0.0],
+            [0.0, -1.0 / 2**0.5, 1.0 / 2**0.5],
+        ]
+    )
+    for r in rs:
+        a, b = e3nn.xyz_to_angles(r)
+        R = e3nn.angles_to_matrix(a, -b, -a)
+        np.testing.assert_allclose(R @ r, np.array([0.0, 1.0, 0.0]), atol=float_tolerance)
+
+    Ja, Jb = jax.jacobian(e3nn.xyz_to_angles)(jnp.array([0.0, 1.0, 0.0]))
+    np.testing.assert_allclose(Ja, 0.0, atol=float_tolerance)
+    np.testing.assert_allclose(Jb, 0.0, atol=float_tolerance)
+
+    Ja, Jb = jax.jacobian(e3nn.xyz_to_angles)(jnp.array([0.0, -1.0, 0.0]))
+    np.testing.assert_allclose(Ja, 0.0, atol=float_tolerance)
+    np.testing.assert_allclose(Jb, 0.0, atol=float_tolerance)
+
 
 def test_conversions(keys):
     jax.config.update("jax_enable_x64", True)

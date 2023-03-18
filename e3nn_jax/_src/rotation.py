@@ -788,6 +788,14 @@ def xyz_to_angles(xyz):
     xyz = _normalize(xyz)
     xyz = jnp.clip(xyz, -1, 1)
 
-    beta = jnp.arccos(xyz[..., 1])
-    alpha = jnp.arctan2(xyz[..., 0], xyz[..., 2])
+    x = xyz[..., 0]
+    y = xyz[..., 1]
+    z = xyz[..., 2]
+
+    x_ = jnp.where((x == 0.0) & (z == 0.0), 0.0, x)
+    y_ = jnp.where((x == 0.0) & (z == 0.0), 0.0, y)
+    z_ = jnp.where((x == 0.0) & (z == 0.0), 1.0, z)
+
+    beta = jnp.where(y == 1.0, 0.0, jnp.where(y == -1, jnp.pi, jnp.arccos(y_)))
+    alpha = jnp.arctan2(x_, z_)
     return alpha, beta
