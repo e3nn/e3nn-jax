@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.2] - 2023-03-26
+### Fixed
+- Fix `NaN` in the gradients of `e3nn.xyz_to_angles`. The gradients are now `0` when the input is on the poles.
+
 ## [0.17.1] - 2023-03-15
 ### Added
 - `e3nn.dot`: compute the dot product between two `IrrepsArray`

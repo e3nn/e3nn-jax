@@ -38,15 +38,9 @@ layout = dict(
     width=512,
     height=512,
     scene=dict(
-        xaxis=dict(
-            **axis,
-        ),
-        yaxis=dict(
-            **axis,
-        ),
-        zaxis=dict(
-            **axis,
-        ),
+        xaxis=dict(**axis),
+        yaxis=dict(**axis),
+        zaxis=dict(**axis),
         aspectmode="manual",
         aspectratio=dict(x=4, y=4, z=4),
         camera=dict(
