@@ -8,29 +8,34 @@ import e3nn_jax as e3nn
 from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
 
-def deterministic_normal(n: int) -> jnp.ndarray:
-    """Generate a deterministic sequence of normally distributed random numbers.
+def normalspace(n: int) -> jnp.ndarray:
+    r"""Sequence of normally distributed numbers :math:`x_i` for :math:`i=1, \ldots, n` such that
 
-    It's done such that the integral of the normal distribution between two consecutive numbers is always the same.
+    .. math::
+
+        \int_{-\infty}^{x_i} \phi(x) dx = \frac{i}{n+1}
+
+    where :math:`\phi(x) = \frac{1}{\sqrt{2\pi}} e^{-x^2/2}` is the normal distribution.
 
     Args:
-        n (int): Number of random numbers to generate.
-        dtype (jnp.dtype, optional): Data type of the output. Defaults to None.
+        n (int): Number of points
 
     Returns:
-        jnp.ndarray: A sequence of normally distributed random numbers.
+        jnp.ndarray: Sequence of normally distributed numbers
+
+    Examples:
+        >>> normalspace(5)
+        Array([-0.9674215, -0.4307274,  0.       ,  0.4307274,  0.9674215],      dtype=float32)
     """
-    assert n % 2 == 1, "n must be odd"
-
     A = 1.0 / (n + 1)
+    i = 1 + jnp.arange(n // 2)
 
-    def f(_, i):
-        x_next = jnp.sqrt(2) * jsp.erfinv(2 * A * i)
-        return None, x_next
-
-    _, xs = jax.lax.scan(f, None, 1 + jnp.arange(n // 2))
-    xs = jnp.concatenate([-xs[::-1], jnp.array([0.0]), xs])
-    return xs
+    if n % 2 == 1:
+        xs = jnp.sqrt(2) * jsp.erfinv(2 * A * i)
+        return jnp.concatenate([-xs[::-1], jnp.array([0.0]), xs])
+    else:
+        xs = jnp.sqrt(2) * jsp.erfinv(2 * A * i - A)
+        return jnp.concatenate([-xs[::-1], xs])
 
 
 def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float]:
@@ -43,7 +48,7 @@ def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float
     with jax.ensure_compile_time_eval():
         # k = jax.random.PRNGKey(0)
         # x = jax.random.normal(k, (1_000_000,), dtype=jnp.float64)
-        x = deterministic_normal(1_000_001)
+        x = normalspace(1_000_001)
         c = jnp.mean(phi(x) ** 2) ** 0.5
         c = c.item()
 
