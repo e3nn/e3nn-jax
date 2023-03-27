@@ -2,8 +2,35 @@ from typing import Callable, List, Optional
 
 import jax
 import jax.numpy as jnp
+import jax.scipy.special as jsp
+
 import e3nn_jax as e3nn
 from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
+
+
+def deterministic_normal(n: int) -> jnp.ndarray:
+    """Generate a deterministic sequence of normally distributed random numbers.
+
+    It's done such that the integral of the normal distribution between two consecutive numbers is always the same.
+
+    Args:
+        n (int): Number of random numbers to generate.
+        dtype (jnp.dtype, optional): Data type of the output. Defaults to None.
+
+    Returns:
+        jnp.ndarray: A sequence of normally distributed random numbers.
+    """
+    assert n % 2 == 1, "n must be odd"
+
+    A = 1.0 / (n + 1)
+
+    def f(_, i):
+        x_next = jnp.sqrt(2) * jsp.erfinv(2 * A * i)
+        return None, x_next
+
+    _, xs = jax.lax.scan(f, None, 1 + jnp.arange(n // 2))
+    xs = jnp.concatenate([-xs[::-1], jnp.array([0.0]), xs])
+    return xs
 
 
 def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float]:
@@ -14,8 +41,9 @@ def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float
         \int_{-\infty}^{\infty} \psi(x)^2 dx = 1
     """
     with jax.ensure_compile_time_eval():
-        k = jax.random.PRNGKey(0)
-        x = jax.random.normal(k, (1_000_000,), dtype=jnp.float64)
+        # k = jax.random.PRNGKey(0)
+        # x = jax.random.normal(k, (1_000_000,), dtype=jnp.float64)
+        x = deterministic_normal(1_000_001)
         c = jnp.mean(phi(x) ** 2) ** 0.5
         c = c.item()
 
@@ -65,10 +93,10 @@ def scalar_activation(
     Examples:
         >>> x = e3nn.IrrepsArray("0e + 0o + 1o", jnp.array([1.0, 0.0, 1.0, 1.0, 2.0]))
         >>> scalar_activation(x, [jnp.exp, jnp.sin, None])
-        1x0e+1x0o+1x1o [1.0021242 0.        1.        1.        2.       ]
+        1x0e+1x0o+1x1o [1.001014 0.       1.       1.       2.      ]
 
         >>> scalar_activation(x, [jnp.exp, jnp.cos, None])
-        1x0e+1x0e+1x1o [1.0021242 1.3270178 1.        1.        2.       ]
+        1x0e+1x0e+1x1o [1.001014  1.3272501 1.        1.        2.       ]
 
     Note:
         The parity of the output depends on the parity of the activation function.
