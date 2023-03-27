@@ -1,9 +1,10 @@
 from functools import partial
-from typing import Callable, Optional
+from typing import Callable
 
-import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
+
+import e3nn_jax as e3nn
 from e3nn_jax import IrrepsArray, scalar_activation
 from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
@@ -33,13 +34,17 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
     return e3nn.concatenate([scalars_extra, scalars_gates * vectors], axis=-1)
 
 
+def softabs(x):
+    return (1 - jnp.exp(-(x**2))) * x
+
+
 @overload_for_irreps_without_array((0,))
 def gate(
     input: IrrepsArray,
-    even_act: Optional[Callable[[float], float]] = None,
-    odd_act: Optional[Callable[[float], float]] = None,
-    even_gate_act: Optional[Callable[[float], float]] = None,
-    odd_gate_act: Optional[Callable[[float], float]] = None,
+    even_act: Callable[[float], float] = jax.nn.gelu,
+    odd_act: Callable[[float], float] = softabs,
+    even_gate_act: Callable[[float], float] = jax.nn.sigmoid,
+    odd_gate_act: Callable[[float], float] = jax.nn.tanh,
 ) -> IrrepsArray:
     r"""Gate activation function.
 
@@ -52,10 +57,10 @@ def gate(
 
     Args:
         input (IrrepsArray): Input data.
-        even_act (Callable[[float], float], optional): Activation function for even scalars.
-        odd_act (Callable[[float], float], optional): Activation function for odd scalars.
-        even_gate_act (Callable[[float], float], optional): Activation function for even gate scalars.
-        odd_gate_act (Callable[[float], float], optional): Activation function for odd gate scalars.
+        even_act (Callable[[float], float]): Activation function for even scalars. Default: :func:`jax.nn.gelu`.
+        odd_act (Callable[[float], float]): Activation function for odd scalars. Default: :math:`(1 - \exp(-x^2)) x`.
+        even_gate_act (Callable[[float], float]): Activation function for even gate scalars. Default: :func:`jax.nn.sigmoid`.
+        odd_gate_act (Callable[[float], float]): Activation function for odd gate scalars. Default: :func:`jax.nn.tanh`.
 
     Returns:
         IrrepsArray: Output data.
@@ -77,14 +82,5 @@ def gate(
         12x0e+3x0o
     """
     assert isinstance(input, IrrepsArray)
-
-    if even_act is None:
-        even_act = jax.nn.gelu
-    if odd_act is None:
-        odd_act = lambda x: (1 - jnp.exp(-(x**2))) * x
-    if even_gate_act is None:
-        even_gate_act = jax.nn.sigmoid
-    if odd_gate_act is None:
-        odd_gate_act = jax.nn.tanh
 
     return _gate(input, even_act, odd_act, even_gate_act, odd_gate_act)
