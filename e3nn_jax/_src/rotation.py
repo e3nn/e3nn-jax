@@ -481,6 +481,7 @@ def axis_angle_to_quaternion(xyz, angle):
     Returns:
         q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
     """
+    angle = jnp.asarray(angle)
     xyz, angle = jnp.broadcast_arrays(xyz, angle[..., None])
     xyz = _normalize(xyz)
     c = jnp.cos(angle[..., :1] / 2)
