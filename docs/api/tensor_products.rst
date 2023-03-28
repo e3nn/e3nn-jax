@@ -10,11 +10,6 @@ Tensor Products
 .. autofunction:: e3nn_jax.tensor_square
 
 
-.. autoclass:: e3nn_jax.haiku.SymmetricTensorProduct
-    :members:
-
-
-
 .. autofunction:: e3nn_jax.reduced_tensor_product_basis
 
 

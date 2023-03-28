@@ -15,3 +15,7 @@ Haiku Modules
 
 .. autoclass:: e3nn_jax.haiku.Dropout
     :members:
+
+
+.. autoclass:: e3nn_jax.haiku.SymmetricTensorProduct
+    :members:
