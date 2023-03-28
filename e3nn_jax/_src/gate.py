@@ -9,8 +9,8 @@ from e3nn_jax import IrrepsArray, scalar_activation
 from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
 
-@partial(jax.jit, static_argnums=(1, 2, 3, 4))
-def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) -> IrrepsArray:
+@partial(jax.jit, static_argnums=(1, 2, 3, 4, 5))
+def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, normalize_act) -> IrrepsArray:
     act = {1: even_act, -1: odd_act}
     gate_act = {1: even_gate_act, -1: odd_gate_act}
 
@@ -19,17 +19,21 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act) ->
     del input
 
     if vectors.shape[-1] == 0:
-        return scalar_activation(scalars, [act[ir.p] for _, ir in scalars.irreps])
+        return scalar_activation(scalars, [act[ir.p] for _, ir in scalars.irreps], normalize_act=normalize_act)
 
     if scalars.irreps.dim < vectors.irreps.num_irreps:
         raise ValueError("The input must have at least as many scalars as the number of non-scalar irreps")
 
-    scalars_extra = scalars.slice_by_mul[: scalars.irreps.dim - vectors.irreps.num_irreps]
-    scalars_gates = scalars.slice_by_mul[scalars.irreps.dim - vectors.irreps.num_irreps :]
+    scalars_extra: e3nn.IrrepsArray = scalars.slice_by_mul[: scalars.irreps.dim - vectors.irreps.num_irreps]
+    scalars_gates: e3nn.IrrepsArray = scalars.slice_by_mul[scalars.irreps.dim - vectors.irreps.num_irreps :]
     del scalars
 
-    scalars_extra = scalar_activation(scalars_extra, [act[ir.p] for _, ir in scalars_extra.irreps])
-    scalars_gates = scalar_activation(scalars_gates, [gate_act[ir.p] for _, ir in scalars_gates.irreps])
+    scalars_extra = scalar_activation(
+        scalars_extra, [act[ir.p] for _, ir in scalars_extra.irreps], normalize_act=normalize_act
+    )
+    scalars_gates = scalar_activation(
+        scalars_gates, [gate_act[ir.p] for _, ir in scalars_gates.irreps], normalize_act=normalize_act
+    )
 
     return e3nn.concatenate([scalars_extra, scalars_gates * vectors], axis=-1)
 
@@ -45,6 +49,7 @@ def gate(
     odd_act: Callable[[float], float] = softabs,
     even_gate_act: Callable[[float], float] = jax.nn.sigmoid,
     odd_gate_act: Callable[[float], float] = jax.nn.tanh,
+    normalize_act: bool = True,
 ) -> IrrepsArray:
     r"""Gate activation function.
 
@@ -61,6 +66,7 @@ def gate(
         odd_act (Callable[[float], float]): Activation function for odd scalars. Default: :math:`(1 - \exp(-x^2)) x`.
         even_gate_act (Callable[[float], float]): Activation function for even gate scalars. Default: :func:`jax.nn.sigmoid`.
         odd_gate_act (Callable[[float], float]): Activation function for odd gate scalars. Default: :func:`jax.nn.tanh`.
+        normalize_act (bool): If True, the activation functions are normalized using `e3nn.normalize_function`.
 
     Returns:
         IrrepsArray: Output data.
@@ -83,4 +89,4 @@ def gate(
     """
     assert isinstance(input, IrrepsArray)
 
-    return _gate(input, even_act, odd_act, even_gate_act, odd_gate_act)
+    return _gate(input, even_act, odd_act, even_gate_act, odd_gate_act, normalize_act)

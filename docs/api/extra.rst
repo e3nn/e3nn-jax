@@ -5,9 +5,6 @@ Extra Stuff
 .. autofunction:: e3nn_jax.sus
 
 
-.. autofunction:: e3nn_jax.scalar_activation
-
-
 .. autofunction:: e3nn_jax.normalize_function
 
 

@@ -43,7 +43,7 @@ def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float
 
     .. math::
 
-        \int_{-\infty}^{\infty} \psi(x)^2 dx = 1
+        \int_{-\infty}^{\infty} \psi(x)^2 \frac{e^{-x^2/2}}{\sqrt{2\pi}} dx = 1
     """
     with jax.ensure_compile_time_eval():
         # k = jax.random.PRNGKey(0)

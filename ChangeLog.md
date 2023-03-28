@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `e3nn.normalize_function` now uses a deterministic (not pseudorandom) algorithm to compute the normalization factor.
 
+### Added
+- `normalize_act` option to `e3nn.scalar_activation` and `e3nn.gate`. We can now turn the normalization off if we want to.
+
 ## [0.17.2] - 2023-03-26
 ### Fixed
 - Fix `NaN` in the gradients of `e3nn.xyz_to_angles`. The gradients are now `0` when the input is on the poles.
