@@ -27,15 +27,7 @@ def normalspace(n: int) -> jnp.ndarray:
         >>> normalspace(5)
         Array([-0.9674215, -0.4307274,  0.       ,  0.4307274,  0.9674215],      dtype=float32)
     """
-    A = 1.0 / (n + 1)
-    i = 1 + jnp.arange(n // 2)
-
-    if n % 2 == 1:
-        xs = jnp.sqrt(2) * jsp.erfinv(2 * A * i)
-        return jnp.concatenate([-xs[::-1], jnp.array([0.0]), xs])
-    else:
-        xs = jnp.sqrt(2) * jsp.erfinv(2 * A * i - A)
-        return jnp.concatenate([-xs[::-1], xs])
+    return jnp.sqrt(2) * jsp.erfinv(jnp.linspace(-1.0, 1.0, n + 2)[1:-1])
 
 
 def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float]:
