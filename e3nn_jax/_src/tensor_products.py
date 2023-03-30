@@ -42,7 +42,6 @@ def tensor_product(
 
     Returns:
         IrrepsArray: Tensor product of the two inputs.
-            The irreps are sorted (``0e, 0o, 1o, 1e, 2e, 2o, ...``) but not simplified, see example below.
 
     Examples:
         >>> jnp.set_printoptions(precision=2, suppress=True)
