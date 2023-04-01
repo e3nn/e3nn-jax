@@ -25,7 +25,7 @@ def normalspace(n: int) -> jnp.ndarray:
 
     Examples:
         >>> normalspace(5)
-        Array([-0.9674215, -0.4307274,  0.       ,  0.4307274,  0.9674215],      dtype=float32)
+        Array([-0.96742135, -0.4307273 ,  0.        ,  0.43072742,  0.96742165],      dtype=float32)
     """
     return jnp.sqrt(2) * jsp.erfinv(jnp.linspace(-1.0, 1.0, n + 2)[1:-1])
 
@@ -90,10 +90,10 @@ def scalar_activation(
     Examples:
         >>> x = e3nn.IrrepsArray("0e + 0o + 1o", jnp.array([1.0, 0.0, 1.0, 1.0, 2.0]))
         >>> scalar_activation(x, [jnp.exp, jnp.sin, None])
-        1x0e+1x0o+1x1o [1.001014 0.       1.       1.       2.      ]
+        1x0e+1x0o+1x1o [1.0010498 0.        1.        1.        2.       ]
 
         >>> scalar_activation(x, [jnp.exp, jnp.cos, None])
-        1x0e+1x0e+1x1o [1.001014  1.3272501 1.        1.        2.       ]
+        1x0e+1x0e+1x1o [1.0010498 1.3272501 1.        1.        2.       ]
 
     Note:
         The parity of the output depends on the parity of the activation function.
