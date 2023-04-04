@@ -128,11 +128,14 @@ class SphericalSignal:
         return SphericalSignal(jnp.zeros((res_beta, res_alpha), dtype), quadrature, p_val=p_val, p_arg=p_arg)
 
     def __repr__(self) -> str:
-        return (
-            "SphericalSignal("
-            f"res_beta={self.res_beta}, res_alpha={self.res_alpha}, "
-            f"quadrature={self.quadrature}, p_val={self.p_val}, p_arg={self.p_arg})"
-        )
+        if self.ndim >= 2:
+            return (
+                "SphericalSignal("
+                f"res_beta={self.res_beta}, res_alpha={self.res_alpha}, "
+                f"quadrature={self.quadrature}, p_val={self.p_val}, p_arg={self.p_arg})"
+            )
+        else:
+            return f"SphericalSignal({self.grid_values})"
 
     def __mul__(self, scalar: float) -> "SphericalSignal":
         """Multiply SphericalSignal by a scalar."""
