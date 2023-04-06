@@ -17,7 +17,7 @@ def sh(
     normalize: bool,
     normalization: str = None,
     *,
-    algorithm: Tuple[str] = None,
+    algorithm: Tuple[str, ...] = None,
 ) -> jnp.ndarray:
     r"""Spherical harmonics.
 
@@ -52,7 +52,7 @@ def spherical_harmonics(
     normalize: bool,
     normalization: str = None,
     *,
-    algorithm: Tuple[str] = None,
+    algorithm: Tuple[str, ...] = None,
 ) -> IrrepsArray:
     r"""Spherical harmonics.
 

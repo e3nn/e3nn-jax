@@ -491,13 +491,13 @@ jax.tree_util.register_pytree_node(
 )
 
 
-def s2_dirac(position: jnp.ndarray, lmax: int, *, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
+def s2_dirac(position: Union[jnp.ndarray, e3nn.IrrepsArray], lmax: int, *, p_val: int, p_arg: int) -> e3nn.IrrepsArray:
     r"""Spherical harmonics expansion of a Dirac delta on the sphere.
 
     The integral of the Dirac delta is 1.
 
     Args:
-        position (`jax.numpy.ndarray`): position of the delta, shape ``(3,)``.
+        position (`jax.numpy.ndarray` or `IrrepsArray`): position of the delta, shape ``(3,)``.
             It will be normalized to have a norm of 1.
 
         lmax (int): maximum degree of the spherical harmonics expansion
