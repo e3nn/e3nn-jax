@@ -149,6 +149,50 @@ def scalar_activation(
     return e3nn.IrrepsArray.from_list(irreps_out, list, input.shape[:-1], input.dtype)
 
 
+def norm_activation(
+    input: e3nn.IrrepsArray,
+    acts: List[Optional[Callable[[float], float]]],
+    *,
+    normalization: str = "component",
+) -> e3nn.IrrepsArray:
+    r"""Apply activation functions to the norms of the vectors of an `IrrepsArray`.
+
+    Args:
+        input (IrrepsArray): input array
+        acts (list of functions): list of activation functions, one for each chunk of the input
+        normalization (str): "component" or "norm"
+            if "component" the norm is divided by the square root of the number of components.
+
+    Returns:
+        IrrepsArray: output array
+
+    Examples:
+        >>> x = e3nn.IrrepsArray("0e + 1o", jnp.array([1.0, 1.0, 1.0, 2.0]))
+        >>> norm_activation(x, [None, jnp.tanh])
+        1x0e+1x1o [1.        0.8883856 0.8883856 1.7767712]
+    """
+    assert isinstance(input, e3nn.IrrepsArray)
+    assert normalization in ["component", "norm"]
+
+    assert len(input.irreps) == len(acts), (input.irreps, acts)
+
+    list = []
+
+    for x, act in zip(input.list, acts):
+        if act is None:
+            list.append(x)
+            continue
+
+        n2 = jnp.sum(x**2, axis=-1, keepdims=True)
+        if normalization == "component":
+            n2 = n2 / x.shape[-1]
+        n = jnp.where(n2 > 0.0, jnp.sqrt(jnp.where(n2 > 0.0, n2, 1.0)), 1.0)
+        x = x * act(n)
+        list.append(x)
+
+    return e3nn.IrrepsArray.from_list(input.irreps, list, input.shape[:-1], input.dtype)
+
+
 def key_value_activation(phi, key, value):
     assert key.ndim == 1
     assert value.ndim == 1

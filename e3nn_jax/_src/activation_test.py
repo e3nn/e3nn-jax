@@ -1,7 +1,10 @@
+import jax
 import jax.numpy as jnp
+import numpy as np
 import pytest
-from e3nn_jax import Irreps, IrrepsArray, scalar_activation
+
 import e3nn_jax as e3nn
+from e3nn_jax import Irreps, IrrepsArray, scalar_activation
 
 
 def test_errors(keys):
@@ -24,3 +27,14 @@ def test_irreps_argument():
     assert scalar_activation("0e + 0o + 0o + 0e", [jnp.tanh, jnp.tanh, lambda x: x**2, jnp.cos]) == Irreps(
         "0e + 0o + 0e + 0e"
     )
+
+
+def test_norm_act():
+    def phi(n):
+        return 1.0 / (1.0 + n * e3nn.sus(n))
+
+    def f(x):
+        return e3nn.norm_activation(e3nn.IrrepsArray("1o", x), [phi]).array
+
+    J = jax.jacobian(f)(jnp.array([0.0, 0.0, 1e-9]))
+    np.testing.assert_allclose(J, np.diag([1.0, 1.0, 1.0]))

@@ -65,7 +65,7 @@ from e3nn_jax._src.tensor_products import (
     tensor_square,
 )
 from e3nn_jax._src.grad import grad
-from e3nn_jax._src.activation import scalar_activation, normalize_function
+from e3nn_jax._src.activation import scalar_activation, normalize_function, norm_activation
 from e3nn_jax._src.gate import gate
 from e3nn_jax._src.radius_graph import radius_graph
 from e3nn_jax._src.scatter import index_add, scatter_sum, scatter_max
@@ -158,6 +158,7 @@ __all__ = [
     "grad",
     "scalar_activation",
     "normalize_function",
+    "norm_activation",
     "gate",
     "radius_graph",
     "index_add",

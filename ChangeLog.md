@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `normalize_act` option to `e3nn.scalar_activation` and `e3nn.gate`. We can now turn the normalization off if we want to.
+- `e3nn.norm_activation` as a new activation function.
 
 ## [0.17.2] - 2023-03-26
 ### Fixed
