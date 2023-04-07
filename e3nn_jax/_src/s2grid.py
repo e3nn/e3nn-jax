@@ -345,12 +345,14 @@ class SphericalSignal:
         self,
         *,
         translation: Optional[jnp.ndarray] = None,
+        radius: float = 1.0,
         scale_radius_by_amplitude: bool = False,
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         r"""Postprocess the borders of a given signal to allow to plot with plotly.
 
         Args:
             translation (optional): translation vector
+            radius (float): radius of the sphere
             scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
 
         Returns:
@@ -375,16 +377,24 @@ class SphericalSignal:
         if scale_radius_by_amplitude:
             r = r * jnp.abs(f)[:, :, None]
 
+        r = r * radius
+
         if translation is not None:
             r = r + translation
 
         return r, f
 
-    def plotly_surface(self, translation: Optional[jnp.ndarray] = None, scale_radius_by_amplitude: bool = False):
+    def plotly_surface(
+        self,
+        translation: Optional[jnp.ndarray] = None,
+        radius: float = 1.0,
+        scale_radius_by_amplitude: bool = False,
+    ):
         """Returns a dictionary that can be plotted with plotly.
 
         Args:
             translation (optional): translation vector
+            radius (float): radius of the sphere
             scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
 
         Returns:
@@ -409,7 +419,7 @@ class SphericalSignal:
             go.Figure([go.Surface(signal.plotly_surface(scale_radius_by_amplitude=True))])
 
         """
-        r, f = self.pad_to_plot(translation=translation, scale_radius_by_amplitude=scale_radius_by_amplitude)
+        r, f = self.pad_to_plot(translation=translation, radius=radius, scale_radius_by_amplitude=scale_radius_by_amplitude)
         return dict(
             x=r[:, :, 0],
             y=r[:, :, 1],
