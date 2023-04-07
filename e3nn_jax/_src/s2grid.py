@@ -131,8 +131,10 @@ class SphericalSignal:
         if self.ndim >= 2:
             return (
                 "SphericalSignal("
+                f"shape={self.shape}, "
                 f"res_beta={self.res_beta}, res_alpha={self.res_alpha}, "
-                f"quadrature={self.quadrature}, p_val={self.p_val}, p_arg={self.p_arg})"
+                f"quadrature={self.quadrature}, p_val={self.p_val}, p_arg={self.p_arg})\n"
+                f"{self.grid_values}"
             )
         else:
             return f"SphericalSignal({self.grid_values})"
@@ -480,6 +482,23 @@ class SphericalSignal:
 
         keys = jax.random.split(key, math.prod(self.shape[:-2])).reshape(self.shape[:-2] + key.shape)
         return vf(keys, self.grid_values)
+
+    def __getitem__(self, index) -> "SphericalSignal":
+        grid_values = self.grid_values[index]
+
+        if grid_values.ndim < 2:
+            raise ValueError(
+                "This indexing does not produce something that can be interpreted as a signal on the sphere. "
+                "Consider using `SphericalSignal.grid_values` instead."
+            )
+
+        return SphericalSignal(
+            grid_values=grid_values,
+            quadrature=self.quadrature,
+            p_val=self.p_val,
+            p_arg=self.p_arg,
+            _perform_checks=False,
+        )
 
 
 jax.tree_util.register_pytree_node(
