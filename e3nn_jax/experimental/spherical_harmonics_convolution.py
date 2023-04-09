@@ -42,11 +42,11 @@ class SHConvolutionFlax(flax.linen.Module):
         irreps_out = e3nn.Irreps(self.irreps_out)
         outputs = []
 
-        for mulz, irz in irreps_out:
+        for iz, (mulz, irz) in enumerate(irreps_out):
             zs = []
             dim = 0  # for normalization
 
-            for (mulx, irx), x in zip(input.irreps, input.list):
+            for (ix, (mulx, irx)), x in zip(enumerate(input.irreps), input.list):
                 if x is None:
                     continue
 
@@ -58,7 +58,9 @@ class SHConvolutionFlax(flax.linen.Module):
                 # symmetric part
                 ly = (irx.l + irz.l) % 2
                 if ird.p**ly == py:
-                    w = self.param(f"S{irx}{irz}", flax.linen.initializers.normal(stddev=1.0), (l + 1, mulx, mulz), x.dtype)
+                    w = self.param(
+                        f"{ix}_{iz}_S{irx}{irz}", flax.linen.initializers.normal(stddev=1.0), (l + 1, mulx, mulz), x.dtype
+                    )
                     w = jnp.concatenate([w[::-1], w[1:]])
                     assert w.shape == (2 * l + 1, mulx, mulz)
 
@@ -74,7 +76,9 @@ class SHConvolutionFlax(flax.linen.Module):
                 # antisymmetric part
                 ly = (irx.l + irz.l + 1) % 2
                 if ird.p**ly == py:
-                    w = self.param(f"A{irx}{irz}", flax.linen.initializers.normal(stddev=1.0), (l, mulx, mulz), x.dtype)
+                    w = self.param(
+                        f"{ix}_{iz}_A{irx}{irz}", flax.linen.initializers.normal(stddev=1.0), (l, mulx, mulz), x.dtype
+                    )
                     zeros = jnp.zeros_like(w, shape=(1, mulx, mulz))
                     w = jnp.concatenate([-w[::-1], zeros, w])
                     assert w.shape == (2 * l + 1, mulx, mulz)
