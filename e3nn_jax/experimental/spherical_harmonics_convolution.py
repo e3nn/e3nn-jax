@@ -1,3 +1,9 @@
+"""Implementation of the spherical harmonics convolution in Flax.
+
+Motivated by the paper: https://arxiv.org/pdf/2302.03655.pdf
+
+- Added the support of inversion symmetry. (Mario Geiger)
+"""
 import flax
 import jax
 import jax.numpy as jnp
