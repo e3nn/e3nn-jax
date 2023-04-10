@@ -4,6 +4,8 @@ Motivated by the paper: https://arxiv.org/pdf/2302.03655.pdf
 
 - Added the support of inversion symmetry. (Mario Geiger)
 """
+from typing import Sequence
+
 import flax
 import jax
 import jax.numpy as jnp
@@ -152,6 +154,84 @@ class LinearSHTP(flax.linen.Module):
         out = fix_gimbal_lock(out, inverse=False)
 
         return out
+
+
+def shtp(input: e3nn.IrrepsArray, direction: e3nn.IrrepsArray, filter_irreps_out: Sequence[e3nn.Irrep]) -> e3nn.IrrepsArray:
+    assert input.shape == (input.irreps.dim,)
+    assert direction.shape == (3,)
+
+    assert len(direction.irreps) == 1
+    assert direction.irreps.num_irreps == 1
+    _, ird = direction.irreps[0]
+    assert ird in ["1o", "1e"]
+    direction = e3nn.IrrepsArray(direction.irreps, normalize(direction.array))
+
+    # Avoid gimbal lock
+    gimbal_lock = jnp.abs(direction.array[1]) > 0.99
+
+    def fix_gimbal_lock(array, inverse):
+        array_rot = array.transform_by_angles(0.0, jnp.pi / 2.0, 0.0, inverse=inverse)
+        return jax.tree_util.tree_map(lambda x_rot, x: jnp.where(gimbal_lock, x_rot, x), array_rot, array)
+
+    input = fix_gimbal_lock(input, inverse=True)
+    direction = fix_gimbal_lock(direction, inverse=True)
+
+    # Calculate the rotation and align the input with the vector axis
+    alpha, beta = e3nn.xyz_to_angles(direction.array)
+    input = input.transform_by_angles(alpha, beta, 0.0, inverse=True)
+
+    if isinstance(filter_irreps_out, str):
+        filter_irreps_out = e3nn.Irreps(filter_irreps_out)
+    if isinstance(filter_irreps_out, e3nn.Irreps):
+        filter_irreps_out = [ir for _, ir in filter_irreps_out]
+    filter_irreps_out = list(filter_irreps_out)
+    filter_irreps_out = sorted(set(filter_irreps_out))
+
+    irreps_out = []
+    outputs = []
+
+    for irz in filter_irreps_out:
+        for (mulx, irx), x in zip(input.irreps, input.list):
+            if x is None:
+                continue
+
+            l = min(irx.l, irz.l)
+            x = x[:, sl(irx.l, l)]
+
+            py = irx.p * irz.p
+
+            # symmetric part
+            ly = (irx.l + irz.l) % 2
+            if ird.p**ly == py:
+                zeros = jnp.zeros_like(x, shape=(mulx, l + 1, irz.dim))
+                z = zeros.at[:, jnp.arange(l + 1), jnp.arange(irz.l, irz.l + l + 1)].set(x[:, l:])
+                z = z.at[:, jnp.arange(l, 0, -1), jnp.arange(irz.l - l, irz.l)].set(x[:, :l])
+                z = jnp.reshape(z, (mulx * (l + 1), irz.dim))
+
+                irreps_out.append((z.shape[0], irz))
+                outputs.append(z)
+
+            # antisymmetric part
+            ly = (irx.l + irz.l + 1) % 2
+            if ird.p**ly == py and l > 0:
+                zeros = jnp.zeros_like(x, shape=(mulx, l, irz.dim))
+                z = zeros.at[:, jnp.arange(l), jnp.arange(irz.l - 1, irz.l - l - 1, -1)].set(x[:, l + 1 :])
+                z = z.at[:, jnp.arange(l), jnp.arange(irz.l + 1, irz.l + l + 1)].set(-x[:, :l][:, ::-1])
+                z = jnp.reshape(z, (mulx * l, irz.dim))
+
+                irreps_out.append((z.shape[0], irz))
+                outputs.append(z)
+
+    out = e3nn.IrrepsArray.from_list(irreps_out, outputs, (), x.dtype)
+    out = out.regroup()
+
+    # Rotate back
+    out = out.transform_by_angles(alpha, beta, 0.0)
+
+    # Avoid gimbal lock
+    out = fix_gimbal_lock(out, inverse=False)
+
+    return out
 
 
 def sum_tensors(xs, shape, empty_return_none=False, dtype=None):
