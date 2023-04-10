@@ -1,4 +1,4 @@
-"""Implementation of the spherical harmonics convolution in Flax.
+"""Implementation of the Linear Spherical Harmonics Tensor Product.
 
 Motivated by the paper: https://arxiv.org/pdf/2302.03655.pdf
 
@@ -11,8 +11,26 @@ import jax.numpy as jnp
 import e3nn_jax as e3nn
 
 
-class SHConvolutionFlax(flax.linen.Module):
+class LinearSHTP(flax.linen.Module):
+    r"""Linear Spherical Harmonics Tensor Product.
+
+    Computes a linear combination linearly equivalent to the following.
+
+    .. math::
+
+        \sum_{l=0}^{\infty} w^l x \otimes Y^l(\vec d)
+
+    where :math:`w^l` are some weights, :math:`x` is the input, :math:`Y^l` are the spherical harmonics
+    of the direction :math:`\vec d`.
+
+    Args:
+        irreps_out: input irreps, acts as a filter if `mix` is True.
+        mix: if True, the output is a linear combination of the input, otherwise each output
+            is kept separate.
+    """
+
     irreps_out: e3nn.Irreps
+    mix: bool = True
 
     @flax.linen.compact
     def __call__(self, input: e3nn.IrrepsArray, direction: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
@@ -40,11 +58,13 @@ class SHConvolutionFlax(flax.linen.Module):
         input = input.transform_by_angles(alpha, beta, 0.0, inverse=True)
 
         irreps_out = e3nn.Irreps(self.irreps_out)
+        irreps_out_ = []
         outputs = []
 
         for iz, (mulz, irz) in enumerate(irreps_out):
-            zs = []
-            dim = 0  # for normalization
+            if self.mix:
+                zs = []
+                dim = 0  # for normalization
 
             for (ix, (mulx, irx)), x in zip(enumerate(input.irreps), input.list):
                 if x is None:
@@ -59,45 +79,66 @@ class SHConvolutionFlax(flax.linen.Module):
                 ly = (irx.l + irz.l) % 2
                 if ird.p**ly == py:
                     w = self.param(
-                        f"{ix}_{iz}_S{irx}{irz}", flax.linen.initializers.normal(stddev=1.0), (l + 1, mulx, mulz), x.dtype
+                        f"{ix}_{iz}_S{irx}{irz}",
+                        flax.linen.initializers.normal(stddev=1.0),
+                        (l + 1, mulx, mulz) if self.mix else (l + 1, mulx),
+                        x.dtype,
                     )
                     w = jnp.concatenate([w[::-1], w[1:]])
-                    assert w.shape == (2 * l + 1, mulx, mulz)
 
-                    z = jnp.einsum("ui,iuv->vi", x, w)
-                    dim += mulx
+                    if self.mix:
+                        z = jnp.einsum("ui,iuv->vi", x, w)
+                    else:
+                        z = jnp.einsum("ui,iu->ui", x, w)
 
                     if l < irz.l:
-                        zeros = jnp.zeros_like(z, shape=(mulz, irz.dim))
+                        zeros = jnp.zeros_like(z, shape=(z.shape[0], irz.dim))
                         z = zeros.at[:, sl(irz.l, l)].set(z)
 
-                    zs.append(z)
+                    if self.mix:
+                        zs.append(z)
+                        dim += mulx
+                    else:
+                        irreps_out_.append((z.shape[0], irz))
+                        outputs.append(z)
 
                 # antisymmetric part
                 ly = (irx.l + irz.l + 1) % 2
-                if ird.p**ly == py:
+                if ird.p**ly == py and l > 0:
                     w = self.param(
-                        f"{ix}_{iz}_A{irx}{irz}", flax.linen.initializers.normal(stddev=1.0), (l, mulx, mulz), x.dtype
+                        f"{ix}_{iz}_A{irx}{irz}",
+                        flax.linen.initializers.normal(stddev=1.0),
+                        (l, mulx, mulz) if self.mix else (l, mulx),
+                        x.dtype,
                     )
-                    zeros = jnp.zeros_like(w, shape=(1, mulx, mulz))
+                    zeros = jnp.zeros_like(w, shape=(1,) + w.shape[1:])
                     w = jnp.concatenate([-w[::-1], zeros, w])
-                    assert w.shape == (2 * l + 1, mulx, mulz)
 
-                    z = jnp.einsum("ui,iuv->vi", x[:, ::-1], w)
-                    dim += mulx
+                    if self.mix:
+                        z = jnp.einsum("ui,iuv->vi", x[:, ::-1], w)
+                    else:
+                        z = jnp.einsum("ui,iu->ui", x[:, ::-1], w)
 
                     if l < irz.l:
-                        zeros = jnp.zeros_like(z, shape=(mulz, irz.dim))
+                        zeros = jnp.zeros_like(z, shape=(z.shape[0], irz.dim))
                         z = zeros.at[:, sl(irz.l, l)].set(z)
 
-                    zs.append(z)
+                    if self.mix:
+                        zs.append(z)
+                        dim += mulx
+                    else:
+                        irreps_out_.append((z.shape[0], irz))
+                        outputs.append(z)
 
-            z = sum_tensors(zs, (mulz, irz.dim), empty_return_none=True, dtype=x.dtype)
-            if z is not None:
-                z = z / jnp.sqrt(dim)
-            outputs.append(z)
+            if self.mix:
+                z = sum_tensors(zs, (mulz, irz.dim), empty_return_none=True, dtype=x.dtype)
+                if z is not None:
+                    z = z / jnp.sqrt(dim)
+                irreps_out_.append((z.shape[0], irz))
+                outputs.append(z)
 
-        out = e3nn.IrrepsArray.from_list(irreps_out, outputs, (), x.dtype)
+        out = e3nn.IrrepsArray.from_list(irreps_out_, outputs, (), x.dtype)
+        out = out.regroup()
 
         # Rotate back
         out = out.transform_by_angles(alpha, beta, 0.0)
