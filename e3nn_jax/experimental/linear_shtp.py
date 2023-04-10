@@ -58,6 +58,9 @@ class LinearSHTP(flax.linen.Module):
         input = input.transform_by_angles(alpha, beta, 0.0, inverse=True)
 
         irreps_out = e3nn.Irreps(self.irreps_out)
+        if not self.mix:
+            irreps_out = irreps_out.regroup()
+
         irreps_out_ = []
         outputs = []
 
@@ -65,6 +68,8 @@ class LinearSHTP(flax.linen.Module):
             if self.mix:
                 zs = []
                 dim = 0  # for normalization
+            else:
+                mulz = None
 
             for (ix, (mulx, irx)), x in zip(enumerate(input.irreps), input.list):
                 if x is None:
