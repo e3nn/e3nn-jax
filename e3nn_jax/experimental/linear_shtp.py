@@ -144,7 +144,7 @@ class LinearSHTP(flax.linen.Module):
                 irreps_out_.append((z.shape[0], irz))
                 outputs.append(z)
 
-        out = e3nn.IrrepsArray.from_list(irreps_out_, outputs, (), x.dtype)
+        out = e3nn.IrrepsArray.from_list(irreps_out_, outputs, (), input.dtype)
         out = out.regroup()
 
         # Rotate back
