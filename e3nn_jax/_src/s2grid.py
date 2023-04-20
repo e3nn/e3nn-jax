@@ -139,10 +139,23 @@ class SphericalSignal:
         else:
             return f"SphericalSignal({self.grid_values})"
 
-    def __mul__(self, scalar: float) -> "SphericalSignal":
+    def __mul__(self, scalar: Union[float, "SphericalSignal"]) -> "SphericalSignal":
         """Multiply SphericalSignal by a scalar."""
         if isinstance(scalar, SphericalSignal):
-            raise ValueError("Multiplication of two SphericalSignals is not supported.")
+            other = scalar
+            if self.quadrature != other.quadrature:
+                raise ValueError("Multiplication of SphericalSignals with different quadrature is not supported.")
+            if self.grid_resolution != other.grid_resolution:
+                raise ValueError("Multiplication of SphericalSignals with different grid resolution is not supported.")
+            if self.p_arg != other.p_arg:
+                raise ValueError("Multiplication of SphericalSignals with different p_arg is not equivariant.")
+
+            return SphericalSignal(
+                self.grid_values * other.grid_values,
+                self.quadrature,
+                p_val=self.p_val * other.p_val,
+                p_arg=self.p_arg,
+            )
 
         if isinstance(scalar, e3nn.IrrepsArray):
             if scalar.irreps != e3nn.Irreps("0e"):
