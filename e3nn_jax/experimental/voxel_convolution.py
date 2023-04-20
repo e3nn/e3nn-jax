@@ -110,7 +110,7 @@ ConvolutionFlax.__call__.__doc__ = ConvolutionHaiku.__call__.__doc__
 
 
 def _tp_weight(
-    self,
+    self: Union[ConvolutionHaiku, ConvolutionFlax],
     lattice: jnp.ndarray,
     i_in: int,
     i_sh: int,
@@ -143,7 +143,12 @@ def _tp_weight(
 
 
 def _kernel(
-    self, irreps_in: e3nn.Irreps, irreps_out: e3nn.Irreps, steps: Optional[jnp.ndarray], get_parameter, dtype
+    self: Union[ConvolutionHaiku, ConvolutionFlax],
+    irreps_in: e3nn.Irreps,
+    irreps_out: e3nn.Irreps,
+    steps: Optional[jnp.ndarray],
+    get_parameter,
+    dtype,
 ) -> jnp.ndarray:
     if steps is None:
         steps = self.steps
@@ -204,7 +209,9 @@ def _kernel(
     return k
 
 
-def _call(self, input: e3nn.IrrepsArray, steps: Optional[jnp.ndarray] = None) -> e3nn.IrrepsArray:
+def _call(
+    self: Union[ConvolutionHaiku, ConvolutionFlax], input: e3nn.IrrepsArray, steps: Optional[jnp.ndarray] = None
+) -> e3nn.IrrepsArray:
     if not isinstance(input, e3nn.IrrepsArray):
         raise ValueError("Convolution: input should be of type IrrepsArray")
 
