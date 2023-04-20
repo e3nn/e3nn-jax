@@ -183,11 +183,13 @@ def norm_activation(
             list.append(x)
             continue
 
-        n2 = jnp.sum(x**2, axis=-1, keepdims=True)
-        if normalization == "component":
-            n2 = n2 / x.shape[-1]
-        n = jnp.where(n2 > 0.0, jnp.sqrt(jnp.where(n2 > 0.0, n2, 1.0)), 1.0)
-        x = x * act(n)
+        if x is not None:
+            n2 = jnp.sum(x**2, axis=-1, keepdims=True)
+            if normalization == "component":
+                n2 = n2 / x.shape[-1]
+            n = jnp.where(n2 > 0.0, jnp.sqrt(jnp.where(n2 > 0.0, n2, 1.0)), 1.0)
+            x = x * act(n)
+
         list.append(x)
 
     return e3nn.IrrepsArray.from_list(input.irreps, list, input.shape[:-1], input.dtype)
