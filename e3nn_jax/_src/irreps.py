@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 import jax.scipy
 
-from e3nn_jax import generators, matrix_to_angles, perm, quaternion_to_angles
+from e3nn_jax import axis_angle_to_log_coordinates, generators, matrix_to_angles, perm, quaternion_to_angles
 
 from .J import Jd
 
@@ -213,6 +213,9 @@ class Irrep:
         R = d[..., None, None] * R
         k = (1 - d) / 2
         return self.D_from_angles(*matrix_to_angles(R), k)
+
+    def D_from_axis_angle(self, axis, angle, k=0):
+        return self.D_from_log_coordinates(axis_angle_to_log_coordinates(axis, angle), k)
 
     def generators(self):
         r"""Generators of the representation of :math:`SO(3)`.
@@ -847,6 +850,9 @@ class Irreps(tuple):
         R = d[..., None, None] * R
         k = (1 - d) / 2
         return self.D_from_angles(*matrix_to_angles(R), k)
+
+    def D_from_axis_angle(self, axis, angle, k=0):
+        return self.D_from_log_coordinates(axis_angle_to_log_coordinates(axis, angle), k)
 
     def generators(self) -> jnp.ndarray:
         r"""Generators of the representation.

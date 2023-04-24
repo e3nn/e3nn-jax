@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `LinearSHTP` module implementing the optimized linear mixing of inputs tensor product with spherical harmonics
+- `D_from_axis_angle`
 
 ## [0.17.3] - 2023-04-06
 ### Changed

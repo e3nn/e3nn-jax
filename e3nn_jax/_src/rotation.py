@@ -700,6 +700,7 @@ def axis_angle_to_log_coordinates(axis, angle):
     Returns:
         `jax.numpy.ndarray`: array of shape :math:`(..., 3)`
     """
+    angle = jnp.asarray(angle)
     axis, angle = jnp.broadcast_arrays(axis, angle[..., None])
     return axis * angle
 
