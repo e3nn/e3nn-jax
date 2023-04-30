@@ -100,9 +100,9 @@ class Model(flax.linen.Module):
         return graphs.nodes
 
 
-def train(steps=1000):
+def train(seeds=20, steps=200, plot=True):
     model = Model()
-    opt = optax.sgd(learning_rate=0.15, momentum=0.9)
+    opt = optax.adam(learning_rate=0.01)
 
     def loss_pred(params, graphs):
         pred = model.apply(params, graphs)
@@ -111,7 +111,11 @@ def train(steps=1000):
         assert pred.shape == (len(graphs.n_node), 8), pred.shape
         pred = pred.array
         labels = graphs.globals  # [num_graphs, 1 + 7]
-        loss_odd = jnp.log(1 + jnp.exp(-labels[:, 0] * pred[:, 0]))
+        loss_odd = jnp.where(
+            labels[:, 0] != 0.0,
+            jnp.log(1 + jnp.exp(-labels[:, 0] * pred[:, 0])),
+            0.0,
+        )
         loss_even = jnp.mean(-labels[:, 1:] * jax.nn.log_softmax(pred[:, 1:]), axis=1)
         loss = jnp.mean(loss_odd + loss_even)
         return loss, pred
@@ -142,38 +146,38 @@ def train(steps=1000):
 
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
 
-    losses = []
     iterations = []
-    for seed in range(50):
+    for seed in range(seeds):
         params = init(jax.random.PRNGKey(seed), graphs)
         opt_state = opt.init(params)
 
-        losses.append([])
+        losses = []
+        done = False
         wall = time.perf_counter()
         for it in range(1, steps + 1):
             params, opt_state, loss, accuracy, pred = update(params, opt_state, graphs)
-            losses[-1].append(loss)
+            losses.append(loss)
 
-            # print(f"[{it}] accuracy = {100 * accuracy:.0f}%")
-
-            if accuracy == 1:
+            if not done and accuracy == 1.0:
+                done = True
                 total = time.perf_counter() - wall
-                print(f"[{seed}] 100% accuracy reached in {total:.1f}s after {it} iterations ({1000 * total/it:.1f}ms/it).")
+                print(
+                    f"[{seed}] 100% accuracy reached in {1000 * total:.0f}ms after {it} iterations ({1000 * total/it:.1f}ms/it)."
+                )
                 iterations += [it]
-                break
 
-    print(len(iterations), sum(iterations) / len(iterations))
+        if plot:
+            plt.plot(losses)
+
     jnp.set_printoptions(precision=2, suppress=True)
     print(pred)
 
-    # plot loss
-    for loss in losses:
-        plt.plot(loss)
-    plt.xlabel("iteration")
-    plt.ylabel("loss")
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.show()
+    if plot:
+        plt.xlabel("iteration")
+        plt.ylabel("loss")
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.show()
 
 
 if __name__ == "__main__":
