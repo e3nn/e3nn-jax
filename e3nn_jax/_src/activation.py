@@ -90,14 +90,21 @@ def is_zero_in_zero(phi: Callable[[float], float]) -> bool:
 
 @overload_for_irreps_without_array(irrepsarray_argnums=[0])
 def scalar_activation(
-    input: e3nn.IrrepsArray, acts: List[Optional[Callable[[float], float]]], *, normalize_act: bool = True
+    input: e3nn.IrrepsArray,
+    acts: List[Optional[Callable[[float], float]]] = None,
+    *,
+    even_act: Callable[[float], float] = jax.nn.gelu,
+    odd_act: Callable[[float], float] = soft_odd,
+    normalize_act: bool = True,
 ) -> e3nn.IrrepsArray:
     r"""Apply activation functions to the scalars of an `IrrepsArray`.
     The activation functions are by default normalized.
 
     Args:
         input (IrrepsArray): input array
-        acts (list of functions): list of activation functions, one for each chunk of the input
+        acts (optional, list of functions): list of activation functions, one for each chunk of the input
+        even_act (Callable[[float], float]): Activation function for even scalars. Default: :func:`jax.nn.gelu`.
+        odd_act (Callable[[float], float]): Activation function for odd scalars. Default: :math:`(1 - \exp(-x^2)) x`.
         normalize_act (bool): if True, normalize the activation functions using `normalize_function`
 
     Returns:
@@ -114,7 +121,11 @@ def scalar_activation(
     Note:
         The parity of the output depends on the parity of the activation function.
     """
+    input = e3nn.IrrepsArray.as_irreps_array(input)
     assert isinstance(input, e3nn.IrrepsArray)
+
+    if acts is None:
+        acts = [{1: even_act, -1: odd_act}[ir.p] if ir.l == 0 else None for _, ir in input.irreps]
 
     assert len(input.irreps) == len(acts), (input.irreps, acts)
 

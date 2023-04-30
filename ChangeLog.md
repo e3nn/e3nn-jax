@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `to_s2grid`: `quadrature="gausslegendre"` by default
 - `soft_odd` activation function for odd scalars
 
+### Changed
+- `scalar_activation` simpler to use with default activation functions (a bit like gate)
+
 ## [0.17.3] - 2023-04-06
 ### Changed
 - `e3nn.normalize_function` now uses a deterministic (not pseudorandom) algorithm to compute the normalization factor.
