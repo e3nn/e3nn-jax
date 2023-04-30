@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LinearSHTP` module implementing the optimized linear mixing of inputs tensor product with spherical harmonics
 - `D_from_axis_angle`
 - `to_s2grid`: `quadrature="gausslegendre"` by default
+- `soft_odd` activation function for odd scalars
 
 ## [0.17.3] - 2023-04-06
 ### Changed

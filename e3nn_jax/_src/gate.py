@@ -2,7 +2,6 @@ from functools import partial
 from typing import Callable
 
 import jax
-import jax.numpy as jnp
 
 import e3nn_jax as e3nn
 from e3nn_jax import IrrepsArray, scalar_activation
@@ -38,15 +37,11 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, no
     return e3nn.concatenate([scalars_extra, scalars_gates * vectors], axis=-1)
 
 
-def softabs(x):
-    return (1 - jnp.exp(-(x**2))) * x
-
-
 @overload_for_irreps_without_array((0,))
 def gate(
     input: IrrepsArray,
     even_act: Callable[[float], float] = jax.nn.gelu,
-    odd_act: Callable[[float], float] = softabs,
+    odd_act: Callable[[float], float] = e3nn.soft_odd,
     even_gate_act: Callable[[float], float] = jax.nn.sigmoid,
     odd_gate_act: Callable[[float], float] = jax.nn.tanh,
     normalize_act: bool = True,

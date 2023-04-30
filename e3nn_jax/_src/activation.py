@@ -8,6 +8,22 @@ import e3nn_jax as e3nn
 from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
 
+def soft_odd(x):
+    """Smooth odd function that can be used as activation function for odd scalars.
+
+    .. math::
+
+        x (1 - e^{-x^2})
+
+    Note:
+        Odd scalars (l=0 and p=-1) has to be activated by functions with well defined parity:
+
+        * even (:math:`f(-x)=f(x)`)
+        * odd (:math:`f(-x)=-f(x)`).
+    """
+    return (1 - jnp.exp(-(x**2))) * x
+
+
 def normalspace(n: int) -> jnp.ndarray:
     r"""Sequence of normally distributed numbers :math:`x_i` for :math:`i=1, \ldots, n` such that
 
