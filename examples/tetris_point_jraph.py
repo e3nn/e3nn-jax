@@ -75,12 +75,13 @@ class Layer(flax.linen.Module):
             return e3nn.concatenate([sender_features, e3nn.tensor_product(sender_features, sh)]).regroup()
 
         def update_node_fn(node_features, sender_features, receiver_features, globals):
+            shortcut = e3nn.flax.Linear(target_irreps, name="shortcut")(node_features)
+
             node_feats = receiver_features / jnp.sqrt(self.avg_num_neighbors)
-            irreps = target_irreps + f"{target_irreps.filter(drop='0e + 0o').num_irreps}x0e"
-            node_feats = e3nn.flax.Linear(irreps, name="linear_down")(node_feats)
-            node_feats = e3nn.gate(node_feats)
-            node_feats = e3nn.flax.Linear(target_irreps, name="linear_up")(node_feats)
-            return node_feats
+            node_feats = e3nn.flax.Linear(target_irreps, name="linear_pre")(node_feats)
+            node_feats = e3nn.scalar_activation(node_feats, even_act=jax.nn.gelu, odd_act=jax.nn.tanh)
+            node_feats = e3nn.flax.Linear(target_irreps, name="linear_post")(node_feats)
+            return shortcut + node_feats
 
         return jraph.GraphNetwork(update_edge_fn, update_node_fn)(graphs)
 
@@ -92,9 +93,10 @@ class Model(flax.linen.Module):
 
         graphs = graphs._replace(nodes=jnp.ones((len(positions), 1)))
 
-        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", 1.5)(graphs, positions)
-        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", 1.5)(graphs, positions)
-        graphs = Layer("0o + 7x0e", 1.5)(graphs, positions)
+        ann = 2.0
+        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", ann)(graphs, positions)
+        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", ann)(graphs, positions)
+        graphs = Layer("0o + 7x0e", ann)(graphs, positions)
         return graphs.nodes
 
 
@@ -128,7 +130,8 @@ def train(steps=1000):
 
     graphs = tetris()
 
-    params = model.init(jax.random.PRNGKey(3), graphs)
+    init = jax.jit(model.init)
+    params = init(jax.random.PRNGKey(3), graphs)
     opt_state = opt.init(params)
 
     # compile jit
@@ -140,24 +143,36 @@ def train(steps=1000):
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
 
     losses = []
-    wall = time.perf_counter()
-    for it in range(1, steps + 1):
-        params, opt_state, loss, accuracy, pred = update(params, opt_state, graphs)
-        losses.append(loss)
+    iterations = []
+    for seed in range(50):
+        params = init(jax.random.PRNGKey(seed), graphs)
+        opt_state = opt.init(params)
 
-        print(f"[{it}] accuracy = {100 * accuracy:.0f}%")
+        losses.append([])
+        wall = time.perf_counter()
+        for it in range(1, steps + 1):
+            params, opt_state, loss, accuracy, pred = update(params, opt_state, graphs)
+            losses[-1].append(loss)
 
-        if accuracy == 1:
-            total = time.perf_counter() - wall
-            print(f"100% accuracy has been reach in {total:.1f}s after {it} iterations ({1000 * total/it:.1f}ms/it).")
+            # print(f"[{it}] accuracy = {100 * accuracy:.0f}%")
 
+            if accuracy == 1:
+                total = time.perf_counter() - wall
+                print(f"[{seed}] 100% accuracy reached in {total:.1f}s after {it} iterations ({1000 * total/it:.1f}ms/it).")
+                iterations += [it]
+                break
+
+    print(len(iterations), sum(iterations) / len(iterations))
     jnp.set_printoptions(precision=2, suppress=True)
     print(pred)
 
     # plot loss
-    plt.plot(losses)
+    for loss in losses:
+        plt.plot(loss)
     plt.xlabel("iteration")
     plt.ylabel("loss")
+    plt.xscale("log")
+    plt.yscale("log")
     plt.show()
 
 
