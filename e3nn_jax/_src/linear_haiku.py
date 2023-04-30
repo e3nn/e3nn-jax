@@ -134,6 +134,8 @@ class Linear(hk.Module):
             input: e3nn.IrrepsArray = input_or_none
         del weights_or_input, input_or_none
 
+        input = e3nn.IrrepsArray.as_irreps_array(input)
+
         dtype = get_pytree_dtype(weights, input)
         if dtype.kind == "i":
             dtype = jnp.float32
@@ -183,7 +185,8 @@ class Linear(hk.Module):
             else:
                 raise ValueError(
                     "If weights are provided, they must be either integers and num_indexed_weights must be provided "
-                    "or floats and num_indexed_weights must not be provided."
+                    "or floats and num_indexed_weights must not be provided. "
+                    f"weights.dtype={weights.dtype}, num_indexed_weights={self.num_indexed_weights}"
                 )
 
         if self.channel_out is not None:

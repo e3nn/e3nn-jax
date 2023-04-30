@@ -140,6 +140,9 @@ def elementwise_tensor_product(
         >>> e3nn.elementwise_tensor_product(x, y)
         1x1e+1x0o+1x1e [ 0.  0.  0.  3.  8. 12. 16.]
     """
+    input1 = IrrepsArray.as_irreps_array(input1)
+    input2 = IrrepsArray.as_irreps_array(input2)
+
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
@@ -223,6 +226,8 @@ def tensor_square(
         >>> e3nn.tensor_square(x, normalized_input=True)
         2x0e+1x1o+1x2e [100.    14.    17.32  34.64  51.96  11.62   7.75  -2.24  23.24  15.49]
     """
+    input = IrrepsArray.as_irreps_array(input)
+
     if regroup_output:
         input = input.regroup()
 

@@ -85,6 +85,8 @@ class Linear(flax.linen.Module):
             input: e3nn.IrrepsArray = input_or_none
         del weights_or_input, input_or_none
 
+        input = e3nn.IrrepsArray.as_irreps_array(input)
+
         dtype = get_pytree_dtype(weights, input)
         if dtype.kind == "i":
             dtype = jnp.float32

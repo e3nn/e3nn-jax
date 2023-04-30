@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `D_from_axis_angle`
 - `to_s2grid`: `quadrature="gausslegendre"` by default
 - `soft_odd` activation function for odd scalars
+- more support of arrays implicitely converted into `IrrepsArray` as scalars (i.e. added few `IrrepsArray.as_irreps_array`)
 
 ### Changed
 - `scalar_activation` simpler to use with default activation functions (a bit like gate)
