@@ -162,7 +162,8 @@ def train(seeds=20, steps=200, plot=True):
                 done = True
                 total = time.perf_counter() - wall
                 print(
-                    f"[{seed}] 100% accuracy reached in {1000 * total:.0f}ms after {it} iterations ({1000 * total/it:.1f}ms/it)."
+                    f"[{seed}] 100% accuracy reached in {1000 * total:.0f}ms "
+                    f"after {it} iterations ({1000 * total/it:.1f}ms/it)."
                 )
                 iterations += [it]
 
