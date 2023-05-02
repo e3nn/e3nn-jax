@@ -360,6 +360,7 @@ class SphericalSignal:
         translation: Optional[jnp.ndarray] = None,
         radius: float = 1.0,
         scale_radius_by_amplitude: bool = False,
+        set_radius_as_maximum: bool = False
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         r"""Postprocess the borders of a given signal to allow to plot with plotly.
 
@@ -389,7 +390,9 @@ class SphericalSignal:
 
         if scale_radius_by_amplitude:
             r = r * jnp.abs(f)[:, :, None]
-            r = r / jnp.max(jnp.linalg.norm(r, axis=-1))
+
+            if set_radius_as_maximum:
+                r = r / jnp.max(jnp.linalg.norm(r, axis=-1))
 
         r = r * radius
 
@@ -403,6 +406,7 @@ class SphericalSignal:
         translation: Optional[jnp.ndarray] = None,
         radius: float = 1.0,
         scale_radius_by_amplitude: bool = False,
+        set_radius_as_maximum: bool = False,
     ):
         """Returns a dictionary that can be plotted with plotly.
 
@@ -410,6 +414,7 @@ class SphericalSignal:
             translation (optional): translation vector
             radius (float): radius of the sphere
             scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
+            set_radius_as_maximum (bool): when scale_radius_by_amplitude is True, rescale the surface so that the maximum amplitude is equal to the radius
 
         Returns:
             dict: dictionary that can be plotted with plotly
@@ -433,7 +438,10 @@ class SphericalSignal:
             go.Figure([go.Surface(signal.plotly_surface(scale_radius_by_amplitude=True))])
 
         """
-        r, f = self.pad_to_plot(translation=translation, radius=radius, scale_radius_by_amplitude=scale_radius_by_amplitude)
+        r, f = self.pad_to_plot(translation=translation,
+                                radius=radius,
+                                scale_radius_by_amplitude=scale_radius_by_amplitude,
+                                set_radius_as_maximum=set_radius_as_maximum)
         return dict(
             x=r[:, :, 0],
             y=r[:, :, 1],
@@ -706,7 +714,7 @@ def to_s2grid(
     res_beta: int,
     res_alpha: int,
     *,
-    quadrature: str = "gausslegendre",
+    quadrature: str,
     normalization: str = "integral",
     fft: bool = True,
     p_val: Optional[int] = None,
