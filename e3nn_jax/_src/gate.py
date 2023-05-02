@@ -61,7 +61,7 @@ def gate(
         odd_act (Callable[[float], float]): Activation function for odd scalars. Default: :math:`(1 - \exp(-x^2)) x`.
         even_gate_act (Callable[[float], float]): Activation function for even gate scalars. Default: :func:`jax.nn.sigmoid`.
         odd_gate_act (Callable[[float], float]): Activation function for odd gate scalars. Default: :func:`jax.nn.tanh`.
-        normalize_act (bool): If True, the activation functions are normalized using `e3nn.normalize_function`.
+        normalize_act (bool): If True, the activation functions are normalized using `e3nn_jax.normalize_function`.
 
     Returns:
         IrrepsArray: Output data.
