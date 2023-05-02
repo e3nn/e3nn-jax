@@ -389,6 +389,7 @@ class SphericalSignal:
 
         if scale_radius_by_amplitude:
             r = r * jnp.abs(f)[:, :, None]
+            r = r / jnp.max(jnp.linalg.norm(r, axis=-1))
 
         r = r * radius
 
