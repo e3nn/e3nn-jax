@@ -714,7 +714,7 @@ def to_s2grid(
     res_beta: int,
     res_alpha: int,
     *,
-    quadrature: str,
+    quadrature: str = "gausslegendre",
     normalization: str = "integral",
     fft: bool = True,
     p_val: Optional[int] = None,
