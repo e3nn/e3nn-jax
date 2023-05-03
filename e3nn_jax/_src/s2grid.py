@@ -405,7 +405,7 @@ class SphericalSignal:
         translation: Optional[jnp.ndarray] = None,
         radius: float = 1.0,
         scale_radius_by_amplitude: bool = False,
-        normalize_amplitude: bool = False,
+        normalize_radius_by_max_amplitude: bool = False,
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         r"""Postprocess the borders of a given signal to allow to plot with plotly.
 
@@ -413,7 +413,7 @@ class SphericalSignal:
             translation (optional): translation vector
             radius (float): radius of the sphere
             scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
-            normalize_amplitude (bool): when scale_radius_by_amplitude is True,
+            normalize_radius_by_max_amplitude (bool): when scale_radius_by_amplitude is True,
                 rescales the surface so that the maximum amplitude is equal to the radius
 
         Returns:
@@ -421,6 +421,10 @@ class SphericalSignal:
             f (`jax.numpy.ndarray`): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
         """
         f, y, alpha = self.grid_values, self.grid_y, self.grid_alpha
+        assert f.ndim == 2 and f.shape == (
+            len(y),
+            len(alpha),
+        ), f"Invalid shape: grid_values.shape={f.shape}, expected ({len(y)}, {len(alpha)})"
 
         # y: [-1, 1]
         one = jnp.ones_like(y, shape=(1,))
@@ -436,10 +440,12 @@ class SphericalSignal:
         r = _s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
 
         if scale_radius_by_amplitude:
-            r = r * jnp.abs(f)[:, :, None]
+            nr = jnp.abs(f)[:, :, None]
 
-            if normalize_amplitude:
-                r = r / jnp.max(jnp.linalg.norm(r, axis=-1))
+            if normalize_radius_by_max_amplitude:
+                nr = nr / jnp.max(nr)
+
+            r = r * nr
 
         r = r * radius
 
@@ -453,7 +459,7 @@ class SphericalSignal:
         translation: Optional[jnp.ndarray] = None,
         radius: float = 1.0,
         scale_radius_by_amplitude: bool = False,
-        normalize_amplitude: bool = False,
+        normalize_radius_by_max_amplitude: bool = False,
     ):
         """Returns a dictionary that can be plotted with plotly.
 
@@ -461,7 +467,7 @@ class SphericalSignal:
             translation (optional): translation vector
             radius (float): radius of the sphere
             scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
-            normalize_amplitude (bool): when scale_radius_by_amplitude is True,
+            normalize_radius_by_max_amplitude (bool): when scale_radius_by_amplitude is True,
                 rescales the surface so that the maximum amplitude is equal to the radius
 
         Returns:
@@ -490,7 +496,7 @@ class SphericalSignal:
             translation=translation,
             radius=radius,
             scale_radius_by_amplitude=scale_radius_by_amplitude,
-            normalize_amplitude=normalize_amplitude,
+            normalize_radius_by_max_amplitude=normalize_radius_by_max_amplitude,
         )
         return dict(
             x=r[:, :, 0],
