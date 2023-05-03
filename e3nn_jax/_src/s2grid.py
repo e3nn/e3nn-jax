@@ -100,7 +100,13 @@ class SphericalSignal:
     p_arg: int
 
     def __init__(
-        self, grid_values: jnp.ndarray, quadrature: str, *, p_val: int = 1, p_arg: int = -1, _perform_checks: bool = True
+        self,
+        grid_values: jnp.ndarray,
+        quadrature: str,
+        *,
+        p_val: int = 1,
+        p_arg: int = -1,
+        _perform_checks: bool = True,
     ) -> None:
         if _perform_checks:
             if len(grid_values.shape) < 2:
@@ -122,10 +128,21 @@ class SphericalSignal:
 
     @staticmethod
     def zeros(
-        res_beta: int, res_alpha: int, quadrature: str, *, p_val: int = 1, p_arg: int = -1, dtype: jnp.dtype = jnp.float32
+        res_beta: int,
+        res_alpha: int,
+        quadrature: str,
+        *,
+        p_val: int = 1,
+        p_arg: int = -1,
+        dtype: jnp.dtype = jnp.float32,
     ) -> "SphericalSignal":
         """Create a null signal on a grid."""
-        return SphericalSignal(jnp.zeros((res_beta, res_alpha), dtype), quadrature, p_val=p_val, p_arg=p_arg)
+        return SphericalSignal(
+            jnp.zeros((res_beta, res_alpha), dtype),
+            quadrature,
+            p_val=p_val,
+            p_arg=p_arg,
+        )
 
     def __repr__(self) -> str:
         if self.ndim >= 2:
@@ -163,7 +180,12 @@ class SphericalSignal:
             scalar = scalar.array[..., 0]
 
         scalar = jnp.asarray(scalar)[..., None, None]
-        return SphericalSignal(self.grid_values * scalar, self.quadrature, p_val=self.p_val, p_arg=self.p_arg)
+        return SphericalSignal(
+            self.grid_values * scalar,
+            self.quadrature,
+            p_val=self.p_val,
+            p_arg=self.p_arg,
+        )
 
     def __rmul__(self, scalar: float) -> "SphericalSignal":
         """Multiply SphericalSignal by a scalar."""
@@ -185,7 +207,12 @@ class SphericalSignal:
         if self.quadrature != other.quadrature:
             raise ValueError("Quadrature for both signals must be identical.")
 
-        return SphericalSignal(self.grid_values + other.grid_values, self.quadrature, p_val=self.p_val, p_arg=self.p_arg)
+        return SphericalSignal(
+            self.grid_values + other.grid_values,
+            self.quadrature,
+            p_val=self.p_val,
+            p_arg=self.p_arg,
+        )
 
     def __sub__(self, other: "SphericalSignal") -> "SphericalSignal":
         """Subtract another SphericalSignal."""
@@ -264,10 +291,20 @@ class SphericalSignal:
         if quadrature is None:
             quadrature = self.quadrature
         coeffs = e3nn.from_s2grid(self, s2_irreps(lmax, self.p_val, self.p_arg))
-        return e3nn.to_s2grid(coeffs, res_beta, res_alpha, quadrature=quadrature, p_val=self.p_val, p_arg=self.p_arg)
+        return e3nn.to_s2grid(
+            coeffs,
+            res_beta,
+            res_alpha,
+            quadrature=quadrature,
+            p_val=self.p_val,
+            p_arg=self.p_arg,
+        )
 
     def _transform_by(
-        self, transform_type: str, transform_kwargs: Tuple[Union[float, int], ...], lmax: int
+        self,
+        transform_type: str,
+        transform_kwargs: Tuple[Union[float, int], ...],
+        lmax: int,
     ) -> "SphericalSignal":
         """A wrapper for different transform_by functions."""
         coeffs = e3nn.from_s2grid(self, s2_irreps(lmax, self.p_val, self.p_arg))
@@ -279,12 +316,20 @@ class SphericalSignal:
         }
         transformed_coeffs = transforms[transform_type](**transform_kwargs)
         return e3nn.to_s2grid(
-            transformed_coeffs, *self.grid_resolution, quadrature=self.quadrature, p_val=self.p_val, p_arg=self.p_arg
+            transformed_coeffs,
+            *self.grid_resolution,
+            quadrature=self.quadrature,
+            p_val=self.p_val,
+            p_arg=self.p_arg,
         )
 
     def transform_by_angles(self, alpha: float, beta: float, gamma: float, lmax: int) -> "SphericalSignal":
         """Rotate the signal by the given Euler angles."""
-        return self._transform_by("angles", transform_kwargs=dict(alpha=alpha, beta=beta, gamma=gamma), lmax=lmax)
+        return self._transform_by(
+            "angles",
+            transform_kwargs=dict(alpha=alpha, beta=beta, gamma=gamma),
+            lmax=lmax,
+        )
 
     def transform_by_matrix(self, R: jnp.ndarray, lmax: int) -> "SphericalSignal":
         """Rotate the signal by the given rotation matrix."""
@@ -360,6 +405,7 @@ class SphericalSignal:
         translation: Optional[jnp.ndarray] = None,
         radius: float = 1.0,
         scale_radius_by_amplitude: bool = False,
+        normalize_radius_by_max_amplitude: bool = False,
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         r"""Postprocess the borders of a given signal to allow to plot with plotly.
 
@@ -367,12 +413,18 @@ class SphericalSignal:
             translation (optional): translation vector
             radius (float): radius of the sphere
             scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
+            normalize_radius_by_max_amplitude (bool): when scale_radius_by_amplitude is True,
+                rescales the surface so that the maximum amplitude is equal to the radius
 
         Returns:
             r (`jax.numpy.ndarray`): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
             f (`jax.numpy.ndarray`): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
         """
         f, y, alpha = self.grid_values, self.grid_y, self.grid_alpha
+        assert f.ndim == 2 and f.shape == (
+            len(y),
+            len(alpha),
+        ), f"Invalid shape: grid_values.shape={f.shape}, expected ({len(y)}, {len(alpha)})"
 
         # y: [-1, 1]
         one = jnp.ones_like(y, shape=(1,))
@@ -388,7 +440,12 @@ class SphericalSignal:
         r = _s2grid_vectors(y, alpha)  # [res_beta + 2, res_alpha + 1, 3]
 
         if scale_radius_by_amplitude:
-            r = r * jnp.abs(f)[:, :, None]
+            nr = jnp.abs(f)[:, :, None]
+
+            if normalize_radius_by_max_amplitude:
+                nr = nr / jnp.max(nr)
+
+            r = r * nr
 
         r = r * radius
 
@@ -402,6 +459,7 @@ class SphericalSignal:
         translation: Optional[jnp.ndarray] = None,
         radius: float = 1.0,
         scale_radius_by_amplitude: bool = False,
+        normalize_radius_by_max_amplitude: bool = False,
     ):
         """Returns a dictionary that can be plotted with plotly.
 
@@ -409,6 +467,8 @@ class SphericalSignal:
             translation (optional): translation vector
             radius (float): radius of the sphere
             scale_radius_by_amplitude (bool): to rescale the output vectors with the amplitude of the signal
+            normalize_radius_by_max_amplitude (bool): when scale_radius_by_amplitude is True,
+                rescales the surface so that the maximum amplitude is equal to the radius
 
         Returns:
             dict: dictionary that can be plotted with plotly
@@ -432,7 +492,12 @@ class SphericalSignal:
             go.Figure([go.Surface(signal.plotly_surface(scale_radius_by_amplitude=True))])
 
         """
-        r, f = self.pad_to_plot(translation=translation, radius=radius, scale_radius_by_amplitude=scale_radius_by_amplitude)
+        r, f = self.pad_to_plot(
+            translation=translation,
+            radius=radius,
+            scale_radius_by_amplitude=scale_radius_by_amplitude,
+            normalize_radius_by_max_amplitude=normalize_radius_by_max_amplitude,
+        )
         return dict(
             x=r[:, :, 0],
             y=r[:, :, 1],
@@ -528,7 +593,11 @@ jax.tree_util.register_pytree_node(
     SphericalSignal,
     lambda x: ((x.grid_values,), (x.quadrature, x.p_val, x.p_arg)),
     lambda aux, grid_values: SphericalSignal(
-        grid_values=grid_values[0], quadrature=aux[0], p_val=aux[1], p_arg=aux[2], _perform_checks=False
+        grid_values=grid_values[0],
+        quadrature=aux[0],
+        p_val=aux[1],
+        p_arg=aux[2],
+        _perform_checks=False,
     ),
 )
 
@@ -705,7 +774,7 @@ def to_s2grid(
     res_beta: int,
     res_alpha: int,
     *,
-    quadrature: str = "gausslegendre",
+    quadrature: str,
     normalization: str = "integral",
     fft: bool = True,
     p_val: Optional[int] = None,
@@ -859,7 +928,10 @@ def to_s2point(
     sh = sh.reshape((-1, sh.shape[-1]))
 
     irreps = {1: "0e", -1: "0o"}[p_val]
-    return e3nn.IrrepsArray(irreps, jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,)))
+    return e3nn.IrrepsArray(
+        irreps,
+        jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,)),
+    )
 
 
 def _s2grid_vectors(y: jnp.ndarray, alpha: jnp.ndarray) -> jnp.ndarray:
@@ -933,7 +1005,14 @@ def _s2grid(res_beta: int, res_alpha: int, quadrature: str) -> Tuple[np.ndarray,
     return y, alpha, qw
 
 
-def _spherical_harmonics_s2grid(lmax: int, res_beta: int, res_alpha: int, *, quadrature: str, dtype: np.dtype = np.float32):
+def _spherical_harmonics_s2grid(
+    lmax: int,
+    res_beta: int,
+    res_alpha: int,
+    *,
+    quadrature: str,
+    dtype: np.dtype = np.float32,
+):
     r"""spherical harmonics evaluated on the grid on the sphere
     .. math::
         f(x) = \sum_{l=0}^{l_{\mathit{max}}} F^l \cdot Y^l(x)
