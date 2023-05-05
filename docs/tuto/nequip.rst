@@ -35,8 +35,11 @@ What this tutorial will cover:
 
     import e3nn_jax as e3nn
 
-Let's create a **very** simple dataset of two crystals from materials project made only of carbon atoms.
+Let's create a **very** simple dataset of two crystals from `materials project <https://materialsproject.org>`_ made only of carbon atoms.
+Materials project provides a *Predicted Formation Energy* for each crystal, we will use this as our target.
 
+ * `mp-47 <https://materialsproject.org/materials/mp-47>`_
+ * `mp-48 <https://materialsproject.org/materials/mp-48>`_
  * `mp-66 <https://materialsproject.org/materials/mp-66>`_
  * `mp-169 <https://materialsproject.org/materials/mp-169>`_
 
@@ -47,6 +50,7 @@ Then we use `jraph <https://github.com/deepmind/jraph>`_ to create a graph objec
 .. jupyter-execute::
 
     def create_graph(positions, cell, energy, cutoff):
+        # Compute the neighbour list up to the cutoff
         receivers, senders, senders_unit_shifts = neighbour_list(
             quantities="ijS",
             pbc=np.array([True, True, True]),
@@ -54,11 +58,25 @@ Then we use `jraph <https://github.com/deepmind/jraph>`_ to create a graph objec
             positions=positions,
             cutoff=cutoff,
         )
+        num_edges = senders.shape[0]
+        assert senders.shape == (num_edges,)
+        assert receivers.shape == (num_edges,)
+        assert senders_unit_shifts.shape == (num_edges, 3)
 
+        # In a jraph.GraphsTuple object, nodes, edges, and globals can be any
+        # pytree. In this case, we use arrays for nodes and edges, and a dict for
+        # globals.
+        # What matters is that the first dimension of each array is the number of
+        # nodes, edges, or graphs in the batch.
         graph = jraph.GraphsTuple(
+            # There is one position per node, so we store them in the nodes field.
             nodes=positions,
+            # There is one unit shift per edge, so we store them in the edges field.
             edges=senders_unit_shifts,
+            # There is one energy and one cell per graph, so we store them in the
+            # globals field.
             globals=dict(energies=np.array([energy]), cells=cell[None, :, :]),
+            # The rest of the fields describe the connectivity and size of the graph.
             senders=senders,
             receivers=receivers,
             n_node=np.array([positions.shape[0]]),
@@ -75,6 +93,36 @@ The function ``create_graph`` creates a graph object from the positions, cell an
     cutoff = 2.0  # in angstroms
 
 .. jupyter-execute::
+
+    mp47 = create_graph(
+        positions=np.array(
+            [
+                [-0.0, 1.44528, 0.26183],
+                [1.25165, 0.72264, 2.34632],
+                [1.25165, 0.72264, 3.90714],
+                [-0.0, 1.44528, 1.82265],
+            ]
+        ),
+        cell=np.array([[2.5033, 0.0, 0.0], [-1.25165, 2.16792, 0.0], [0.0, 0.0, 4.16897]]),
+        energy=0.163,  # eV/atom
+        cutoff=cutoff,
+    )
+    print(f"mp47 has {mp47.n_node} nodes and {mp47.n_edge} edges")
+
+    mp48 = create_graph(
+        positions=np.array(
+            [
+                [0.0, 0.0, 1.95077],
+                [0.0, 0.0, 5.8523],
+                [-0.0, 1.42449, 1.95077],
+                [1.23365, 0.71225, 5.8523],
+            ]
+        ),
+        cell=np.array([[2.46729, 0.0, 0.0], [-1.23365, 2.13674, 0.0], [0.0, 0.0, 7.80307]]),
+        energy=0.008,  # eV/atom
+        cutoff=cutoff,
+    )
+    print(f"mp48 has {mp48.n_node} nodes and {mp48.n_edge} edges")
 
     mp66 = create_graph(
         positions=np.array(
@@ -110,7 +158,7 @@ The function ``create_graph`` creates a graph object from the positions, cell an
     )
     print(f"mp169 has {mp169.n_node} nodes and {mp169.n_edge} edges")
 
-    dataset = jraph.batch([mp66, mp169])
+    dataset = jraph.batch([mp47, mp48, mp66, mp169])
     print(f"dataset has {dataset.n_node} nodes and {dataset.n_edge} edges")
 
     print(jax.tree_util.tree_map(jnp.shape, dataset))
@@ -164,7 +212,8 @@ You can install it with pip using the command ``pip install git+git://github.com
 
             features = e3nn.flax.Linear("0e", name="output")(features)
 
-            return e3nn.scatter_sum(features, nel=graphs.n_node)
+            return e3nn.scatter_sum(features, nel=graphs.n_node) / graphs.n_node[:, None]
+
 
 Now that we defined the model, we need to define the loss function.
 In this example we will use the mean squared error as loss function.
