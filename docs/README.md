@@ -1,3 +1,5 @@
+[Click here to go to the documentation](https://e3nn-jax.readthedocs.io/en/latest)
+
 # Documentation for the project
 
 This is the documentation folder for the project. It uses sphinx to generate the documentation.
