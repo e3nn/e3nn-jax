@@ -9,4 +9,5 @@ matplotlib
 plotly
 jupyter-sphinx
 matscipy
+jraph
 nequip_jax @ git+https://github.com/mariogeiger/nequip-jax@1.0.1
