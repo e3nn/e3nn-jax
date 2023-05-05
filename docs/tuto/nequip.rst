@@ -90,7 +90,7 @@ The function ``create_graph`` creates a graph object from the positions, cell an
             ]
         ),
         cell=np.array([[3.56075, 0.0, 0.0], [0.0, 3.56075, 0.0], [0.0, 0.0, 3.56075]]),
-        energy=0.138,
+        energy=0.138,  # eV/atom
         cutoff=cutoff,
     )
     print(f"mp66 has {mp66.n_node} nodes and {mp66.n_edge} edges")
@@ -105,7 +105,7 @@ The function ``create_graph`` creates a graph object from the positions, cell an
             ]
         ),
         cell=np.array([[4.25464, 0.0, 0.0], [0.0, 2.45656, 0.0], [-1.37907, 0.0, 3.50283]]),
-        energy=0.003,
+        energy=0.003,  # eV/atom
         cutoff=cutoff,
     )
     print(f"mp169 has {mp169.n_node} nodes and {mp169.n_edge} edges")
@@ -135,14 +135,17 @@ You can install it with pip using the command ``pip install git+git://github.com
 
             # Get the atomic positions and the cell and compute the relative vectors
             positions = graphs.nodes
-            shifts = graphs.edges  # We need the unit shifts to know if the edge is across two cells
             cells = graphs.globals["cells"]
+
+            # We need the unit shifts to know if the edge is across two cells
+            shifts = graphs.edges
             cells = jnp.repeat(cells, graphs.n_edge, axis=0, total_repeat_length=num_edges)
 
             positions_receivers = positions[receivers]
             positions_senders = positions[senders] + jnp.einsum("ei,eij->ej", shifts, cells)
 
-            # We divide the relative vectors by the cutoff because NEQUIPLayerFlax assumes a cutoff of 1.0
+            # We divide the relative vectors by the cutoff
+            # because NEQUIPLayerFlax assumes a cutoff of 1.0
             vectors = e3nn.IrrepsArray("1o", positions_receivers - positions_senders) / cutoff
 
             # Create dummy features (just ones 0e) and species (all carbon atoms)
@@ -163,7 +166,7 @@ You can install it with pip using the command ``pip install git+git://github.com
 
             return e3nn.scatter_sum(features, nel=graphs.n_node)
 
-
+Now that we defined the model, we need to define the loss function.
 In this example we will use the mean squared error as loss function.
 
 .. jupyter-execute::
@@ -179,7 +182,7 @@ Now let's use the magic of ``flax`` to initialize the model and use the magic of
 
     f = Model()
     w = jax.jit(f.init)(jax.random.PRNGKey(1), dataset)
-    opt = optax.adam(5e-4)
+    opt = optax.adam(1e-4)
     state = opt.init(w)
 
 
@@ -191,6 +194,7 @@ Let's define the training step. We will use ``jax.jit`` to compile the function 
     def train_step(state, w, dataset):
         num_graphs = dataset.n_node.shape[0]
 
+        # Compute the loss as a function of the parameters
         def fun(w):
             preds = f.apply(w, dataset).array.squeeze(1)
             targets = dataset.globals["energies"]
@@ -199,9 +203,13 @@ Let's define the training step. We will use ``jax.jit`` to compile the function 
             assert targets.shape == (num_graphs,)
             return loss_fn(preds, targets)
 
+        # And take its gradient
         loss, grad = jax.value_and_grad(fun)(w)
+
+        # Update the parameters and the optimizer state
         updates, state = opt.update(grad, state)
         w = optax.apply_updates(w, updates)
+
         return state, w, loss
 
 
