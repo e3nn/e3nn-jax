@@ -127,40 +127,44 @@ You can install it with pip using the command ``pip install git+git://github.com
     class Model(flax.linen.Module):
         @flax.linen.compact
         def __call__(self, graphs):
+            # Extract the informations from the jraph.GraphsTuple object
             senders = graphs.senders
             receivers = graphs.receivers
             num_nodes = graphs.nodes.shape[0]
             num_edges = senders.shape[0]
 
+            # Get the atomic positions and the cell and compute the relative vectors
             positions = graphs.nodes
-            shifts = graphs.edges
+            shifts = graphs.edges  # We need the unit shifts to know if the edge is across two cells
             cells = graphs.globals["cells"]
             cells = jnp.repeat(cells, graphs.n_edge, axis=0, total_repeat_length=num_edges)
 
             positions_receivers = positions[receivers]
             positions_senders = positions[senders] + jnp.einsum("ei,eij->ej", shifts, cells)
 
+            # We divide the relative vectors by the cutoff because NEQUIPLayerFlax assumes a cutoff of 1.0
             vectors = e3nn.IrrepsArray("1o", positions_receivers - positions_senders) / cutoff
 
+            # Create dummy features (just ones 0e) and species (all carbon atoms)
             features = e3nn.IrrepsArray("0e", jnp.ones((len(positions), 1)))
             species = jnp.zeros((len(positions),), dtype=jnp.int32)
-            avg_num_neighbors = 4.0
+            avg_num_neighbors = 4.0  # This is used to rescale the sum of the message passing
 
-            for _ in range(2):
-                layer = NEQUIPLayerFlax(
-                    avg_num_neighbors=avg_num_neighbors,
-                    output_irreps="32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o",
-                )
+            # Apply 3 Nequip layers with different internal representations
+            for irreps in [
+                "32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o",
+                "32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o",
+                "32x0e",
+            ]:
+                layer = NEQUIPLayerFlax(avg_num_neighbors=avg_num_neighbors, output_irreps=irreps)
                 features = layer(vectors, features, species, senders, receivers)
 
-            layer = NEQUIPLayerFlax(
-                avg_num_neighbors=avg_num_neighbors,
-                output_irreps="32x0e",
-            )
-            features = layer(vectors, features, species, senders, receivers)
             features = e3nn.flax.Linear("0e", name="output")(features)
 
             return e3nn.scatter_sum(features, nel=graphs.n_node)
+
+
+In this example we will use the mean squared error as loss function.
 
 .. jupyter-execute::
 
@@ -169,6 +173,8 @@ You can install it with pip using the command ``pip install git+git://github.com
         return jnp.mean(jnp.square(preds - targets))
 
 
+Now let's use the magic of ``flax`` to initialize the model and use the magic of ``optax`` to define the optimizer and initialize it as well.
+
 .. jupyter-execute::
 
     f = Model()
@@ -176,6 +182,10 @@ You can install it with pip using the command ``pip install git+git://github.com
     opt = optax.adam(5e-4)
     state = opt.init(w)
 
+
+Let's define the training step. We will use ``jax.jit`` to compile the function and make it faster.
+
+.. jupyter-execute::
 
     @jax.jit
     def train_step(state, w, dataset):
@@ -194,6 +204,8 @@ You can install it with pip using the command ``pip install git+git://github.com
         w = optax.apply_updates(w, updates)
         return state, w, loss
 
+
+Finally, let's train the model for 1000 iterations.
 
 .. jupyter-execute::
 
