@@ -1,0 +1,209 @@
+Tutorial: learn crystal energies with Nequip
+============================================
+
+.. image:: mp-169.png
+
+**Task**: regression of the energy of crystals.
+
+.. |check| raw:: html
+
+    <input checked=""  type="checkbox">
+
+.. |uncheck| raw:: html
+
+    <input type="checkbox">
+
+What this tutorial will cover:
+
+| |check| Create a Nequip model
+| |check| Create a dummy dataset
+| |check| Train the model to predict the energy
+| |uncheck| Train to predict the forces
+| |uncheck| Having more than one batch and pad them with ``jraph.pad_with_graphs``
+| |uncheck| Add support for different atom types
+
+.. jupyter-execute::
+
+    import flax  # neural network modules for jax
+    import jax
+    import jax.numpy as jnp
+    import jraph  # graph neural networks in jax
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import optax  # optimizers for jax
+    from matscipy.neighbours import neighbour_list  # fast neighbour list implementation
+
+    import e3nn_jax as e3nn
+
+Let's create a **very** simple dataset of two crystals from materials project made only of carbon atoms.
+
+ * `mp-66 <https://materialsproject.org/materials/mp-66>`_
+ * `mp-169 <https://materialsproject.org/materials/mp-169>`_
+
+To compute the graph connectivity we use `matscipy <https://github.com/libAtoms/matscipy>`_
+library which has a very fast neighbour list implementation.
+Then we use `jraph <https://github.com/deepmind/jraph>`_ to create a graph objects and batch them together. ``jraph`` is a library for graph neural networks in jax developed by DeepMind.
+
+.. jupyter-execute::
+
+    def create_graph(positions, cell, energy, cutoff):
+        receivers, senders, senders_unit_shifts = neighbour_list(
+            quantities="ijS",
+            pbc=np.array([True, True, True]),
+            cell=cell,
+            positions=positions,
+            cutoff=cutoff,
+        )
+
+        graph = jraph.GraphsTuple(
+            nodes=positions,
+            edges=senders_unit_shifts,
+            globals=dict(energies=np.array([energy]), cells=cell[None, :, :]),
+            senders=senders,
+            receivers=receivers,
+            n_node=np.array([positions.shape[0]]),
+            n_edge=np.array([senders.shape[0]]),
+        )
+        return graph
+
+The function ``create_graph`` creates a graph object from the positions, cell and energy of the crystal.
+``jraph.GraphsTuple`` is the cornerstone of ``jraph`` library. It is a named tuple that contains all the information about a graph. The documentation of ``jraph.GraphsTuple`` can be found `here <https://jraph.readthedocs.io/en/latest/api.html#graphstuple>`_.
+
+
+.. jupyter-execute::
+
+    cutoff = 2.0  # in angstroms
+
+.. jupyter-execute::
+
+    mp66 = create_graph(
+        positions=np.array(
+            [
+                [0.0, 0.0, 1.78037],
+                [0.89019, 0.89019, 2.67056],
+                [0.0, 1.78037, 0.0],
+                [0.89019, 2.67056, 0.89019],
+                [1.78037, 0.0, 0.0],
+                [2.67056, 0.89019, 0.89019],
+                [1.78037, 1.78037, 1.78037],
+                [2.67056, 2.67056, 2.67056],
+            ]
+        ),
+        cell=np.array([[3.56075, 0.0, 0.0], [0.0, 3.56075, 0.0], [0.0, 0.0, 3.56075]]),
+        energy=0.138,
+        cutoff=cutoff,
+    )
+    print(f"mp66 has {mp66.n_node} nodes and {mp66.n_edge} edges")
+
+    mp169 = create_graph(
+        positions=np.array(
+            [
+                [-0.66993, 0.0, 3.5025],
+                [3.5455, 0.0, 0.00033],
+                [1.45739, 1.22828, 3.5025],
+                [1.41818, 1.22828, 0.00033],
+            ]
+        ),
+        cell=np.array([[4.25464, 0.0, 0.0], [0.0, 2.45656, 0.0], [-1.37907, 0.0, 3.50283]]),
+        energy=0.003,
+        cutoff=cutoff,
+    )
+    print(f"mp169 has {mp169.n_node} nodes and {mp169.n_edge} edges")
+
+    dataset = jraph.batch([mp66, mp169])
+    print(f"dataset has {dataset.n_node} nodes and {dataset.n_edge} edges")
+
+    print(jax.tree_util.tree_map(jnp.shape, dataset))
+
+Now we define the model layer based on `Nequip architecture <https://arxiv.org/pdf/2101.03164.pdf>`_.
+For that we will use the implementation available at `github.com/mariogeiger/nequip-jax <https://github.com/mariogeiger/nequip-jax>`_.
+You can install it with pip using the command ``pip install git+git://github.com/mariogeiger/nequip-jax.git``.
+
+.. jupyter-execute::
+
+    from nequip_jax import NEQUIPLayerFlax
+
+
+    class Model(flax.linen.Module):
+        @flax.linen.compact
+        def __call__(self, graphs):
+            senders = graphs.senders
+            receivers = graphs.receivers
+            num_nodes = graphs.nodes.shape[0]
+            num_edges = senders.shape[0]
+
+            positions = graphs.nodes
+            shifts = graphs.edges
+            cells = graphs.globals["cells"]
+            cells = jnp.repeat(cells, graphs.n_edge, axis=0, total_repeat_length=num_edges)
+
+            positions_receivers = positions[receivers]
+            positions_senders = positions[senders] + jnp.einsum("ei,eij->ej", shifts, cells)
+
+            vectors = e3nn.IrrepsArray("1o", positions_receivers - positions_senders) / cutoff
+
+            features = e3nn.IrrepsArray("0e", jnp.ones((len(positions), 1)))
+            species = jnp.zeros((len(positions),), dtype=jnp.int32)
+            avg_num_neighbors = 4.0
+
+            for _ in range(2):
+                layer = NEQUIPLayerFlax(
+                    avg_num_neighbors=avg_num_neighbors,
+                    output_irreps="32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o",
+                )
+                features = layer(vectors, features, species, senders, receivers)
+
+            layer = NEQUIPLayerFlax(
+                avg_num_neighbors=avg_num_neighbors,
+                output_irreps="32x0e",
+            )
+            features = layer(vectors, features, species, senders, receivers)
+            features = e3nn.flax.Linear("0e", name="output")(features)
+
+            return e3nn.scatter_sum(features, nel=graphs.n_node)
+
+.. jupyter-execute::
+
+    def loss_fn(preds, targets):
+        assert preds.shape == targets.shape
+        return jnp.mean(jnp.square(preds - targets))
+
+
+.. jupyter-execute::
+
+    f = Model()
+    w = jax.jit(f.init)(jax.random.PRNGKey(1), dataset)
+    opt = optax.adam(5e-4)
+    state = opt.init(w)
+
+
+    @jax.jit
+    def train_step(state, w, dataset):
+        num_graphs = dataset.n_node.shape[0]
+
+        def fun(w):
+            preds = f.apply(w, dataset).array.squeeze(1)
+            targets = dataset.globals["energies"]
+
+            assert preds.shape == (num_graphs,)
+            assert targets.shape == (num_graphs,)
+            return loss_fn(preds, targets)
+
+        loss, grad = jax.value_and_grad(fun)(w)
+        updates, state = opt.update(grad, state)
+        w = optax.apply_updates(w, updates)
+        return state, w, loss
+
+
+.. jupyter-execute::
+
+    losses = []
+    for _ in range(1000):
+        state, w, loss = train_step(state, w, dataset)
+        losses.append(loss)
+
+    plt.plot(losses)
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlabel("Iteration")
+    plt.ylabel("Loss")

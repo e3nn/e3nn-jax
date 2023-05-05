@@ -10,15 +10,12 @@ from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
 @partial(jax.jit, static_argnums=(1, 2, 3, 4, 5))
 def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, normalize_act) -> IrrepsArray:
-    act = {1: even_act, -1: odd_act}
-    gate_act = {1: even_gate_act, -1: odd_gate_act}
-
     scalars = input.filtered(keep=["0e", "0o"])
     vectors = input.filtered(drop=["0e", "0o"])
     del input
 
     if vectors.shape[-1] == 0:
-        return scalar_activation(scalars, [act[ir.p] for _, ir in scalars.irreps], normalize_act=normalize_act)
+        return scalar_activation(scalars, even_act=even_act, odd_act=odd_act, normalize_act=normalize_act).simplify()
 
     if scalars.irreps.dim < vectors.irreps.num_irreps:
         raise ValueError("The input must have at least as many scalars as the number of non-scalar irreps")
@@ -27,14 +24,10 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, no
     scalars_gates: e3nn.IrrepsArray = scalars.slice_by_mul[scalars.irreps.dim - vectors.irreps.num_irreps :]
     del scalars
 
-    scalars_extra = scalar_activation(
-        scalars_extra, [act[ir.p] for _, ir in scalars_extra.irreps], normalize_act=normalize_act
-    )
-    scalars_gates = scalar_activation(
-        scalars_gates, [gate_act[ir.p] for _, ir in scalars_gates.irreps], normalize_act=normalize_act
-    )
+    scalars_extra = scalar_activation(scalars_extra, even_act=even_act, odd_act=odd_act, normalize_act=normalize_act)
+    scalars_gates = scalar_activation(scalars_gates, even_act=even_gate_act, odd_act=odd_gate_act, normalize_act=normalize_act)
 
-    return e3nn.concatenate([scalars_extra, scalars_gates * vectors], axis=-1)
+    return e3nn.concatenate([scalars_extra, scalars_gates * vectors], axis=-1).simplify()
 
 
 @overload_for_irreps_without_array((0,))

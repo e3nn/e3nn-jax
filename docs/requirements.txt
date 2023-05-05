@@ -8,3 +8,5 @@ ipykernel
 matplotlib
 plotly
 jupyter-sphinx
+matscipy
+nequip_jax @ git+https://github.com/mariogeiger/nequip-jax@1.0.1

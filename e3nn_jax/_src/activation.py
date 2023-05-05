@@ -55,7 +55,7 @@ def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float
     """
     with jax.ensure_compile_time_eval():
         # k = jax.random.PRNGKey(0)
-        # x = jax.random.normal(k, (1_000_000,), dtype=jnp.float64)
+        # x = jax.random.normal(k, (1_000_000,))
         x = normalspace(1_000_001)
         c = jnp.mean(phi(x) ** 2) ** 0.5
         c = c.item()

@@ -342,22 +342,13 @@ We can verify that it can also be obtained by taking the gradient of :math:`Y^3`
     f = e3nn.grad(lambda x: e3nn.spherical_harmonics("3o", x, False))
     0.18443 * f(x)["2e"]
 
-API
----
+Content
+-------
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
-    api/irreps
-    api/irreps_array
-    api/tensor_products
-    api/operations
-    api/math
-    api/nn
-    api/radial
-    api/haiku
-    api/flax
-    api/s2
-    api/extra
+    api/index
+    tuto/index
 
 .. _jax: https://github.com/google/jax
