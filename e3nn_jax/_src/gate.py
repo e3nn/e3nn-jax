@@ -15,7 +15,7 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, no
     del input
 
     if vectors.shape[-1] == 0:
-        return scalar_activation(scalars, even_act=even_act, odd_act=odd_act, normalize_act=normalize_act).simplify()
+        return scalar_activation(scalars, even_act=even_act, odd_act=odd_act, normalize_act=normalize_act)
 
     if scalars.irreps.dim < vectors.irreps.num_irreps:
         raise ValueError("The input must have at least as many scalars as the number of non-scalar irreps")
@@ -27,7 +27,7 @@ def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, no
     scalars_extra = scalar_activation(scalars_extra, even_act=even_act, odd_act=odd_act, normalize_act=normalize_act)
     scalars_gates = scalar_activation(scalars_gates, even_act=even_gate_act, odd_act=odd_gate_act, normalize_act=normalize_act)
 
-    return e3nn.concatenate([scalars_extra, scalars_gates * vectors], axis=-1).simplify()
+    return e3nn.concatenate([scalars_extra, scalars_gates * vectors], axis=-1)
 
 
 @overload_for_irreps_without_array((0,))
