@@ -16,11 +16,12 @@ Tutorial: learn crystal energies with Nequip
 What this tutorial will cover:
 
 | |check| Create a Nequip model
-| |check| Create a dummy dataset
+| |check| Create a simple dataset
 | |check| Train the model to predict the energy
 | |uncheck| Train to predict the forces
 | |uncheck| Having more than one batch and pad them with ``jraph.pad_with_graphs``
 | |uncheck| Add support for different atom types
+| |uncheck| Test the model on unseen crystals
 
 .. jupyter-execute::
 
@@ -35,8 +36,8 @@ What this tutorial will cover:
 
     import e3nn_jax as e3nn
 
-Let's create a **very** simple dataset of two crystals from `materials project <https://materialsproject.org>`_ made only of carbon atoms.
-Materials project provides a *Predicted Formation Energy* for each crystal, we will use this as our target.
+Let's create a **very** simple dataset of few crystals from `materials project <https://materialsproject.org>`_ made only of carbon atoms.
+Materials project provides a *Predicted Formation Energy* for each crystal, and we will use this as our target.
 
  * `mp-47 <https://materialsproject.org/materials/mp-47>`_
  * `mp-48 <https://materialsproject.org/materials/mp-48>`_
@@ -216,7 +217,7 @@ You can install it with pip using the command ``pip install git+git://github.com
 
 
 Now that we defined the model, we need to define the loss function.
-In this example we will use the mean squared error as loss function.
+For this example we will use the mean squared error as loss function.
 
 .. jupyter-execute::
 
@@ -236,6 +237,7 @@ Now let's use the magic of ``flax`` to initialize the model and use the magic of
 
 
 Let's define the training step. We will use ``jax.jit`` to compile the function and make it faster.
+This function takes as input the model parameters, the optimizer state and the dataset and returns the updated optimizer state, the updated model parameters and the loss.
 
 .. jupyter-execute::
 
