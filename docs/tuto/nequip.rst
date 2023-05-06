@@ -2,6 +2,8 @@ Tutorial: learn crystal energies with Nequip
 ============================================
 
 .. image:: mp-169.png
+    :width: 400
+    :alt: mp-169 crystal
 
 
 The goal of this tutorial is to show how to use Nequip to train a neural network to predict the energy of crystals.
@@ -99,6 +101,8 @@ This image shows the edges created by ``matscipy.neighbours.neighbour_list`` for
 
 
 .. image:: graph.png
+    :width: 400
+    :alt: Graph Edges of a Periodic Crystal
 
 Then we use `jraph <https://github.com/deepmind/jraph>`_ to create a graph objects and (later) batch them together. ``jraph`` is a library for graph neural networks in jax developed by DeepMind.
 The following function ``create_graph`` creates a graph object from the given positions, cell and energy of the crystal.
@@ -248,7 +252,14 @@ Before defining the model, we need to make sure we properly take into account th
 
 
 Now we define the model layer based on `Nequip architecture <https://arxiv.org/pdf/2101.03164.pdf>`_.
+
+.. image:: nequip.png
+    :width: 600
+    :alt: Nequip architecture
+
 For that we will use the implementation available at `github.com/mariogeiger/nequip-jax <https://github.com/mariogeiger/nequip-jax>`_.
+This implementation provides a ``NEQUIPLayerFlax`` class that implements the *Interaction Block* part of the Nequip architecture (the blue box in the figure above).
+The *Embedding*, *Self-Interaction* and *Global Pooling* parts of the Nequip architecture are not implemented in ``nequip-jax`` and we will need to implement them ourselves below.
 
 .. jupyter-execute::
 
@@ -272,7 +283,8 @@ For that we will use the implementation available at `github.com/mariogeiger/neq
             # because NEQUIPLayerFlax assumes a cutoff of 1.0
             vectors = vectors / cutoff
 
-            # Create dummy features (just ones 0e) and species (all carbon atoms)
+            # Embedding: since we have a single atom type, we don't need embedding
+            # The node features are just ones and the species indices are all zeros
             features = e3nn.IrrepsArray("0e", jnp.ones((num_nodes, 1)))
             species = jnp.zeros((num_nodes,), dtype=jnp.int32)
 
@@ -288,8 +300,11 @@ For that we will use the implementation available at `github.com/mariogeiger/neq
                 )
                 features = layer(vectors, features, species, senders, receivers)
 
-            features = e3nn.flax.Linear("0e", name="output")(features)
+            # Self-Interaction layers
+            features = e3nn.flax.Linear("16x0e")(features)
+            features = e3nn.flax.Linear("0e")(features)
 
+            # Global Pooling
             # Average the features (energy prediction) over the nodes of each graph
             return e3nn.scatter_sum(features, nel=graphs.n_node) / graphs.n_node[:, None]
 
