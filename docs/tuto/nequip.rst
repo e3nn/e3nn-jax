@@ -292,12 +292,12 @@ The class below defines a ``flax``-Module. ``flax`` is a neural network library 
 
             # Apply 3 Nequip layers with different internal representations
             for irreps in [
-                "32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o",
-                "32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o",
+                "32x0e + 8x1o + 8x2e",
+                "32x0e + 8x1o + 8x2e",
                 "32x0e",
             ]:
                 layer = NEQUIPLayerFlax(
-                    avg_num_neighbors=4.0,  # average number of neighbors to normalize by
+                    avg_num_neighbors=20.0,  # average number of neighbors to normalize by
                     output_irreps=irreps,
                 )
                 features = layer(vectors, features, species, senders, receivers)
