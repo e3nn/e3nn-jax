@@ -60,7 +60,7 @@ Here are the ``pip`` commands to install everything::
     pip install -U matplotlib
     pip install -U e3nn_jax
 
-    pip install git+https://github.com/mariogeiger/nequip-jax.git
+    pip install git+https://github.com/mariogeiger/nequip-jax
 
 Dataset
 -------
@@ -111,24 +111,24 @@ Each crystal is stored in a ``jraph.GraphsTuple``, which is the cornerstone data
         senders, receivers, senders_unit_shifts = compute_edges(positions, cell, cutoff)
 
         # In a jraph.GraphsTuple object, nodes, edges, and globals can be any
-        # pytree. In this case, we use arrays for nodes and edges, and a dict for
-        # globals.
-        # What matters is that the first dimension of each array is the number of
-        # nodes, edges, or graphs in the batch.
+        # pytree. We will use dicts of arrays.
+        # What matters is that the first axis of each array has length equal to
+        # the number of nodes, edges, or graphs.
+        num_nodes = positions.shape[0]
+        num_edges = senders.shape[0]
 
         graph = jraph.GraphsTuple(
-            # There is one position per node, so we store them in the nodes field.
-            nodes=positions,
-            # There is one unit shift per edge, so we store them in the edges field.
-            edges=senders_unit_shifts,
-            # There is one energy and one cell per graph, so we store them in the
-            # globals field.
+            # positions are per-node features:
+            nodes=dict(positions=positions),
+            # Unit shifts are per-edge features:
+            edges=dict(shifts=senders_unit_shifts),
+            # energy and cell are per-graph features:
             globals=dict(energies=np.array([energy]), cells=cell[None, :, :]),
             # The rest of the fields describe the connectivity and size of the graph.
             senders=senders,
             receivers=receivers,
-            n_node=np.array([positions.shape[0]]),
-            n_edge=np.array([senders.shape[0]]),
+            n_node=np.array([num_nodes]),
+            n_edge=np.array([num_edges]),
         )
         return graph
 
@@ -249,14 +249,13 @@ Before defining the model, we need to make sure we properly take into account th
 
 Now we define the model layer based on `Nequip architecture <https://arxiv.org/pdf/2101.03164.pdf>`_.
 For that we will use the implementation available at `github.com/mariogeiger/nequip-jax <https://github.com/mariogeiger/nequip-jax>`_.
-You can install it with pip using the command ``pip install git+https://github.com/mariogeiger/nequip-jax.git``.
 
 .. jupyter-execute::
 
     class Model(flax.linen.Module):
         @flax.linen.compact
         def __call__(self, graphs):
-            num_nodes = graphs.nodes.shape[0]
+            num_nodes = graphs.nodes["positions"].shape[0]
             senders = graphs.senders
             receivers = graphs.receivers
 
@@ -264,9 +263,9 @@ You can install it with pip using the command ``pip install git+https://github.c
                 senders,
                 receivers,
                 graphs.n_edge,
-                positions=graphs.nodes,
+                positions=graphs.nodes["positions"],
                 cells=graphs.globals["cells"],
-                shifts=graphs.edges,
+                shifts=graphs.edges["shifts"],
             )
 
             # We divide the relative vectors by the cutoff
@@ -294,6 +293,7 @@ You can install it with pip using the command ``pip install git+https://github.c
             # Average the features (energy prediction) over the nodes of each graph
             return e3nn.scatter_sum(features, nel=graphs.n_node) / graphs.n_node[:, None]
 
+
 Training
 --------
 
@@ -319,7 +319,7 @@ As optimizer we will use Adam. This optimizer needs to keep track of the average
     w = jax.jit(f.init)(random_key, dataset)
 
     # Initialize the optimizer
-    opt = optax.adam(1e-4)
+    opt = optax.adam(1e-3)
     opt_state = opt.init(w)
 
 
