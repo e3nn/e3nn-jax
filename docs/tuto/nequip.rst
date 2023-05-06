@@ -261,6 +261,8 @@ For that we will use the implementation available at `github.com/mariogeiger/neq
 This implementation provides a ``NEQUIPLayerFlax`` class that implements the *Interaction Block* part of the Nequip architecture (the blue box in the figure above).
 The *Embedding*, *Self-Interaction* and *Global Pooling* parts of the Nequip architecture are not implemented in ``nequip-jax`` and we will need to implement them ourselves below.
 
+The class below defines a ``flax``-Module. ``flax`` is a neural network library that is built on top of ``jax``. ``flax`` provides a ``Module`` class that is similar to ``nn.Module`` in PyTorch. ``flax`` also provides a ``compact`` decorator that allows us to define the ``__call__`` method of the ``Module`` in a more concise way. See `the flax documentation <https://flax.readthedocs.io/en/latest/index.html>`_ for more details.
+
 .. jupyter-execute::
 
     class Model(flax.linen.Module):
