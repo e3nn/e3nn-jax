@@ -60,7 +60,7 @@ Here are the ``pip`` commands to install everything::
     pip install -U matplotlib
     pip install -U e3nn_jax
 
-    pip install git+git://github.com/mariogeiger/nequip-jax.git
+    pip install git+https://github.com/mariogeiger/nequip-jax.git
 
 Dataset
 -------
@@ -249,7 +249,7 @@ Before defining the model, we need to make sure we properly take into account th
 
 Now we define the model layer based on `Nequip architecture <https://arxiv.org/pdf/2101.03164.pdf>`_.
 For that we will use the implementation available at `github.com/mariogeiger/nequip-jax <https://github.com/mariogeiger/nequip-jax>`_.
-You can install it with pip using the command ``pip install git+git://github.com/mariogeiger/nequip-jax.git``.
+You can install it with pip using the command ``pip install git+https://github.com/mariogeiger/nequip-jax.git``.
 
 .. jupyter-execute::
 
