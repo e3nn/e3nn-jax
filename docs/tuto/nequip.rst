@@ -212,13 +212,14 @@ Now we can create the graphs for the crystals. The values of the positions, cell
     )
     print(f"mp169 has {mp169.n_node} nodes and {mp169.n_edge} edges")
 
-Now that we have ``mp47``, ``mp48``, ``mp66`` and ``mp169`` as graphs, we can batch them together to create a dataset. `Batching <https://jraph.readthedocs.io/en/latest/api.html#batching-padding-utilities>`_ is an important concept concept in ``jraph``.
+Now that we have ``mp47``, ``mp48``, ``mp66`` and ``mp169`` as graphs, we can batch them together to create a dataset. `Batching <https://jraph.readthedocs.io/en/latest/api.html#batching-padding-utilities>`_ is an important concept in ``jraph``, it merges different graphs into a single graph. The ``batch`` function takes a list of graphs and returns a single graph with the same fields as the input graphs. The ``n_node`` and ``n_edge`` fields are used to keep track of the number of nodes and edges in each graph.
 
 .. jupyter-execute::
 
     dataset = jraph.batch([mp47, mp48, mp66, mp169])
     print(f"dataset has {dataset.n_node} nodes and {dataset.n_edge} edges")
 
+    # Print the shapes of the fields of the dataset.
     print(jax.tree_util.tree_map(jnp.shape, dataset))
 
 Model
