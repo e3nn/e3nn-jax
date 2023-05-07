@@ -1,10 +1,54 @@
 Euclidean neural networks
 =========================
 
+.. jupyter-execute::
+    :hide-code:
+
+    import plotly.graph_objects as go
+    import e3nn_jax as e3nn
+
+    signal = e3nn.SphericalSignal.zeros(40, 80, "soft")
+    sh = e3nn.spherical_harmonics("2e", signal.grid_vectors, True)
+    signal.grid_values = sh.array[:, :, 2]
+    go.Figure(
+        data=[
+            go.Surface(
+                signal.plotly_surface(scale_radius_by_amplitude=True),
+                showscale=False,
+                colorscale=[[0, "rgb(0,50,255)"], [0.5, "rgb(200,200,200)"], [1, "rgb(255,50,0)"]],
+                cmin=-1.5,
+                cmax=1.5,
+            )
+        ],
+        layout=dict(
+            width=500,
+            height=400,
+            scene=dict(
+                xaxis=dict(
+                    title="x",
+                    tickvals=[],
+                ),
+                yaxis=dict(title="y", tickvals=[]),
+                zaxis=dict(title="z", tickvals=[]),
+                camera=dict(
+                    eye=dict(x=2.6, y=0.0, z=0.0),
+                    center=dict(x=0.0, y=0.0, z=0.0),
+                    up=dict(x=0.0, y=1.0, z=0.0),
+                ),
+            ),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(l=0, r=0, t=0, b=0),
+        ),
+    )
+
+
 What is ``e3nn-jax``?
 ---------------------
 
-``e3nn-jax`` is a python library based on jax_ to create equivariant neural networks for the group :math:`O(3)`.
+``e3nn-jax`` is a python library built on jax_ to create :math:`O(3)`-equivariant neural networks.
+
+
 
 Amuse-bouche
 ------------
@@ -256,60 +300,58 @@ The irrep index is always the last index.
 Tensor prodcut
 --------------
 
-We use ``dm-haiku`` to create parameterized modules.
-
-.. jupyter-execute::
-
-    import haiku as hk
-
-``dm-haiku`` ask to create a function that does only take the inputs as arguments (no parameters) and then this function is transformed.
-
-.. jupyter-execute::
-
-    @hk.without_apply_rng
-    @hk.transform
-    def tp(x1, x2):
-        return e3nn.haiku.Linear("1e")(e3nn.tensor_product(x1, x2))
-
-Note that the inputs irreps are not yet specified, ``"1e"`` here specify the output.
-Let's define two random inputs and initialize the parameters:
+Let's create a list of 10 vectors (``1o`` irreps) and a list of 10 ``2e`` irreps and compute their tensor product.
 
 .. jupyter-execute::
 
     x1 = e3nn.normal("1e", jax.random.PRNGKey(0), (10,))
-    x2 = e3nn.normal("1e", jax.random.PRNGKey(1), (10,))
-    w = tp.init(jax.random.PRNGKey(2), x1, x2)
+    x2 = e3nn.normal("2e", jax.random.PRNGKey(1), (10,))
+    e3nn.tensor_product(x1, x2)
 
-Now that we have the weights, we can use them to compute the output.
+
+
+Learnable Modules
+-----------------
+
+We use ``dm-haiku`` or ``flax`` to create parameterized modules.
+Here is an example using ``e3nn_jax.flax.Linear``.
 
 .. jupyter-execute::
 
-    tp.apply(w, x1, x2)
+    import flax
+
+    model = e3nn.flax.Linear("1e")
+
+    x = e3nn.IrrepsArray("2x1e", jnp.array([1.0, 0.0, 0.0, 0.0, 2.0, 0.0]))
+
+    # initialize the parameters randomly
+    w = model.init(jax.random.PRNGKey(0), x)
+
+    # apply the module
+    model.apply(w, x)
 
 
 Spherical Harmonics
 -------------------
 
-Let's compute the sphercal harmonics of degree :math:`L=2` for :math:`\vec x = (0, 0, 1)`.
+Let's compute the sphercal harmonics of degree :math:`L=2` for :math:`\vec x = (0, 0, 1)` using the function `e3nn_jax.spherical_harmonics`.
 
 .. jupyter-execute::
 
-    e3nn.sh(2, jnp.array([0.0, 0.0, 1.0]), normalize=True)
+    vector = e3nn.IrrepsArray("1o", jnp.array([0.0, 0.0, 1.0]))
+    e3nn.spherical_harmonics(2, vector, normalize=True)
 
 
-Note the ``normalize`` option. If ``normalize`` is ``False``, the function is an homogeneous polynomial.
+Note the ``normalize`` option. If ``normalize`` is ``False``, the function becomes an homogeneous polynomial, see below:
 
 .. jupyter-execute::
 
-    x = jnp.array([0.0, 0.0, 1.0])
     a = 3.5
 
     assert jnp.allclose(
-        e3nn.sh(2, a * x, False),
-        a**2 * e3nn.sh(2, x, False),
+        e3nn.spherical_harmonics(2, a * vector, False).array,
+        a**2 * e3nn.spherical_harmonics(2, vector, False).array,
     )
-
-The function `e3nn_jax.sh` is a wrapper of `e3nn_jax.spherical_harmonics` for which inputs and outputs are `IrrepsArray`.
 
 
 Gradient
