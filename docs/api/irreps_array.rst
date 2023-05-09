@@ -17,6 +17,9 @@ IrrepsArray
 .. autofunction:: e3nn_jax.dot
 
 
+.. autofunction:: e3nn_jax.cross
+
+
 .. autofunction:: e3nn_jax.normal
 
 

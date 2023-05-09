@@ -970,6 +970,34 @@ def _standardize_axis(axis: Union[None, int, Tuple[int, ...]], result_ndim: int)
     return tuple(sorted(set(axis)))
 
 
+def _align_two_irreps_arrays(input1: IrrepsArray, input2: IrrepsArray) -> Tuple[IrrepsArray, IrrepsArray]:
+    assert input1.irreps.num_irreps == input2.irreps.num_irreps
+
+    irreps_in1 = list(input1.irreps)
+    irreps_in2 = list(input2.irreps)
+
+    i = 0
+    while i < min(len(irreps_in1), len(irreps_in2)):
+        mul_1, ir_1 = irreps_in1[i]
+        mul_2, ir_2 = irreps_in2[i]
+
+        if mul_1 < mul_2:
+            irreps_in2[i] = (mul_1, ir_2)
+            irreps_in2.insert(i + 1, (mul_2 - mul_1, ir_2))
+
+        if mul_2 < mul_1:
+            irreps_in1[i] = (mul_2, ir_1)
+            irreps_in1.insert(i + 1, (mul_1 - mul_2, ir_1))
+
+        i += 1
+
+    input1 = input1._convert(irreps_in1)
+    input2 = input2._convert(irreps_in2)
+
+    assert [mul for mul, _ in input1.irreps] == [mul for mul, _ in input2.irreps]
+    return input1, input2
+
+
 def _reduce(op, array: IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None, keepdims: bool = False) -> IrrepsArray:
     axis = _standardize_axis(axis, array.ndim)
 
@@ -1245,6 +1273,49 @@ def dot(a: IrrepsArray, b: IrrepsArray, per_irrep: bool = False) -> IrrepsArray:
             shape = jnp.broadcast_shapes(a.shape[:-1], b.shape[:-1])
             return IrrepsArray.zeros("0e", shape, dtype=a.dtype)
         return IrrepsArray("0e", out[..., None])
+
+
+def cross(a: IrrepsArray, b: IrrepsArray) -> IrrepsArray:
+    """Cross product of two IrrepsArray.
+
+    Args:
+        a (IrrepsArray): first array of vectors
+        b (IrrepsArray): second array of vectors
+
+    Returns:
+        IrrepsArray: cross product of the two input arrays
+
+    Examples:
+        >>> x = e3nn.IrrepsArray("1o", jnp.array([1.0, 0.0, 0.0]))
+        >>> y = e3nn.IrrepsArray("1e", jnp.array([0.0, 1.0, 0.0]))
+        >>> e3nn.cross(x, y)
+        1x1o [0. 0. 1.]
+    """
+    jnp = _infer_backend([a.array, b.array])
+
+    if any(ir.l != 1 for _, ir in a.irreps):
+        raise ValueError(f"Cross product is only defined for vectors. Got {a.irreps}.")
+    if any(ir.l != 1 for _, ir in b.irreps):
+        raise ValueError(f"Cross product is only defined for vectors. Got {b.irreps}.")
+    if a.irreps.num_irreps != b.irreps.num_irreps:
+        raise ValueError("Cross product is only defined for inputs with the same number of vectors.")
+
+    a, b = _align_two_irreps_arrays(a, b)
+    shape = jnp.broadcast_shapes(a.shape[:-1], b.shape[:-1])
+
+    irreps_out = []
+    out = []
+    dtype = a.dtype
+
+    for ((mul, irx), x), ((_, iry), y) in zip(zip(a.irreps, a.list), zip(b.irreps, b.list)):
+        irreps_out.append((mul, (1, irx.p * iry.p)))
+        if x is None or y is None:
+            out.append(None)
+        else:
+            out.append(jnp.cross(x, y, axis=-1))
+            dtype = out[-1].dtype
+
+    return IrrepsArray.from_list(irreps_out, out, shape, dtype)
 
 
 def normal(

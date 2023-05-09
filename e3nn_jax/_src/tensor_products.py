@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsArray, config
 from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
+from e3nn_jax._src.irreps_array import _align_two_irreps_arrays
 
 
 def naive_broadcast_decorator(func):
@@ -149,29 +150,11 @@ def elementwise_tensor_product(
     if input1.irreps.num_irreps != input2.irreps.num_irreps:
         raise ValueError(f"Number of irreps must be the same, got {input1.irreps.num_irreps} and {input2.irreps.num_irreps}")
 
-    irreps_in1 = list(input1.irreps)
-    irreps_in2 = list(input2.irreps)
-
-    i = 0
-    while i < len(irreps_in1):
-        mul_1, ir_1 = irreps_in1[i]
-        mul_2, ir_2 = irreps_in2[i]
-
-        if mul_1 < mul_2:
-            irreps_in2[i] = (mul_1, ir_2)
-            irreps_in2.insert(i + 1, (mul_2 - mul_1, ir_2))
-
-        if mul_2 < mul_1:
-            irreps_in1[i] = (mul_2, ir_1)
-            irreps_in1.insert(i + 1, (mul_1 - mul_2, ir_1))
-        i += 1
-
-    input1 = input1._convert(irreps_in1)
-    input2 = input2._convert(irreps_in2)
+    input1, input2 = _align_two_irreps_arrays(input1, input2)
 
     irreps_out = []
     instructions = []
-    for i, ((mul, ir_1), (mul_2, ir_2)) in enumerate(zip(irreps_in1, irreps_in2)):
+    for i, ((mul, ir_1), (mul_2, ir_2)) in enumerate(zip(input1.irreps, input2.irreps)):
         assert mul == mul_2
         for ir in ir_1 * ir_2:
             if filter_ir_out is not None and ir not in filter_ir_out:
@@ -182,8 +165,8 @@ def elementwise_tensor_product(
             instructions += [(i, i, i_out, "uuu", False)]
 
     tp = FunctionalTensorProduct(
-        irreps_in1,
-        irreps_in2,
+        input1.irreps,
+        input2.irreps,
         irreps_out,
         instructions,
         irrep_normalization=irrep_normalization,
