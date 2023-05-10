@@ -624,9 +624,14 @@ class IrrepsArray:
         if keep is not None and drop is not None:
             raise ValueError("Cannot specify both keep and drop")
 
+        backend = _infer_backend(self.array)
         new_irreps = self.irreps.filter(keep=keep, drop=drop)
         return IrrepsArray.from_list(
-            new_irreps, [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in new_irreps], self.shape[:-1], self.dtype
+            new_irreps,
+            [x for x, mul_ir in zip(self.list, self.irreps) if mul_ir in new_irreps],
+            self.shape[:-1],
+            self.dtype,
+            backend=backend,
         )
 
     filtered = filter
