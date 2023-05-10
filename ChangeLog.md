@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `e3nn.cross` for completeness
 
+### Changed
+- Optimize `e3nn.reduced_symmetric_tensor_product_basis`, especially for the `keep_ir` argument
 
 ## [0.17.4] - 2023-05-02
 ### Added
