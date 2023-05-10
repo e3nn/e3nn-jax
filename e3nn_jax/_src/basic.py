@@ -107,6 +107,8 @@ def sum_(array: e3nn.IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None
          [18 17]]
         >>> e3nn.sum(x)
         1x0e+1x0e [21 24]
+        >>> e3nn.sum(x.regroup())
+        1x0e [45]
     """
     jnp = _infer_backend(array.array)
     return _reduce(jnp.sum, array, axis, keepdims)
