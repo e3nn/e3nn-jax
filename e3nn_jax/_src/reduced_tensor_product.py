@@ -397,12 +397,20 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         non_zero_terms_reshaped = reshape_for_basis_product(non_zero_terms, non_zero_powers)
 
         # Compute basis product, two terms at a time.
-        current_term = non_zero_terms_reshaped[0]
-        for next_term in non_zero_terms_reshaped[1:]:
-            current_term = reduce_basis_product(current_term, next_term)
-        product_basis = current_term
+        if len(non_zero_terms_reshaped) == 1:
+            product_basis = non_zero_terms_reshaped[0].filter(keep=keep_ir)
+        else:
+            current_term = non_zero_terms_reshaped[0]
+            for next_term in non_zero_terms_reshaped[1:-1]:
+                current_term = reduce_basis_product(current_term, next_term)
+            last_term = non_zero_terms_reshaped[-1]
+            product_basis = reduce_basis_product(current_term, last_term, filter_ir_out=keep_ir)
 
-        sum_of_permuted_bases = None
+        if product_basis.irreps.dim == 0:
+            continue
+
+        shape = (irreps.dim,) * degree + (product_basis.irreps.dim,)
+        sum_of_permuted_bases = np.zeros_like(product_basis.array, shape=shape)
         seen_permutations = set()
 
         # Now, average over the different permutations.
@@ -418,12 +426,9 @@ def _optimized_reduced_symmetric_tensor_product_basis(
 
             # Add padding.
             padding = compute_padding_for_term(permuted_indices_repeated)
-            permuted_product_basis_array = np.pad(permuted_product_basis_array, padding)
+            slices = tuple(slice(start, total - stop) for (start, stop), total in zip(padding, shape))
 
-            if sum_of_permuted_bases is None:
-                sum_of_permuted_bases = permuted_product_basis_array
-            else:
-                sum_of_permuted_bases += permuted_product_basis_array
+            sum_of_permuted_bases[slices] += permuted_product_basis_array
 
         # Normalize the sum of bases.
         symmetrized_sum_of_permuted_bases = sum_of_permuted_bases / np.sqrt(len(seen_permutations))
@@ -432,8 +437,6 @@ def _optimized_reduced_symmetric_tensor_product_basis(
 
     # Filter out irreps, if needed.
     basis = e3nn.concatenate(symmetric_product).regroup()
-    if keep_ir is not None:
-        basis = basis.filter(keep=keep_ir)
     return basis
 
 
