@@ -26,19 +26,7 @@ def tetris() -> jraph.GraphsTuple:
     )
 
     # Since chiral shapes are the mirror of one another we need an *odd* scalar to distinguish them
-    labels = jnp.array(
-        [
-            [+1, 1, 0, 0, 0, 0, 0, 0],  # chiral_shape_1
-            [-1, 1, 0, 0, 0, 0, 0, 0],  # chiral_shape_2
-            [0, 0, 1, 0, 0, 0, 0, 0],  # square
-            [0, 0, 0, 1, 0, 0, 0, 0],  # line
-            [0, 0, 0, 0, 1, 0, 0, 0],  # corner
-            [0, 0, 0, 0, 0, 1, 0, 0],  # L
-            [0, 0, 0, 0, 0, 0, 1, 0],  # T
-            [0, 0, 0, 0, 0, 0, 0, 1],  # zigzag
-        ],
-        dtype=jnp.float32,
-    )
+    labels = jnp.arange(8)
 
     graphs = []
 
@@ -49,7 +37,7 @@ def tetris() -> jraph.GraphsTuple:
             jraph.GraphsTuple(
                 nodes=p.reshape((4, 3)),  # [num_nodes, 3]
                 edges=None,
-                globals=l[None],  # [num_graphs, num_classes]
+                globals=l[None],  # [num_graphs]
                 senders=senders,  # [num_edges]
                 receivers=receivers,  # [num_edges]
                 n_node=jnp.array([4]),  # [num_graphs]
@@ -105,32 +93,32 @@ def train(seeds=20, steps=200, plot=True):
     opt = optax.adam(learning_rate=0.01)
 
     def loss_pred(params, graphs):
+        num_graphs = len(graphs.n_node)
+
         pred = model.apply(params, graphs)
         pred = e3nn.scatter_sum(pred, nel=graphs.n_node)  # [num_graphs, 1 + 7]
         assert pred.irreps == "0o + 7x0e", pred.irreps
-        assert pred.shape == (len(graphs.n_node), 8), pred.shape
+        assert pred.shape == (num_graphs, 8), pred.shape
         pred = pred.array
-        labels = graphs.globals  # [num_graphs, 1 + 7]
-        loss_odd = jnp.where(
-            labels[:, 0] != 0.0,
-            jnp.log(1 + jnp.exp(-labels[:, 0] * pred[:, 0])),
-            0.0,
-        )
-        loss_even = jnp.mean(-labels[:, 1:] * jax.nn.log_softmax(pred[:, 1:]), axis=1)
-        loss = jnp.mean(loss_odd + loss_even)
-        return loss, pred
+        odd, even1, even2 = pred[:, :1], pred[:, 1:2], pred[:, 2:]
+        logits = jnp.concatenate([odd * even1, -odd * even1, even2], axis=1)
+        assert logits.shape == (num_graphs, 8), logits.shape
+        labels = graphs.globals  # [num_graphs]
+
+        loss = optax.softmax_cross_entropy_with_integer_labels(logits, labels)
+        loss = jnp.mean(loss)
+        return loss, logits
 
     @jax.jit
     def update(params, opt_state, graphs):
         grad_fn = jax.value_and_grad(loss_pred, has_aux=True)
-        (loss, pred), grads = grad_fn(params, graphs)
+        (loss, logits), grads = grad_fn(params, graphs)
         labels = graphs.globals
-        accuracy_odd = jnp.sign(jnp.round(pred[:, 0])) == labels[:, 0]
-        accuracy_even = jnp.argmax(pred[:, 1:], axis=1) == jnp.argmax(labels[:, 1:], axis=1)
-        accuracy = (jnp.mean(accuracy_odd) + jnp.mean(accuracy_even)) / 2
+        accuracy = jnp.mean(jnp.argmax(logits, axis=1) == labels)
+
         updates, opt_state = opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
-        return params, opt_state, loss, accuracy, pred
+        return params, opt_state, loss, accuracy, logits
 
     graphs = tetris()
 
@@ -141,8 +129,8 @@ def train(seeds=20, steps=200, plot=True):
     # compile jit
     wall = time.perf_counter()
     print("compiling...")
-    _, _, _, _, pred = update(params, opt_state, graphs)
-    pred.block_until_ready()
+    _, _, _, _, logits = update(params, opt_state, graphs)
+    logits.block_until_ready()
 
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
 
@@ -155,7 +143,7 @@ def train(seeds=20, steps=200, plot=True):
         done = False
         wall = time.perf_counter()
         for it in range(1, steps + 1):
-            params, opt_state, loss, accuracy, pred = update(params, opt_state, graphs)
+            params, opt_state, loss, accuracy, logits = update(params, opt_state, graphs)
             losses.append(loss)
 
             if not done and accuracy == 1.0:
@@ -170,8 +158,8 @@ def train(seeds=20, steps=200, plot=True):
         if plot:
             plt.plot(losses)
 
-    jnp.set_printoptions(precision=2, suppress=True)
-    print(pred)
+    jnp.set_printoptions(precision=0, suppress=True)
+    print(logits)
 
     if plot:
         plt.xlabel("iteration")
