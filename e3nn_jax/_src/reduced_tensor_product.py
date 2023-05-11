@@ -257,6 +257,26 @@ def _reduced_tensor_product_basis(
         bases = [(f, ab)] + bases
 
 
+def _tp_ir_seq(irs1, irs2):
+    if irs1 is None or irs2 is None:
+        return None
+    irs1 = {e3nn.Irrep(ir) for ir in e3nn.Irreps(irs1)}
+    irs2 = {e3nn.Irrep(ir) for ir in e3nn.Irreps(irs2)}
+    out = set()
+    for ir1, ir2 in itertools.product(irs1, irs2):
+        out = out.union(ir1 * ir2)
+    return sorted(out)
+
+
+def _tp_ir_seq_pow(irs, n: int):
+    if irs is None:
+        return None
+    out = e3nn.Irreps("0e")
+    for _ in range(n):
+        out = _tp_ir_seq(out, irs)
+    return out
+
+
 def _optimized_reduced_symmetric_tensor_product_basis(
     irreps: Union[e3nn.Irreps, str],
     degree: int,
@@ -366,7 +386,8 @@ def _optimized_reduced_symmetric_tensor_product_basis(
     for i, mul_ir in enumerate(irreps):
         irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.0]))]
         for n in range(1, degree + 1):
-            power = reduced_symmetric_tensor_product_basis(mul_ir, n, epsilon=epsilon)
+            keep = _tp_ir_seq(keep_ir, _tp_ir_seq_pow(irreps, degree - n))
+            power = reduced_symmetric_tensor_product_basis(mul_ir, n, epsilon=epsilon, keep_ir=keep)
             irreps_powers[i].append(power)
 
     # Take all products of irreps whose powers sum up to degree.
