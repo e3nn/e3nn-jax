@@ -457,7 +457,9 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         symmetric_product.append(product_basis)
 
     # Filter out irreps, if needed.
-    basis = e3nn.concatenate(symmetric_product).regroup()
+    basis = e3nn.concatenate(symmetric_product)
+    basis = basis.sort()
+    basis = e3nn.IrrepsArray(basis.irreps.simplify(), basis.array)
     return basis
 
 
