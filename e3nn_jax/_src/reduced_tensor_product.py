@@ -250,9 +250,14 @@ def _reduced_tensor_product_basis(
         i, j, f = best
         del bases[j]
         del bases[i]
+        del i, j
         sub_irreps = tuple(irreps_tuple[i] for i in f)
         sub_perm_repr = subrepr_permutation(f, perm_repr)
-        ab = _reduced_tensor_product_basis(sub_irreps, sub_perm_repr, None, epsilon, _use_optimized_implementation)
+        keep = keep_ir
+        for i, irreps in enumerate(irreps_tuple):
+            if i not in f:
+                keep = _tp_ir_seq(keep, irreps)
+        ab = _reduced_tensor_product_basis(sub_irreps, sub_perm_repr, keep, epsilon, _use_optimized_implementation)
         ab = ab.reshape(tuple(dims[i] if i in f else 1 for i in range(len(dims))) + (-1,))
         bases = [(f, ab)] + bases
 
@@ -265,13 +270,13 @@ def _tp_ir_seq(irs1, irs2):
     out = set()
     for ir1, ir2 in itertools.product(irs1, irs2):
         out = out.union(ir1 * ir2)
-    return sorted(out)
+    return frozenset(out)
 
 
 def _tp_ir_seq_pow(irs, n: int):
     if irs is None:
         return None
-    out = e3nn.Irreps("0e")
+    out = frozenset([e3nn.Irrep("0e")])
     for _ in range(n):
         out = _tp_ir_seq(out, irs)
     return out
