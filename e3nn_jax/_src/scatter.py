@@ -118,7 +118,13 @@ def _scatter_op(
     else:
         indices_are_sorted = False
 
-    assert dst.shape == data.shape[: dst.ndim]
+    if not (dst.shape == data.shape[: dst.ndim]):
+        raise ValueError(
+            (
+                f"trying to do e3nn.scatter_{op} with dst.shape={dst.shape} and data.shape={data.shape}"
+                f" but dst.shape must be equal to data.shape[: dst.ndim]"
+            )
+        )
 
     if output_size is None and map_back is False:
         raise ValueError("output_size must be specified if map_back is False")
