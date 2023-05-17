@@ -138,7 +138,6 @@ def _scatter_op(
     def _op(x):
         z = initial * jnp.ones((output_size,) + x.shape[dst.ndim :], x.dtype)
         if op == "sum":
-            print(f"{z.shape}.at[({dst.shape},)].add({x.shape})")
             return z.at[(dst,)].add(x, indices_are_sorted=indices_are_sorted, mode=mode)
         elif op == "max":
             return z.at[(dst,)].max(x, indices_are_sorted=indices_are_sorted, mode=mode)
