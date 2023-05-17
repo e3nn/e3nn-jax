@@ -26,7 +26,7 @@ class LinearSHTP(flax.linen.Module):
     of the direction :math:`\vec d`.
 
     Args:
-        irreps_out: input irreps, acts as a filter if `mix` is True.
+        irreps_out: input irreps, acts as a filter if `mix` is False.
         mix: if True, the output is a linear combination of the input, otherwise each output
             is kept separate.
     """

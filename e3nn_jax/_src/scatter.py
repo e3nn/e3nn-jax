@@ -16,9 +16,11 @@ def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
     Returns:
         `jax.numpy.ndarray`: array of integers of same size
     """
-    assert x.ndim == 1
+    shape = x.shape
+    x = jnp.ravel(x)
     unique = jnp.unique(x, size=x.shape[0])  # Pigeonhole principle
-    return jax.lax.scan(lambda _, i: (None, jnp.where(i == unique, size=1)[0][0]), None, x)[1]
+    x = jax.lax.scan(lambda _, i: (None, jnp.where(i == unique, size=1)[0][0]), None, x)[1]
+    return jnp.reshape(x, shape)
 
 
 def scatter_sum(
@@ -28,6 +30,7 @@ def scatter_sum(
     nel: Optional[jnp.ndarray] = None,
     output_size: Optional[int] = None,
     map_back: bool = False,
+    mode: str = "promise_in_bounds",
 ) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
     r"""Scatter sum of data.
 
@@ -45,7 +48,7 @@ def scatter_sum(
     Returns:
         `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
     """
-    return _scatter_op("sum", 0.0, data, dst=dst, nel=nel, output_size=output_size, map_back=map_back)
+    return _scatter_op("sum", 0.0, data, dst=dst, nel=nel, output_size=output_size, map_back=map_back, mode=mode)
 
 
 def scatter_max(
@@ -56,6 +59,7 @@ def scatter_max(
     initial: float = -jnp.inf,
     output_size: Optional[int] = None,
     map_back: bool = False,
+    mode: str = "promise_in_bounds",
 ) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
     r"""Scatter max of data.
 
@@ -83,7 +87,7 @@ def scatter_max(
         if not data.irreps.is_scalar():
             raise ValueError("scatter_max only works with scalar IrrepsArray")
 
-    return _scatter_op("max", initial, data, dst=dst, nel=nel, output_size=output_size, map_back=map_back)
+    return _scatter_op("max", initial, data, dst=dst, nel=nel, output_size=output_size, map_back=map_back, mode=mode)
 
 
 def _scatter_op(
@@ -95,6 +99,7 @@ def _scatter_op(
     nel: Optional[jnp.ndarray] = None,
     output_size: Optional[int] = None,
     map_back: bool = False,
+    mode: str = "promise_in_bounds",
 ) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
     if dst is None and nel is None:
         raise ValueError("Either dst or nel must be specified")
@@ -113,7 +118,7 @@ def _scatter_op(
     else:
         indices_are_sorted = False
 
-    assert dst.shape[0] == data.shape[0]
+    assert dst.shape == data.shape[: dst.ndim]
 
     if output_size is None and map_back is False:
         raise ValueError("output_size must be specified if map_back is False")
@@ -121,15 +126,16 @@ def _scatter_op(
         raise ValueError("output_size must not be specified if map_back is True")
 
     if output_size is None and map_back is True:
-        output_size = dst.shape[0]
+        output_size = dst.size
         dst = _distinct_but_small(dst)
 
     def _op(x):
-        z = initial * jnp.ones((output_size,) + x.shape[1:], x.dtype)
+        z = initial * jnp.ones((output_size,) + x.shape[dst.ndim :], x.dtype)
         if op == "sum":
-            return z.at[(dst,)].add(x, indices_are_sorted=indices_are_sorted)
+            print(f"{z.shape}.at[({dst.shape},)].add({x.shape})")
+            return z.at[(dst,)].add(x, indices_are_sorted=indices_are_sorted, mode=mode)
         elif op == "max":
-            return z.at[(dst,)].max(x, indices_are_sorted=indices_are_sorted)
+            return z.at[(dst,)].max(x, indices_are_sorted=indices_are_sorted, mode=mode)
 
     output = jax.tree_util.tree_map(_op, data)
 
