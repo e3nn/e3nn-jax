@@ -663,31 +663,54 @@ class Irreps(tuple):
         """
         return self.sort().irreps.simplify()
 
+    def set_mul(self, mul: int) -> "Irreps":
+        r"""Set the multiplicities to one.
+
+        Examples:
+            >>> Irreps("2x0e + 1x1e").set_mul(1)
+            1x0e+1x1e
+        """
+        return Irreps([(mul, ir) for _, ir in self])
+
     def filter(
         self,
         keep: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]] = None,
         *,
         drop: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]] = None,
+        lmax: int = None,
     ) -> "Irreps":
         r"""Filter the irreps.
 
         Args:
-            keep (Irreps or list of `Irrep` or function): list of irrep to keep
+            keep (`Irreps` or list of `Irrep` or function): list of irrep to keep
+            drop (`Irreps` or list of `Irrep` or function): list of irrep to drop
+            lmax (int): maximum :math:`l` value
 
         Returns:
             `Irreps`: filtered irreps
 
         Examples:
-            >>> Irreps("1e + 2e + 0e").filter(["0e", "1e"])
+            >>> Irreps("1e + 2e + 0e").filter(keep=["0e", "1e"])
             1x1e+1x0e
 
-            >>> Irreps("1e + 2e + 0e").filter("2e + 2x1e")
+            >>> Irreps("1e + 2e + 0e").filter(keep="2e + 2x1e")
             1x1e+1x2e
+
+            >>> Irreps("1e + 2e + 0e").filter(drop="2e + 2x1e")
+            1x0e
+
+            >>> Irreps("1e + 2e + 0e").filter(lmax=1)
+            1x1e+1x0e
         """
-        if keep is None and drop is None:
+        if keep is None and drop is None and lmax is None:
             return self
         if keep is not None and drop is not None:
             raise ValueError("Cannot specify both keep and drop")
+        if keep is not None and lmax is not None:
+            raise ValueError("Cannot specify both keep and lmax")
+        if drop is not None and lmax is not None:
+            raise ValueError("Cannot specify both drop and lmax")
+
         if keep is not None:
             if isinstance(keep, str):
                 keep = Irreps(keep)
@@ -697,6 +720,7 @@ class Irreps(tuple):
                 return Irreps([mul_ir for mul_ir in self if keep(mul_ir)])
             keep = {Irrep(ir) for ir in keep}
             return Irreps([(mul, ir) for mul, ir in self if ir in keep])
+
         if drop is not None:
             if isinstance(drop, str):
                 drop = Irreps(drop)
@@ -706,6 +730,9 @@ class Irreps(tuple):
                 return Irreps([mul_ir for mul_ir in self if not drop(mul_ir)])
             drop = {Irrep(ir) for ir in drop}
             return Irreps([(mul, ir) for mul, ir in self if ir not in drop])
+
+        if lmax is not None:
+            return Irreps([(mul, ir) for mul, ir in self if ir.l <= lmax])
 
     @property
     def slice_by_mul(self):

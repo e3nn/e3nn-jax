@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- `Irreps.set_mul(int)` to set the multiplicity of all irreps
+- `Irreps.filter(lmax=int)` to filter out irreps with `l > lmax`
+- `IrrepsArray.filter(lmax=int)` to filter out irreps with `l > lmax`
+
 ### Fixed
 - `e3nn.scatter` operation handle indices with `ndim > 1`
 
