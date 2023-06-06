@@ -333,12 +333,12 @@ As optimizer we will use Adam. This optimizer needs to keep track of the average
     random_key = jax.random.PRNGKey(0)  # change it to get different initializations
 
     # Initialize the model
-    f = Model()
-    w = jax.jit(f.init)(random_key, dataset)
+    model = Model()
+    params = jax.jit(model.init)(random_key, dataset)
 
     # Initialize the optimizer
     opt = optax.adam(1e-3)
-    opt_state = opt.init(w)
+    opt_state = opt.init(params)
 
 
 Let's define the training step. We will use ``jax.jit`` to compile the function and make it faster.
@@ -347,13 +347,13 @@ This function takes as input the model parameters, the optimizer state and the d
 .. jupyter-execute::
 
     @jax.jit
-    def train_step(opt_state, w, dataset):
+    def train_step(opt_state, params, dataset):
         """Perform a single training step."""
         num_graphs = dataset.n_node.shape[0]
 
         # Compute the loss as a function of the parameters
         def fun(w):
-            preds = f.apply(w, dataset).array.squeeze(1)
+            preds = model.apply(w, dataset).array.squeeze(1)
             targets = dataset.globals["energies"]
 
             assert preds.shape == (num_graphs,)
@@ -361,13 +361,13 @@ This function takes as input the model parameters, the optimizer state and the d
             return loss_fn(preds, targets)
 
         # And take its gradient
-        loss, grad = jax.value_and_grad(fun)(w)
+        loss, grad = jax.value_and_grad(fun)(params)
 
         # Update the parameters and the optimizer state
         updates, opt_state = opt.update(grad, opt_state)
-        w = optax.apply_updates(w, updates)
+        params = optax.apply_updates(params, updates)
 
-        return opt_state, w, loss
+        return opt_state, params, loss
 
 
 Finally, let's train the model for 1000 iterations.
@@ -376,7 +376,7 @@ Finally, let's train the model for 1000 iterations.
 
     losses = []
     for _ in range(1000):
-        opt_state, w, loss = train_step(opt_state, w, dataset)
+        opt_state, params, loss = train_step(opt_state, params, dataset)
         losses.append(loss)
 
 Did it work?
