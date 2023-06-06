@@ -12,7 +12,9 @@ class FullyConnectedTensorProduct(hk.Module):
         self.irreps_in1 = e3nn.Irreps(irreps_in1) if irreps_in1 is not None else None
         self.irreps_in2 = e3nn.Irreps(irreps_in2) if irreps_in2 is not None else None
 
-    def __call__(self, x1: e3nn.IrrepsArray, x2: e3nn.IrrepsArray, **kwargs) -> e3nn.IrrepsArray:
+    def __call__(
+        self, x1: e3nn.IrrepsArray, x2: e3nn.IrrepsArray, **kwargs
+    ) -> e3nn.IrrepsArray:
         if self.irreps_in1 is not None:
             x1 = x1._convert(self.irreps_in1)
         if self.irreps_in2 is not None:
@@ -21,7 +23,9 @@ class FullyConnectedTensorProduct(hk.Module):
         x1 = x1.remove_nones().simplify()
         x2 = x2.remove_nones().simplify()
 
-        tp = e3nn.FunctionalFullyConnectedTensorProduct(x1.irreps, x2.irreps, self.irreps_out.simplify())
+        tp = e3nn.FunctionalFullyConnectedTensorProduct(
+            x1.irreps, x2.irreps, self.irreps_out.simplify()
+        )
         ws = [
             hk.get_parameter(
                 (
@@ -33,6 +37,8 @@ class FullyConnectedTensorProduct(hk.Module):
             )
             for ins in tp.instructions
         ]
-        f = naive_broadcast_decorator(lambda x1, x2: tp.left_right(ws, x1, x2, **kwargs))
+        f = naive_broadcast_decorator(
+            lambda x1, x2: tp.left_right(ws, x1, x2, **kwargs)
+        )
         output = f(x1, x2)
         return output._convert(self.irreps_out)

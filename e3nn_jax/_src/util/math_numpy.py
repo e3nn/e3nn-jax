@@ -38,7 +38,12 @@ def as_approx_integer_ratio(x):
 def limit_denominator(n, d, max_denominator=1_000_000):
     # (n, d) = must be normalized
     n0, d0 = n, d
-    p0, q0, p1, q1 = np.zeros_like(n), np.ones_like(n), np.ones_like(n), np.zeros_like(n)
+    p0, q0, p1, q1 = (
+        np.zeros_like(n),
+        np.ones_like(n),
+        np.ones_like(n),
+        np.zeros_like(n),
+    )
     while True:
         a = n // d
         q2 = q0 + a * q1
@@ -72,7 +77,9 @@ def round_to_sqrt_rational(x: np.ndarray, max_denominator=4096) -> np.ndarray:
     """Round a number to the closest number of the form ``sqrt(p)/q`` for ``q <= max_denominator``"""
     x = np.array(x)
     if np.iscomplex(x).any():
-        return _round_to_sqrt_rational(np.real(x), max_denominator) + 1j * _round_to_sqrt_rational(np.imag(x), max_denominator)
+        return _round_to_sqrt_rational(
+            np.real(x), max_denominator
+        ) + 1j * _round_to_sqrt_rational(np.imag(x), max_denominator)
     return _round_to_sqrt_rational(np.real(x), max_denominator)
 
 
@@ -81,7 +88,10 @@ def gram_schmidt(A: np.ndarray, *, epsilon=1e-5, round_fn=lambda x: x) -> np.nda
     Orthogonalize a matrix using the Gram-Schmidt process.
     """
     assert A.ndim == 2, "Gram-Schmidt process only works for matrices."
-    assert A.dtype in [np.float64, np.complex128], "Gram-Schmidt process only works for float64 matrices."
+    assert A.dtype in [
+        np.float64,
+        np.complex128,
+    ], "Gram-Schmidt process only works for float64 matrices."
     Q = []
     for i in range(A.shape[0]):
         v = A[i]

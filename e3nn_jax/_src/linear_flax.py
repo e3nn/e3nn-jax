@@ -6,7 +6,13 @@ import jax.numpy as jnp
 import e3nn_jax as e3nn
 from e3nn_jax._src.util.dtype import get_pytree_dtype
 
-from .linear import FunctionalLinear, linear_indexed, linear_mixed, linear_mixed_per_channel, linear_vanilla
+from .linear import (
+    FunctionalLinear,
+    linear_indexed,
+    linear_mixed,
+    linear_mixed_per_channel,
+    linear_vanilla,
+)
 
 
 class Linear(flax.linen.Module):
@@ -115,7 +121,9 @@ class Linear(flax.linen.Module):
         )
 
         def param(name, shape, std, dtype):
-            return self.param(name, flax.linen.initializers.normal(stddev=std), shape, dtype)
+            return self.param(
+                name, flax.linen.initializers.normal(stddev=std), shape, dtype
+            )
 
         if weights is None:
             assert not self.weights_per_channel  # Not implemented yet
@@ -128,19 +136,27 @@ class Linear(flax.linen.Module):
 
             if weights.dtype.kind == "i" and self.num_indexed_weights is not None:
                 assert not self.weights_per_channel  # Not implemented yet
-                output = linear_indexed(input, lin, param, weights, self.num_indexed_weights)
+                output = linear_indexed(
+                    input, lin, param, weights, self.num_indexed_weights
+                )
 
             elif weights.dtype.kind in "fc" and self.num_indexed_weights is None:
                 gradient_normalization = self.gradient_normalization
                 if gradient_normalization is None:
                     gradient_normalization = e3nn.config("gradient_normalization")
                 if isinstance(gradient_normalization, str):
-                    gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
+                    gradient_normalization = {"element": 0.0, "path": 1.0}[
+                        gradient_normalization
+                    ]
 
                 if self.weights_per_channel:
-                    output = linear_mixed_per_channel(input, lin, param, weights, gradient_normalization)
+                    output = linear_mixed_per_channel(
+                        input, lin, param, weights, gradient_normalization
+                    )
                 else:
-                    output = linear_mixed(input, lin, param, weights, gradient_normalization)
+                    output = linear_mixed(
+                        input, lin, param, weights, gradient_normalization
+                    )
 
             else:
                 raise ValueError(

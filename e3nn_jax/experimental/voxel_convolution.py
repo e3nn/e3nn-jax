@@ -61,11 +61,18 @@ class ConvolutionHaiku(hk.Module):
         """
 
         def _get_params(name: str, shape: Tuple[int, ...], weight_std: float):
-            return hk.get_parameter(name, shape=shape, init=hk.initializers.RandomNormal(weight_std), dtype=dtype)
+            return hk.get_parameter(
+                name,
+                shape=shape,
+                init=hk.initializers.RandomNormal(weight_std),
+                dtype=dtype,
+            )
 
         return _kernel(self, irreps_in, irreps_out, steps, _get_params, dtype)
 
-    def __call__(self, input: e3nn.IrrepsArray, steps: Optional[jnp.ndarray] = None) -> e3nn.IrrepsArray:
+    def __call__(
+        self, input: e3nn.IrrepsArray, steps: Optional[jnp.ndarray] = None
+    ) -> e3nn.IrrepsArray:
         r"""Evaluate the convolution.
 
         Args:
@@ -95,12 +102,16 @@ class ConvolutionFlax(flax.linen.Module):
         dtype: jnp.dtype = jnp.float32,
     ) -> jnp.ndarray:
         def _get_params(name: str, shape: Tuple[int, ...], weight_std: float):
-            return self.param(name, flax.linen.initializers.normal(stddev=weight_std), shape, dtype)
+            return self.param(
+                name, flax.linen.initializers.normal(stddev=weight_std), shape, dtype
+            )
 
         return _kernel(self, irreps_in, irreps_out, steps, _get_params, dtype)
 
     @flax.linen.compact
-    def __call__(self, input: e3nn.IrrepsArray, steps: Optional[jnp.ndarray] = None) -> e3nn.IrrepsArray:
+    def __call__(
+        self, input: e3nn.IrrepsArray, steps: Optional[jnp.ndarray] = None
+    ) -> e3nn.IrrepsArray:
         return _call(self, input, steps)
 
 
@@ -122,8 +133,16 @@ def _tp_weight(
     weight_std: float,
     get_parameter,
 ) -> jnp.ndarray:
-    number = self.num_radial_basis if isinstance(self.num_radial_basis, int) else self.num_radial_basis[ir_sh.l]
-    start = self.relative_starts if isinstance(self.relative_starts, (float, int)) else self.relative_starts[ir_sh.l]
+    number = (
+        self.num_radial_basis
+        if isinstance(self.num_radial_basis, int)
+        else self.num_radial_basis[ir_sh.l]
+    )
+    start = (
+        self.relative_starts
+        if isinstance(self.relative_starts, (float, int))
+        else self.relative_starts[ir_sh.l]
+    )
 
     embedding = e3nn.soft_one_hot_linspace(
         jnp.linalg.norm(lattice, ord=2, axis=-1),
@@ -135,7 +154,11 @@ def _tp_weight(
         end_zero=True,
     )  # [x, y, z, number]
 
-    w = get_parameter(f"w[{i_in},{i_sh},{i_out}] {mul_ir_in},{ir_sh},{mul_ir_out}", (number,) + path_shape, weight_std)
+    w = get_parameter(
+        f"w[{i_in},{i_sh},{i_out}] {mul_ir_in},{ir_sh},{mul_ir_out}",
+        (number,) + path_shape,
+        weight_std,
+    )
 
     return jnp.einsum("xyzk,k...->xyz...", embedding, w) / (
         lattice.shape[0] * lattice.shape[1] * lattice.shape[2]
@@ -168,7 +191,9 @@ def _kernel(
     lattice = lattice.astype(dtype)
 
     # convolution kernel
-    tp = e3nn.FunctionalFullyConnectedTensorProduct(irreps_in, self.irreps_sh, irreps_out)
+    tp = e3nn.FunctionalFullyConnectedTensorProduct(
+        irreps_in, self.irreps_sh, irreps_out
+    )
 
     ws = [
         _tp_weight(
@@ -187,7 +212,9 @@ def _kernel(
         for i in tp.instructions
     ]
 
-    sh = e3nn.spherical_harmonics(irreps_out=self.irreps_sh, input=lattice, normalize=True)  # [x, y, z, irreps_sh.dim]
+    sh = e3nn.spherical_harmonics(
+        irreps_out=self.irreps_sh, input=lattice, normalize=True
+    )  # [x, y, z, irreps_sh.dim]
 
     tp_right = tp.right
     for _ in range(3):
@@ -210,7 +237,9 @@ def _kernel(
 
 
 def _call(
-    self: Union[ConvolutionHaiku, ConvolutionFlax], input: e3nn.IrrepsArray, steps: Optional[jnp.ndarray] = None
+    self: Union[ConvolutionHaiku, ConvolutionFlax],
+    input: e3nn.IrrepsArray,
+    steps: Optional[jnp.ndarray] = None,
 ) -> e3nn.IrrepsArray:
     if not isinstance(input, e3nn.IrrepsArray):
         raise ValueError("Convolution: input should be of type IrrepsArray")
@@ -221,7 +250,11 @@ def _call(
         [
             (mul, ir)
             for (mul, ir) in e3nn.Irreps(self.irreps_out)
-            if any(ir in ir_in * ir_sh for _, ir_in in input.irreps for _, ir_sh in e3nn.Irreps(self.irreps_sh))
+            if any(
+                ir in ir_in * ir_sh
+                for _, ir_in in input.irreps
+                for _, ir_sh in e3nn.Irreps(self.irreps_sh)
+            )
         ]
     )
 
@@ -245,6 +278,8 @@ def _call(
                 i += 1
             else:
                 list.append(None)
-        output = e3nn.IrrepsArray.from_list(self.irreps_out, list, output.shape[:-1], output.dtype)
+        output = e3nn.IrrepsArray.from_list(
+            self.irreps_out, list, output.shape[:-1], output.dtype
+        )
 
     return output

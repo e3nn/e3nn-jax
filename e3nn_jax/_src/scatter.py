@@ -19,7 +19,9 @@ def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
     shape = x.shape
     x = jnp.ravel(x)
     unique = jnp.unique(x, size=x.shape[0])  # Pigeonhole principle
-    x = jax.lax.scan(lambda _, i: (None, jnp.where(i == unique, size=1)[0][0]), None, x)[1]
+    x = jax.lax.scan(
+        lambda _, i: (None, jnp.where(i == unique, size=1)[0][0]), None, x
+    )[1]
     return jnp.reshape(x, shape)
 
 
@@ -48,7 +50,16 @@ def scatter_sum(
     Returns:
         `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
     """
-    return _scatter_op("sum", 0.0, data, dst=dst, nel=nel, output_size=output_size, map_back=map_back, mode=mode)
+    return _scatter_op(
+        "sum",
+        0.0,
+        data,
+        dst=dst,
+        nel=nel,
+        output_size=output_size,
+        map_back=map_back,
+        mode=mode,
+    )
 
 
 def scatter_max(
@@ -87,7 +98,16 @@ def scatter_max(
         if not data.irreps.is_scalar():
             raise ValueError("scatter_max only works with scalar IrrepsArray")
 
-    return _scatter_op("max", initial, data, dst=dst, nel=nel, output_size=output_size, map_back=map_back, mode=mode)
+    return _scatter_op(
+        "max",
+        initial,
+        data,
+        dst=dst,
+        nel=nel,
+        output_size=output_size,
+        map_back=map_back,
+        mode=mode,
+    )
 
 
 def _scatter_op(
@@ -186,5 +206,9 @@ def index_add(
        >>> index_add(i, x, out_dim=4)
        Array([-9.,  0.,  5.,  0.], dtype=float32)
     """
-    warnings.warn("e3nn.index_add is deprecated, use e3nn.scatter_sum instead", DeprecationWarning)
-    return scatter_sum(input, dst=indices, nel=n_elements, output_size=out_dim, map_back=map_back)
+    warnings.warn(
+        "e3nn.index_add is deprecated, use e3nn.scatter_sum instead", DeprecationWarning
+    )
+    return scatter_sum(
+        input, dst=indices, nel=n_elements, output_size=out_dim, map_back=map_back
+    )

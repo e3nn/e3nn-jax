@@ -98,14 +98,26 @@ def tensor_product(
     irreps_out = Irreps(irreps_out)
     irreps_out, p, _ = irreps_out.sort()
 
-    instructions = [(i_1, i_2, p[i_out], mode, train) for i_1, i_2, i_out, mode, train in instructions]
+    instructions = [
+        (i_1, i_2, p[i_out], mode, train)
+        for i_1, i_2, i_out, mode, train in instructions
+    ]
 
     tp = FunctionalTensorProduct(
-        input1.irreps, input2.irreps, irreps_out, instructions, irrep_normalization=irrep_normalization
+        input1.irreps,
+        input2.irreps,
+        irreps_out,
+        instructions,
+        irrep_normalization=irrep_normalization,
     )
 
     output = naive_broadcast_decorator(
-        partial(tp.left_right, fused=fused, sparse=sparse, custom_einsum_jvp=custom_einsum_jvp)
+        partial(
+            tp.left_right,
+            fused=fused,
+            sparse=sparse,
+            custom_einsum_jvp=custom_einsum_jvp,
+        )
     )(input1, input2)
     if regroup_output:
         output = output.regroup()
@@ -148,7 +160,9 @@ def elementwise_tensor_product(
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
 
     if input1.irreps.num_irreps != input2.irreps.num_irreps:
-        raise ValueError(f"Number of irreps must be the same, got {input1.irreps.num_irreps} and {input2.irreps.num_irreps}")
+        raise ValueError(
+            f"Number of irreps must be the same, got {input1.irreps.num_irreps} and {input2.irreps.num_irreps}"
+        )
 
     input1, input2 = _align_two_irreps_arrays(input1, input2)
 
@@ -272,7 +286,9 @@ def tensor_square(
                             elif irrep_normalization == "none":
                                 alpha = 1
                             else:
-                                raise ValueError(f"irrep_normalization={irrep_normalization}")
+                                raise ValueError(
+                                    f"irrep_normalization={irrep_normalization}"
+                                )
                         else:
                             if irrep_normalization == "component":
                                 if ir_out.l == 0:
@@ -287,7 +303,9 @@ def tensor_square(
                             elif irrep_normalization == "none":
                                 alpha = 1
                             else:
-                                raise ValueError(f"irrep_normalization={irrep_normalization}")
+                                raise ValueError(
+                                    f"irrep_normalization={irrep_normalization}"
+                                )
 
                         i_out = len(irreps_out)
                         irreps_out.append((mul, ir_out))
@@ -296,7 +314,10 @@ def tensor_square(
     irreps_out = Irreps(irreps_out)
     irreps_out, p, _ = irreps_out.sort()
 
-    instructions = [(i_1, i_2, p[i_out], mode, train, alpha) for i_1, i_2, i_out, mode, train, alpha in instructions]
+    instructions = [
+        (i_1, i_2, p[i_out], mode, train, alpha)
+        for i_1, i_2, i_out, mode, train, alpha in instructions
+    ]
 
     tp = FunctionalTensorProduct(
         input.irreps,
@@ -306,7 +327,9 @@ def tensor_square(
         irrep_normalization="none",
     )
 
-    output = naive_broadcast_decorator(partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp))(input, input)
+    output = naive_broadcast_decorator(
+        partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp)
+    )(input, input)
     if regroup_output:
         output = output.regroup()
     return output

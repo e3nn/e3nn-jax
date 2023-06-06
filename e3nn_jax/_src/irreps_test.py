@@ -58,7 +58,9 @@ def test_arithmetic():
     assert 2 * e3nn.Irreps("2x2e + 4x1o") == e3nn.Irreps("4x2e + 8x1o")
     assert e3nn.Irreps("2x2e + 4x1o") * 2 == e3nn.Irreps("4x2e + 8x1o")
 
-    assert e3nn.Irreps("1o + 4o") + e3nn.Irreps("1o + 7e") == e3nn.Irreps("1o + 4o + 1o + 7e")
+    assert e3nn.Irreps("1o + 4o") + e3nn.Irreps("1o + 7e") == e3nn.Irreps(
+        "1o + 4o + 1o + 7e"
+    )
 
 
 def test_empty_irreps():
@@ -115,13 +117,17 @@ def test_ordering():
 def test_slice_by_mul():
     assert e3nn.Irreps("10x0e").slice_by_mul[1:4] == e3nn.Irreps("3x0e")
     assert e3nn.Irreps("10x0e + 10x1e").slice_by_mul[5:15] == e3nn.Irreps("5x0e + 5x1e")
-    assert e3nn.Irreps("10x0e + 2e + 10x1e").slice_by_mul[5:15] == e3nn.Irreps("5x0e + 2e + 4x1e")
+    assert e3nn.Irreps("10x0e + 2e + 10x1e").slice_by_mul[5:15] == e3nn.Irreps(
+        "5x0e + 2e + 4x1e"
+    )
 
 
 def test_slice_by_dim():
     assert e3nn.Irreps("10x0e").slice_by_dim[1:4] == e3nn.Irreps("3x0e")
     assert e3nn.Irreps("10x0e + 10x1e").slice_by_dim[5:13] == e3nn.Irreps("5x0e + 1e")
-    assert e3nn.Irreps("10x0e + 2e + 10x1e").slice_by_dim[5:18] == e3nn.Irreps("5x0e + 2e + 1e")
+    assert e3nn.Irreps("10x0e + 2e + 10x1e").slice_by_dim[5:18] == e3nn.Irreps(
+        "5x0e + 2e + 1e"
+    )
 
 
 def test_slice_by_chunk():

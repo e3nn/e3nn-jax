@@ -37,7 +37,9 @@ def tensor_product_with_spherical_harmonics(
     input = e3nn.IrrepsArray.as_irreps_array(input)
 
     if not (vector.irreps == "1o" or vector.irreps == "1e"):
-        raise ValueError("tensor_product_with_spherical_harmonics: vector must be a vector.")
+        raise ValueError(
+            "tensor_product_with_spherical_harmonics: vector must be a vector."
+        )
 
     leading_shape = jnp.broadcast_shapes(input.shape[:-1], vector.shape[:-1])
     input = input.broadcast_to(leading_shape + (-1,))
@@ -50,7 +52,9 @@ def tensor_product_with_spherical_harmonics(
     return f(input, vector, degree)
 
 
-def impl(input: e3nn.IrrepsArray, vector: e3nn.IrrepsArray, degree: int) -> e3nn.IrrepsArray:
+def impl(
+    input: e3nn.IrrepsArray, vector: e3nn.IrrepsArray, degree: int
+) -> e3nn.IrrepsArray:
     """
     This implementation looks like a lot of operations, but actually only few lines are
     traced by JAX. They are indicated by the comment `# <-- ops`.
@@ -64,7 +68,9 @@ def impl(input: e3nn.IrrepsArray, vector: e3nn.IrrepsArray, degree: int) -> e3nn
 
     def fix_gimbal_lock(array, inverse):
         array_rot = array.transform_by_angles(0.0, jnp.pi / 2.0, 0.0, inverse=inverse)
-        return jax.tree_util.tree_map(lambda x_rot, x: jnp.where(gimbal_lock, x_rot, x), array_rot, array)
+        return jax.tree_util.tree_map(
+            lambda x_rot, x: jnp.where(gimbal_lock, x_rot, x), array_rot, array
+        )
 
     input = fix_gimbal_lock(input, inverse=True)  # <-- ops
     vector = fix_gimbal_lock(vector, inverse=True)  # <-- ops

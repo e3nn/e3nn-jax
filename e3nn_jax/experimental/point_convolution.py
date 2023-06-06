@@ -52,13 +52,17 @@ def radial_basis(r, cutoff, num_radial_basis):
     return e3nn.bessel(r, num_radial_basis) * e3nn.soft_envelope(r)[:, None]
 
 
-def _call(self, positions, node_feats, senders, receivers, Linear, MultiLayerPerceptron):
+def _call(
+    self, positions, node_feats, senders, receivers, Linear, MultiLayerPerceptron
+):
     if not isinstance(positions, e3nn.IrrepsArray):
         raise TypeError(
             f"positions must be an e3nn.IrrepsArray with shape (n_nodes, 3) and irreps '1o' or '1e'. Got {type(positions)}"
         )
     if not isinstance(node_feats, e3nn.IrrepsArray):
-        raise TypeError(f"node_feats must be an e3nn.IrrepsArray with shape (n_nodes, irreps). Got {type(node_feats)}")
+        raise TypeError(
+            f"node_feats must be an e3nn.IrrepsArray with shape (n_nodes, irreps). Got {type(node_feats)}"
+        )
 
     assert positions.ndim == 2
     assert node_feats.ndim == 2
@@ -97,7 +101,9 @@ def _call(self, positions, node_feats, senders, receivers, Linear, MultiLayerPer
 
     messages = messages * mix  # [n_edges, irreps]
 
-    zeros = e3nn.IrrepsArray.zeros(messages.irreps, node_feats.shape[:1], messages.dtype)
+    zeros = e3nn.IrrepsArray.zeros(
+        messages.irreps, node_feats.shape[:1], messages.dtype
+    )
     node_feats = zeros.at[receivers].add(messages)  # [n_nodes, irreps]
 
     node_feats = node_feats / jnp.sqrt(self.avg_num_neighbors)

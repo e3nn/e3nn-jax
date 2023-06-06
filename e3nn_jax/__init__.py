@@ -55,7 +55,13 @@ from e3nn_jax._src.irreps_array import IrrepsArray
 from e3nn_jax._src.basic import concatenate, stack, mean, norm, normal, dot, cross
 from e3nn_jax._src.basic import sum_ as sum
 from e3nn_jax._src.spherical_harmonics import spherical_harmonics, sh, legendre
-from e3nn_jax._src.radial import sus, soft_one_hot_linspace, bessel, poly_envelope, soft_envelope
+from e3nn_jax._src.radial import (
+    sus,
+    soft_one_hot_linspace,
+    bessel,
+    poly_envelope,
+    soft_envelope,
+)
 from e3nn_jax._src.instruction import Instruction
 from e3nn_jax._src.linear import FunctionalLinear
 from e3nn_jax._src.core_tensor_product import FunctionalTensorProduct
@@ -66,7 +72,12 @@ from e3nn_jax._src.tensor_products import (
     tensor_square,
 )
 from e3nn_jax._src.grad import grad
-from e3nn_jax._src.activation import soft_odd, scalar_activation, normalize_function, norm_activation
+from e3nn_jax._src.activation import (
+    soft_odd,
+    scalar_activation,
+    normalize_function,
+    norm_activation,
+)
 from e3nn_jax._src.gate import gate
 from e3nn_jax._src.radius_graph import radius_graph
 from e3nn_jax._src.scatter import index_add, scatter_sum, scatter_max
@@ -75,8 +86,17 @@ from e3nn_jax._src.reduced_tensor_product import (
     reduced_symmetric_tensor_product_basis,
     reduced_antisymmetric_tensor_product_basis,
 )
-from e3nn_jax._src.s2grid import s2_irreps, to_s2grid, to_s2point, from_s2grid, s2_dirac, SphericalSignal
-from e3nn_jax._src.tensor_product_with_spherical_harmonics import tensor_product_with_spherical_harmonics
+from e3nn_jax._src.s2grid import (
+    s2_irreps,
+    to_s2grid,
+    to_s2point,
+    from_s2grid,
+    s2_dirac,
+    SphericalSignal,
+)
+from e3nn_jax._src.tensor_product_with_spherical_harmonics import (
+    tensor_product_with_spherical_harmonics,
+)
 
 # make submodules flax and haiku available
 from e3nn_jax import flax, haiku

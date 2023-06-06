@@ -32,7 +32,9 @@ def su2_clebsch_gordan(j1: float, j2: float, j3: float) -> np.ndarray:
         for m1 in (x / 2 for x in range(-int(2 * j1), int(2 * j1) + 1, 2)):
             for m2 in (x / 2 for x in range(-int(2 * j2), int(2 * j2) + 1, 2)):
                 if abs(m1 + m2) <= j3:
-                    mat[int(j1 + m1), int(j2 + m2), int(j3 + m1 + m2)] = _su2_cg((j1, m1), (j2, m2), (j3, m1 + m2))
+                    mat[int(j1 + m1), int(j2 + m2), int(j3 + m1 + m2)] = _su2_cg(
+                        (j1, m1), (j2, m2), (j3, m1 + m2)
+                    )
     return mat / math.sqrt(2 * j3 + 1)
 
 
@@ -59,7 +61,11 @@ def _su2_cg(idx1, idx2, idx3):
     C = (
         (2.0 * j3 + 1.0)
         * Fraction(
-            f(j3 + j1 - j2) * f(j3 - j1 + j2) * f(j1 + j2 - j3) * f(j3 + m3) * f(j3 - m3),
+            f(j3 + j1 - j2)
+            * f(j3 - j1 + j2)
+            * f(j1 + j2 - j3)
+            * f(j3 + m3)
+            * f(j3 - m3),
             f(j1 + j2 + j3 + 1) * f(j1 - m1) * f(j1 + m1) * f(j2 - m2) * f(j2 + m2),
         )
     ) ** 0.5
@@ -67,7 +73,8 @@ def _su2_cg(idx1, idx2, idx3):
     S = 0
     for v in range(vmin, vmax + 1):
         S += (-1.0) ** (v + j2 + m2) * Fraction(
-            f(j2 + j3 + m1 - v) * f(j1 - m1 + v), f(v) * f(j3 - j1 + j2 - v) * f(j3 + m3 - v) * f(v + j1 - j2 - m3)
+            f(j2 + j3 + m1 - v) * f(j1 - m1 + v),
+            f(v) * f(j3 - j1 + j2 - v) * f(j3 + m3 - v) * f(v + j1 - j2 - m3),
         )
     C = C * S
     return C

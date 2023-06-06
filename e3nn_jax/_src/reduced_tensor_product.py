@@ -67,8 +67,12 @@ def reduced_tensor_product_basis(
     if isinstance(formula_or_irreps_list, (tuple, list)):
         irreps_list = formula_or_irreps_list
         irreps_tuple = tuple(e3nn.Irreps(irreps) for irreps in irreps_list)
-        perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = frozenset({(1, tuple(range(len(irreps_tuple))))})
-        return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon, _use_optimized_implementation)
+        perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = frozenset(
+            {(1, tuple(range(len(irreps_tuple))))}
+        )
+        return _reduced_tensor_product_basis(
+            irreps_tuple, perm_repr, keep_ir, epsilon, _use_optimized_implementation
+        )
 
     formula = formula_or_irreps_list
     f0, perm_repr = germinate_perm_repr(formula)
@@ -82,7 +86,11 @@ def reduced_tensor_product_basis(
     for _sign, p in perm_repr:
         f = "".join(f0[i] for i in p)
         for i, j in zip(f0, f):
-            if i in irreps_dict and j in irreps_dict and irreps_dict[i] != irreps_dict[j]:
+            if (
+                i in irreps_dict
+                and j in irreps_dict
+                and irreps_dict[i] != irreps_dict[j]
+            ):
                 raise RuntimeError(f"irreps of {i} and {j} should be the same")
             if i in irreps_dict:
                 irreps_dict[j] = irreps_dict[i]
@@ -95,11 +103,15 @@ def reduced_tensor_product_basis(
 
     for i in irreps_dict:
         if i not in f0:
-            raise RuntimeError(f"index {i} has an irreps but does not appear in the fomula")
+            raise RuntimeError(
+                f"index {i} has an irreps but does not appear in the fomula"
+            )
 
     irreps_tuple = tuple(irreps_dict[i] for i in f0)
 
-    return _reduced_tensor_product_basis(irreps_tuple, perm_repr, keep_ir, epsilon, _use_optimized_implementation)
+    return _reduced_tensor_product_basis(
+        irreps_tuple, perm_repr, keep_ir, epsilon, _use_optimized_implementation
+    )
 
 
 def _symmetric_perm_repr(n: int):
@@ -136,7 +148,13 @@ def reduced_symmetric_tensor_product_basis(
 
     irreps = e3nn.Irreps(irreps)
     perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _symmetric_perm_repr(degree)
-    return _reduced_tensor_product_basis(tuple([irreps] * degree), perm_repr, keep_ir, epsilon, _use_optimized_implementation)
+    return _reduced_tensor_product_basis(
+        tuple([irreps] * degree),
+        perm_repr,
+        keep_ir,
+        epsilon,
+        _use_optimized_implementation,
+    )
 
 
 def _antisymmetric_perm_repr(n: int):
@@ -173,7 +191,13 @@ def reduced_antisymmetric_tensor_product_basis(
 
     irreps = e3nn.Irreps(irreps)
     perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]] = _antisymmetric_perm_repr(degree)
-    return _reduced_tensor_product_basis(tuple([irreps] * degree), perm_repr, keep_ir, epsilon, _use_optimized_implementation)
+    return _reduced_tensor_product_basis(
+        tuple([irreps] * degree),
+        perm_repr,
+        keep_ir,
+        epsilon,
+        _use_optimized_implementation,
+    )
 
 
 @functools.lru_cache(maxsize=None)
@@ -205,7 +229,13 @@ def _reduced_tensor_product_basis(
             frozenset({i}),
             e3nn.IrrepsArray(
                 irreps,
-                np.reshape(np.eye(irreps.dim), (1,) * i + (irreps.dim,) + (1,) * (len(irreps_tuple) - i - 1) + (irreps.dim,)),
+                np.reshape(
+                    np.eye(irreps.dim),
+                    (1,) * i
+                    + (irreps.dim,)
+                    + (1,) * (len(irreps_tuple) - i - 1)
+                    + (irreps.dim,),
+                ),
             ),
         )
         for i, irreps in enumerate(irreps_tuple)
@@ -257,8 +287,12 @@ def _reduced_tensor_product_basis(
         for i, irreps in enumerate(irreps_tuple):
             if i not in f:
                 keep = _tp_ir_seq(keep, irreps)
-        ab = _reduced_tensor_product_basis(sub_irreps, sub_perm_repr, keep, epsilon, _use_optimized_implementation)
-        ab = ab.reshape(tuple(dims[i] if i in f else 1 for i in range(len(dims))) + (-1,))
+        ab = _reduced_tensor_product_basis(
+            sub_irreps, sub_perm_repr, keep, epsilon, _use_optimized_implementation
+        )
+        ab = ab.reshape(
+            tuple(dims[i] if i in f else 1 for i in range(len(dims))) + (-1,)
+        )
         bases = [(f, ab)] + bases
 
 
@@ -337,7 +371,10 @@ def _optimized_reduced_symmetric_tensor_product_basis(
             dims_after = inp_irreps_dims_cumsum_after[irrep_index]
             return (dims_before, dims_after)
 
-        return [compute_padding_for_irrep_index(irrep_index) for irrep_index in irrep_indices] + [(0, 0)]
+        return [
+            compute_padding_for_irrep_index(irrep_index)
+            for irrep_index in irrep_indices
+        ] + [(0, 0)]
 
     def repeat_indices(indices: Sequence[int], powers: Sequence[int]) -> List[int]:
         """Given [i1, i2, ...] and [p1, p2, ...], returns [i1, i1, ... (p1 times), i2, i2, ... (p2 times), ...]"""
@@ -346,7 +383,9 @@ def _optimized_reduced_symmetric_tensor_product_basis(
             repeated_indices.extend([index] * power)
         return repeated_indices
 
-    def generate_permutations(seq: Sequence[float]) -> Iterator[Tuple[Sequence[float], Sequence[int]]]:
+    def generate_permutations(
+        seq: Sequence[float],
+    ) -> Iterator[Tuple[Sequence[float], Sequence[int]]]:
         """Generates permutations of a sequence along with the indices used to create the permutation."""
         indices = range(len(seq))
         for permuted_indices in itertools.permutations(indices):
@@ -367,7 +406,9 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         """
         return cumsum_before(seq[::-1])[::-1]
 
-    def reshape_for_basis_product(terms: Sequence[e3nn.IrrepsArray], non_zero_powers: Sequence[float]):
+    def reshape_for_basis_product(
+        terms: Sequence[e3nn.IrrepsArray], non_zero_powers: Sequence[float]
+    ):
         """Adds extra axes to each term to be compatible for reduce_basis_product()."""
         term_powers_cumsum_before = cumsum_before(non_zero_powers)
         term_powers_cumsum_after = cumsum_after(non_zero_powers)
@@ -381,7 +422,10 @@ def _optimized_reduced_symmetric_tensor_product_basis(
             )
             return term.reshape(new_shape)
 
-        return [reshape_term_for_basis_product(index, term) for index, term in enumerate(terms)]
+        return [
+            reshape_term_for_basis_product(index, term)
+            for index, term in enumerate(terms)
+        ]
 
     irreps = e3nn.Irreps(irreps)
     irreps = e3nn.Irreps([(1, ir) for mul, ir in irreps for _ in range(mul)])
@@ -392,7 +436,9 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.0]))]
         for n in range(1, degree + 1):
             keep = _tp_ir_seq(keep_ir, _tp_ir_seq_pow(irreps, degree - n))
-            power = reduced_symmetric_tensor_product_basis(mul_ir, n, epsilon=epsilon, keep_ir=keep)
+            power = reduced_symmetric_tensor_product_basis(
+                mul_ir, n, epsilon=epsilon, keep_ir=keep
+            )
             irreps_powers[i].append(power)
 
     # Take all products of irreps whose powers sum up to degree.
@@ -416,11 +462,17 @@ def _optimized_reduced_symmetric_tensor_product_basis(
 
         non_zero_indices = [i for i, n in enumerate(term_powers) if n != 0]
         non_zero_powers = [n for n in term_powers if n != 0]
-        non_zero_indices_repeated = tuple(repeat_indices(non_zero_indices, non_zero_powers))
+        non_zero_indices_repeated = tuple(
+            repeat_indices(non_zero_indices, non_zero_powers)
+        )
 
         # Add axes to all terms, so that they have the same number of input axes.
-        non_zero_terms = [irreps_powers[i][n] for i, n in zip(non_zero_indices, non_zero_powers)]
-        non_zero_terms_reshaped = reshape_for_basis_product(non_zero_terms, non_zero_powers)
+        non_zero_terms = [
+            irreps_powers[i][n] for i, n in zip(non_zero_indices, non_zero_powers)
+        ]
+        non_zero_terms_reshaped = reshape_for_basis_product(
+            non_zero_terms, non_zero_powers
+        )
 
         # Compute basis product, two terms at a time.
         if len(non_zero_terms_reshaped) == 1:
@@ -430,7 +482,9 @@ def _optimized_reduced_symmetric_tensor_product_basis(
             for next_term in non_zero_terms_reshaped[1:-1]:
                 current_term = reduce_basis_product(current_term, next_term)
             last_term = non_zero_terms_reshaped[-1]
-            product_basis = reduce_basis_product(current_term, last_term, filter_ir_out=keep_ir)
+            product_basis = reduce_basis_product(
+                current_term, last_term, filter_ir_out=keep_ir
+            )
 
         if product_basis.irreps.dim == 0:
             continue
@@ -440,7 +494,9 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         seen_permutations = set()
 
         # Now, average over the different permutations.
-        for permuted_indices_repeated, permuted_axes in generate_permutations(non_zero_indices_repeated):
+        for permuted_indices_repeated, permuted_axes in generate_permutations(
+            non_zero_indices_repeated
+        ):
             # Keep track of which permutations we have seen.
             # Don't repeat permutations!
             if permuted_indices_repeated in seen_permutations:
@@ -448,17 +504,26 @@ def _optimized_reduced_symmetric_tensor_product_basis(
             seen_permutations.add(permuted_indices_repeated)
 
             # Permute axes according to this term.
-            permuted_product_basis_array = np.transpose(product_basis.array, permuted_axes + (len(permuted_axes),))
+            permuted_product_basis_array = np.transpose(
+                product_basis.array, permuted_axes + (len(permuted_axes),)
+            )
 
             # Add padding.
             padding = compute_padding_for_term(permuted_indices_repeated)
-            slices = tuple(slice(start, total - stop) for (start, stop), total in zip(padding, shape))
+            slices = tuple(
+                slice(start, total - stop)
+                for (start, stop), total in zip(padding, shape)
+            )
 
             sum_of_permuted_bases[slices] += permuted_product_basis_array
 
         # Normalize the sum of bases.
-        symmetrized_sum_of_permuted_bases = sum_of_permuted_bases / np.sqrt(len(seen_permutations))
-        product_basis = e3nn.IrrepsArray(product_basis.irreps, symmetrized_sum_of_permuted_bases)
+        symmetrized_sum_of_permuted_bases = sum_of_permuted_bases / np.sqrt(
+            len(seen_permutations)
+        )
+        product_basis = e3nn.IrrepsArray(
+            product_basis.irreps, symmetrized_sum_of_permuted_bases
+        )
         symmetric_product.append(product_basis)
 
     # Filter out irreps, if needed.
@@ -469,9 +534,13 @@ def _optimized_reduced_symmetric_tensor_product_basis(
 
 
 @functools.lru_cache(maxsize=None)
-def germinate_perm_repr(formula: str) -> Tuple[str, FrozenSet[Tuple[int, Tuple[int, ...]]]]:
+def germinate_perm_repr(
+    formula: str,
+) -> Tuple[str, FrozenSet[Tuple[int, Tuple[int, ...]]]]:
     """Convert the formula (generators) into a group."""
-    formulas = [(-1 if f.startswith("-") else 1, f.replace("-", "")) for f in formula.split("=")]
+    formulas = [
+        (-1 if f.startswith("-") else 1, f.replace("-", "")) for f in formula.split("=")
+    ]
     s0, f0 = formulas[0]
     assert s0 == 1
 
@@ -483,7 +552,9 @@ def germinate_perm_repr(formula: str) -> Tuple[str, FrozenSet[Tuple[int, Tuple[i
 
     # `perm_repr` is a list of (sign, permutation of indices)
     # each formula can be viewed as a permutation of the original formula
-    perm_repr = {(s, tuple(f.index(i) for i in f0)) for s, f in formulas}  # set of generators (permutations)
+    perm_repr = {
+        (s, tuple(f.index(i) for i in f0)) for s, f in formulas
+    }  # set of generators (permutations)
 
     # they can be composed, for instance if you have ijk=jik=ikj
     # you also have ijk=jki
@@ -491,7 +562,13 @@ def germinate_perm_repr(formula: str) -> Tuple[str, FrozenSet[Tuple[int, Tuple[i
     while True:
         n = len(perm_repr)
         perm_repr = perm_repr.union([(s, perm.inverse(p)) for s, p in perm_repr])
-        perm_repr = perm_repr.union([(s1 * s2, perm.compose(p1, p2)) for s1, p1 in perm_repr for s2, p2 in perm_repr])
+        perm_repr = perm_repr.union(
+            [
+                (s1 * s2, perm.compose(p1, p2))
+                for s1, p1 in perm_repr
+                for s2, p2 in perm_repr
+            ]
+        )
         if len(perm_repr) == n:
             break  # we break when the set is stable => it is now a group \o/
 
@@ -525,7 +602,11 @@ def reduce_basis_product(
                 new_list.append(x)
 
     new = e3nn.IrrepsArray.from_list(
-        new_irreps, new_list, np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]), np.float64, backend=np
+        new_irreps,
+        new_list,
+        np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]),
+        np.float64,
+        backend=np,
     )
     return new.regroup()
 
@@ -548,7 +629,10 @@ def constrain_rotation_basis_by_permutation_basis(
     """
     assert rotation_basis.shape[:-1] == permutation_basis.shape[1:]
 
-    perm = np.reshape(permutation_basis, (permutation_basis.shape[0], prod(permutation_basis.shape[1:])))  # (free, dim)
+    perm = np.reshape(
+        permutation_basis,
+        (permutation_basis.shape[0], prod(permutation_basis.shape[1:])),
+    )  # (free, dim)
 
     new_irreps: List[Tuple[int, e3nn.Irrep]] = []
     new_list: List[np.ndarray] = []
@@ -569,7 +653,9 @@ def constrain_rotation_basis_by_permutation_basis(
         new_irreps.append((len(P), ir))
         new_list.append(round_fn(np.einsum("vu,...ui->...vi", P, rot_basis)))
 
-    return e3nn.IrrepsArray.from_list(new_irreps, new_list, rotation_basis.shape[:-1], np.float64, backend=np)
+    return e3nn.IrrepsArray.from_list(
+        new_irreps, new_list, rotation_basis.shape[:-1], np.float64, backend=np
+    )
 
 
 def subrepr_permutation(
@@ -586,7 +672,10 @@ def subrepr_permutation(
 
 
 def reduce_subgroup_permutation(
-    sub_f0: FrozenSet[int], perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]], dims: Tuple[int, ...], return_dim: bool = False
+    sub_f0: FrozenSet[int],
+    perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]],
+    dims: Tuple[int, ...],
+    return_dim: bool = False,
 ) -> np.ndarray:
     sub_perm_repr = subrepr_permutation(sub_f0, perm_repr)
     sub_dims = tuple(dims[i] for i in sub_f0)
@@ -598,7 +687,10 @@ def reduce_subgroup_permutation(
     if return_dim:
         return len(base)
     permutation_basis = reduce_permutation_matrix(base, sub_dims)
-    return np.reshape(permutation_basis, (-1,) + tuple(dims[i] if i in sub_f0 else 1 for i in range(len(dims))))
+    return np.reshape(
+        permutation_basis,
+        (-1,) + tuple(dims[i] if i in sub_f0 else 1 for i in range(len(dims))),
+    )
 
 
 @functools.lru_cache(maxsize=None)
@@ -633,7 +725,8 @@ def reduce_permutation_base(
 
 @functools.lru_cache(maxsize=None)
 def reduce_permutation_matrix(
-    base: FrozenSet[FrozenSet[FrozenSet[Tuple[int, Tuple[int, ...]]]]], dims: Tuple[int, ...]
+    base: FrozenSet[FrozenSet[FrozenSet[Tuple[int, Tuple[int, ...]]]]],
+    dims: Tuple[int, ...],
 ) -> np.ndarray:
     base = sorted(
         [sorted([sorted(xs) for xs in x]) for x in base]

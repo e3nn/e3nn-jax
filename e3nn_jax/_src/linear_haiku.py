@@ -6,7 +6,13 @@ import jax.numpy as jnp
 import e3nn_jax as e3nn
 from e3nn_jax._src.util.dtype import get_pytree_dtype
 
-from .linear import FunctionalLinear, linear_indexed, linear_mixed, linear_mixed_per_channel, linear_vanilla
+from .linear import (
+    FunctionalLinear,
+    linear_indexed,
+    linear_mixed,
+    linear_mixed_per_channel,
+    linear_vanilla,
+)
 
 
 class Linear(hk.Module):
@@ -80,7 +86,9 @@ class Linear(hk.Module):
         biases: bool = False,
         path_normalization: Union[str, float] = None,
         gradient_normalization: Union[str, float] = None,
-        get_parameter: Optional[Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray]] = None,
+        get_parameter: Optional[
+            Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray]
+        ] = None,
         num_indexed_weights: Optional[int] = None,
         weights_per_channel: bool = False,
         name: Optional[str] = None,
@@ -98,12 +106,19 @@ class Linear(hk.Module):
         if gradient_normalization is None:
             gradient_normalization = e3nn.config("gradient_normalization")
         if isinstance(gradient_normalization, str):
-            gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
+            gradient_normalization = {"element": 0.0, "path": 1.0}[
+                gradient_normalization
+            ]
         self.gradient_normalization = gradient_normalization
 
         if get_parameter is None:
 
-            def get_parameter(name: str, path_shape: Tuple[int, ...], weight_std: float, dtype: jnp.dtype = jnp.float32):
+            def get_parameter(
+                name: str,
+                path_shape: Tuple[int, ...],
+                weight_std: float,
+                dtype: jnp.dtype = jnp.float32,
+            ):
                 return hk.get_parameter(
                     name,
                     shape=path_shape,
@@ -174,13 +189,27 @@ class Linear(hk.Module):
 
             if weights.dtype.kind == "i" and self.num_indexed_weights is not None:
                 assert not self.weights_per_channel  # Not implemented yet
-                output = linear_indexed(input, lin, self.get_parameter, weights, self.num_indexed_weights)
+                output = linear_indexed(
+                    input, lin, self.get_parameter, weights, self.num_indexed_weights
+                )
 
             elif weights.dtype.kind in "fc" and self.num_indexed_weights is None:
                 if self.weights_per_channel:
-                    output = linear_mixed_per_channel(input, lin, self.get_parameter, weights, self.gradient_normalization)
+                    output = linear_mixed_per_channel(
+                        input,
+                        lin,
+                        self.get_parameter,
+                        weights,
+                        self.gradient_normalization,
+                    )
                 else:
-                    output = linear_mixed(input, lin, self.get_parameter, weights, self.gradient_normalization)
+                    output = linear_mixed(
+                        input,
+                        lin,
+                        self.get_parameter,
+                        weights,
+                        self.gradient_normalization,
+                    )
 
             else:
                 raise ValueError(

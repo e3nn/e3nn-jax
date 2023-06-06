@@ -9,23 +9,40 @@ from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
 
 
 @partial(jax.jit, static_argnums=(1, 2, 3, 4, 5))
-def _gate(input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, normalize_act) -> IrrepsArray:
+def _gate(
+    input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, normalize_act
+) -> IrrepsArray:
     scalars = input.filtered(keep=["0e", "0o"])
     vectors = input.filtered(drop=["0e", "0o"])
     del input
 
     if vectors.shape[-1] == 0:
-        return scalar_activation(scalars, even_act=even_act, odd_act=odd_act, normalize_act=normalize_act)
+        return scalar_activation(
+            scalars, even_act=even_act, odd_act=odd_act, normalize_act=normalize_act
+        )
 
     if scalars.irreps.dim < vectors.irreps.num_irreps:
-        raise ValueError("The input must have at least as many scalars as the number of non-scalar irreps")
+        raise ValueError(
+            "The input must have at least as many scalars as the number of non-scalar irreps"
+        )
 
-    scalars_extra: e3nn.IrrepsArray = scalars.slice_by_mul[: scalars.irreps.dim - vectors.irreps.num_irreps]
-    scalars_gates: e3nn.IrrepsArray = scalars.slice_by_mul[scalars.irreps.dim - vectors.irreps.num_irreps :]
+    scalars_extra: e3nn.IrrepsArray = scalars.slice_by_mul[
+        : scalars.irreps.dim - vectors.irreps.num_irreps
+    ]
+    scalars_gates: e3nn.IrrepsArray = scalars.slice_by_mul[
+        scalars.irreps.dim - vectors.irreps.num_irreps :
+    ]
     del scalars
 
-    scalars_extra = scalar_activation(scalars_extra, even_act=even_act, odd_act=odd_act, normalize_act=normalize_act)
-    scalars_gates = scalar_activation(scalars_gates, even_act=even_gate_act, odd_act=odd_gate_act, normalize_act=normalize_act)
+    scalars_extra = scalar_activation(
+        scalars_extra, even_act=even_act, odd_act=odd_act, normalize_act=normalize_act
+    )
+    scalars_gates = scalar_activation(
+        scalars_gates,
+        even_act=even_gate_act,
+        odd_act=odd_gate_act,
+        normalize_act=normalize_act,
+    )
 
     return e3nn.concatenate([scalars_extra, scalars_gates * vectors], axis=-1)
 

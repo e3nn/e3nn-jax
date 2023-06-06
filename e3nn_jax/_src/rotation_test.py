@@ -32,7 +32,9 @@ def test_xyz(keys):
     for r in rs:
         a, b = e3nn.xyz_to_angles(r)
         R = e3nn.angles_to_matrix(a, -b, -a)
-        np.testing.assert_allclose(R @ r, np.array([0.0, 1.0, 0.0]), atol=float_tolerance)
+        np.testing.assert_allclose(
+            R @ r, np.array([0.0, 1.0, 0.0]), atol=float_tolerance
+        )
 
     Ja, Jb = jax.jacobian(e3nn.xyz_to_angles)(jnp.array([0.0, 1.0, 0.0]))
     np.testing.assert_allclose(Ja, 0.0, atol=float_tolerance)
@@ -178,7 +180,9 @@ def test_rand_axis_angle(keys):
         return e3nn.axis_angle_to_matrix(axis, angle) @ jnp.array([0.2, 0.5, 0.3])
 
     x = f(next(keys))
-    np.testing.assert_allclose(jnp.mean(x, axis=0), jnp.array([0.0, 0.0, 0.0]), atol=0.005)
+    np.testing.assert_allclose(
+        jnp.mean(x, axis=0), jnp.array([0.0, 0.0, 0.0]), atol=0.005
+    )
 
     jax.config.update("jax_enable_x64", False)
 

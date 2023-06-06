@@ -19,11 +19,18 @@ def test_equivariance_linear(keys, mix: bool):
     def f(x, d):
         return conv.apply(w, x, d)
 
-    z1, z2 = equivariance_test(f, next(keys), x, e3nn.IrrepsArray("1o", jnp.array([0.1, -0.2, -0.4])))
+    z1, z2 = equivariance_test(
+        f, next(keys), x, e3nn.IrrepsArray("1o", jnp.array([0.1, -0.2, -0.4]))
+    )
     np.testing.assert_allclose(z1.array, z2.array, atol=1e-5)
 
     # Test Gimbal Lock
-    z1, z2 = equivariance_test(e3nn.grad(f, 1), next(keys), x, e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0])))
+    z1, z2 = equivariance_test(
+        e3nn.grad(f, 1),
+        next(keys),
+        x,
+        e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0])),
+    )
     np.testing.assert_allclose(z1.array, z2.array, atol=1e-5)
 
     if mix:
@@ -36,9 +43,16 @@ def test_equivariance(keys):
     def f(x, d):
         return shtp(x, d, "0e + 0o + 4x1o + 1e + 2e + 2o")
 
-    z1, z2 = equivariance_test(f, next(keys), x, e3nn.IrrepsArray("1o", jnp.array([0.1, -0.2, -0.4])))
+    z1, z2 = equivariance_test(
+        f, next(keys), x, e3nn.IrrepsArray("1o", jnp.array([0.1, -0.2, -0.4]))
+    )
     np.testing.assert_allclose(z1.array, z2.array, atol=1e-5)
 
     # Test Gimbal Lock
-    z1, z2 = equivariance_test(e3nn.grad(f, 1), next(keys), x, e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0])))
+    z1, z2 = equivariance_test(
+        e3nn.grad(f, 1),
+        next(keys),
+        x,
+        e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0])),
+    )
     np.testing.assert_allclose(z1.array, z2.array, atol=1e-5)

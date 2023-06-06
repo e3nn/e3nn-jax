@@ -172,10 +172,22 @@ def compose_quaternion(q1, q2):
     q1, q2 = jnp.broadcast_arrays(q1, q2)
     return jnp.stack(
         [
-            q1[..., 0] * q2[..., 0] - q1[..., 1] * q2[..., 1] - q1[..., 2] * q2[..., 2] - q1[..., 3] * q2[..., 3],
-            q1[..., 1] * q2[..., 0] + q1[..., 0] * q2[..., 1] + q1[..., 2] * q2[..., 3] - q1[..., 3] * q2[..., 2],
-            q1[..., 0] * q2[..., 2] - q1[..., 1] * q2[..., 3] + q1[..., 2] * q2[..., 0] + q1[..., 3] * q2[..., 1],
-            q1[..., 0] * q2[..., 3] + q1[..., 1] * q2[..., 2] - q1[..., 2] * q2[..., 1] + q1[..., 3] * q2[..., 0],
+            q1[..., 0] * q2[..., 0]
+            - q1[..., 1] * q2[..., 1]
+            - q1[..., 2] * q2[..., 2]
+            - q1[..., 3] * q2[..., 3],
+            q1[..., 1] * q2[..., 0]
+            + q1[..., 0] * q2[..., 1]
+            + q1[..., 2] * q2[..., 3]
+            - q1[..., 3] * q2[..., 2],
+            q1[..., 0] * q2[..., 2]
+            - q1[..., 1] * q2[..., 3]
+            + q1[..., 2] * q2[..., 0]
+            + q1[..., 3] * q2[..., 1],
+            q1[..., 0] * q2[..., 3]
+            + q1[..., 1] * q2[..., 2]
+            - q1[..., 2] * q2[..., 1]
+            + q1[..., 3] * q2[..., 0],
         ],
         axis=-1,
     )
@@ -246,7 +258,10 @@ def compose_axis_angle(axis1, angle1, axis2, angle2):
             angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
     """
     return quaternion_to_axis_angle(
-        compose_quaternion(axis_angle_to_quaternion(axis1, angle1), axis_angle_to_quaternion(axis2, angle2))
+        compose_quaternion(
+            axis_angle_to_quaternion(axis1, angle1),
+            axis_angle_to_quaternion(axis2, angle2),
+        )
     )
 
 
@@ -307,7 +322,9 @@ def compose_log_coordinates(log1, log2):
         log coordinates (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
     """
     return quaternion_to_log_coordinates(
-        compose_quaternion(log_coordinates_to_quaternion(log1), log_coordinates_to_quaternion(log2))
+        compose_quaternion(
+            log_coordinates_to_quaternion(log1), log_coordinates_to_quaternion(log2)
+        )
     )
 
 
@@ -401,7 +418,14 @@ def matrix_z(angle):
     s = jnp.sin(angle)
     o = jnp.ones_like(angle)
     z = jnp.zeros_like(angle)
-    return jnp.stack([jnp.stack([c, -s, z], axis=-1), jnp.stack([s, c, z], axis=-1), jnp.stack([z, z, o], axis=-1)], axis=-2)
+    return jnp.stack(
+        [
+            jnp.stack([c, -s, z], axis=-1),
+            jnp.stack([s, c, z], axis=-1),
+            jnp.stack([z, z, o], axis=-1),
+        ],
+        axis=-2,
+    )
 
 
 def angles_to_matrix(alpha, beta, gamma):

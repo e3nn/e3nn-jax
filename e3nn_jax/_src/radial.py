@@ -192,12 +192,18 @@ def soft_one_hot_linspace(
         x = (input[..., None] - start) / (end - start)
         if start_zero and end_zero:
             i = jnp.arange(1, number + 1)
-            return jnp.where((0.0 < x) & (x < 1.0), jnp.sin(jnp.pi * i * x) / jnp.sqrt(0.25 + number / 2), 0.0)
+            return jnp.where(
+                (0.0 < x) & (x < 1.0),
+                jnp.sin(jnp.pi * i * x) / jnp.sqrt(0.25 + number / 2),
+                0.0,
+            )
         elif not start_zero and not end_zero:
             i = jnp.arange(0, number)
             return jnp.cos(jnp.pi * i * x) / jnp.sqrt(0.25 + number / 2)
         else:
-            raise ValueError("when using fourier basis, start_zero and end_zero must be the same")
+            raise ValueError(
+                "when using fourier basis, start_zero and end_zero must be the same"
+            )
 
     raise ValueError(f'basis="{basis}" is not a valid entry')
 
@@ -237,18 +243,33 @@ def bessel(x: jnp.ndarray, n: int, x_max: float = 1.0) -> jnp.ndarray:
 
 def u(p: int, x: jnp.ndarray) -> jnp.ndarray:
     r"""Equivalent to :func:`poly_envelope` with ``n0 = p-1`` and ``n1 = 2``."""
-    return 1 - (p + 1) * (p + 2) / 2 * x**p + p * (p + 2) * x ** (p + 1) - p * (p + 1) / 2 * x ** (p + 2)
+    return (
+        1
+        - (p + 1) * (p + 2) / 2 * x**p
+        + p * (p + 2) * x ** (p + 1)
+        - p * (p + 1) / 2 * x ** (p + 2)
+    )
 
 
 def _constraint(x: float, derivative: int, degree: int):
-    return [0 if derivative > N else factorial(N) // factorial(N - derivative) * x ** (N - derivative) for N in range(degree)]
+    return [
+        0
+        if derivative > N
+        else factorial(N) // factorial(N - derivative) * x ** (N - derivative)
+        for N in range(degree)
+    ]
 
 
 @lru_cache(maxsize=None)
 def solve_polynomial(constraints) -> jnp.ndarray:
     with jax.ensure_compile_time_eval():
         degree = len(constraints)
-        A = np.array([_constraint(x, derivative, degree) for x, derivative, _ in sorted(constraints)])
+        A = np.array(
+            [
+                _constraint(x, derivative, degree)
+                for x, derivative, _ in sorted(constraints)
+            ]
+        )
         B = np.array([y for _, _, y in sorted(constraints)])
         c = np.linalg.solve(A, B)[::-1]
 

@@ -48,9 +48,16 @@ class Transformer(hk.Module):
         """
 
         def f(x, y, filter_ir_out=None, name=None):
-            out1 = e3nn.concatenate([x, e3nn.tensor_product(x, y.filter(drop="0e"))]).regroup().filter(keep=filter_ir_out)
+            out1 = (
+                e3nn.concatenate([x, e3nn.tensor_product(x, y.filter(drop="0e"))])
+                .regroup()
+                .filter(keep=filter_ir_out)
+            )
             out2 = e3nn.haiku.MultiLayerPerceptron(
-                self.list_neurons + [out1.irreps.num_irreps], self.act, output_activation=False, name=name
+                self.list_neurons + [out1.irreps.num_irreps],
+                self.act,
+                output_activation=False,
+                name=name,
             )(y.filter(keep="0e"))
             return out1 * out2
 
@@ -59,15 +66,25 @@ class Transformer(hk.Module):
             e3nn.tensor_product(node_feat[edge_dst], edge_key, filter_ir_out="0e")
         ).array  # [E, H]
         node_logit_max = _index_max(edge_dst, edge_logit, node_feat.shape[0])  # [N, H]
-        exp = edge_weight_cutoff[:, None] * jnp.exp(edge_logit - node_logit_max[edge_dst])  # [E, H]
-        z = e3nn.scatter_sum(exp, dst=edge_dst, output_size=node_feat.shape[0])  # [N, H]
+        exp = edge_weight_cutoff[:, None] * jnp.exp(
+            edge_logit - node_logit_max[edge_dst]
+        )  # [E, H]
+        z = e3nn.scatter_sum(
+            exp, dst=edge_dst, output_size=node_feat.shape[0]
+        )  # [N, H]
         z = jnp.where(z == 0.0, 1.0, z)
         alpha = exp / z[edge_dst]  # [E, H]
 
-        edge_v = f(node_feat[edge_src], edge_attr, self.irreps_node_output, "mlp_val")  # [E, D]
+        edge_v = f(
+            node_feat[edge_src], edge_attr, self.irreps_node_output, "mlp_val"
+        )  # [E, D]
         edge_v = edge_v.mul_to_axis(self.num_heads)  # [E, H, D]
         edge_v = edge_v * jnp.sqrt(jax.nn.relu(alpha))[:, :, None]  # [E, H, D]
         edge_v = edge_v.axis_to_mul()  # [E, D]
 
-        node_out = e3nn.scatter_sum(edge_v, dst=edge_dst, output_size=node_feat.shape[0])  # [N, D]
-        return e3nn.haiku.Linear(self.irreps_node_output, name="linear_out")(node_out)  # [N, D]
+        node_out = e3nn.scatter_sum(
+            edge_v, dst=edge_dst, output_size=node_feat.shape[0]
+        )  # [N, D]
+        return e3nn.haiku.Linear(self.irreps_node_output, name="linear_out")(
+            node_out
+        )  # [N, D]

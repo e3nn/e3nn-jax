@@ -14,7 +14,9 @@ def curry(f):
 
 @curry
 @curry
-def closed_jaxpr_transform_to_fn_transform(closed_jaxpr_transform, fn, *args):  # pragma: no cover
+def closed_jaxpr_transform_to_fn_transform(
+    closed_jaxpr_transform, fn, *args
+):  # pragma: no cover
     f = lu.wrap_init(fn)
 
     in_flat, in_tree = jax.tree_util.tree_flatten(args)
@@ -44,7 +46,9 @@ def replace_var(jaxpr: Jaxpr, old: Var, new: Var) -> List[JaxprEqn]:  # pragma: 
     )
 
 
-def remove_deadcode(jaxpr: Jaxpr, output_indices=None) -> ClosedJaxpr:  # pragma: no cover
+def remove_deadcode(
+    jaxpr: Jaxpr, output_indices=None
+) -> ClosedJaxpr:  # pragma: no cover
     if output_indices is None:
         output_indices = range(len(jaxpr.outvars))
 
@@ -58,13 +62,16 @@ def remove_deadcode(jaxpr: Jaxpr, output_indices=None) -> ClosedJaxpr:  # pragma
         if eqn.primitive in [xla_call_p]:
             xla_call_jaxpr = eqn.params["call_jaxpr"]
             xla_call_jaxpr, input_indices = remove_deadcode(
-                xla_call_jaxpr, [i for i, out in enumerate(eqn.outvars) if out in needed]
+                xla_call_jaxpr,
+                [i for i, out in enumerate(eqn.outvars) if out in needed],
             )
             eqn = eqn.replace(
                 params={
                     **eqn.params,
                     "call_jaxpr": xla_call_jaxpr,
-                    "donated_invars": tuple(eqn.params["donated_invars"][i] for i in input_indices),
+                    "donated_invars": tuple(
+                        eqn.params["donated_invars"][i] for i in input_indices
+                    ),
                 },
                 outvars=[out for out in eqn.outvars if out in needed],
                 invars=[inv for i, inv in enumerate(eqn.invars) if i in input_indices],
@@ -84,7 +91,9 @@ def remove_deadcode(jaxpr: Jaxpr, output_indices=None) -> ClosedJaxpr:  # pragma
     return (jaxpr, input_indices)
 
 
-def remove_duplicate_constants(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:  # pragma: no cover
+def remove_duplicate_constants(
+    closed_jaxpr: ClosedJaxpr,
+) -> ClosedJaxpr:  # pragma: no cover
     for i, cst1 in enumerate(closed_jaxpr.consts):
         for j, cst2 in enumerate(closed_jaxpr.consts[:i]):
             if type(cst1) is np.ndarray and type(cst2) is np.ndarray:
@@ -99,7 +108,10 @@ def remove_duplicate_constants(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:  # pra
     closed_jaxpr.jaxpr = closed_jaxpr.jaxpr.replace(
         eqns=[
             eqn.replace(
-                params={k: remove_duplicate_constants(v) if type(v) is ClosedJaxpr else v for k, v in eqn.params.items()}
+                params={
+                    k: remove_duplicate_constants(v) if type(v) is ClosedJaxpr else v
+                    for k, v in eqn.params.items()
+                }
             )
             for eqn in closed_jaxpr.jaxpr.eqns
         ]
@@ -108,7 +120,9 @@ def remove_duplicate_constants(closed_jaxpr: ClosedJaxpr) -> ClosedJaxpr:  # pra
     return closed_jaxpr
 
 
-def remove_duplicate_equations(jaxpr: Jaxpr, skip_first=0) -> ClosedJaxpr:  # pragma: no cover
+def remove_duplicate_equations(
+    jaxpr: Jaxpr, skip_first=0
+) -> ClosedJaxpr:  # pragma: no cover
     def atom_key(a: Atom):
         if type(a) is Literal:
             return a.val
@@ -146,7 +160,12 @@ def remove_duplicate_equations(jaxpr: Jaxpr, skip_first=0) -> ClosedJaxpr:  # pr
     # apply reccursively
     jaxpr = jaxpr.replace(
         eqns=[
-            eqn.replace(params={k: remove_duplicate_equations(v) if type(v) is Jaxpr else v for k, v in eqn.params.items()})
+            eqn.replace(
+                params={
+                    k: remove_duplicate_equations(v) if type(v) is Jaxpr else v
+                    for k, v in eqn.params.items()
+                }
+            )
             for eqn in jaxpr.eqns
         ]
     )
@@ -154,7 +173,9 @@ def remove_duplicate_equations(jaxpr: Jaxpr, skip_first=0) -> ClosedJaxpr:  # pr
         eqns=[
             eqn.replace(
                 params={
-                    k: v.replace(jaxpr=remove_duplicate_equations(v.jaxpr)) if type(v) is ClosedJaxpr else v
+                    k: v.replace(jaxpr=remove_duplicate_equations(v.jaxpr))
+                    if type(v) is ClosedJaxpr
+                    else v
                     for k, v in eqn.params.items()
                 }
             )

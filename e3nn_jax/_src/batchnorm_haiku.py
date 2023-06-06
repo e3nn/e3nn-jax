@@ -65,7 +65,9 @@ def _batch_norm(
                         field_mean = field.mean(1).reshape(batch, mul)  # [batch, mul]
                     else:
                         field_mean = field.mean([0, 1]).reshape(mul)  # [mul]
-                        new_means.append(_roll_avg(running_mean[i_rmu : i_rmu + mul], field_mean))
+                        new_means.append(
+                            _roll_avg(running_mean[i_rmu : i_rmu + mul], field_mean)
+                        )
                 else:
                     field_mean = running_mean[i_rmu : i_rmu + mul]
                 i_rmu += mul
@@ -79,7 +81,9 @@ def _batch_norm(
                 elif normalization == "component":
                     field_norm = jnp.square(field).mean(3)  # [batch, sample, mul]
                 else:
-                    raise ValueError("Invalid normalization option {}".format(normalization))
+                    raise ValueError(
+                        "Invalid normalization option {}".format(normalization)
+                    )
 
                 if reduce == "mean":
                     field_norm = field_norm.mean(1)  # [batch, mul]
@@ -90,11 +94,15 @@ def _batch_norm(
 
                 if not is_instance:
                     field_norm = field_norm.mean(0)  # [mul]
-                    new_vars.append(_roll_avg(running_var[i_wei : i_wei + mul], field_norm))
+                    new_vars.append(
+                        _roll_avg(running_var[i_wei : i_wei + mul], field_norm)
+                    )
             else:
                 field_norm = running_var[i_wei : i_wei + mul]
 
-            field_norm = jax.lax.rsqrt((1 - epsilon) * field_norm + epsilon)  # [(batch,) mul]
+            field_norm = jax.lax.rsqrt(
+                (1 - epsilon) * field_norm + epsilon
+            )  # [(batch,) mul]
 
             if has_affine:
                 sub_weight = weight[i_wei : i_wei + mul]  # [mul]
@@ -112,7 +120,9 @@ def _batch_norm(
             fields.append(field)  # [batch, sample, mul, repr]
         i_wei += mul
 
-    output = IrrepsArray.from_list(input.irreps, fields, (batch, prod(size)), input.dtype)
+    output = IrrepsArray.from_list(
+        input.irreps, fields, (batch, prod(size)), input.dtype
+    )
     output = output.reshape((batch,) + tuple(size) + (-1,))
     return output, new_means, new_vars
 
@@ -163,7 +173,10 @@ class BatchNorm(hk.Module):
 
         if normalization is None:
             normalization = config("irrep_normalization")
-        assert normalization in ["norm", "component"], "normalization needs to be 'norm' or 'component'"
+        assert normalization in [
+            "norm",
+            "component",
+        ], "normalization needs to be 'norm' or 'component'"
         self.normalization = normalization
 
     def __repr__(self):
@@ -186,8 +199,12 @@ class BatchNorm(hk.Module):
         num_features = input.irreps.num_irreps
 
         if not self.instance:
-            running_mean = hk.get_state("running_mean", shape=(num_scalar,), init=jnp.zeros)
-            running_var = hk.get_state("running_var", shape=(num_features,), init=jnp.ones)
+            running_mean = hk.get_state(
+                "running_mean", shape=(num_scalar,), init=jnp.zeros
+            )
+            running_var = hk.get_state(
+                "running_var", shape=(num_features,), init=jnp.ones
+            )
         else:
             running_mean = None
             running_var = None

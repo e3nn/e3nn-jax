@@ -25,7 +25,10 @@ def test_scatter_sum():
     )
 
     np.testing.assert_allclose(  # nel
-        e3nn.scatter_sum(jnp.array([1.0, 2.0, 1.0, 0.5, 0.5, 0.7, 0.2, 0.1]), nel=jnp.array([3, 2, 3])),
+        e3nn.scatter_sum(
+            jnp.array([1.0, 2.0, 1.0, 0.5, 0.5, 0.7, 0.2, 0.1]),
+            nel=jnp.array([3, 2, 3]),
+        ),
         jnp.array([4.0, 1.0, 1.0]),
     )
 
@@ -46,6 +49,9 @@ def test_scatter_max():
     )
 
     np.testing.assert_allclose(  # nel
-        e3nn.scatter_max(jnp.array([-1.0, -2.0, -1.0, 0.5, 0.5, 0.7, 0.2, 0.1]), nel=jnp.array([3, 2, 3])),
+        e3nn.scatter_max(
+            jnp.array([-1.0, -2.0, -1.0, 0.5, 0.5, 0.7, 0.2, 0.1]),
+            nel=jnp.array([3, 2, 3]),
+        ),
         jnp.array([-1.0, 0.5, 0.7]),
     )

@@ -5,7 +5,9 @@ import jax
 import jax.numpy as jnp
 
 
-def interpolate_trilinear(input: jnp.ndarray, x: float, y: float, z: float) -> jnp.ndarray:
+def interpolate_trilinear(
+    input: jnp.ndarray, x: float, y: float, z: float
+) -> jnp.ndarray:
     r"""Interpolate voxels in coordinate (x, y, z).
 
     Args:
@@ -54,7 +56,9 @@ def interpolate_trilinear(input: jnp.ndarray, x: float, y: float, z: float) -> j
     return wa * Ia + wb * Ib + wc * Ic + wd * Id + we * Ie + wf * If + wg * Ig + wh * Ih
 
 
-def interpolate_nearest(input: jnp.ndarray, x: float, y: float, z: float) -> jnp.ndarray:
+def interpolate_nearest(
+    input: jnp.ndarray, x: float, y: float, z: float
+) -> jnp.ndarray:
     r"""Interpolate voxels in coordinate (x, y, z).
 
     Args:
@@ -106,7 +110,9 @@ def _zoom(
     if interpolation == "nearest":
         interp = interpolate_nearest
 
-    output = jax.vmap(interp, (None, 0, 0, 0), -1)(input, xg.flatten(), yg.flatten(), zg.flatten())
+    output = jax.vmap(interp, (None, 0, 0, 0), -1)(
+        input, xg.flatten(), yg.flatten(), zg.flatten()
+    )
     output = output.reshape(*input.shape[:-3], *output_size)
     return output
 
@@ -136,7 +142,11 @@ def zoom(
         if isinstance(resize_rate, (float, int)):
             resize_rate = (resize_rate,) * 3
 
-        output_size = (round(nx * resize_rate[0]), round(ny * resize_rate[1]), round(nz * resize_rate[2]))
+        output_size = (
+            round(nx * resize_rate[0]),
+            round(ny * resize_rate[1]),
+            round(nz * resize_rate[2]),
+        )
 
     assert isinstance(output_size, tuple)
 

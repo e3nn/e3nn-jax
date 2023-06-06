@@ -9,7 +9,9 @@ from e3nn_jax._src.irreps import IntoIrreps
 from e3nn_jax._src.irreps_array import _infer_backend, _standardize_axis
 
 
-def _align_two_irreps_arrays(input1: e3nn.IrrepsArray, input2: e3nn.IrrepsArray) -> Tuple[e3nn.IrrepsArray, e3nn.IrrepsArray]:
+def _align_two_irreps_arrays(
+    input1: e3nn.IrrepsArray, input2: e3nn.IrrepsArray
+) -> Tuple[e3nn.IrrepsArray, e3nn.IrrepsArray]:
     assert input1.irreps.num_irreps == input2.irreps.num_irreps
 
     irreps_in1 = list(input1.irreps)
@@ -38,7 +40,10 @@ def _align_two_irreps_arrays(input1: e3nn.IrrepsArray, input2: e3nn.IrrepsArray)
 
 
 def _reduce(
-    op, array: e3nn.IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None, keepdims: bool = False
+    op,
+    array: e3nn.IrrepsArray,
+    axis: Union[None, int, Tuple[int, ...]] = None,
+    keepdims: bool = False,
 ) -> e3nn.IrrepsArray:
     axis = _standardize_axis(axis, array.ndim)
 
@@ -50,7 +55,10 @@ def _reduce(
         return e3nn.IrrepsArray(
             array.irreps,
             op(array.array, axis=axis, keepdims=keepdims),
-            [None if x is None else op(x, axis=axis, keepdims=keepdims) for x in array.list],
+            [
+                None if x is None else op(x, axis=axis, keepdims=keepdims)
+                for x in array.list
+            ],
         )
 
     array = _reduce(op, array, axis=axis[:-1], keepdims=keepdims)
@@ -62,7 +70,11 @@ def _reduce(
     )
 
 
-def mean(array: e3nn.IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None, keepdims: bool = False) -> e3nn.IrrepsArray:
+def mean(
+    array: e3nn.IrrepsArray,
+    axis: Union[None, int, Tuple[int, ...]] = None,
+    keepdims: bool = False,
+) -> e3nn.IrrepsArray:
     """Mean of IrrepsArray along the specified axis.
 
     Args:
@@ -87,7 +99,11 @@ def mean(array: e3nn.IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None
     return _reduce(jnp.mean, array, axis, keepdims)
 
 
-def sum_(array: e3nn.IrrepsArray, axis: Union[None, int, Tuple[int, ...]] = None, keepdims: bool = False) -> e3nn.IrrepsArray:
+def sum_(
+    array: e3nn.IrrepsArray,
+    axis: Union[None, int, Tuple[int, ...]] = None,
+    keepdims: bool = False,
+) -> e3nn.IrrepsArray:
     """Sum of IrrepsArray along the specified axis.
 
     Args:
@@ -157,7 +173,9 @@ def concatenate(arrays: List[e3nn.IrrepsArray], axis: int = -1) -> e3nn.IrrepsAr
     if {x.irreps for x in arrays} != {arrays[0].irreps}:
         raise ValueError("Irreps must be the same for all arrays")
 
-    arrays = [x.replace_none_with_zeros() for x in arrays]  # TODO this could be optimized
+    arrays = [
+        x.replace_none_with_zeros() for x in arrays
+    ]  # TODO this could be optimized
     return e3nn.IrrepsArray(
         irreps=arrays[0].irreps,
         array=jnp.concatenate([x.array for x in arrays], axis=axis),
@@ -209,7 +227,9 @@ def stack(arrays: List[e3nn.IrrepsArray], axis=0) -> e3nn.IrrepsArray:
     if {x.irreps for x in arrays} != {arrays[0].irreps}:
         raise ValueError("Irreps must be the same for all arrays")
 
-    arrays = [x.replace_none_with_zeros() for x in arrays]  # TODO this could be optimized
+    arrays = [
+        x.replace_none_with_zeros() for x in arrays
+    ]  # TODO this could be optimized
     return e3nn.IrrepsArray(
         irreps=arrays[0].irreps,
         array=jnp.stack([x.array for x in arrays], axis=axis),
@@ -217,7 +237,9 @@ def stack(arrays: List[e3nn.IrrepsArray], axis=0) -> e3nn.IrrepsArray:
     )
 
 
-def norm(array: e3nn.IrrepsArray, *, squared: bool = False, per_irrep: bool = True) -> e3nn.IrrepsArray:
+def norm(
+    array: e3nn.IrrepsArray, *, squared: bool = False, per_irrep: bool = True
+) -> e3nn.IrrepsArray:
     """Norm of IrrepsArray.
 
     Args:
@@ -263,7 +285,9 @@ def norm(array: e3nn.IrrepsArray, *, squared: bool = False, per_irrep: bool = Tr
         return e3nn.IrrepsArray("0e", f(array.array))
 
 
-def dot(a: e3nn.IrrepsArray, b: e3nn.IrrepsArray, per_irrep: bool = False) -> e3nn.IrrepsArray:
+def dot(
+    a: e3nn.IrrepsArray, b: e3nn.IrrepsArray, per_irrep: bool = False
+) -> e3nn.IrrepsArray:
     """Dot product of two IrrepsArray.
 
     Args:
@@ -289,7 +313,9 @@ def dot(a: e3nn.IrrepsArray, b: e3nn.IrrepsArray, per_irrep: bool = False) -> e3
     b = b.simplify()
 
     if a.irreps != b.irreps:
-        raise ValueError("Dot product is only defined for IrrepsArray with the same irreps.")
+        raise ValueError(
+            "Dot product is only defined for IrrepsArray with the same irreps."
+        )
 
     if per_irrep:
         out = []
@@ -341,7 +367,9 @@ def cross(a: e3nn.IrrepsArray, b: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
     if any(ir.l != 1 for _, ir in b.irreps):
         raise ValueError(f"Cross product is only defined for vectors. Got {b.irreps}.")
     if a.irreps.num_irreps != b.irreps.num_irreps:
-        raise ValueError("Cross product is only defined for inputs with the same number of vectors.")
+        raise ValueError(
+            "Cross product is only defined for inputs with the same number of vectors."
+        )
 
     a, b = _align_two_irreps_arrays(a, b)
     shape = jnp.broadcast_shapes(a.shape[:-1], b.shape[:-1])
@@ -350,7 +378,9 @@ def cross(a: e3nn.IrrepsArray, b: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
     out = []
     dtype = a.dtype
 
-    for ((mul, irx), x), ((_, iry), y) in zip(zip(a.irreps, a.list), zip(b.irreps, b.list)):
+    for ((mul, irx), x), ((_, iry), y) in zip(
+        zip(a.irreps, a.list), zip(b.irreps, b.list)
+    ):
         irreps_out.append((mul, (1, irx.p * iry.p)))
         if x is None or y is None:
             out.append(None)
@@ -419,7 +449,9 @@ def normal(
         normalization = e3nn.config("irrep_normalization")
 
     if key is None:
-        warnings.warn("e3nn.normal: the key (random seed) is not provided, use the hash of the irreps as key!")
+        warnings.warn(
+            "e3nn.normal: the key (random seed) is not provided, use the hash of the irreps as key!"
+        )
         key = jax.random.PRNGKey(hash(irreps))
 
     if normalize:
@@ -432,7 +464,10 @@ def normal(
         return e3nn.IrrepsArray.from_list(irreps, list, leading_shape, dtype)
     else:
         if normalization == "component":
-            return e3nn.IrrepsArray(irreps, jax.random.normal(key, leading_shape + (irreps.dim,), dtype=dtype))
+            return e3nn.IrrepsArray(
+                irreps,
+                jax.random.normal(key, leading_shape + (irreps.dim,), dtype=dtype),
+            )
         elif normalization == "norm":
             list = []
             for mul, ir in irreps:

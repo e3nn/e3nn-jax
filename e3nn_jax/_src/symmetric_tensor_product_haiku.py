@@ -38,7 +38,9 @@ class SymmetricTensorProduct(hk.Module):
         self,
         orders: Tuple[int, ...],
         keep_irrep_out: Optional[Set[e3nn.Irrep]] = None,
-        get_parameter: Optional[Callable[[str, Tuple[int, ...], Any], jnp.ndarray]] = None,
+        get_parameter: Optional[
+            Callable[[str, Tuple[int, ...], Any], jnp.ndarray]
+        ] = None,
     ):
         super().__init__()
 
@@ -57,7 +59,9 @@ class SymmetricTensorProduct(hk.Module):
         self.keep_irrep_out = keep_irrep_out
 
         if get_parameter is None:
-            get_parameter = lambda name, shape, dtype: hk.get_parameter(name, shape, dtype, hk.initializers.RandomNormal())
+            get_parameter = lambda name, shape, dtype: hk.get_parameter(
+                name, shape, dtype, hk.initializers.RandomNormal()
+            )
 
         self.get_parameter = get_parameter
 
@@ -80,7 +84,9 @@ class SymmetricTensorProduct(hk.Module):
             out = dict()
 
             for order in range(max(self.orders), 0, -1):  # max(orders), ..., 1
-                U = e3nn.reduced_symmetric_tensor_product_basis(x.irreps, order, keep_ir=self.keep_irrep_out)
+                U = e3nn.reduced_symmetric_tensor_product_basis(
+                    x.irreps, order, keep_ir=self.keep_irrep_out
+                )
 
                 # ((w3 x + w2) x + w1) x
                 #  \-----------/
@@ -89,7 +95,9 @@ class SymmetricTensorProduct(hk.Module):
                 if order in self.orders:
                     for (mul, ir_out), u in zip(U.irreps, U.list):
                         # u: ndarray [(irreps_x.dim)^order, multiplicity, ir_out.dim]
-                        u = u / u.shape[-2]  # normalize both U and the contraction with w
+                        u = (
+                            u / u.shape[-2]
+                        )  # normalize both U and the contraction with w
 
                         w = self.get_parameter(  # parameters initialized with a normal distribution (variance 1)
                             f"w{order}_{ir_out}",
@@ -127,7 +135,10 @@ class SymmetricTensorProduct(hk.Module):
             # out[irrep_out] : [num_channel, ir_out.dim]
             irreps_out = e3nn.Irreps(sorted(out.keys()))
             return e3nn.IrrepsArray.from_list(
-                irreps_out, [out[ir][:, None, :] for (_, ir) in irreps_out], (x.shape[0],), x.dtype
+                irreps_out,
+                [out[ir][:, None, :] for (_, ir) in irreps_out],
+                (x.shape[0],),
+                x.dtype,
             )
 
         # Treat batch indices using vmap

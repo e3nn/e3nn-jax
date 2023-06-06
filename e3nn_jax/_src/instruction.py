@@ -32,7 +32,9 @@ class Instruction:
             "uvu<v",
             "u<vw",
         ]:
-            raise ValueError(f"Unsupported connection_mode {self.connection_mode} for instruction.")
+            raise ValueError(
+                f"Unsupported connection_mode {self.connection_mode} for instruction."
+            )
 
         path_shape = {
             "uvw": (
@@ -45,9 +47,15 @@ class Instruction:
             "uuw": (self.first_input_multiplicity, self.output_multiplicity),
             "uuu": (self.first_input_multiplicity,),
             "uvuv": (self.first_input_multiplicity, self.second_input_multiplicity),
-            "uvu<v": (self.first_input_multiplicity * (self.second_input_multiplicity - 1) // 2,),
+            "uvu<v": (
+                self.first_input_multiplicity
+                * (self.second_input_multiplicity - 1)
+                // 2,
+            ),
             "u<vw": (
-                self.first_input_multiplicity * (self.second_input_multiplicity - 1) // 2,
+                self.first_input_multiplicity
+                * (self.second_input_multiplicity - 1)
+                // 2,
                 self.output_multiplicity,
             ),
         }[self.connection_mode]
@@ -61,7 +69,9 @@ class Instruction:
             "uuu": 1,
             "uvuv": 1,
             "uvu<v": 1,
-            "u<vw": self.first_input_multiplicity * (self.second_input_multiplicity - 1) // 2,
+            "u<vw": self.first_input_multiplicity
+            * (self.second_input_multiplicity - 1)
+            // 2,
         }[self.connection_mode]
         super().__setattr__("num_elements", num_elements)
 

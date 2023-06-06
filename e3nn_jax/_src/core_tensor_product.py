@@ -99,7 +99,9 @@ class FunctionalTensorProduct:
         if gradient_normalization is None:
             gradient_normalization = config("gradient_normalization")
         if isinstance(gradient_normalization, str):
-            gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
+            gradient_normalization = {"element": 0.0, "path": 1.0}[
+                gradient_normalization
+            ]
 
         self.instructions = _normalize_instruction_path_weights(
             instructions,
@@ -120,7 +122,9 @@ class FunctionalTensorProduct:
                     [
                         jnp.ones(mul_ir.dim, dtype=bool)
                         if any(
-                            (ins.i_out == i_out) and (ins.path_weight != 0) and (0 not in ins.path_shape)
+                            (ins.i_out == i_out)
+                            and (ins.path_weight != 0)
+                            and (0 not in ins.path_shape)
                             for ins in self.instructions
                         )
                         else jnp.zeros(mul_ir.dim, dtype=bool)
@@ -247,15 +251,22 @@ def _normalize_instruction_path_weights(
     """Returns instructions with normalized path weights."""
 
     def var(instruction):
-        return first_input_variance[instruction.i_in1] * second_input_variance[instruction.i_in2] * instruction.num_elements
+        return (
+            first_input_variance[instruction.i_in1]
+            * second_input_variance[instruction.i_in2]
+            * instruction.num_elements
+        )
 
     # Precompute normalization factors.
     path_normalization_sums = collections.defaultdict(lambda: 0.0)
     for instruction in instructions:
-        path_normalization_sums[instruction.i_out] += var(instruction) ** (1.0 - path_normalization_exponent)
+        path_normalization_sums[instruction.i_out] += var(instruction) ** (
+            1.0 - path_normalization_exponent
+        )
 
     path_normalization_factors = {
-        instruction: var(instruction) ** path_normalization_exponent * path_normalization_sums[instruction.i_out]
+        instruction: var(instruction) ** path_normalization_exponent
+        * path_normalization_sums[instruction.i_out]
         for instruction in instructions
     }
 
@@ -270,7 +281,11 @@ def _normalize_instruction_path_weights(
         mul_ir_out = output_irreps[instruction.i_out]
 
         assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
-        assert abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l) <= mul_ir_out.ir.l <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
+        assert (
+            abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l)
+            <= mul_ir_out.ir.l
+            <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
+        )
 
         if irrep_normalization == "component":
             alpha = mul_ir_out.ir.dim
@@ -297,7 +312,11 @@ def _normalize_instruction_path_weights(
     return [update(instruction) for instruction in instructions]
 
 
-@partial(jax.jit, static_argnums=(0,), static_argnames=("custom_einsum_jvp", "fused", "sparse"))
+@partial(
+    jax.jit,
+    static_argnums=(0,),
+    static_argnames=("custom_einsum_jvp", "fused", "sparse"),
+)
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
     self: FunctionalTensorProduct,
@@ -317,7 +336,9 @@ def _left_right(
         return IrrepsArray.zeros(self.irreps_out, (), dtype)
 
     if sparse:
-        assert not custom_einsum_jvp, "custom_einsum_jvp does not support sparse tensors."
+        assert (
+            not custom_einsum_jvp
+        ), "custom_einsum_jvp does not support sparse tensors."
 
         def einsum(op, *args):
             f = sparsify(lambda *args: jnp.einsum(op, *args))
@@ -327,7 +348,9 @@ def _left_right(
         einsum = opt_einsum if custom_einsum_jvp else jnp.einsum
 
     if isinstance(weights, list):
-        assert len(weights) == len([ins for ins in self.instructions if ins.has_weight]), (
+        assert len(weights) == len(
+            [ins for ins in self.instructions if ins.has_weight]
+        ), (
             len(weights),
             len([ins for ins in self.instructions if ins.has_weight]),
         )
@@ -345,15 +368,25 @@ def _left_right(
         assert i == weights.size
     del weights
 
-    assert input1.ndim == 1, f"input1 is shape {input1.shape}. Execting ndim to be 1. Use jax.vmap to map over input1"
-    assert input2.ndim == 1, f"input2 is shape {input2.shape}. Execting ndim to be 1. Use jax.vmap to map over input2"
+    assert (
+        input1.ndim == 1
+    ), f"input1 is shape {input1.shape}. Execting ndim to be 1. Use jax.vmap to map over input1"
+    assert (
+        input2.ndim == 1
+    ), f"input2 is shape {input2.shape}. Execting ndim to be 1. Use jax.vmap to map over input2"
 
     if fused:
-        output = _fused_left_right(self, weights_flat, input1, input2, einsum, sparse, dtype)
+        output = _fused_left_right(
+            self, weights_flat, input1, input2, einsum, sparse, dtype
+        )
     else:
-        output = _block_left_right(self, weights_list, input1, input2, einsum, sparse, dtype)
+        output = _block_left_right(
+            self, weights_list, input1, input2, einsum, sparse, dtype
+        )
 
-    assert output.dtype == dtype, f"output.dtype {output.dtype} != dtype {dtype}, Please report this bug."
+    assert (
+        output.dtype == dtype
+    ), f"output.dtype {output.dtype} != dtype {dtype}, Please report this bug."
     return output
 
 
@@ -466,7 +499,11 @@ def _block_left_right(
 
     out = [
         _sum_tensors(
-            [out for ins, out in zip(self.instructions, out_list) if ins.i_out == i_out],
+            [
+                out
+                for ins, out in zip(self.instructions, out_list)
+                if ins.i_out == i_out
+            ],
             shape=(mul_ir_out.mul, mul_ir_out.ir.dim),
             empty_return_none=True,
             dtype=dtype,
@@ -569,13 +606,17 @@ def _fused_left_right(
             out = einsum("pijk,i,j->k", big_w3j, input1.array, input2.array)
     else:
         if has_path_with_no_weights:
-            weights_flat = jnp.concatenate([jnp.ones((1,), weights_flat.dtype), weights_flat])
+            weights_flat = jnp.concatenate(
+                [jnp.ones((1,), weights_flat.dtype), weights_flat]
+            )
 
         if sparse:
             f = sparsify(lambda w, w3j, x1, x2: einsum("p,pijk,i,j->k", w, w3j, x1, x2))
             out = f(weights_flat, big_w3j, input1.array, input2.array)
         else:
-            out = einsum("p,pijk,i,j->k", weights_flat, big_w3j, input1.array, input2.array)
+            out = einsum(
+                "p,pijk,i,j->k", weights_flat, big_w3j, input1.array, input2.array
+            )
     return IrrepsArray(self.irreps_out, out)
 
 
@@ -650,7 +691,9 @@ def _right(
                 out = einsum("uv,ijk,vj->uivk", w, w3j, x2)
             else:
                 # not so useful operation because u is summed
-                out = einsum("ijk,vj,u->uivk", w3j, x2, jnp.ones((mul_ir_in1.mul,), dtype))
+                out = einsum(
+                    "ijk,vj,u->uivk", w3j, x2, jnp.ones((mul_ir_in1.mul,), dtype)
+                )
         if ins.connection_mode == "uuw":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             if ins.has_weight:
@@ -681,7 +724,11 @@ def _right(
             jnp.concatenate(
                 [
                     _sum_tensors(
-                        [out for ins, out in zip(self.instructions, out_list) if (ins.i_in1, ins.i_out) == (i_in1, i_out)],
+                        [
+                            out
+                            for ins, out in zip(self.instructions, out_list)
+                            if (ins.i_in1, ins.i_out) == (i_in1, i_out)
+                        ],
                         shape=(mul_ir_in1.dim, mul_ir_out.dim),
                         dtype=dtype,
                     )

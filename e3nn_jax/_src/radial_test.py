@@ -25,7 +25,15 @@ def test_soft_one_hot_linspace(basis: str, start_zero: bool, end_zero: bool):
         pytest.skip()
 
     x = jnp.linspace(0.2, 0.8, 100)
-    y = e3nn.soft_one_hot_linspace(x, start=0.0, end=1.0, number=5, basis=basis, start_zero=start_zero, end_zero=end_zero)
+    y = e3nn.soft_one_hot_linspace(
+        x,
+        start=0.0,
+        end=1.0,
+        number=5,
+        basis=basis,
+        start_zero=start_zero,
+        end_zero=end_zero,
+    )
     assert y.shape == (100, 5)
 
     np.testing.assert_allclose(jnp.sum(y**2, axis=1), 1.0, atol=0.4)
@@ -33,7 +41,13 @@ def test_soft_one_hot_linspace(basis: str, start_zero: bool, end_zero: bool):
     jax.config.update("jax_enable_x64", True)
     assert_output_dtype_matches_input_dtype(
         lambda x: e3nn.soft_one_hot_linspace(
-            x, start=0.0, end=1.0, number=5, basis=basis, start_zero=start_zero, end_zero=end_zero
+            x,
+            start=0.0,
+            end=1.0,
+            number=5,
+            basis=basis,
+            start_zero=start_zero,
+            end_zero=end_zero,
         ),
         x,
     )

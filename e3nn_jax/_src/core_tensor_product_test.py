@@ -37,7 +37,11 @@ def test_modes(keys, irrep_normalization, jitted, connection_mode, custom_einsum
 
     g = tp.left_right
 
-    ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
+    ws = [
+        jax.random.normal(next(keys), ins.path_shape)
+        for ins in tp.instructions
+        if ins.has_weight
+    ]
     x1 = e3nn.normal(tp.irreps_in1, next(keys), ())
     x2 = e3nn.normal(tp.irreps_in2, next(keys), ())
 
@@ -138,7 +142,11 @@ def test_fused_mix_weight(keys):
 def test_fuse(keys):
     tp = e3nn.FunctionalFullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
 
-    ws = [jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
+    ws = [
+        jax.random.normal(next(keys), ins.path_shape)
+        for ins in tp.instructions
+        if ins.has_weight
+    ]
     wf = jnp.concatenate([w.flatten() for w in ws])
     x1 = e3nn.normal(tp.irreps_in1, next(keys), ())
     x2 = e3nn.normal(tp.irreps_in2, next(keys), ())
@@ -151,7 +159,9 @@ def test_fuse(keys):
 @pytest.mark.parametrize("gradient_normalization", ["element", "path", 0.5])
 @pytest.mark.parametrize("path_normalization", ["element", "path", 0.5])
 @pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
-def test_normalization(keys, irrep_normalization, path_normalization, gradient_normalization):
+def test_normalization(
+    keys, irrep_normalization, path_normalization, gradient_normalization
+):
     tp = e3nn.FunctionalFullyConnectedTensorProduct(
         "5x0e+1x0e+10x1e",
         "2x0e+2x1e+10x1e",
@@ -161,7 +171,11 @@ def test_normalization(keys, irrep_normalization, path_normalization, gradient_n
         gradient_normalization=gradient_normalization,
     )
 
-    ws = [ins.weight_std * jax.random.normal(next(keys), ins.path_shape) for ins in tp.instructions if ins.has_weight]
+    ws = [
+        ins.weight_std * jax.random.normal(next(keys), ins.path_shape)
+        for ins in tp.instructions
+        if ins.has_weight
+    ]
     x1 = e3nn.normal(tp.irreps_in1, next(keys), (), normalization=irrep_normalization)
     x2 = e3nn.normal(tp.irreps_in2, next(keys), (), normalization=irrep_normalization)
 

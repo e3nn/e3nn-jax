@@ -42,7 +42,9 @@ def radius_graph(
     if isinstance(pos, e3nn.IrrepsArray):
         pos = pos.array
 
-    r = jax.vmap(jax.vmap(lambda x, y: jnp.linalg.norm(x - y), (None, 0), 0), (0, None), 0)(pos, pos)
+    r = jax.vmap(
+        jax.vmap(lambda x, y: jnp.linalg.norm(x - y), (None, 0), 0), (0, None), 0
+    )(pos, pos)
     if loop:
         mask = r < r_max
     else:

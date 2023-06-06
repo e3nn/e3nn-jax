@@ -46,16 +46,22 @@ def grad(
 
         def naked_fun(*args, **kwargs) -> List[jnp.ndarray]:
             args = list(args)
-            args[argnums] = e3nn.IrrepsArray.from_list(irreps_in, args[argnums], leading_shape_in, x.dtype)
+            args[argnums] = e3nn.IrrepsArray.from_list(
+                irreps_in, args[argnums], leading_shape_in, x.dtype
+            )
             if has_aux:
                 y, aux = fun(*args, **kwargs)
                 if not isinstance(y, e3nn.IrrepsArray):
-                    raise TypeError(f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}.")
+                    raise TypeError(
+                        f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}."
+                    )
                 return y.list, (y.irreps, y.shape[:-1], aux)
             else:
                 y = fun(*args, **kwargs)
                 if not isinstance(y, e3nn.IrrepsArray):
-                    raise TypeError(f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}.")
+                    raise TypeError(
+                        f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}."
+                    )
                 return y.list, (y.irreps, y.shape[:-1])
 
         output = jax.jacobian(
@@ -74,20 +80,39 @@ def grad(
         for mir_out, y_list in zip(irreps_out, jac):
             for mir_in, z in zip(irreps_in, y_list):
                 assert z.shape == (
-                    leading_shape_out + (mir_out.mul, mir_out.ir.dim) + leading_shape_in + (mir_in.mul, mir_in.ir.dim)
+                    leading_shape_out
+                    + (mir_out.mul, mir_out.ir.dim)
+                    + leading_shape_in
+                    + (mir_in.mul, mir_in.ir.dim)
                 )
                 z = jnp.reshape(
                     z,
-                    (prod(leading_shape_out), mir_out.mul, mir_out.ir.dim, prod(leading_shape_in), mir_in.mul, mir_in.ir.dim),
+                    (
+                        prod(leading_shape_out),
+                        mir_out.mul,
+                        mir_out.ir.dim,
+                        prod(leading_shape_in),
+                        mir_in.mul,
+                        mir_in.ir.dim,
+                    ),
                 )
                 for ir in mir_out.ir * mir_in.ir:
                     irreps.append((mir_out.mul * mir_in.mul, ir))
                     lst.append(
                         jnp.einsum(
-                            "auibvj,ijk->abuvk", z, jnp.sqrt(ir.dim) * e3nn.clebsch_gordan(mir_out.ir.l, mir_in.ir.l, ir.l)
-                        ).reshape(leading_shape_out + leading_shape_in + (mir_out.mul * mir_in.mul, ir.dim))
+                            "auibvj,ijk->abuvk",
+                            z,
+                            jnp.sqrt(ir.dim)
+                            * e3nn.clebsch_gordan(mir_out.ir.l, mir_in.ir.l, ir.l),
+                        ).reshape(
+                            leading_shape_out
+                            + leading_shape_in
+                            + (mir_out.mul * mir_in.mul, ir.dim)
+                        )
                     )
-        output = e3nn.IrrepsArray.from_list(irreps, lst, leading_shape_out + leading_shape_in, x.dtype)
+        output = e3nn.IrrepsArray.from_list(
+            irreps, lst, leading_shape_out + leading_shape_in, x.dtype
+        )
         if regroup_output:
             output = output.regroup()
         if has_aux:

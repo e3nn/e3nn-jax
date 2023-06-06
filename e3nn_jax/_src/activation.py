@@ -125,7 +125,10 @@ def scalar_activation(
     assert isinstance(input, e3nn.IrrepsArray)
 
     if acts is None:
-        acts = [{1: even_act, -1: odd_act}[ir.p] if ir.l == 0 else None for _, ir in input.irreps]
+        acts = [
+            {1: even_act, -1: odd_act}[ir.p] if ir.l == 0 else None
+            for _, ir in input.irreps
+        ]
 
     assert len(input.irreps) == len(acts), (input.irreps, acts)
 
@@ -227,7 +230,9 @@ def key_value_activation(phi, key, value):
     assert value.ndim == 1
 
     d = value.shape[0]
-    key = key / jnp.sqrt(1 / 16 + jnp.sum(key**2))  # 1/16 is arbitrary small... but not too small...
+    key = key / jnp.sqrt(
+        1 / 16 + jnp.sum(key**2)
+    )  # 1/16 is arbitrary small... but not too small...
     scalar = jnp.sum(key * value)
     scalar = normalize_function(phi)(scalar)
     return d**0.5 * scalar * key  # component normalized

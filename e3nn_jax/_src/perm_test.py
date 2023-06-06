@@ -39,9 +39,13 @@ def test_rand(n):
 
 def test_not_group():
     assert not perm.is_group(set())  # empty
-    assert not perm.is_group({(1, 0, 2), (0, 2, 1), (1, 2, 0), (2, 0, 1), (2, 1, 0)})  # missing neutral
+    assert not perm.is_group(
+        {(1, 0, 2), (0, 2, 1), (1, 2, 0), (2, 0, 1), (2, 1, 0)}
+    )  # missing neutral
     assert not perm.is_group({(0, 1, 2), (1, 2, 0)})  # missing inverse
-    assert not perm.is_group({(0, 1, 2, 3), (3, 0, 1, 2), (1, 2, 3, 0)})  # g1 . g2 not in G
+    assert not perm.is_group(
+        {(0, 1, 2, 3), (3, 0, 1, 2), (1, 2, 3, 0)}
+    )  # g1 . g2 not in G
 
 
 def test_to_cycles():

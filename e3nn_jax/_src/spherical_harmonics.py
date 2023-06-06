@@ -34,7 +34,9 @@ def sh(
         `jax.numpy.ndarray`: polynomials of the spherical harmonics
     """
     input = IrrepsArray("1e", input)
-    return spherical_harmonics(irreps_out, input, normalize, normalization, algorithm=algorithm).array
+    return spherical_harmonics(
+        irreps_out, input, normalize, normalization, algorithm=algorithm
+    ).array
 
 
 def _check_is_vector(irreps: Irreps):
@@ -110,13 +112,17 @@ def spherical_harmonics(
         if isinstance(irreps_out, int):
             l = irreps_out
             if not isinstance(input, IrrepsArray):
-                raise ValueError("If irreps_out is an int, input must be an IrrepsArray.")
+                raise ValueError(
+                    "If irreps_out is an int, input must be an IrrepsArray."
+                )
             vec_p = _check_is_vector(input.irreps)
             irreps_out = Irreps([(1, (l, vec_p**l))])
 
         if all(isinstance(l, int) for l in irreps_out):
             if not isinstance(input, IrrepsArray):
-                raise ValueError("If irreps_out is a list of int, input must be an IrrepsArray.")
+                raise ValueError(
+                    "If irreps_out is a list of int, input must be an IrrepsArray."
+                )
             vec_p = _check_is_vector(input.irreps)
             irreps_out = Irreps([(1, (l, vec_p**l)) for l in irreps_out])
 
@@ -128,7 +134,9 @@ def spherical_harmonics(
     if isinstance(input, IrrepsArray):
         vec_p = _check_is_vector(input.irreps)
         if not all([vec_p == p for _, (l, p) in irreps_out if l % 2 == 1]):
-            raise ValueError(f"Input ({input.irreps}) and output ({irreps_out}) must have a compatible parity.")
+            raise ValueError(
+                f"Input ({input.irreps}) and output ({irreps_out}) must have a compatible parity."
+            )
 
         x = input.array
     else:
@@ -147,7 +155,10 @@ def spherical_harmonics(
         else:
             algorithm = config("spherical_harmonics_algorithm")
 
-    assert all(keyword in ["legendre", "recursive", "dense", "sparse", "custom_jvp"] for keyword in algorithm)
+    assert all(
+        keyword in ["legendre", "recursive", "dense", "sparse", "custom_jvp"]
+        for keyword in algorithm
+    )
 
     assert x.shape[-1] == 3
     if normalize:
@@ -155,8 +166,13 @@ def spherical_harmonics(
         r2 = jnp.where(r2 == 0.0, 1.0, r2)
         x = x / jnp.sqrt(r2)
 
-    sh = _jited_spherical_harmonics(tuple(ir.l for _, ir in irreps_out), x, normalization, algorithm)
-    sh = [jnp.repeat(y[..., None, :], mul, -2) if mul != 1 else y[..., None, :] for (mul, ir), y in zip(irreps_out, sh)]
+    sh = _jited_spherical_harmonics(
+        tuple(ir.l for _, ir in irreps_out), x, normalization, algorithm
+    )
+    sh = [
+        jnp.repeat(y[..., None, :], mul, -2) if mul != 1 else y[..., None, :]
+        for (mul, ir), y in zip(irreps_out, sh)
+    ]
     return IrrepsArray.from_list(irreps_out, sh, x.shape[:-1], x.dtype)
 
 
@@ -170,7 +186,9 @@ def _jited_spherical_harmonics(
         return _spherical_harmonics(ls, x, normalization, algorithm)
 
 
-def _spherical_harmonics(ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]) -> List[jnp.ndarray]:
+def _spherical_harmonics(
+    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
+) -> List[jnp.ndarray]:
     if "legendre" in algorithm:
         out = _legendre_spherical_harmonics(max(ls), x, False, normalization)
         return [out[..., l**2 : (l + 1) ** 2] for l in ls]
@@ -191,7 +209,11 @@ def _custom_jvp_spherical_harmonics(
 
 @_custom_jvp_spherical_harmonics.defjvp
 def _jvp(
-    ls: Tuple[int, ...], normalization: str, algorithm: Tuple[str], primals: Tuple[jnp.ndarray], tangents: Tuple[jnp.ndarray]
+    ls: Tuple[int, ...],
+    normalization: str,
+    algorithm: Tuple[str],
+    primals: Tuple[jnp.ndarray],
+    tangents: Tuple[jnp.ndarray],
 ) -> List[jnp.ndarray]:
     (x,) = primals
     (x_dot,) = tangents
@@ -214,7 +236,12 @@ def _jvp(
             return jnp.stack(
                 [
                     sum(
-                        [w[i, j, k] * r[..., i] * x_dot[..., k] for i in range(2 * l - 1) for k in range(3) if w[i, j, k] != 0]
+                        [
+                            w[i, j, k] * r[..., i] * x_dot[..., k]
+                            for i in range(2 * l - 1)
+                            for k in range(3)
+                            if w[i, j, k] != 0
+                        ]
                     )
                     for j in range(2 * l + 1)
                 ],
@@ -227,14 +254,20 @@ def _jvp(
 
 
 def _recursive_spherical_harmonics(
-    l: int, context: Dict[int, jnp.ndarray], input: jnp.ndarray, normalization: str, algorithm: Tuple[str]
+    l: int,
+    context: Dict[int, jnp.ndarray],
+    input: jnp.ndarray,
+    normalization: str,
+    algorithm: Tuple[str],
 ) -> sympy.Array:
     context.update(dict(jnp=jnp, clebsch_gordan=clebsch_gordan))
 
     if l == 0:
         if 0 not in context:
             if normalization == "integral":
-                context[0] = math.sqrt(1 / (4 * math.pi)) * jnp.ones_like(input[..., :1])
+                context[0] = math.sqrt(1 / (4 * math.pi)) * jnp.ones_like(
+                    input[..., :1]
+                )
             elif normalization == "component":
                 context[0] = jnp.ones_like(input[..., :1])
             else:
@@ -262,13 +295,21 @@ def _recursive_spherical_harmonics(
     w = sqrtQarray_to_sympy(clebsch_gordan(l1, l2, l))
     yx = sympy.Array(
         [
-            sum(sh_var(l1)[i] * sh_var(l2)[j] * w[i, j, k] for i in range(2 * l1 + 1) for j in range(2 * l2 + 1))
+            sum(
+                sh_var(l1)[i] * sh_var(l2)[j] * w[i, j, k]
+                for i in range(2 * l1 + 1)
+                for j in range(2 * l2 + 1)
+            )
             for k in range(2 * l + 1)
         ]
     )
 
-    sph_1_l1 = _recursive_spherical_harmonics(l1, context, input, normalization, algorithm)
-    sph_1_l2 = _recursive_spherical_harmonics(l2, context, input, normalization, algorithm)
+    sph_1_l1 = _recursive_spherical_harmonics(
+        l1, context, input, normalization, algorithm
+    )
+    sph_1_l2 = _recursive_spherical_harmonics(
+        l2, context, input, normalization, algorithm
+    )
 
     y1 = yx.subs(zip(sh_var(l1), sph_1_l1)).subs(zip(sh_var(l2), sph_1_l2))
     norm = sympy.sqrt(sum(y1.applyfunc(lambda x: x**2)))
@@ -277,7 +318,8 @@ def _recursive_spherical_harmonics(
     if l not in context:
         if normalization == "integral":
             x = math.sqrt((2 * l + 1) / (4 * math.pi)) / (
-                math.sqrt((2 * l1 + 1) / (4 * math.pi)) * math.sqrt((2 * l2 + 1) / (4 * math.pi))
+                math.sqrt((2 * l1 + 1) / (4 * math.pi))
+                * math.sqrt((2 * l2 + 1) / (4 * math.pi))
             )
         elif normalization == "component":
             x = math.sqrt((2 * l + 1) / ((2 * l1 + 1) * (2 * l2 + 1)))
@@ -362,7 +404,9 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
     p = jax.lax.fori_loop(
         2,
         lmax + 1,
-        lambda l, p: p.at[k(l, 0)].set(f1(l, 0) * x * p[k(l - 1, 0)] - f2(l, 0) * p[k(l - 2, 0)]),
+        lambda l, p: p.at[k(l, 0)].set(
+            f1(l, 0) * x * p[k(l - 1, 0)] - f2(l, 0) * p[k(l - 2, 0)]
+        ),
         p,
     )
 
@@ -380,7 +424,9 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
 
         # Calculate P(l,m)
         def f(l, p):
-            p = p.at[k(l, m)].set(f1(l, m) * x * p[k(l - 1, m)] - f2(l, m) * p[k(l - 2, m)])
+            p = p.at[k(l, m)].set(
+                f1(l, m) * x * p[k(l - 1, m)] - f2(l, m) * p[k(l - 2, m)]
+            )
             p = p.at[k(l - 2, m)].multiply(rescalem)
             return p
 
@@ -444,7 +490,12 @@ def _sh_beta(lmax: int, cos_betas: jnp.ndarray) -> jnp.ndarray:
 
     sh_y = sh_y * np.array(
         [
-            math.sqrt(fractions.Fraction((2 * l + 1) * math.factorial(l - m), 4 * math.factorial(l + m)) / math.pi)
+            math.sqrt(
+                fractions.Fraction(
+                    (2 * l + 1) * math.factorial(l - m), 4 * math.factorial(l + m)
+                )
+                / math.pi
+            )
             for l in range(lmax + 1)
             for m in range(l + 1)
         ],
@@ -453,7 +504,9 @@ def _sh_beta(lmax: int, cos_betas: jnp.ndarray) -> jnp.ndarray:
     return sh_y
 
 
-def _legendre_spherical_harmonics(lmax: int, x: jnp.ndarray, normalize: bool, normalization: str) -> jnp.ndarray:
+def _legendre_spherical_harmonics(
+    lmax: int, x: jnp.ndarray, normalize: bool, normalization: str
+) -> jnp.ndarray:
     alpha = jnp.arctan2(x[..., 0], x[..., 2])
     sh_alpha = _sh_alpha(lmax, alpha)  # [..., 2 * l + 1]
 

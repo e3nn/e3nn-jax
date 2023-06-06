@@ -35,7 +35,9 @@ class LinearSHTP(flax.linen.Module):
     mix: bool = True
 
     @flax.linen.compact
-    def __call__(self, input: e3nn.IrrepsArray, direction: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+    def __call__(
+        self, input: e3nn.IrrepsArray, direction: e3nn.IrrepsArray
+    ) -> e3nn.IrrepsArray:
         assert input.shape == (input.irreps.dim,)
         assert direction.shape == (3,)
 
@@ -49,8 +51,12 @@ class LinearSHTP(flax.linen.Module):
         gimbal_lock = jnp.abs(direction.array[1]) > 0.99
 
         def fix_gimbal_lock(array, inverse):
-            array_rot = array.transform_by_angles(0.0, jnp.pi / 2.0, 0.0, inverse=inverse)
-            return jax.tree_util.tree_map(lambda x_rot, x: jnp.where(gimbal_lock, x_rot, x), array_rot, array)
+            array_rot = array.transform_by_angles(
+                0.0, jnp.pi / 2.0, 0.0, inverse=inverse
+            )
+            return jax.tree_util.tree_map(
+                lambda x_rot, x: jnp.where(gimbal_lock, x_rot, x), array_rot, array
+            )
 
         input = fix_gimbal_lock(input, inverse=True)
         direction = fix_gimbal_lock(direction, inverse=True)
@@ -138,7 +144,9 @@ class LinearSHTP(flax.linen.Module):
                         outputs.append(z)
 
             if self.mix:
-                z = sum_tensors(zs, (mulz, irz.dim), empty_return_none=True, dtype=x.dtype)
+                z = sum_tensors(
+                    zs, (mulz, irz.dim), empty_return_none=True, dtype=x.dtype
+                )
                 if z is not None:
                     z = z / jnp.sqrt(dim)
                 irreps_out_.append((z.shape[0], irz))
@@ -156,7 +164,11 @@ class LinearSHTP(flax.linen.Module):
         return out
 
 
-def shtp(input: e3nn.IrrepsArray, direction: e3nn.IrrepsArray, filter_irreps_out: Sequence[e3nn.Irrep]) -> e3nn.IrrepsArray:
+def shtp(
+    input: e3nn.IrrepsArray,
+    direction: e3nn.IrrepsArray,
+    filter_irreps_out: Sequence[e3nn.Irrep],
+) -> e3nn.IrrepsArray:
     assert input.shape == (input.irreps.dim,)
     assert direction.shape == (3,)
 
@@ -171,7 +183,9 @@ def shtp(input: e3nn.IrrepsArray, direction: e3nn.IrrepsArray, filter_irreps_out
 
     def fix_gimbal_lock(array, inverse):
         array_rot = array.transform_by_angles(0.0, jnp.pi / 2.0, 0.0, inverse=inverse)
-        return jax.tree_util.tree_map(lambda x_rot, x: jnp.where(gimbal_lock, x_rot, x), array_rot, array)
+        return jax.tree_util.tree_map(
+            lambda x_rot, x: jnp.where(gimbal_lock, x_rot, x), array_rot, array
+        )
 
     input = fix_gimbal_lock(input, inverse=True)
     direction = fix_gimbal_lock(direction, inverse=True)
@@ -204,8 +218,12 @@ def shtp(input: e3nn.IrrepsArray, direction: e3nn.IrrepsArray, filter_irreps_out
             ly = (irx.l + irz.l) % 2
             if ird.p**ly == py:
                 zeros = jnp.zeros_like(x, shape=(mulx, l + 1, irz.dim))
-                z = zeros.at[:, jnp.arange(l + 1), jnp.arange(irz.l, irz.l + l + 1)].set(x[:, l:])
-                z = z.at[:, jnp.arange(l, 0, -1), jnp.arange(irz.l - l, irz.l)].set(x[:, :l])
+                z = zeros.at[
+                    :, jnp.arange(l + 1), jnp.arange(irz.l, irz.l + l + 1)
+                ].set(x[:, l:])
+                z = z.at[:, jnp.arange(l, 0, -1), jnp.arange(irz.l - l, irz.l)].set(
+                    x[:, :l]
+                )
                 z = jnp.reshape(z, (mulx * (l + 1), irz.dim))
 
                 irreps_out.append((z.shape[0], irz))
@@ -215,8 +233,12 @@ def shtp(input: e3nn.IrrepsArray, direction: e3nn.IrrepsArray, filter_irreps_out
             ly = (irx.l + irz.l + 1) % 2
             if ird.p**ly == py and l > 0:
                 zeros = jnp.zeros_like(x, shape=(mulx, l, irz.dim))
-                z = zeros.at[:, jnp.arange(l), jnp.arange(irz.l - 1, irz.l - l - 1, -1)].set(x[:, l + 1 :])
-                z = z.at[:, jnp.arange(l), jnp.arange(irz.l + 1, irz.l + l + 1)].set(-x[:, :l][:, ::-1])
+                z = zeros.at[
+                    :, jnp.arange(l), jnp.arange(irz.l - 1, irz.l - l - 1, -1)
+                ].set(x[:, l + 1 :])
+                z = z.at[:, jnp.arange(l), jnp.arange(irz.l + 1, irz.l + l + 1)].set(
+                    -x[:, :l][:, ::-1]
+                )
                 z = jnp.reshape(z, (mulx * l, irz.dim))
 
                 irreps_out.append((z.shape[0], irz))

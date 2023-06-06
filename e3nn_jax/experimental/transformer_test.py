@@ -14,7 +14,14 @@ def test_transformer(keys):
         edge_weight_cutoff = e3nn.sus(3.0 * (2.0 - edge_distance))
         edge_attr = e3nn.concatenate(
             [
-                e3nn.soft_one_hot_linspace(edge_distance, start=0.0, end=2.0, number=5, basis="smooth_finite", cutoff=True),
+                e3nn.soft_one_hot_linspace(
+                    edge_distance,
+                    start=0.0,
+                    end=2.0,
+                    number=5,
+                    basis="smooth_finite",
+                    cutoff=True,
+                ),
                 e3nn.spherical_harmonics("1e + 2e", pos[dst] - pos[src], True),
             ]
         )
@@ -43,5 +50,8 @@ def test_transformer(keys):
     apply(w, pos, src, dst, node_feat)
 
     assert_equivariant(
-        lambda pos, node_feat: apply(w, pos, src, dst, node_feat), jax.random.PRNGKey(0), args_in=[pos, node_feat], atol=1e-4
+        lambda pos, node_feat: apply(w, pos, src, dst, node_feat),
+        jax.random.PRNGKey(0),
+        args_in=[pos, node_feat],
+        atol=1e-4,
     )

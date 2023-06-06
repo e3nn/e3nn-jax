@@ -7,11 +7,23 @@ from e3nn_jax import Irrep, angles_to_matrix, clebsch_gordan, generators, rand_a
 
 
 def test_clebsch_gordan_symmetry():
-    assert jnp.allclose(clebsch_gordan(1, 2, 3), jnp.swapaxes(clebsch_gordan(1, 3, 2), 1, 2))
-    assert jnp.allclose(clebsch_gordan(1, 2, 3), jnp.swapaxes(clebsch_gordan(2, 1, 3), 0, 1))
-    assert jnp.allclose(clebsch_gordan(1, 2, 3), jnp.swapaxes(clebsch_gordan(3, 2, 1), 0, 2))
-    assert jnp.allclose(clebsch_gordan(1, 2, 3), jnp.swapaxes(jnp.swapaxes(clebsch_gordan(3, 1, 2), 0, 1), 1, 2))
-    assert jnp.allclose(clebsch_gordan(1, 2, 3), jnp.swapaxes(jnp.swapaxes(clebsch_gordan(2, 3, 1), 0, 2), 1, 2))
+    assert jnp.allclose(
+        clebsch_gordan(1, 2, 3), jnp.swapaxes(clebsch_gordan(1, 3, 2), 1, 2)
+    )
+    assert jnp.allclose(
+        clebsch_gordan(1, 2, 3), jnp.swapaxes(clebsch_gordan(2, 1, 3), 0, 1)
+    )
+    assert jnp.allclose(
+        clebsch_gordan(1, 2, 3), jnp.swapaxes(clebsch_gordan(3, 2, 1), 0, 2)
+    )
+    assert jnp.allclose(
+        clebsch_gordan(1, 2, 3),
+        jnp.swapaxes(jnp.swapaxes(clebsch_gordan(3, 1, 2), 0, 1), 1, 2),
+    )
+    assert jnp.allclose(
+        clebsch_gordan(1, 2, 3),
+        jnp.swapaxes(jnp.swapaxes(clebsch_gordan(2, 3, 1), 0, 2), 1, 2),
+    )
 
 
 def unique_triplets(lmax):

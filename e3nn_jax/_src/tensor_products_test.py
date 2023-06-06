@@ -60,7 +60,9 @@ def test_tensor_square_normalization(keys):
 
     x = e3nn.normal("2x0e + 2x0o + 1o + 1e", keys[1], (10_000,), normalize=True)
     y = e3nn.tensor_square(x, normalized_input=True, irrep_normalization="norm")
-    np.testing.assert_allclose(e3nn.mean(e3nn.norm(y, squared=True), axis=0).array, 1.0, rtol=0.1)
+    np.testing.assert_allclose(
+        e3nn.mean(e3nn.norm(y, squared=True), axis=0).array, 1.0, rtol=0.1
+    )
 
     x = e3nn.normal("2x0e + 2x0o + 1o + 1e", keys[1], (10_000,), normalize=True)
     y = e3nn.tensor_square(x, normalized_input=True, irrep_normalization="component")
@@ -72,7 +74,9 @@ def test_tensor_square_normalization(keys):
 
     x = e3nn.normal("2x0e + 2x0o + 1o + 1e", keys[1], (10_000,), normalization="norm")
     y = e3nn.tensor_square(x, irrep_normalization="norm")
-    np.testing.assert_allclose(e3nn.mean(e3nn.norm(y, squared=True), axis=0).array, 1.0, rtol=0.1)
+    np.testing.assert_allclose(
+        e3nn.mean(e3nn.norm(y, squared=True), axis=0).array, 1.0, rtol=0.1
+    )
 
 
 def test_tensor_square_and_spherical_harmonics(keys):
@@ -82,11 +86,15 @@ def test_tensor_square_and_spherical_harmonics(keys):
     y2 = e3nn.spherical_harmonics("2e", x, normalize=False, normalization="norm")
     np.testing.assert_allclose(y1.array, y2.array)
 
-    y1 = e3nn.tensor_square(x, normalized_input=True, irrep_normalization="component")["2e"]
+    y1 = e3nn.tensor_square(x, normalized_input=True, irrep_normalization="component")[
+        "2e"
+    ]
     y2 = e3nn.spherical_harmonics("2e", x, normalize=False, normalization="component")
     np.testing.assert_allclose(y1.array, y2.array, atol=1e-5)
 
     # normalize the input
-    y1 = e3nn.tensor_square(x / e3nn.norm(x), normalized_input=True, irrep_normalization="component")["2e"]
+    y1 = e3nn.tensor_square(
+        x / e3nn.norm(x), normalized_input=True, irrep_normalization="component"
+    )["2e"]
     y2 = e3nn.spherical_harmonics("2e", x, normalize=True, normalization="component")
     np.testing.assert_allclose(y1.array, y2.array, atol=1e-5)

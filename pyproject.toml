@@ -1,6 +1,5 @@
 [tool.black]
-line-length = 127
-target-version = ['py37']
+target-version = ['py311']
 include = '\.pyi?$'
 exclude = '''
 /(

@@ -41,7 +41,9 @@ class FunctionalLinear:
         if gradient_normalization is None:
             gradient_normalization = config("gradient_normalization")
         if isinstance(gradient_normalization, str):
-            gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
+            gradient_normalization = {"element": 0.0, "path": 1.0}[
+                gradient_normalization
+            ]
 
         irreps_in = Irreps(irreps_in)
         irreps_out = Irreps(irreps_out)
@@ -68,7 +70,9 @@ class FunctionalLinear:
 
         def alpha(this):
             x = irreps_in[this.i_in].mul ** path_normalization * sum(
-                irreps_in[other.i_in].mul ** (1.0 - path_normalization) for other in instructions if other.i_out == this.i_out
+                irreps_in[other.i_in].mul ** (1.0 - path_normalization)
+                for other in instructions
+                if other.i_out == this.i_out
             )
             return 1 / x if x > 0 else 1.0
 
@@ -92,7 +96,13 @@ class FunctionalLinear:
         assert all(ir.is_scalar() or (not b) for b, (_, ir) in zip(biases, irreps_out))
 
         instructions += [
-            Instruction(i_in=-1, i_out=i_out, path_shape=(mul_ir.dim,), path_weight=1.0, weight_std=0.0)
+            Instruction(
+                i_in=-1,
+                i_out=i_out,
+                path_shape=(mul_ir.dim,),
+                path_weight=1.0,
+                weight_std=0.0,
+            )
             for i_out, (bias, mul_ir) in enumerate(zip(biases, irreps_out))
             if bias
         ]
@@ -102,7 +112,10 @@ class FunctionalLinear:
                 output_mask = jnp.concatenate(
                     [
                         jnp.ones(mul_ir.dim, bool)
-                        if any((ins.i_out == i_out) and (0 not in ins.path_shape) for ins in instructions)
+                        if any(
+                            (ins.i_out == i_out) and (0 not in ins.path_shape)
+                            for ins in instructions
+                        )
                         else jnp.zeros(mul_ir.dim, bool)
                         for i_out, mul_ir in enumerate(irreps_out)
                     ]
@@ -122,7 +135,11 @@ class FunctionalLinear:
     def aggregate_paths(self, paths, output_shape, output_dtype) -> IrrepsArray:
         output = [
             _sum_tensors(
-                [out for ins, out in zip(self.instructions, paths) if ins.i_out == i_out],
+                [
+                    out
+                    for ins, out in zip(self.instructions, paths)
+                    if ins.i_out == i_out
+                ],
                 shape=output_shape
                 + (
                     mul_ir_out.mul,
@@ -132,20 +149,28 @@ class FunctionalLinear:
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]
-        return IrrepsArray.from_list(self.irreps_out, output, output_shape, output_dtype)
+        return IrrepsArray.from_list(
+            self.irreps_out, output, output_shape, output_dtype
+        )
 
     def split_weights(self, weights: jnp.ndarray) -> List[jnp.ndarray]:
         ws = []
         cursor = 0
         for i in self.instructions:
-            ws += [weights[cursor : cursor + np.prod(i.path_shape)].reshape(i.path_shape)]
+            ws += [
+                weights[cursor : cursor + np.prod(i.path_shape)].reshape(i.path_shape)
+            ]
             cursor += np.prod(i.path_shape)
         return ws
 
-    def __call__(self, ws: Union[List[jnp.ndarray], jnp.ndarray], input: IrrepsArray) -> IrrepsArray:
+    def __call__(
+        self, ws: Union[List[jnp.ndarray], jnp.ndarray], input: IrrepsArray
+    ) -> IrrepsArray:
         input = input._convert(self.irreps_in)
         if input.ndim != 1:
-            raise ValueError(f"FunctionalLinear does not support broadcasting, input shape is {input.shape}")
+            raise ValueError(
+                f"FunctionalLinear does not support broadcasting, input shape is {input.shape}"
+            )
 
         if not isinstance(ws, list):
             ws = self.split_weights(ws)
@@ -153,7 +178,11 @@ class FunctionalLinear:
         paths = [
             ins.path_weight * w
             if ins.i_in == -1
-            else (None if input.list[ins.i_in] is None else ins.path_weight * jnp.einsum("uw,ui->wi", w, input.list[ins.i_in]))
+            else (
+                None
+                if input.list[ins.i_in] is None
+                else ins.path_weight * jnp.einsum("uw,ui->wi", w, input.list[ins.i_in])
+            )
             for ins, w in zip(self.instructions, ws)
         ]
         return self.aggregate_paths(paths, input.shape[:-1], input.dtype)
@@ -173,7 +202,9 @@ class FunctionalLinear:
             assert ins.i_in != -1
             mul_in, ir_in = self.irreps_in[ins.i_in]
             mul_out, ir_out = self.irreps_out[ins.i_out]
-            output = output.at[self.irreps_in.slices()[ins.i_in], self.irreps_out.slices()[ins.i_out]].add(
+            output = output.at[
+                self.irreps_in.slices()[ins.i_in], self.irreps_out.slices()[ins.i_out]
+            ].add(
                 ins.path_weight
                 * jnp.einsum("uw,ij->uiwj", w, jnp.eye(ir_in.dim, dtype=dtype)).reshape(
                     (mul_in * ir_in.dim, mul_out * ir_out.dim)
@@ -183,7 +214,9 @@ class FunctionalLinear:
 
 
 def linear_vanilla(
-    input: IrrepsArray, linear: FunctionalLinear, get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray]
+    input: IrrepsArray,
+    linear: FunctionalLinear,
+    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
 ) -> IrrepsArray:
     w = [
         get_parameter(
@@ -261,7 +294,8 @@ def linear_mixed(
     ]  # List of shape (d, *path_shape)
     weights = weights.astype(input.array.dtype)
     w = [
-        jnp.sqrt(alpha) ** gradient_normalization * jax.lax.dot_general(weights, wi, (((weights.ndim - 1,), (0,)), ((), ())))
+        jnp.sqrt(alpha) ** gradient_normalization
+        * jax.lax.dot_general(weights, wi, (((weights.ndim - 1,), (0,)), ((), ())))
         for wi in w
     ]  # List of shape (..., *path_shape)
 
@@ -301,7 +335,8 @@ def linear_mixed_per_channel(
     ]  # List of shape (d, num_channels, *path_shape)
     weights = weights.astype(input.array.dtype)
     w = [
-        jnp.sqrt(alpha) ** gradient_normalization * jax.lax.dot_general(weights, wi, (((weights.ndim - 1,), (0,)), ((), ())))
+        jnp.sqrt(alpha) ** gradient_normalization
+        * jax.lax.dot_general(weights, wi, (((weights.ndim - 1,), (0,)), ((), ())))
         for wi in w
     ]  # List of shape (..., num_channels, *path_shape)
 

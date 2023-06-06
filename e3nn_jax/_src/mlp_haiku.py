@@ -45,10 +45,14 @@ class MultiLayerPerceptron(hk.Module):
         if gradient_normalization is None:
             gradient_normalization = e3nn.config("gradient_normalization")
         if isinstance(gradient_normalization, str):
-            gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
+            gradient_normalization = {"element": 0.0, "path": 1.0}[
+                gradient_normalization
+            ]
         self.gradient_normalization = gradient_normalization
 
-    def __call__(self, x: Union[jnp.ndarray, e3nn.IrrepsArray]) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+    def __call__(
+        self, x: Union[jnp.ndarray, e3nn.IrrepsArray]
+    ) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
         """Evaluate the MLP
 
         Input and output are either `jax.numpy.ndarray` or `IrrepsArray`.
@@ -69,14 +73,20 @@ class MultiLayerPerceptron(hk.Module):
             output_irrepsarray = False
 
         act = None if self.act is None else e3nn.normalize_function(self.act)
-        last_act = None if self.output_activation is None else e3nn.normalize_function(self.output_activation)
+        last_act = (
+            None
+            if self.output_activation is None
+            else e3nn.normalize_function(self.output_activation)
+        )
 
         for i, h in enumerate(self.list_neurons):
             alpha = 1 / x.shape[-1]
             d = hk.Linear(
                 h,
                 with_bias=False,
-                w_init=hk.initializers.RandomNormal(stddev=jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)),
+                w_init=hk.initializers.RandomNormal(
+                    stddev=jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)
+                ),
                 name=f"linear_{i}",
             )
             x = jnp.sqrt(alpha) ** self.gradient_normalization * d(x)

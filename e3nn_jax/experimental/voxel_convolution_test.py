@@ -25,7 +25,12 @@ def test_convolution(keys):
     f = jax.jit(c.apply)
 
     x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8))
-    x0 = jax.tree_util.tree_map(lambda x: jnp.pad(x, ((0, 0), (4, 4), (4, 4), (4, 4)) + ((0, 0),) * (x.ndim - 4)), x0)
+    x0 = jax.tree_util.tree_map(
+        lambda x: jnp.pad(
+            x, ((0, 0), (4, 4), (4, 4), (4, 4)) + ((0, 0),) * (x.ndim - 4)
+        ),
+        x0,
+    )
 
     w = c.init(next(keys), x0, jnp.array([1.0, 1.0, 1.0]))
 
@@ -60,7 +65,12 @@ def test_convolution_defaults(keys):
     f = jax.jit(c.apply)
 
     x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8))
-    x0 = jax.tree_util.tree_map(lambda x: jnp.pad(x, ((0, 0), (4, 4), (4, 4), (4, 4)) + ((0, 0),) * (x.ndim - 4)), x0)
+    x0 = jax.tree_util.tree_map(
+        lambda x: jnp.pad(
+            x, ((0, 0), (4, 4), (4, 4), (4, 4)) + ((0, 0),) * (x.ndim - 4)
+        ),
+        x0,
+    )
 
     w = c.init(next(keys), x0)
     y0 = f(w, x0)

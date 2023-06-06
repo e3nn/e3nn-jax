@@ -7,7 +7,13 @@ import jax
 import jax.numpy as jnp
 import jax.scipy
 
-from e3nn_jax import axis_angle_to_log_coordinates, generators, matrix_to_angles, perm, quaternion_to_angles
+from e3nn_jax import (
+    axis_angle_to_log_coordinates,
+    generators,
+    matrix_to_angles,
+    perm,
+    quaternion_to_angles,
+)
 
 from .J import Jd
 
@@ -126,7 +132,10 @@ class Irrep:
         shape = jnp.broadcast_shapes(log_coordinates.shape[:-1], k.shape)
         log_coordinates = jnp.broadcast_to(log_coordinates, shape + (3,))
         k = jnp.broadcast_to(k, shape)
-        return _wigner_D_from_log_coordinates(self.l, log_coordinates) * self.p ** k[..., None, None]
+        return (
+            _wigner_D_from_log_coordinates(self.l, log_coordinates)
+            * self.p ** k[..., None, None]
+        )
 
     def D_from_angles(self, alpha, beta, gamma, k=0):
         r"""Matrix :math:`p^k D^l(\alpha, \beta, \gamma)`.
@@ -165,7 +174,9 @@ class Irrep:
         else:
             gamma = jnp.asarray(gamma)
 
-        shape = jnp.broadcast_shapes(*[a.shape for a in [alpha, beta, gamma] if a is not None], k.shape)
+        shape = jnp.broadcast_shapes(
+            *[a.shape for a in [alpha, beta, gamma] if a is not None], k.shape
+        )
 
         if alpha is not None:
             alpha = jnp.broadcast_to(alpha, shape)
@@ -175,7 +186,10 @@ class Irrep:
             gamma = jnp.broadcast_to(gamma, shape)
         k = jnp.broadcast_to(k, shape)
 
-        return _wigner_D_from_angles(self.l, alpha, beta, gamma) * self.p ** k[..., None, None]
+        return (
+            _wigner_D_from_angles(self.l, alpha, beta, gamma)
+            * self.p ** k[..., None, None]
+        )
 
     def D_from_quaternion(self, q, k=0):
         r"""Matrix of the representation, see `Irrep.D_from_angles`.
@@ -215,7 +229,9 @@ class Irrep:
         return self.D_from_angles(*matrix_to_angles(R), k)
 
     def D_from_axis_angle(self, axis, angle, k=0):
-        return self.D_from_log_coordinates(axis_angle_to_log_coordinates(axis, angle), k)
+        return self.D_from_log_coordinates(
+            axis_angle_to_log_coordinates(axis, angle), k
+        )
 
     def generators(self):
         r"""Generators of the representation of :math:`SO(3)`.
@@ -274,7 +290,10 @@ class Irrep:
 
     def __lt__(self, other):
         r"""Compare the order of two irreps."""
-        return (self.l, -self.p * (-1) ** self.l) < (other.l, -other.p * (-1) ** other.l)
+        return (self.l, -self.p * (-1) ** self.l) < (
+            other.l,
+            -other.p * (-1) ** other.l,
+        )
 
     def __eq__(self, other: object) -> bool:
         """Compare two irreps."""
@@ -318,7 +337,9 @@ class MulIrrep:
         return (self.ir, self.mul) < (other.ir, other.mul)
 
 
-jax.tree_util.register_pytree_node(MulIrrep, lambda mulir: ((), mulir), lambda mulir, _: mulir)
+jax.tree_util.register_pytree_node(
+    MulIrrep, lambda mulir: ((), mulir), lambda mulir, _: mulir
+)
 
 IntoIrreps = Union[
     None,
@@ -526,7 +547,9 @@ class Irreps(tuple):
             2x0e+2x1e
         """
         if isinstance(other, Irreps):
-            raise NotImplementedError("Use e3nn.tensor_product for this, see the documentation")
+            raise NotImplementedError(
+                "Use e3nn.tensor_product for this, see the documentation"
+            )
         return Irreps([(mul * other, ir) for mul, ir in self])
 
     def __rmul__(self, other):
@@ -623,7 +646,9 @@ class Irreps(tuple):
         """
         return self.remove_zero_multiplicities().unify()
 
-    def sort(self) -> NamedTuple("Sort", irreps="Irreps", p=Tuple[int, ...], inv=Tuple[int, ...]):
+    def sort(
+        self,
+    ) -> NamedTuple("Sort", irreps="Irreps", p=Tuple[int, ...], inv=Tuple[int, ...]):
         r"""Sort the representations.
 
         Returns:
@@ -835,7 +860,11 @@ class Irreps(tuple):
             `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return jax.scipy.linalg.block_diag(
-            *[ir.D_from_log_coordinates(log_coordinates, k) for mul, ir in self for _ in range(mul)]
+            *[
+                ir.D_from_log_coordinates(log_coordinates, k)
+                for mul, ir in self
+                for _ in range(mul)
+            ]
         )
 
     def D_from_angles(self, alpha, beta, gamma, k=0):
@@ -850,7 +879,13 @@ class Irreps(tuple):
         Returns:
             `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
-        return jax.scipy.linalg.block_diag(*[ir.D_from_angles(alpha, beta, gamma, k) for mul, ir in self for _ in range(mul)])
+        return jax.scipy.linalg.block_diag(
+            *[
+                ir.D_from_angles(alpha, beta, gamma, k)
+                for mul, ir in self
+                for _ in range(mul)
+            ]
+        )
 
     def D_from_quaternion(self, q, k=0):
         r"""Matrix of the representation.
@@ -879,7 +914,9 @@ class Irreps(tuple):
         return self.D_from_angles(*matrix_to_angles(R), k)
 
     def D_from_axis_angle(self, axis, angle, k=0):
-        return self.D_from_log_coordinates(axis_angle_to_log_coordinates(axis, angle), k)
+        return self.D_from_log_coordinates(
+            axis_angle_to_log_coordinates(axis, angle), k
+        )
 
     def generators(self) -> jnp.ndarray:
         r"""Generators of the representation.
@@ -887,10 +924,14 @@ class Irreps(tuple):
         Returns:
             `jax.numpy.ndarray`: array of shape :math:`(3, \mathrm{dim}, \mathrm{dim})`
         """
-        return jax.vmap(jax.scipy.linalg.block_diag)(*[ir.generators() for mul, ir in self for _ in range(mul)])
+        return jax.vmap(jax.scipy.linalg.block_diag)(
+            *[ir.generators() for mul, ir in self for _ in range(mul)]
+        )
 
 
-jax.tree_util.register_pytree_node(Irreps, lambda irreps: ((), irreps), lambda irreps, _: irreps)
+jax.tree_util.register_pytree_node(
+    Irreps, lambda irreps: ((), irreps), lambda irreps, _: irreps
+)
 
 
 class _MulIndexSliceHelper:
@@ -963,7 +1004,10 @@ class _ChunkIndexSliceHelper:
 
 
 def _wigner_D_from_angles(
-    l: int, alpha: Optional[jnp.ndarray], beta: Optional[jnp.ndarray], gamma: Optional[jnp.ndarray]
+    l: int,
+    alpha: Optional[jnp.ndarray],
+    beta: Optional[jnp.ndarray],
+    gamma: Optional[jnp.ndarray],
 ) -> jnp.ndarray:
     r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
 
