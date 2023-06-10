@@ -352,8 +352,11 @@ class IrrepsArray:
         )
 
     def __add__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]
+        self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray, float, int]
     ) -> "IrrepsArray":  # noqa: D105
+        if isinstance(other, (float, int)) and other == 0:
+            return self
+
         jnp = _infer_backend(self.array)
 
         if not isinstance(other, IrrepsArray):
@@ -375,12 +378,17 @@ class IrrepsArray:
             irreps=self.irreps, array=self.array + other.array, list=list
         )
 
-    def __radd__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":
+    def __radd__(
+        self: "IrrepsArray", other: Union[jnp.ndarray, float, int]
+    ) -> "IrrepsArray":
         return self + other
 
     def __sub__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]
+        self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray, float, int]
     ) -> "IrrepsArray":  # noqa: D105
+        if isinstance(other, (float, int)) and other == 0:
+            return self
+
         jnp = _infer_backend(self.array)
 
         if not isinstance(other, IrrepsArray):
@@ -401,7 +409,9 @@ class IrrepsArray:
             irreps=self.irreps, array=self.array - other.array, list=list
         )
 
-    def __rsub__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":
+    def __rsub__(
+        self: "IrrepsArray", other: Union[jnp.ndarray, float, int]
+    ) -> "IrrepsArray":
         return -self + other
 
     def __mul__(
