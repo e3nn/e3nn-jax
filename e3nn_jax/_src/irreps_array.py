@@ -375,6 +375,9 @@ class IrrepsArray:
             irreps=self.irreps, array=self.array + other.array, list=list
         )
 
+    def __radd__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":
+        return self + other
+
     def __sub__(
         self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]
     ) -> "IrrepsArray":  # noqa: D105
@@ -397,6 +400,9 @@ class IrrepsArray:
         return IrrepsArray(
             irreps=self.irreps, array=self.array - other.array, list=list
         )
+
+    def __rsub__(self: "IrrepsArray", other: jnp.ndarray) -> "IrrepsArray":
+        return -self + other
 
     def __mul__(
         self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]

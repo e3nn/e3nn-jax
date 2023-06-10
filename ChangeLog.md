@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Irreps.set_mul(int)` to set the multiplicity of all irreps
 - `Irreps.filter(lmax=int)` to filter out irreps with `l > lmax`
 - `IrrepsArray.filter(lmax=int)` to filter out irreps with `l > lmax`
+- `IrrepsArray.__radd__` and `IrrepsArray.__rsub__` to support `scalar + IrrepsArray` and `scalar - IrrepsArray`
 
 ### Fixed
 - `e3nn.scatter` operation handle indices with `ndim > 1`
