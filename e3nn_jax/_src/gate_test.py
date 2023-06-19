@@ -2,7 +2,7 @@ import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
 import pytest
-from e3nn_jax.util import assert_equivariant
+from e3nn_jax.utils import assert_equivariant
 
 gate = jax.jit(jax.vmap(e3nn.gate))
 

@@ -1,4 +1,4 @@
-from e3nn_jax._src.util.test import (
+from e3nn_jax._src.utils.test import (
     assert_equivariant,
     equivariance_test,
     assert_output_dtype_matches_input_dtype,

@@ -7,7 +7,7 @@ from e3nn_jax.experimental.point_convolution import (
     MessagePassingConvolutionHaiku,
     radial_basis,
 )
-from e3nn_jax.util import assert_equivariant, assert_output_dtype_matches_input_dtype
+from e3nn_jax.utils import assert_equivariant, assert_output_dtype_matches_input_dtype
 
 
 def test_point_convolution(keys):

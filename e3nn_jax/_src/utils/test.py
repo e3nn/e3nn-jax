@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.util.dtype import get_pytree_dtype
+from e3nn_jax._src.utils.dtype import get_pytree_dtype
 
 
 def equivariance_test(

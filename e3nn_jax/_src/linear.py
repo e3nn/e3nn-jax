@@ -7,7 +7,7 @@ import numpy as np
 
 from e3nn_jax import Irreps, IrrepsArray, config
 from e3nn_jax._src.core_tensor_product import _sum_tensors
-from e3nn_jax._src.util.dtype import get_pytree_dtype
+from e3nn_jax._src.utils.dtype import get_pytree_dtype
 
 
 class Instruction(NamedTuple):

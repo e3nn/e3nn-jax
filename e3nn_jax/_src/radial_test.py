@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from e3nn_jax._src.radial import u
-from e3nn_jax._src.util.test import assert_output_dtype_matches_input_dtype
+from e3nn_jax._src.utils.test import assert_output_dtype_matches_input_dtype
 
 
 def test_sus():

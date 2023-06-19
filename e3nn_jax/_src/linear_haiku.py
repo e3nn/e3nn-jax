@@ -4,7 +4,7 @@ import haiku as hk
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.util.dtype import get_pytree_dtype
+from e3nn_jax._src.utils.dtype import get_pytree_dtype
 
 from .linear import (
     FunctionalLinear,

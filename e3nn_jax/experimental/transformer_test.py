@@ -3,7 +3,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 from e3nn_jax.experimental.transformer import Transformer
-from e3nn_jax.util import assert_equivariant
+from e3nn_jax.utils import assert_equivariant
 
 
 def test_transformer(keys):

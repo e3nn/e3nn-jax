@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import jaxlib
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.util.jit import jit_code
+from e3nn_jax._src.utils.jit import jit_code
 
 
 # https://stackoverflow.com/a/15008806/1008938
@@ -74,13 +74,17 @@ def main():
         if args.module:
             assert not args.extrachannels
             assert args.weights
-            return e3nn.haiku.FullyConnectedTensorProduct(args.irreps_out)(x1, x2, **kwargs)
+            return e3nn.haiku.FullyConnectedTensorProduct(args.irreps_out)(
+                x1, x2, **kwargs
+            )
         else:
             if args.extrachannels:
                 assert not args.module
                 x1 = x1.mul_to_axis()  # (batch, channels, irreps)
                 x2 = x2.mul_to_axis()  # (batch, channels, irreps)
-                x = e3nn.tensor_product(x1[..., :, None, :], x2[..., None, :, :], **kwargs)
+                x = e3nn.tensor_product(
+                    x1[..., :, None, :], x2[..., None, :, :], **kwargs
+                )
                 x = x.reshape(x.shape[:-3] + (-1,) + x.shape[-1:])
                 x = x.axis_to_mul()
             else:
@@ -91,7 +95,10 @@ def main():
             else:
                 return x.filter(keep=args.irreps_out)
 
-    inputs = (e3nn.normal(args.irreps_in1, k(), (args.batch,)), e3nn.normal(args.irreps_in2, k(), (args.batch,)))
+    inputs = (
+        e3nn.normal(args.irreps_in1, k(), (args.batch,)),
+        e3nn.normal(args.irreps_in2, k(), (args.batch,)),
+    )
     w = tp.init(k(), *inputs)
 
     # Ensure everything is on the GPU (shouldn't be necessary, but just in case)
@@ -112,7 +119,10 @@ def main():
         # tanh() forces it to realize the grad as a full size matrix rather than expanded (stride 0) ones
         f_2 = f
         f = jax.value_and_grad(
-            lambda w, x1, x2: sum(jnp.sum(jnp.tanh(out)) for out in jax.tree_util.tree_leaves(f_2(w, x1, x2)))
+            lambda w, x1, x2: sum(
+                jnp.sum(jnp.tanh(out))
+                for out in jax.tree_util.tree_leaves(f_2(w, x1, x2))
+            )
         )
 
     # compile
