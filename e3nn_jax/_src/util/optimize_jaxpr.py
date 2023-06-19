@@ -4,8 +4,7 @@ from typing import Any, List
 import jax
 import numpy as np
 from jax import linear_util as lu
-from jax.core import Atom, ClosedJaxpr, Jaxpr, Literal, Var, jaxpr_as_fun, JaxprEqn
-from jax.interpreters.xla import xla_call_p
+from jax.core import Atom, ClosedJaxpr, Jaxpr, JaxprEqn, Literal, Var, jaxpr_as_fun
 
 
 def curry(f):
@@ -58,6 +57,8 @@ def remove_deadcode(
     for eqn in reversed(jaxpr.eqns):
         if len(needed.intersection(eqn.outvars)) == 0:
             continue
+
+        from jax.interpreters.xla import xla_call_p  # TODO: fix import
 
         if eqn.primitive in [xla_call_p]:
             xla_call_jaxpr = eqn.params["call_jaxpr"]
