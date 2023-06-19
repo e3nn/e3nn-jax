@@ -15,3 +15,4 @@ API
     flax
     s2
     extra
+    utils
