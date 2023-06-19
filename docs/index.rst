@@ -104,7 +104,7 @@ It can for instance get rid of the dead code:
 .. jupyter-execute::
     :hide-code:
 
-    from e3nn_jax._src.util.jit import jit_code
+    from e3nn_jax._src.utils.jit import jit_code
 
 .. jupyter-execute::
 
