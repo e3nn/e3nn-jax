@@ -21,7 +21,7 @@ def equivariance_test(
         *args: arguments to pass to fun
 
     Returns:
-        out1, out2: outputs of R fun(args) and fun(R args) where R is a random rotation and inversion
+        out1, out2: outputs of fun(R args) and R fun(args) for a random rotation R and inversion
 
     Example:
         >>> fun = e3nn.norm
