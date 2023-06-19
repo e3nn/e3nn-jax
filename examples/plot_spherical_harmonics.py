@@ -7,7 +7,13 @@ def get_cmap(x):
     if x == "bwr":
         return [[0, "rgb(0,50,255)"], [0.5, "rgb(200,200,200)"], [1, "rgb(255,50,0)"]]
     if x == "plasma":
-        return [[0, "#9F1A9B"], [0.25, "#0D1286"], [0.5, "#000000"], [0.75, "#F58C45"], [1, "#F0F524"]]
+        return [
+            [0, "#9F1A9B"],
+            [0.25, "#0D1286"],
+            [0.5, "#000000"],
+            [0.75, "#F58C45"],
+            [1, "#F0F524"],
+        ]
 
 
 alpha = jnp.linspace(0, 2 * jnp.pi, 200)
@@ -16,7 +22,9 @@ beta = jnp.linspace(0, jnp.pi, 200)
 alpha, beta = jnp.meshgrid(alpha, beta, indexing="ij")
 vectors = e3nn.angles_to_xyz(alpha, beta)
 
-signal = e3nn.spherical_harmonics("8e", vectors, normalize=True, normalization="component").array
+signal = e3nn.spherical_harmonics(
+    "8e", vectors, normalize=True, normalization="component"
+).array
 signal = signal[:, :, 8]
 
 data = [
@@ -32,7 +40,15 @@ data = [
     )
 ]
 
-axis = dict(showbackground=False, showticklabels=False, showgrid=False, zeroline=False, title="", nticks=3, range=[-3, 3])
+axis = dict(
+    showbackground=False,
+    showticklabels=False,
+    showgrid=False,
+    zeroline=False,
+    title="",
+    nticks=3,
+    range=[-3, 3],
+)
 
 layout = dict(
     width=512,

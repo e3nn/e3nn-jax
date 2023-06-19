@@ -59,13 +59,23 @@ def train(steps=2000):
         # Shallower and wider convolutions also works
 
         # kw = dict(irreps_sh=Irreps('0e + 1o'), diameter=5.5, num_radial_basis=3, steps=(1.0, 1.0, 1.0))
-        kw = dict(irreps_sh=e3nn.Irreps("0e + 1o"), diameter=2 * 1.4, num_radial_basis=1, steps=(1.0, 1.0, 1.0))
+        kw = dict(
+            irreps_sh=e3nn.Irreps("0e + 1o"),
+            diameter=2 * 1.4,
+            num_radial_basis=1,
+            steps=(1.0, 1.0, 1.0),
+        )
 
         x = e3nn.IrrepsArray("0e", x[..., None])
 
         # for _ in range(2):
         for _ in range(5):
-            x = g(ConvolutionHaiku(f"{mul0}x0e + {mul0}x0o + {2 * mul1}x0e + {mul1}x1e + {mul1}x1o", **kw)(x))
+            x = g(
+                ConvolutionHaiku(
+                    f"{mul0}x0e + {mul0}x0o + {2 * mul1}x0e + {mul1}x1e + {mul1}x1o",
+                    **kw,
+                )(x)
+            )
 
         x = ConvolutionHaiku("0o + 7x0e", **kw)(x)
 
