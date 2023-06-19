@@ -12,7 +12,7 @@ from jax.experimental.sparse import BCOO, sparsify
 
 from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
 from e3nn_jax._src.einsum import einsum as opt_einsum
-from e3nn_jax._src.util.dtype import get_pytree_dtype
+from e3nn_jax._src.utils.dtype import get_pytree_dtype
 
 
 class FunctionalTensorProduct:

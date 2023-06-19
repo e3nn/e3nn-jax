@@ -14,7 +14,7 @@ import numpy as np
 
 import e3nn_jax as e3nn
 from e3nn_jax import perm
-from e3nn_jax._src.util.math_numpy import basis_intersection, round_to_sqrt_rational
+from e3nn_jax._src.utils.math_numpy import basis_intersection, round_to_sqrt_rational
 
 
 def reduced_tensor_product_basis(

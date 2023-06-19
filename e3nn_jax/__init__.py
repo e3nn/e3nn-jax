@@ -100,6 +100,7 @@ from e3nn_jax._src.tensor_product_with_spherical_harmonics import (
 
 # make submodules flax and haiku available
 from e3nn_jax import flax, haiku
+from e3nn_jax import utils
 
 __all__ = [
     "config",  # not in docs
@@ -201,4 +202,5 @@ __all__ = [
     "tensor_product_with_spherical_harmonics",
     "flax",
     "haiku",
+    "utils",
 ]

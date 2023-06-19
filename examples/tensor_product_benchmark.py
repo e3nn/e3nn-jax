@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import jaxlib
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.util.jit import jit_code
+from e3nn_jax._src.utils.jit import jit_code
 
 
 # https://stackoverflow.com/a/15008806/1008938

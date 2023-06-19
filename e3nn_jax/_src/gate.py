@@ -5,7 +5,7 @@ import jax
 
 import e3nn_jax as e3nn
 from e3nn_jax import IrrepsArray, scalar_activation
-from e3nn_jax._src.util.decorators import overload_for_irreps_without_array
+from e3nn_jax._src.utils.decorators import overload_for_irreps_without_array
 
 
 @partial(jax.jit, static_argnums=(1, 2, 3, 4, 5))

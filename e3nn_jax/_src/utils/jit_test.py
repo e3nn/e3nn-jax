@@ -1,4 +1,4 @@
-from e3nn_jax._src.util.jit import jit_code
+from e3nn_jax._src.utils.jit import jit_code
 
 
 def test_jit_code():

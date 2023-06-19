@@ -4,7 +4,7 @@ import pytest
 
 import e3nn_jax as e3nn
 from e3nn_jax.experimental.linear_shtp import LinearSHTP, shtp
-from e3nn_jax.util import equivariance_test
+from e3nn_jax.utils import equivariance_test
 
 
 @pytest.mark.parametrize("mix", [True, False])

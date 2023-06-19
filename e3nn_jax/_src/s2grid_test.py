@@ -5,7 +5,7 @@ import pytest
 
 import e3nn_jax as e3nn
 from e3nn_jax._src.s2grid import _irfft, _rfft, _spherical_harmonics_s2grid
-from e3nn_jax.util import assert_output_dtype_matches_input_dtype
+from e3nn_jax.utils import assert_output_dtype_matches_input_dtype
 
 
 @pytest.mark.parametrize(

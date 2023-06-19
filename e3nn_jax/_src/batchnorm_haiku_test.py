@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import pytest
 
 import e3nn_jax as e3nn
-from e3nn_jax.util import assert_equivariant
+from e3nn_jax.utils import assert_equivariant
 
 
 @pytest.mark.parametrize(
