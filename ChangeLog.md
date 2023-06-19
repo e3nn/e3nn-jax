@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IrrepsArray.__radd__` and `IrrepsArray.__rsub__` to support `scalar + IrrepsArray` and `scalar - IrrepsArray`
 - `0 + IrrepsArray` and `0 - IrrepsArray` are now always accepted as special cases.
 - Support for `IrrepsArray / array`
+- Add `utils` as a submodule
 
 ### Fixed
 - `e3nn.scatter` operation handle indices with `ndim > 1`
