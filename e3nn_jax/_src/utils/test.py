@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Tuple
+from typing import Callable
 
 import jax
 import jax.numpy as jnp
@@ -18,7 +18,8 @@ def equivariance_test(
     Args:
         fun: function to test
         rng_key: random number generator key
-        *args: arguments to pass to fun
+        *args: arguments to pass to fun, can be IrrepsArray or Irreps
+            if an argument is Irreps, it will be replaced by a random IrrepsArray
 
     Returns:
         out1, out2: outputs of fun(R args) and R fun(args) for a random rotation R and inversion
@@ -30,10 +31,24 @@ def equivariance_test(
         >>> equivariance_test(fun, rng, x)
         (1x0e [5.], 1x0e [5.])
     """
-    assert all(isinstance(arg, e3nn.IrrepsArray) for arg in args)
-    dtype = get_pytree_dtype(args)
+    args = [e3nn.Irreps(arg) if isinstance(arg, str) else arg for arg in args]
+    args = [
+        e3nn.IrrepsArray.as_irreps_array(arg) if isinstance(arg, jnp.ndarray) else arg
+        for arg in args
+    ]
+
+    assert all(isinstance(arg, (e3nn.Irreps, e3nn.IrrepsArray)) for arg in args)
+    dtype = get_pytree_dtype(args, real_part=True)
     if dtype.kind == "i":
         dtype = jnp.float32
+
+    new_args = []
+    for arg in args:
+        if isinstance(arg, e3nn.Irreps):
+            k, rng_key = jax.random.split(rng_key)
+            arg = e3nn.normal(arg, k, dtype=dtype)
+        new_args.append(arg)
+    args = tuple(new_args)
 
     R = -e3nn.rand_matrix(rng_key, (), dtype=dtype)  # random rotation and inversion
 
@@ -46,9 +61,7 @@ def equivariance_test(
 def assert_equivariant(
     fun: Callable[[e3nn.IrrepsArray], e3nn.IrrepsArray],
     rng_key: jnp.ndarray,
-    *,
-    args_in: Optional[Tuple[e3nn.IrrepsArray, ...]] = None,
-    irreps_in: Optional[Tuple[e3nn.Irreps, ...]] = None,
+    *args,
     atol: float = 1e-6,
     rtol: float = 1e-6,
 ):
@@ -57,8 +70,8 @@ def assert_equivariant(
     Args:
         fun: function to test
         rng_key: random number generator key
-        args_in (optional): inputs to pass to fun, irreps_in must be None
-        irreps_in (optional): irreps of inputs to pass to fun, args_in must be None
+        *args: arguments to pass to fun, can be IrrepsArray or Irreps
+            if an argument is Irreps, it will be replaced by a random IrrepsArray
         atol: absolute tolerance
         rtol: relative tolerance
 
@@ -66,18 +79,12 @@ def assert_equivariant(
         >>> fun = e3nn.norm
         >>> rng = jax.random.PRNGKey(0)
         >>> x = e3nn.IrrepsArray("1e", jnp.array([0.0, 4.0, 3.0]))
-        >>> assert_equivariant(fun, rng, args_in=(x,))
+        >>> assert_equivariant(fun, rng, x)
 
         We can also pass the irreps of the inputs instead of the inputs themselves:
-        >>> assert_equivariant(fun, rng, irreps_in=("1e",))
+        >>> assert_equivariant(fun, rng, "1e")
     """
-    if args_in is None and irreps_in is None:
-        raise ValueError("Either args_in or irreps_in must be provided")
-
-    if args_in is None:
-        args_in = [e3nn.normal(irreps, rng_key, ()) for irreps in irreps_in]
-
-    out1, out2 = equivariance_test(fun, rng_key, *args_in)
+    out1, out2 = equivariance_test(fun, rng_key, *args)
 
     def assert_(x, y):
         np.testing.assert_allclose(x, y, atol=atol, rtol=rtol)
