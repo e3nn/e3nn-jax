@@ -13,6 +13,23 @@ def equivariance_test(
     rng_key: jnp.ndarray,
     *args,
 ):
+    r"""Test equivariance of a function.
+
+    Args:
+        fun: function to test
+        rng_key: random number generator key
+        *args: arguments to pass to fun
+
+    Returns:
+        out1, out2: outputs of R fun(args) and fun(R args) where R is a random rotation and inversion
+
+    Example:
+        >>> fun = e3nn.norm
+        >>> rng = jax.random.PRNGKey(0)
+        >>> x = e3nn.IrrepsArray("1e", jnp.array([0.0, 4.0, 3.0]))
+        >>> equivariance_test(fun, rng, x)
+        (1x0e [5.], 1x0e [5.])
+    """
     assert all(isinstance(arg, e3nn.IrrepsArray) for arg in args)
     dtype = get_pytree_dtype(args)
     if dtype.kind == "i":
@@ -35,6 +52,25 @@ def assert_equivariant(
     atol: float = 1e-6,
     rtol: float = 1e-6,
 ):
+    r"""Assert that a function is equivariant.
+
+    Args:
+        fun: function to test
+        rng_key: random number generator key
+        args_in (optional): inputs to pass to fun, irreps_in must be None
+        irreps_in (optional): irreps of inputs to pass to fun, args_in must be None
+        atol: absolute tolerance
+        rtol: relative tolerance
+
+    Examples:
+        >>> fun = e3nn.norm
+        >>> rng = jax.random.PRNGKey(0)
+        >>> x = e3nn.IrrepsArray("1e", jnp.array([0.0, 4.0, 3.0]))
+        >>> assert_equivariant(fun, rng, args_in=(x,))
+
+        We can also pass the irreps of the inputs instead of the inputs themselves:
+        >>> assert_equivariant(fun, rng, irreps_in=("1e",))
+    """
     if args_in is None and irreps_in is None:
         raise ValueError("Either args_in or irreps_in must be provided")
 
@@ -50,7 +86,16 @@ def assert_equivariant(
 
 
 def assert_output_dtype_matches_input_dtype(fun: Callable, *args, **kwargs):
-    """Checks that the dtype of fun(*args, **kwargs) matches that of the input (*args, **kwargs)."""
+    """Checks that the dtype of fun(*args, **kwargs) matches that of the input (*args, **kwargs).
+
+    Args:
+        fun: function to test
+        *args: arguments to pass to fun
+        **kwargs: keyword arguments to pass to fun
+
+    Raises:
+        AssertionError: if the dtype of fun(*args, **kwargs) does not match that of the input (*args, **kwargs).
+    """
     if not jax.config.read("jax_enable_x64"):
         raise ValueError("This test requires jax_enable_x64=True")
 
