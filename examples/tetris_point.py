@@ -60,11 +60,13 @@ class Model(flax.linen.Module):
         )
 
         for _ in range(4):
-            node_feat = MessagePassingConvolutionFlax("32x0e + 32x0o + 16x0e + 8x1e + 8x1o", **kw)(
-                pos, node_feat, edge_src, edge_dst
-            )
+            node_feat = MessagePassingConvolutionFlax(
+                "32x0e + 32x0o + 16x0e + 8x1e + 8x1o", **kw
+            )(pos, node_feat, edge_src, edge_dst)
             node_feat = e3nn.gate(node_feat)
-        node_feat = MessagePassingConvolutionFlax("0o + 7x0e", **kw)(pos, node_feat, edge_src, edge_dst)
+        node_feat = MessagePassingConvolutionFlax("0o + 7x0e", **kw)(
+            pos, node_feat, edge_src, edge_dst
+        )
 
         return node_feat.array
 
@@ -86,7 +88,9 @@ def train(steps=2000):
         grad_fn = jax.value_and_grad(loss_pred, has_aux=True)
         (_, pred), grads = grad_fn(params, pos, edge_src, edge_dst, labels, batch)
         accuracy_odd = jnp.sign(jnp.round(pred[:, 0])) == labels[:, 0]
-        accuracy_even = jnp.argmax(pred[:, 1:], axis=1) == jnp.argmax(labels[:, 1:], axis=1)
+        accuracy_even = jnp.argmax(pred[:, 1:], axis=1) == jnp.argmax(
+            labels[:, 1:], axis=1
+        )
         accuracy = (jnp.mean(accuracy_odd) + jnp.mean(accuracy_even)) / 2
         updates, opt_state = opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
@@ -108,13 +112,17 @@ def train(steps=2000):
 
     wall = time.perf_counter()
     for it in range(1, steps + 1):
-        params, opt_state, accuracy, pred = update(params, opt_state, pos, edge_src, edge_dst, labels, batch)
+        params, opt_state, accuracy, pred = update(
+            params, opt_state, pos, edge_src, edge_dst, labels, batch
+        )
 
         print(f"[{it}] accuracy = {100 * accuracy:.0f}%")
 
         if accuracy == 1:
             total = time.perf_counter() - wall
-            print(f"100% accuracy has been reach in {total:.1f}s after {it} iterations ({1000 * total/it:.1f}ms/it).")
+            print(
+                f"100% accuracy has been reach in {total:.1f}s after {it} iterations ({1000 * total/it:.1f}ms/it)."
+            )
             break
 
     jnp.set_printoptions(precision=2, suppress=True)

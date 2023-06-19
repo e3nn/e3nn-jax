@@ -56,18 +56,24 @@ class Layer(flax.linen.Module):
     @flax.linen.compact
     def __call__(self, graphs, positions):
         target_irreps = e3nn.Irreps(self.target_irreps)
-        vectors = positions[graphs.receivers] - positions[graphs.senders]  # [n_edges, 1e or 1o]
+        vectors = (
+            positions[graphs.receivers] - positions[graphs.senders]
+        )  # [n_edges, 1e or 1o]
         sh = e3nn.spherical_harmonics(list(range(1, self.sh_lmax + 1)), vectors, True)
 
         def update_edge_fn(edge_features, sender_features, receiver_features, globals):
-            return e3nn.concatenate([sender_features, e3nn.tensor_product(sender_features, sh)]).regroup()
+            return e3nn.concatenate(
+                [sender_features, e3nn.tensor_product(sender_features, sh)]
+            ).regroup()
 
         def update_node_fn(node_features, sender_features, receiver_features, globals):
             shortcut = e3nn.flax.Linear(target_irreps, name="shortcut")(node_features)
 
             node_feats = receiver_features / jnp.sqrt(self.avg_num_neighbors)
             node_feats = e3nn.flax.Linear(target_irreps, name="linear_pre")(node_feats)
-            node_feats = e3nn.scalar_activation(node_feats, even_act=jax.nn.gelu, odd_act=jax.nn.tanh)
+            node_feats = e3nn.scalar_activation(
+                node_feats, even_act=jax.nn.gelu, odd_act=jax.nn.tanh
+            )
             node_feats = e3nn.flax.Linear(target_irreps, name="linear_post")(node_feats)
             return shortcut + node_feats
 
@@ -82,8 +88,12 @@ class Model(flax.linen.Module):
         graphs = graphs._replace(nodes=jnp.ones((len(positions), 1)))
 
         ann = 2.0
-        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", ann)(graphs, positions)
-        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", ann)(graphs, positions)
+        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", ann)(
+            graphs, positions
+        )
+        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", ann)(
+            graphs, positions
+        )
         graphs = Layer("0o + 7x0e", ann)(graphs, positions)
         return graphs.nodes
 
@@ -143,7 +153,9 @@ def train(seeds=20, steps=200, plot=True):
         done = False
         wall = time.perf_counter()
         for it in range(1, steps + 1):
-            params, opt_state, loss, accuracy, logits = update(params, opt_state, graphs)
+            params, opt_state, loss, accuracy, logits = update(
+                params, opt_state, graphs
+            )
             losses.append(loss)
 
             if not done and accuracy == 1.0:
