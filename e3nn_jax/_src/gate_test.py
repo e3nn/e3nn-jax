@@ -21,4 +21,4 @@ def test_gate(keys, irreps: e3nn.Irreps):
     x = e3nn.normal(irreps, next(keys), (128,))
     assert jnp.exp(jnp.abs(jnp.log(jnp.mean(gate(x).array ** 2)))) < 1.2
 
-    assert_equivariant(gate, next(keys), args_in=(x,))
+    assert_equivariant(gate, next(keys), x)

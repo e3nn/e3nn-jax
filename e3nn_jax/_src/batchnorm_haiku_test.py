@@ -21,13 +21,9 @@ def test_equivariant(keys, irreps):
     _, state = b.apply(params, state, e3nn.normal(irreps, next(keys), (16,)))
 
     m_train = lambda x: b.apply(params, state, x)[0]
-    assert_equivariant(
-        m_train, next(keys), args_in=[e3nn.normal(irreps, next(keys), (16,))]
-    )
+    assert_equivariant(m_train, next(keys), e3nn.normal(irreps, next(keys), (16,)))
     m_eval = lambda x: b.apply(params, state, x, is_training=False)[0]
-    assert_equivariant(
-        m_eval, next(keys), args_in=[e3nn.normal(irreps, next(keys), (16,))]
-    )
+    assert_equivariant(m_eval, next(keys), e3nn.normal(irreps, next(keys), (16,)))
 
 
 @pytest.mark.parametrize("affine", [True, False])

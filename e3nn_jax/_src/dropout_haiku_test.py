@@ -25,4 +25,4 @@ def test_dropout(keys):
     def wrap(x):
         return b.apply(params, keys[0], x)
 
-    assert_equivariant(wrap, rng_key=next(keys), args_in=[x])
+    assert_equivariant(wrap, next(keys), x)

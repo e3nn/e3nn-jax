@@ -55,6 +55,7 @@ def test_point_convolution(keys):
     assert_equivariant(
         lambda pos, x: model_apply(w, pos, x, src, dst),
         jax.random.PRNGKey(0),
-        args_in=[pos, feat],
+        pos,
+        feat,
     )
     assert_output_dtype_matches_input_dtype(model_apply, w, pos, feat, src, dst)

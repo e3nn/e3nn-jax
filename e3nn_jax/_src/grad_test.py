@@ -8,14 +8,12 @@ def test_equivariance():
     assert_equivariant(
         e3nn.grad(lambda x: e3nn.tensor_product(x, x)),
         random.PRNGKey(0),
-        irreps_in=("2x0e + 1e",),
+        "2x0e + 1e",
     )
     assert_equivariant(
-        e3nn.grad(lambda x: e3nn.norm(x)), random.PRNGKey(1), irreps_in=("2x0e + 1e",)
+        e3nn.grad(lambda x: e3nn.norm(x)), random.PRNGKey(1), "2x0e + 1e"
     )
-    assert_equivariant(
-        e3nn.grad(lambda x: e3nn.sum(x)), random.PRNGKey(2), irreps_in=("2x0e + 1e",)
-    )
+    assert_equivariant(e3nn.grad(lambda x: e3nn.sum(x)), random.PRNGKey(2), "2x0e + 1e")
 
 
 def test_simple_grad():

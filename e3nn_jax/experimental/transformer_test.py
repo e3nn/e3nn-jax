@@ -52,6 +52,7 @@ def test_transformer(keys):
     assert_equivariant(
         lambda pos, node_feat: apply(w, pos, src, dst, node_feat),
         jax.random.PRNGKey(0),
-        args_in=[pos, node_feat],
+        pos,
+        node_feat,
         atol=1e-4,
     )
