@@ -72,13 +72,19 @@ class IrrepsArray:
 
     irreps: Irreps = attrib(converter=Irreps)
     array: jnp.ndarray = attrib()
+    zero_flags: Optional[Tuple[bool, ...]] = attrib(default=None, kw_only=True)
 
     def __post_init__(self):
-        if isinstance(self.array, (np.ndarray, jnp.ndarray)):
+        if hasattr(self.array, "shape"):
             if self.array.shape[-1] != self.irreps.dim:
                 raise ValueError(
                     f"IrrepsArray: Array shape {self.array.shape} incompatible with irreps {self.irreps}. "
                     f"{self.array.shape[-1]} != {self.irreps.dim}"
+                )
+        if self.zero_flags is not None:
+            if len(self.zero_flags) != len(self.irreps):
+                raise ValueError(
+                    f"IrrepsArray: len(zero_flags) != len(irreps), {len(self.zero_flags)} != {len(self.irreps)}"
                 )
 
     @staticmethod
@@ -162,8 +168,12 @@ class IrrepsArray:
             )
         else:
             array = jnp.zeros(leading_shape + (0,), dtype)
-        return IrrepsArray(irreps, array)
 
+        zero_flags = tuple(x is None for x in chunks)
+
+        return IrrepsArray(irreps, array, zero_flags=zero_flags)
+
+    # TODO move to e3nn.as_irreps_array?
     @staticmethod
     def as_irreps_array(array: Union[jnp.ndarray, "IrrepsArray"], *, backend=None):
         """Convert an array to an IrrepsArray.
@@ -191,8 +201,9 @@ class IrrepsArray:
     def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> "IrrepsArray":
         r"""Create an IrrepsArray of zeros."""
         irreps = Irreps(irreps)
+        array = jnp.zeros(leading_shape + (irreps.dim,), dtype=dtype)
         return IrrepsArray(
-            irreps, jnp.zeros(leading_shape + (irreps.dim,), dtype=dtype)
+            irreps, array, zero_flags=tuple(True for _ in range(len(irreps)))
         )
 
     @staticmethod
@@ -211,7 +222,7 @@ class IrrepsArray:
         return self.chunks
 
     @property
-    def chunks(self) -> List[jnp.ndarray]:
+    def chunks(self) -> List[Optional[jnp.ndarray]]:
         r"""List of arrays matching each item of the ``.irreps``.
 
         Examples:
@@ -231,14 +242,22 @@ class IrrepsArray:
         """
         jnp = _infer_backend(self.array)
         leading_shape = self.array.shape[:-1]
+        if self.zero_flags is None:
+            zeros = [False] * len(self.irreps)
+        else:
+            zeros = self.zero_flags
 
         if len(self.irreps) == 1:
             mul, ir = self.irreps[0]
+            if zeros[0]:
+                return [None]
             return [jnp.reshape(self.array, leading_shape + (mul, ir.dim))]
         else:
             return [
-                jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
-                for i, (mul, ir) in zip(self.irreps.slices(), self.irreps)
+                None
+                if zero
+                else jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
+                for zero, i, (mul, ir) in zip(zeros, self.irreps.slices(), self.irreps)
             ]
 
     @property
@@ -622,6 +641,20 @@ class IrrepsArray:
         warnings.warn("IrrepsArray.remove_nones is deprecated.", DeprecationWarning)
         return self
 
+    def remove_zero_chunks(self) -> "IrrepsArray":
+        r"""Remove all zero chunks."""
+        irreps = Irreps(
+            [mul_ir for mul_ir, zero in zip(self.irreps, self.zero_flags) if not zero]
+        )
+        chunks = [x for x, zero in zip(self.chunks, self.zero_flags) if not zero]
+        return IrrepsArray.from_chunks(
+            irreps,
+            chunks,
+            self.shape[:-1],
+            self.dtype,
+            backend=_infer_backend(self.array),
+        )
+
     def simplify(self) -> "IrrepsArray":
         r"""Simplify the irreps.
 
@@ -986,6 +1019,7 @@ class IrrepsArray:
         return IrrepsArray(self.irreps, array)
 
 
+# We purposefully do not register zero_flags
 jax.tree_util.register_pytree_node(
     IrrepsArray,
     lambda x: ((x.array,), x.irreps),
