@@ -53,12 +53,7 @@ def _reduce(
     if axis[-1] < array.ndim - 1:
         # irrep dimension is not affected by mean
         return e3nn.IrrepsArray(
-            array.irreps,
-            op(array.array, axis=axis, keepdims=keepdims),
-            [
-                None if x is None else op(x, axis=axis, keepdims=keepdims)
-                for x in array.list
-            ],
+            array.irreps, op(array.array, axis=axis, keepdims=keepdims)
         )
 
     array = _reduce(op, array, axis=axis[:-1], keepdims=keepdims)
@@ -165,21 +160,15 @@ def concatenate(arrays: List[e3nn.IrrepsArray], axis: int = -1) -> e3nn.IrrepsAr
     if axis == arrays[0].ndim - 1:
         irreps = e3nn.Irreps(sum([x.irreps for x in arrays], e3nn.Irreps("")))
         return e3nn.IrrepsArray(
-            irreps=irreps,
-            array=jnp.concatenate([x.array for x in arrays], axis=-1),
-            list=sum([x.list for x in arrays], []),
+            irreps, jnp.concatenate([x.array for x in arrays], axis=-1)
         )
 
     if {x.irreps for x in arrays} != {arrays[0].irreps}:
         raise ValueError("Irreps must be the same for all arrays")
 
-    arrays = [
-        x.replace_none_with_zeros() for x in arrays
-    ]  # TODO this could be optimized
+    arrays = [x.replace_none_with_zeros() for x in arrays]
     return e3nn.IrrepsArray(
-        irreps=arrays[0].irreps,
-        array=jnp.concatenate([x.array for x in arrays], axis=axis),
-        list=[jnp.concatenate(xs, axis=axis) for xs in zip(*[x.list for x in arrays])],
+        arrays[0].irreps, jnp.concatenate([x.array for x in arrays], axis=axis)
     )
 
 

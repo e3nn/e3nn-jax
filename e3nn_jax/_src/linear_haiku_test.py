@@ -38,7 +38,7 @@ class SlowLinear:
         self.irreps_out = irreps_out
 
     def __call__(self, ws, x):
-        ones = e3nn.IrrepsArray.ones("0e", ())
+        ones = e3nn.IrrepsArray("0e", jnp.array([1.0]))
         return self.tp.left_right(ws, x, ones)
 
 

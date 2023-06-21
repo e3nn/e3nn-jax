@@ -402,13 +402,13 @@ def _block_left_right(
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):
         if mode == "uv":
-            return einsum("ui,vj->uvij", input1.list[in1], input2.list[in2])
+            return einsum("ui,vj->uvij", input1.chunks[in1], input2.chunks[in2])
         if mode == "uu":
-            return einsum("ui,uj->uij", input1.list[in1], input2.list[in2])
+            return einsum("ui,uj->uij", input1.chunks[in1], input2.chunks[in2])
 
     weight_index = 0
 
-    out_list = []
+    out_chunks = []
 
     for ins in self.instructions:
         mul_ir_in1 = self.irreps_in1[ins.i_in1]
@@ -425,11 +425,11 @@ def _block_left_right(
             # out_list += [None]
             continue
 
-        x1 = input1.list[ins.i_in1]
-        x2 = input2.list[ins.i_in2]
+        x1 = input1.chunks[ins.i_in1]
+        x2 = input2.chunks[ins.i_in2]
 
         if x1 is None or x2 is None:
-            out_list += [None]
+            out_chunks += [None]
             continue
 
         xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
@@ -495,13 +495,13 @@ def _block_left_right(
             xx = xx[i[0], i[1]]  # uvij -> qij
             out = einsum("qw,ijk,qij->wk", w, w3j, xx)
 
-        out_list += [out]
+        out_chunks += [out]
 
     out = [
         _sum_tensors(
             [
                 out
-                for ins, out in zip(self.instructions, out_list)
+                for ins, out in zip(self.instructions, out_chunks)
                 if ins.i_out == i_out
             ],
             shape=(mul_ir_out.mul, mul_ir_out.ir.dim),
@@ -510,7 +510,7 @@ def _block_left_right(
         )
         for i_out, mul_ir_out in enumerate(self.irreps_out)
     ]
-    return IrrepsArray.from_list(self.irreps_out, out, (), dtype)
+    return IrrepsArray.from_chunks(self.irreps_out, out, (), dtype)
 
 
 def _fused_left_right(

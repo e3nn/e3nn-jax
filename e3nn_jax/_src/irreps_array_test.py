@@ -14,46 +14,6 @@ def test_empty():
     assert x.shape == (2, 2, 0)
 
 
-def test_convert():
-    id = e3nn.IrrepsArray.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
-    assert jax.tree_util.tree_map(
-        lambda x: x.shape, id._convert("0x0e + 20x0e + 0x0e")
-    ).list == [None, (1, 20, 1), None]
-    assert jax.tree_util.tree_map(
-        lambda x: x.shape, id._convert("7x0e + 4x0e + 9x0e")
-    ).list == [None, (1, 4, 1), (1, 9, 1)]
-
-    id = e3nn.IrrepsArray.from_list("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))], (1,))
-    assert jax.tree_util.tree_map(
-        lambda x: x.shape, id._convert("5x0e + 5x0e + 5x1e + 5x1e")
-    ).list == [
-        None,
-        None,
-        (1, 5, 3),
-        (1, 5, 3),
-    ]
-
-    id = e3nn.IrrepsArray.zeros("10x0e + 10x1e", ())
-    id = id._convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
-
-    a = e3nn.IrrepsArray.from_list(
-        "            10x0e  +  0x0e +1x1e  +     0x0e    +          9x1e           + 0x0e",
-        [
-            jnp.ones((2, 10, 1)),
-            None,
-            None,
-            jnp.ones((2, 0, 1)),
-            jnp.ones((2, 9, 3)),
-            None,
-        ],
-        (2,),
-    )
-    b = a._convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
-    b = e3nn.IrrepsArray.from_list(b.irreps, b.list, b.shape[:-1])
-
-    np.testing.assert_allclose(a.array, b.array)
-
-
 def test_indexing():
     x = e3nn.IrrepsArray("2x0e + 1x0e", jnp.array([[1.0, 2, 3], [4.0, 5, 6]]))
     assert x.shape == (2, 3)
@@ -185,10 +145,6 @@ def test_at_add():
     y1 = x.at[0].add(v)
     y2 = e3nn.IrrepsArray(x.irreps, x.array.at[0].add(v.array))
     np.testing.assert_array_equal(y1.array, y2.array)
-    assert y1.list[0] is None
-    assert y1.list[1] is not None
-    assert y1.list[2] is not None
-    assert y1.list[3] is not None
     np.testing.assert_allclose(0, y2.list[0])
     np.testing.assert_array_equal(y1.list[1], y2.list[1])
     np.testing.assert_array_equal(y1.list[2], y2.list[2])

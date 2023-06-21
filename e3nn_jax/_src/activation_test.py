@@ -20,9 +20,6 @@ def test_zero_in_zero():
     y = scalar_activation(x, [jnp.tanh, jnp.tanh, lambda x: x**2, jnp.cos])
 
     assert y.irreps == Irreps("0e + 0o + 0e + 0e")
-    assert y.list[1] is None
-    assert y.list[2] is None
-    assert y.list[3] is not None
 
 
 def test_irreps_argument():
