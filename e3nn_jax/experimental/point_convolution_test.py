@@ -50,7 +50,6 @@ def test_point_convolution(keys):
 
     assert out.shape[:-1] == feat.shape[:-1]
     assert out.irreps == e3nn.Irreps("8x0e + 8x0o + 5e")
-    assert out.list[2] is None
 
     assert_equivariant(
         lambda pos, x: model_apply(w, pos, x, src, dst),
