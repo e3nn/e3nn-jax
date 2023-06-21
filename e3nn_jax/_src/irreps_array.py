@@ -625,7 +625,12 @@ class IrrepsArray:
             backend=_infer_backend(self.array),
         )
 
-    sorted = sort
+    def sorted(self) -> "IrrepsArray":
+        warnings.warn(
+            "IrrepsArray.sorted is deprecated, use IrrepsArray.sort instead.",
+            DeprecationWarning,
+        )
+        return self.sort()
 
     def regroup(self) -> "IrrepsArray":
         r"""Regroup the same irreps together.
@@ -673,7 +678,12 @@ class IrrepsArray:
             backend=backend,
         )
 
-    filtered = filter
+    def filtered(self, *args, **kwargs) -> "IrrepsArray":
+        warnings.warn(
+            "IrrepsArray.filtered is deprecated, use IrrepsArray.filter instead.",
+            DeprecationWarning,
+        )
+        return self.filter(*args, **kwargs)
 
     @property
     def slice_by_mul(self):
@@ -769,6 +779,13 @@ class IrrepsArray:
             irreps, new_list, self.shape[:-1] + (factor,), self.dtype
         )
 
+    def factor_mul_to_last_axis(self, axis: int = -2) -> "IrrepsArray":
+        warnings.warn(
+            "IrrepsArray.factor_mul_to_last_axis is deprecated. Use IrrepsArray.mul_to_axis instead.",
+            DeprecationWarning,
+        )
+        return self.mul_to_axis(axis=axis)
+
     def axis_to_mul(self, axis: int = -2) -> "IrrepsArray":
         r"""Repeat the multiplicity by the previous last axis of the array.
 
@@ -800,8 +817,12 @@ class IrrepsArray:
         ]
         return e3nn.from_chunks(new_irreps, new_list, self.shape[:-2], self.dtype)
 
-    repeat_mul_by_last_axis = axis_to_mul
-    factor_mul_to_last_axis = mul_to_axis
+    def repeat_mul_by_last_axis(self, axis: int = -2) -> "IrrepsArray":
+        warnings.warn(
+            "IrrepsArray.repeat_mul_by_last_axis is deprecated. Use IrrepsArray.axis_to_mul instead.",
+            DeprecationWarning,
+        )
+        return self.axis_to_mul(axis=axis)
 
     def transform_by_log_coordinates(
         self, log_coordinates: jnp.ndarray, k: int = 0
