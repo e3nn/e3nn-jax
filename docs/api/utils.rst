@@ -1,11 +1,8 @@
 Utils
 =====
 
-.. autoclass:: e3nn_jax.utils.equivariance_test
-    :members:
+.. autofunction:: e3nn_jax.utils.equivariance_test
 
-.. autoclass:: e3nn_jax.utils.assert_equivariant
-    :members:
+.. autofunction:: e3nn_jax.utils.assert_equivariant
 
-.. autoclass:: e3nn_jax.utils.assert_output_dtype_matches_input_dtype
-    :members:
+.. autofunction:: e3nn_jax.utils.assert_output_dtype_matches_input_dtype
