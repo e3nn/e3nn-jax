@@ -374,7 +374,7 @@ class IrrepsArray:
                     f"IrrepsArray({self.irreps}) / IrrepsArray({other.irreps}) is not equivariant."
                 )
 
-            if any(x is None for x in other.list):
+            if any(x is None for x in other.chunks):
                 raise ValueError(
                     "There are deterministic Zeros in the array of the lhs. Cannot divide by Zero."
                 )
@@ -403,7 +403,7 @@ class IrrepsArray:
             raise ValueError(
                 f"scalar(shape={other.shape}) / IrrepsArray({self.irreps}) is not equivariant."
             )
-        if any(x is None for x in self.list):
+        if any(x is None for x in self.chunks):
             raise ValueError(
                 "There are deterministic Zeros in the array of the lhs. Cannot divide by Zero."
             )
@@ -578,7 +578,7 @@ class IrrepsArray:
         )
 
     def remove_nones(self) -> "IrrepsArray":
-        r"""Remove all None in ``.list`` and ``.irreps``."""
+        r"""Remove all None in ``.chunks`` and ``.irreps``."""
         warnings.warn(
             "IrrepsArray.remove_nones is deprecated. Use IrrepsArray.remove_zero_chunks instead.",
             DeprecationWarning,
@@ -630,7 +630,7 @@ class IrrepsArray:
         irreps, p, inv = self.irreps.sort()
         return e3nn.from_chunks(
             irreps,
-            [self.list[i] for i in inv],
+            [self.chunks[i] for i in inv],
             self.shape[:-1],
             self.dtype,
             backend=_infer_backend(self.array),
@@ -773,7 +773,7 @@ class IrrepsArray:
         irreps = Irreps([(mul // factor, ir) for mul, ir in self.irreps])
         new_list = [
             None if x is None else x.reshape(self.shape[:-1] + (factor, mul, ir.dim))
-            for (mul, ir), x in zip(irreps, self.list)
+            for (mul, ir), x in zip(irreps, self.chunks)
         ]
         new_list = [None if x is None else jnp.moveaxis(x, -3, axis) for x in new_list]
         return e3nn.from_chunks(
@@ -801,7 +801,9 @@ class IrrepsArray:
                 "The last axis is the irreps dimension and therefore cannot be converted to multiplicity."
             )
 
-        new_list = [None if x is None else jnp.moveaxis(x, axis, -3) for x in self.list]
+        new_list = [
+            None if x is None else jnp.moveaxis(x, axis, -3) for x in self.chunks
+        ]
         new_irreps = Irreps([(self.shape[-2] * mul, ir) for mul, ir in self.irreps])
         new_list = [
             None if x is None else x.reshape(self.shape[:-2] + (new_mul, ir.dim))
@@ -835,7 +837,7 @@ class IrrepsArray:
             )
             if x is not None
             else None
-            for (mul, ir), x in zip(self.irreps, self.list)
+            for (mul, ir), x in zip(self.irreps, self.chunks)
         ]
         return e3nn.from_chunks(self.irreps, new_list, self.shape[:-1], self.dtype)
 
@@ -887,7 +889,7 @@ class IrrepsArray:
             )
             if x is not None
             else None
-            for (mul, ir), x in zip(self.irreps, self.list)
+            for (mul, ir), x in zip(self.irreps, self.chunks)
         ]
         return e3nn.from_chunks(self.irreps, new_list, self.shape[:-1], self.dtype)
 
@@ -950,7 +952,7 @@ class IrrepsArray:
 
         Examples:
             >>> x = e3nn.from_chunks("6x0e + 4x0e", [None, jnp.ones((4, 1))], ())
-            >>> x._convert("5x0e + 5x0e").list
+            >>> x._convert("5x0e + 5x0e").chunks
             [None, Array([[0.],
                    [1.],
                    [1.],
@@ -1198,7 +1200,7 @@ class _ChunkIndexSliceHelper:
 
         return e3nn.from_chunks(
             self.irreps_array.irreps[start:stop:stride],
-            self.irreps_array.list[start:stop:stride],
+            self.irreps_array.chunks[start:stop:stride],
             self.irreps_array.shape[:-1],
             self.irreps_array.dtype,
             backend=_infer_backend(self.irreps_array.array),

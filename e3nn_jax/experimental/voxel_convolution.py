@@ -274,7 +274,7 @@ def _call(
         i = 0
         for mul_ir in e3nn.Irreps(self.irreps_out):
             if i < len(irreps_out) and irreps_out[i] == mul_ir:
-                list.append(output.list[i])
+                list.append(output.chunks[i])
                 i += 1
             else:
                 list.append(None)

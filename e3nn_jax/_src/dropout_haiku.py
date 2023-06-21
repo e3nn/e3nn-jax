@@ -57,7 +57,7 @@ class Dropout(hk.Module):
 
         noises = []
         zero_flags = []
-        for (mul, ir), a in zip(x.irreps, x.list):
+        for (mul, ir), a in zip(x.irreps, x.chunks):
             if self.p >= 1:
                 zero_flags.append(True)
                 noises.append(jnp.zeros((mul * ir.dim,), x.dtype))

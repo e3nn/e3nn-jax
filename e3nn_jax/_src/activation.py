@@ -135,7 +135,7 @@ def scalar_activation(
     chunks = []
 
     irreps_out = []
-    for (mul, (l_in, p_in)), x, act in zip(input.irreps, input.list, acts):
+    for (mul, (l_in, p_in)), x, act in zip(input.irreps, input.chunks, acts):
         if act is not None:
             if l_in != 0:
                 raise ValueError(
@@ -212,7 +212,7 @@ def norm_activation(
 
     list = []
 
-    for x, act in zip(input.list, acts):
+    for x, act in zip(input.chunks, acts):
         if act is None:
             list.append(x)
             continue

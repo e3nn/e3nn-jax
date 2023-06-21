@@ -93,7 +93,7 @@ class SymmetricTensorProduct(hk.Module):
                 #       out
 
                 if order in self.orders:
-                    for (mul, ir_out), u in zip(U.irreps, U.list):
+                    for (mul, ir_out), u in zip(U.irreps, U.chunks):
                         # u: ndarray [(irreps_x.dim)^order, multiplicity, ir_out.dim]
                         u = (
                             u / u.shape[-2]

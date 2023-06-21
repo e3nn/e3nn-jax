@@ -165,7 +165,7 @@ def _reduce(
     array = _reduce(op, array, axis=axis[:-1], keepdims=keepdims)
     return e3nn.from_chunks(
         e3nn.Irreps([(1, ir) for _, ir in array.irreps]),
-        [None if x is None else op(x, axis=-2, keepdims=True) for x in array.list],
+        [None if x is None else op(x, axis=-2, keepdims=True) for x in array.chunks],
         array.shape[:-1],
         array.dtype,
     )
@@ -372,7 +372,7 @@ def norm(
     if per_irrep:
         return e3nn.from_chunks(
             [(mul, "0e") for mul, _ in array.irreps],
-            [f(x) for x in array.list],
+            [f(x) for x in array.chunks],
             array.shape[:-1],
             array.dtype,
         )
@@ -415,7 +415,7 @@ def dot(
     if per_irrep:
         out = []
         dtype = a.dtype
-        for x, y in zip(a.list, b.list):
+        for x, y in zip(a.chunks, b.chunks):
             if x is None or y is None:
                 out.append(None)
             else:
@@ -429,7 +429,7 @@ def dot(
         )
     else:
         out = 0.0
-        for x, y in zip(a.list, b.list):
+        for x, y in zip(a.chunks, b.chunks):
             if x is None or y is None:
                 continue
             out = out + jnp.sum(jnp.conj(x) * y, axis=(-2, -1))
@@ -474,7 +474,7 @@ def cross(a: e3nn.IrrepsArray, b: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
     dtype = a.dtype
 
     for ((mul, irx), x), ((_, iry), y) in zip(
-        zip(a.irreps, a.list), zip(b.irreps, b.list)
+        zip(a.irreps, a.chunks), zip(b.irreps, b.chunks)
     ):
         irreps_out.append((mul, (1, irx.p * iry.p)))
         if x is None or y is None:

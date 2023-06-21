@@ -403,9 +403,9 @@ def _block_left_right(
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):
         if mode == "uv":
-            return einsum("ui,vj->uvij", input1.list[in1], input2.list[in2])
+            return einsum("ui,vj->uvij", input1.chunks[in1], input2.chunks[in2])
         if mode == "uu":
-            return einsum("ui,uj->uij", input1.list[in1], input2.list[in2])
+            return einsum("ui,uj->uij", input1.chunks[in1], input2.chunks[in2])
 
     weight_index = 0
 
@@ -426,8 +426,8 @@ def _block_left_right(
             # out_list += [None]
             continue
 
-        x1 = input1.list[ins.i_in1]
-        x2 = input2.list[ins.i_in2]
+        x1 = input1.chunks[ins.i_in1]
+        x2 = input2.chunks[ins.i_in2]
 
         if x1 is None or x2 is None:
             out_list += [None]
@@ -655,7 +655,7 @@ def _right(
         mul_ir_in2 = self.irreps_in2[ins.i_in2]
         mul_ir_out = self.irreps_out[ins.i_out]
 
-        x2 = input2.list[ins.i_in2]
+        x2 = input2.chunks[ins.i_in2]
 
         if ins.has_weight:
             w = weights[weight_index]

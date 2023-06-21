@@ -15,5 +15,5 @@ def test_normalization():
     w = jax.jit(model.init)(jax.random.PRNGKey(1), x)
     y = jax.jit(model.apply)(w, x)
 
-    for (mul, ir), e in zip(y.irreps, y.list):
+    for (mul, ir), e in zip(y.irreps, y.chunks):
         assert 0.5 < float(jnp.mean(e**2)) < 6.5

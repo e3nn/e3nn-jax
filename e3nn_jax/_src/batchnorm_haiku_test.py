@@ -74,11 +74,11 @@ def test_normalization(keys, instance):
     x = e3nn.normal(irreps, next(keys), (batch, n)) * 5
     x, state = b.apply(params, state, x)
 
-    a = x.list[0]  # [batch, space, mul, 1]
+    a = x.chunks[0]  # [batch, space, mul, 1]
     assert jnp.max(jnp.abs(a.mean([0, 1]))) < float_tolerance
     assert jnp.max(jnp.abs(jnp.square(a).mean([0, 1]) - 1)) < sqrt_float_tolerance
 
-    a = x.list[1]  # [batch, space, mul, repr]
+    a = x.chunks[1]  # [batch, space, mul, repr]
     assert (
         jnp.max(jnp.abs(jnp.square(a).sum(3).mean([0, 1]) - 1)) < sqrt_float_tolerance
     )
@@ -96,11 +96,11 @@ def test_normalization(keys, instance):
     x = e3nn.normal(irreps, next(keys), (batch, n)) * 5
     x, state = b.apply(params, state, x)
 
-    a = x.list[0]  # [batch, space, mul, 1]
+    a = x.chunks[0]  # [batch, space, mul, 1]
     assert jnp.max(jnp.abs(a.mean([0, 1]))) < float_tolerance
     assert jnp.max(jnp.abs(jnp.square(a).mean([0, 1]) - 1)) < sqrt_float_tolerance
 
-    a = x.list[1]  # [batch, space, mul, repr]
+    a = x.chunks[1]  # [batch, space, mul, repr]
     assert (
         jnp.max(jnp.abs(jnp.square(a).mean(3).mean([0, 1]) - 1)) < sqrt_float_tolerance
     )

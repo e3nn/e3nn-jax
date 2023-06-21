@@ -179,8 +179,9 @@ class FunctionalLinear:
             if ins.i_in == -1
             else (
                 None
-                if input.list[ins.i_in] is None
-                else ins.path_weight * jnp.einsum("uw,ui->wi", w, input.list[ins.i_in])
+                if input.chunks[ins.i_in] is None
+                else ins.path_weight
+                * jnp.einsum("uw,ui->wi", w, input.chunks[ins.i_in])
             )
             for ins, w in zip(self.instructions, ws)
         ]

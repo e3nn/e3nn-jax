@@ -40,7 +40,7 @@ def _batch_norm(
     i_rmu = 0  # index for running_mean
     i_bia = 0  # index for bias
 
-    for (mul, ir), field in zip(input.irreps, input.list):
+    for (mul, ir), field in zip(input.irreps, input.chunks):
         if field is None:
             # [batch, sample, mul, repr]
             if ir.is_scalar():  # scalars
@@ -120,7 +120,7 @@ def _batch_norm(
             fields.append(field)  # [batch, sample, mul, repr]
         i_wei += mul
 
-    output = e3nn.from_list(input.irreps, fields, (batch, prod(size)), input.dtype)
+    output = e3nn.from_chunks(input.irreps, fields, (batch, prod(size)), input.dtype)
     output = output.reshape((batch,) + tuple(size) + (-1,))
     return output, new_means, new_vars
 

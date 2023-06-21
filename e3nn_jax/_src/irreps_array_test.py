@@ -49,7 +49,7 @@ def test_convert():
         (2,),
     )
     b = a._convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
-    b = e3nn.from_chunks(b.irreps, b.list, b.shape[:-1])
+    b = e3nn.from_chunks(b.irreps, b.chunks, b.shape[:-1])
 
     np.testing.assert_allclose(a.array, b.array)
 
@@ -153,21 +153,21 @@ def test_at_set():
     y = x.at[0, 1].set(0)
     assert y.shape == x.shape
     np.testing.assert_allclose(y[0, 1].array, 0)
-    np.testing.assert_allclose(y[0, 1].list[0], 0)
-    np.testing.assert_allclose(y[0, 1].list[1], 0)
+    np.testing.assert_allclose(y[0, 1].chunks[0], 0)
+    np.testing.assert_allclose(y[0, 1].chunks[1], 0)
     np.testing.assert_allclose(y[0, 2].array, x[0, 2].array)
-    np.testing.assert_allclose(y[0, 2].list[0], x[0, 2].list[0])
-    np.testing.assert_allclose(y[0, 2].list[1], x[0, 2].list[1])
+    np.testing.assert_allclose(y[0, 2].chunks[0], x[0, 2].chunks[0])
+    np.testing.assert_allclose(y[0, 2].chunks[1], x[0, 2].chunks[1])
 
     v = e3nn.IrrepsArray("0e + 1e", jnp.arange(4 * 4).reshape((4, 4)))
     y = x.at[1].set(v)
     assert y.shape == x.shape
     np.testing.assert_allclose(y[1].array, v.array)
-    np.testing.assert_allclose(y[1].list[0], v.list[0])
-    np.testing.assert_allclose(y[1].list[1], v.list[1])
+    np.testing.assert_allclose(y[1].chunks[0], v.chunks[0])
+    np.testing.assert_allclose(y[1].chunks[1], v.chunks[1])
     np.testing.assert_allclose(y[0].array, x[0].array)
-    np.testing.assert_allclose(y[0].list[0], x[0].list[0])
-    np.testing.assert_allclose(y[0].list[1], x[0].list[1])
+    np.testing.assert_allclose(y[0].chunks[0], x[0].chunks[0])
+    np.testing.assert_allclose(y[0].chunks[1], x[0].chunks[1])
 
 
 def test_at_add():
@@ -183,14 +183,14 @@ def test_at_add():
     y1 = x.at[0].add(v)
     y2 = e3nn.IrrepsArray(x.irreps, x.array.at[0].add(v.array))
     np.testing.assert_array_equal(y1.array, y2.array)
-    assert y1.list[0] is None
-    assert y1.list[1] is not None
-    assert y1.list[2] is not None
-    assert y1.list[3] is not None
-    np.testing.assert_allclose(0, y2.list[0])
-    np.testing.assert_array_equal(y1.list[1], y2.list[1])
-    np.testing.assert_array_equal(y1.list[2], y2.list[2])
-    np.testing.assert_array_equal(y1.list[3], y2.list[3])
+    assert y1.chunks[0] is None
+    assert y1.chunks[1] is not None
+    assert y1.chunks[2] is not None
+    assert y1.chunks[3] is not None
+    np.testing.assert_allclose(0, y2.chunks[0])
+    np.testing.assert_array_equal(y1.chunks[1], y2.chunks[1])
+    np.testing.assert_array_equal(y1.chunks[2], y2.chunks[2])
+    np.testing.assert_array_equal(y1.chunks[3], y2.chunks[3])
 
 
 def test_slice_by_mul():
@@ -202,7 +202,7 @@ def test_slice_by_mul():
     y = x.slice_by_mul[:0]
     assert y.irreps == ""
     assert y.array.shape == (0,)
-    assert len(y.list) == 0
+    assert len(y.chunks) == 0
 
 
 def test_norm():

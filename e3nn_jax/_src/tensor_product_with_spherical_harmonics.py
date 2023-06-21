@@ -87,9 +87,9 @@ def impl(
     irreps_out = []
     outputs = []
 
-    for (mul, irx), x in zip(input.irreps, input.list):
+    for (mul, irx), x in zip(input.irreps, input.chunks):
         assert x.shape == (mul, irx.dim)
-        for (_, iry), y in zip(shs.irreps, shs.list):
+        for (_, iry), y in zip(shs.irreps, shs.chunks):
             assert y.shape == (1, iry.dim)
 
             # Verify that the spherical harmonics have a specific form
