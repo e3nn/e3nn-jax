@@ -104,7 +104,7 @@ class Linear(flax.linen.Module):
                     f"e3nn.flax.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({self.irreps_in})"
                 )
 
-        input = input.remove_nones().regroup()
+        input = input.remove_zero_chunks().regroup()
         output_irreps = e3nn.Irreps(self.irreps_out).simplify()
 
         if self.channel_out is not None:

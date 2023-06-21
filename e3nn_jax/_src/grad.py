@@ -41,7 +41,6 @@ def grad(
             raise TypeError(f"arg{argnums} must be an e3nn.IrrepsArray.")
         irreps_in = x.irreps
         leading_shape_in = x.shape[:-1]
-        x = x.replace_none_with_zeros()
         args[argnums] = x.list
 
         def naked_fun(*args, **kwargs) -> List[jnp.ndarray]:

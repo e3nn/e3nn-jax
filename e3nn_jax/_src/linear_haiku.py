@@ -162,7 +162,7 @@ class Linear(hk.Module):
                     f"e3nn.haiku.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({self.irreps_in})"
                 )
 
-        input = input.remove_nones().regroup()
+        input = input.remove_zero_chunks().regroup()
         output_irreps = self.irreps_out.simplify()
 
         if self.channel_out is not None:

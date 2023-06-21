@@ -648,17 +648,10 @@ class IrrepsArray:
             zero_flags=self.zero_flags,
         )
 
-    def replace_none_with_zeros(self) -> "IrrepsArray":
-        r"""Replace all None in ``.list`` with zeros."""
-        warnings.warn(
-            "IrrepsArray.replace_none_with_zeros is deprecated.", DeprecationWarning
-        )
-        return IrrepsArray(self.irreps, self.array)
-
     def remove_nones(self) -> "IrrepsArray":
         r"""Remove all None in ``.list`` and ``.irreps``."""
         warnings.warn(
-            "IrrepsArray.remove_nones is deprecated. Use .remove_zeros instead.",
+            "IrrepsArray.remove_nones is deprecated. Use IrrepsArray.remove_zero_chunks instead.",
             DeprecationWarning,
         )
         return self.remove_zero_chunks()

@@ -244,7 +244,7 @@ def _call(
     if not isinstance(input, e3nn.IrrepsArray):
         raise ValueError("Convolution: input should be of type IrrepsArray")
 
-    input = input.remove_nones().simplify()
+    input = input.remove_zero_chunks().simplify()
 
     irreps_out = e3nn.Irreps(
         [

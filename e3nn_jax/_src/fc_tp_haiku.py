@@ -20,8 +20,8 @@ class FullyConnectedTensorProduct(hk.Module):
         if self.irreps_in2 is not None:
             x2 = x2._convert(self.irreps_in2)
 
-        x1 = x1.remove_nones().simplify()
-        x2 = x2.remove_nones().simplify()
+        x1 = x1.remove_zero_chunks().simplify()
+        x2 = x2.remove_zero_chunks().simplify()
 
         tp = e3nn.FunctionalFullyConnectedTensorProduct(
             x1.irreps, x2.irreps, self.irreps_out.simplify()
