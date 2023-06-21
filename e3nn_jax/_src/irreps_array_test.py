@@ -17,16 +17,16 @@ def test_empty():
 def test_convert():
     id = e3nn.IrrepsArray.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
     assert jax.tree_util.tree_map(
-        lambda x: x.shape, id._convert("0x0e + 20x0e + 0x0e")
-    ).list == [None, (1, 20, 1), None]
+        jnp.shape, id._convert("0x0e + 20x0e + 0x0e").chunks
+    ) == [None, (1, 20, 1), None]
     assert jax.tree_util.tree_map(
-        lambda x: x.shape, id._convert("7x0e + 4x0e + 9x0e")
-    ).list == [None, (1, 4, 1), (1, 9, 1)]
+        jnp.shape, id._convert("7x0e + 4x0e + 9x0e").chunks
+    ) == [None, (1, 4, 1), (1, 9, 1)]
 
     id = e3nn.IrrepsArray.from_list("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))], (1,))
     assert jax.tree_util.tree_map(
-        lambda x: x.shape, id._convert("5x0e + 5x0e + 5x1e + 5x1e")
-    ).list == [
+        jnp.shape, id._convert("5x0e + 5x0e + 5x1e + 5x1e").chunks
+    ) == [
         None,
         None,
         (1, 5, 3),

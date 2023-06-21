@@ -26,6 +26,14 @@ def test_simple_grad():
     )
 
 
+def test_grad_in_zero():
+    def fn(x):
+        return e3nn.sum(x)
+
+    x = e3nn.IrrepsArray.zeros("0e", ())
+    np.testing.assert_allclose(e3nn.grad(fn)(x).array, 1.0, atol=1e-6, rtol=1e-6)
+
+
 def test_aux():
     def fn(x):
         return e3nn.sum(0.5 * e3nn.norm(x, squared=True).simplify()), x.irreps

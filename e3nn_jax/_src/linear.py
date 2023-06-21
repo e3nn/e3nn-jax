@@ -149,7 +149,7 @@ class FunctionalLinear:
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]
-        return IrrepsArray.from_list(
+        return IrrepsArray.from_chunks(
             self.irreps_out, output, output_shape, output_dtype
         )
 
@@ -230,9 +230,15 @@ def linear_vanilla(
         for ins in linear.instructions
     ]
     f = lambda x: linear(w, x)
+    input0 = input
     for _ in range(input.ndim - 1):
         f = jax.vmap(f)
-    return f(input)
+        input0 = input0[0]
+
+    # vmap will drop the zero_flags, so we need to recompute them:
+    output0 = linear(w, input0)
+    output = f(input)
+    return IrrepsArray(output.irreps, output.array, zero_flags=output0.zero_flags)
 
 
 def linear_indexed(

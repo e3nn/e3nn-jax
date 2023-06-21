@@ -55,10 +55,7 @@ def _reduce(
         return e3nn.IrrepsArray(
             array.irreps,
             op(array.array, axis=axis, keepdims=keepdims),
-            [
-                None if x is None else op(x, axis=axis, keepdims=keepdims)
-                for x in array.list
-            ],
+            zero_flags=array.zero_flags,
         )
 
     array = _reduce(op, array, axis=axis[:-1], keepdims=keepdims)
@@ -167,7 +164,7 @@ def concatenate(arrays: List[e3nn.IrrepsArray], axis: int = -1) -> e3nn.IrrepsAr
         return e3nn.IrrepsArray(
             irreps=irreps,
             array=jnp.concatenate([x.array for x in arrays], axis=-1),
-            list=sum([x.list for x in arrays], []),
+            zero_flags=sum([x.zero_flags for x in arrays], ()),
         )
 
     if {x.irreps for x in arrays} != {arrays[0].irreps}:

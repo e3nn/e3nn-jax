@@ -31,13 +31,13 @@ def overload_for_irreps_without_array(
                 # assume arguments are Irreps (not IrrepsArray)
 
                 converted_args = {
-                    i: IrrepsArray.ones(a, shape)
+                    i: IrrepsArray.zeros(a, shape)
                     for i, a in enumerate(args)
                     if i in argnums
                 }
                 converted_args.update(
                     {
-                        k: IrrepsArray.ones(v, shape)
+                        k: IrrepsArray.zeros(v, shape)
                         for k, v in kwargs.items()
                         if k in argnames
                     }
