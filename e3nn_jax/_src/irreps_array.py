@@ -484,7 +484,7 @@ class IrrepsArray:
                     mul, ir = self.irreps[i - 1]
                     if (start - self.irreps[: i - 1].dim) % ir.dim == 0:
                         mul1 = (start - self.irreps[: i - 1].dim) // ir.dim
-                        return self._convert(
+                        return self.rechunk(
                             self.irreps[: i - 1]
                             + e3nn.Irreps([(mul1, ir), (mul - mul1, ir)])
                             + self.irreps[i:]
@@ -499,7 +499,7 @@ class IrrepsArray:
                     mul, ir = self.irreps[i - 1]
                     if (stop - self.irreps[: i - 1].dim) % ir.dim == 0:
                         mul1 = (stop - self.irreps[: i - 1].dim) // ir.dim
-                        return self._convert(
+                        return self.rechunk(
                             self.irreps[: i - 1]
                             + e3nn.Irreps([(mul1, ir), (mul - mul1, ir)])
                             + self.irreps[i:]
@@ -609,7 +609,7 @@ class IrrepsArray:
             >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).simplify()
             2x0e [1. 1.]
         """
-        return self._convert(self.irreps.simplify())
+        return self.rechunk(self.irreps.simplify())
 
     def unify(self) -> "IrrepsArray":
         r"""Unify the irreps.
@@ -618,7 +618,7 @@ class IrrepsArray:
             >>> IrrepsArray("0e + 0x1e + 0e", jnp.ones(2)).unify()
             1x0e+0x1e+1x0e [1. 1.]
         """
-        return self._convert(self.irreps.unify())
+        return self.rechunk(self.irreps.unify())
 
     def sort(self) -> "IrrepsArray":
         r"""Sort the irreps.
@@ -938,21 +938,18 @@ class IrrepsArray:
         k = (1 - d) / 2
         return self.transform_by_angles(*e3nn.matrix_to_angles(R), k)
 
-    def _convert(self, irreps: IntoIrreps) -> "IrrepsArray":
-        r"""Convert the list property into an equivalent irreps.
+    def rechunk(self, irreps: IntoIrreps) -> "IrrepsArray":
+        r"""Rechunk the array with new (equivalent) irreps.
 
         Args:
             irreps (Irreps): new irreps
 
         Returns:
-            `IrrepsArray`: data with the new irreps
-
-        Raises:
-            ValueError: if the irreps are not compatible
+            `IrrepsArray`: new IrrepsArray
 
         Examples:
             >>> x = e3nn.from_chunks("6x0e + 4x0e", [None, jnp.ones((4, 1))], ())
-            >>> x._convert("5x0e + 5x0e").chunks
+            >>> x.rechunk("5x0e + 5x0e").chunks
             [None, Array([[0.],
                    [1.],
                    [1.],
@@ -1067,7 +1064,7 @@ class _IndexUpdateRef:
                     "The irreps of the array and the values to set must be the same."
                 )
 
-            values = values._convert(self.irreps)
+            values = values.rechunk(self.irreps)
 
             zero_flags = tuple(
                 x and y for x, y in zip(self.zero_flags, values.zero_flags)
@@ -1117,7 +1114,7 @@ class _IndexUpdateRef:
                     "The irreps of the array and the values to add must be the same."
                 )
 
-            values = values._convert(self.irreps)
+            values = values.rechunk(self.irreps)
 
             zero_flags = tuple(
                 x and y for x, y in zip(self.zero_flags, values.zero_flags)

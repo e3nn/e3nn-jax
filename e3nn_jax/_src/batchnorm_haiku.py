@@ -193,7 +193,7 @@ class BatchNorm(hk.Module):
             output: normalized tensor of shape ``(batch, [spatial], irreps.dim)``
         """
         if self.irreps is not None:
-            input = input._convert(self.irreps)
+            input = input.rechunk(self.irreps)
 
         num_scalar = sum(mul for mul, ir in input.irreps if ir.is_scalar())
         num_features = input.irreps.num_irreps

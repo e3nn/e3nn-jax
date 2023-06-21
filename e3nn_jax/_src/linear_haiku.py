@@ -220,4 +220,4 @@ class Linear(hk.Module):
 
         if self.channel_out is not None:
             output = output.mul_to_axis(self.channel_out)
-        return output._convert(self.irreps_out)
+        return output.rechunk(self.irreps_out)

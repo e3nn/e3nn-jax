@@ -136,8 +136,8 @@ def _align_two_irreps_arrays(
 
         i += 1
 
-    input1 = input1._convert(irreps_in1)
-    input2 = input2._convert(irreps_in2)
+    input1 = input1.rechunk(irreps_in1)
+    input2 = input2.rechunk(irreps_in2)
 
     assert [mul for mul, _ in input1.irreps] == [mul for mul, _ in input2.irreps]
     return input1, input2

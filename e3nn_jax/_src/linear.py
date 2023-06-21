@@ -165,7 +165,7 @@ class FunctionalLinear:
     def __call__(
         self, ws: Union[List[jnp.ndarray], jnp.ndarray], input: IrrepsArray
     ) -> IrrepsArray:
-        input = input._convert(self.irreps_in)
+        input = input.rechunk(self.irreps_in)
         if input.ndim != 1:
             raise ValueError(
                 f"FunctionalLinear does not support broadcasting, input shape is {input.shape}"

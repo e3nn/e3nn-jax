@@ -17,15 +17,15 @@ def test_empty():
 def test_convert():
     id = e3nn.from_chunks("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
     assert jax.tree_util.tree_map(
-        jnp.shape, id._convert("0x0e + 20x0e + 0x0e").chunks
+        jnp.shape, id.rechunk("0x0e + 20x0e + 0x0e").chunks
     ) == [None, (1, 20, 1), None]
     assert jax.tree_util.tree_map(
-        jnp.shape, id._convert("7x0e + 4x0e + 9x0e").chunks
+        jnp.shape, id.rechunk("7x0e + 4x0e + 9x0e").chunks
     ) == [None, (1, 4, 1), (1, 9, 1)]
 
     id = e3nn.from_chunks("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))], (1,))
     assert jax.tree_util.tree_map(
-        jnp.shape, id._convert("5x0e + 5x0e + 5x1e + 5x1e").chunks
+        jnp.shape, id.rechunk("5x0e + 5x0e + 5x1e + 5x1e").chunks
     ) == [
         None,
         None,
@@ -34,7 +34,7 @@ def test_convert():
     ]
 
     id = e3nn.zeros("10x0e + 10x1e", ())
-    id = id._convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
+    id = id.rechunk("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
 
     a = e3nn.from_chunks(
         "            10x0e  +  0x0e +1x1e  +     0x0e    +          9x1e           + 0x0e",
@@ -48,7 +48,7 @@ def test_convert():
         ],
         (2,),
     )
-    b = a._convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
+    b = a.rechunk("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
     b = e3nn.from_chunks(b.irreps, b.chunks, b.shape[:-1])
 
     np.testing.assert_allclose(a.array, b.array)

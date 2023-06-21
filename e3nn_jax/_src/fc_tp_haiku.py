@@ -16,9 +16,9 @@ class FullyConnectedTensorProduct(hk.Module):
         self, x1: e3nn.IrrepsArray, x2: e3nn.IrrepsArray, **kwargs
     ) -> e3nn.IrrepsArray:
         if self.irreps_in1 is not None:
-            x1 = x1._convert(self.irreps_in1)
+            x1 = x1.rechunk(self.irreps_in1)
         if self.irreps_in2 is not None:
-            x2 = x2._convert(self.irreps_in2)
+            x2 = x2.rechunk(self.irreps_in2)
 
         x1 = x1.remove_zero_chunks().simplify()
         x2 = x2.remove_zero_chunks().simplify()
