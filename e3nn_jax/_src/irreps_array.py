@@ -628,7 +628,7 @@ class IrrepsArray:
             1x0e+2x0e+1x1o [0 4 5 1 2 3]
         """
         irreps, p, inv = self.irreps.sort()
-        return IrrepsArray.from_list(
+        return e3nn.from_chunks(
             irreps,
             [self.list[i] for i in inv],
             self.shape[:-1],
@@ -776,7 +776,7 @@ class IrrepsArray:
             for (mul, ir), x in zip(irreps, self.list)
         ]
         new_list = [None if x is None else jnp.moveaxis(x, -3, axis) for x in new_list]
-        return IrrepsArray.from_list(
+        return e3nn.from_chunks(
             irreps, new_list, self.shape[:-1] + (factor,), self.dtype
         )
 
@@ -807,7 +807,7 @@ class IrrepsArray:
             None if x is None else x.reshape(self.shape[:-2] + (new_mul, ir.dim))
             for (new_mul, ir), x in zip(new_irreps, new_list)
         ]
-        return IrrepsArray.from_list(new_irreps, new_list, self.shape[:-2], self.dtype)
+        return e3nn.from_chunks(new_irreps, new_list, self.shape[:-2], self.dtype)
 
     repeat_mul_by_last_axis = axis_to_mul
     factor_mul_to_last_axis = mul_to_axis
@@ -837,7 +837,7 @@ class IrrepsArray:
             else None
             for (mul, ir), x in zip(self.irreps, self.list)
         ]
-        return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1], self.dtype)
+        return e3nn.from_chunks(self.irreps, new_list, self.shape[:-1], self.dtype)
 
     def transform_by_angles(
         self, alpha: float, beta: float, gamma: float, k: int = 0, inverse: bool = False
@@ -889,7 +889,7 @@ class IrrepsArray:
             else None
             for (mul, ir), x in zip(self.irreps, self.list)
         ]
-        return IrrepsArray.from_list(self.irreps, new_list, self.shape[:-1], self.dtype)
+        return e3nn.from_chunks(self.irreps, new_list, self.shape[:-1], self.dtype)
 
     def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a quaternion.
@@ -949,7 +949,7 @@ class IrrepsArray:
             ValueError: if the irreps are not compatible
 
         Examples:
-            >>> x = IrrepsArray.from_list("6x0e + 4x0e", [None, jnp.ones((4, 1))], ())
+            >>> x = e3nn.from_chunks("6x0e + 4x0e", [None, jnp.ones((4, 1))], ())
             >>> x._convert("5x0e + 5x0e").list
             [None, Array([[0.],
                    [1.],
@@ -1196,7 +1196,7 @@ class _ChunkIndexSliceHelper:
             )
         start, stop, stride = index.indices(len(self.irreps_array.irreps))
 
-        return IrrepsArray.from_list(
+        return e3nn.from_chunks(
             self.irreps_array.irreps[start:stop:stride],
             self.irreps_array.list[start:stop:stride],
             self.irreps_array.shape[:-1],

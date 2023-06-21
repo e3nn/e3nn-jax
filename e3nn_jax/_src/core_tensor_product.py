@@ -511,7 +511,7 @@ def _block_left_right(
         )
         for i_out, mul_ir_out in enumerate(self.irreps_out)
     ]
-    return IrrepsArray.from_list(self.irreps_out, out, (), dtype)
+    return e3nn.from_chunks(self.irreps_out, out, (), dtype)
 
 
 def _fused_left_right(

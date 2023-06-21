@@ -7,12 +7,13 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import sympy
-from e3nn_jax import Irreps, IrrepsArray, clebsch_gordan, config
+
+import e3nn_jax as e3nn
 from e3nn_jax._src.utils.sympy import sqrtQarray_to_sympy
 
 
 def sh(
-    irreps_out: Union[Irreps, int, Sequence[int]],
+    irreps_out: Union[e3nn.Irreps, int, Sequence[int]],
     input: jnp.ndarray,
     normalize: bool,
     normalization: str = None,
@@ -33,13 +34,13 @@ def sh(
     Returns:
         `jax.numpy.ndarray`: polynomials of the spherical harmonics
     """
-    input = IrrepsArray("1e", input)
+    input = e3nn.IrrepsArray("1e", input)
     return spherical_harmonics(
         irreps_out, input, normalize, normalization, algorithm=algorithm
     ).array
 
 
-def _check_is_vector(irreps: Irreps):
+def _check_is_vector(irreps: e3nn.Irreps):
     if irreps.num_irreps != 1:
         raise ValueError("Input must be a single vector (1x1o or 1x1e).")
     [(mul, ir)] = irreps
@@ -49,13 +50,13 @@ def _check_is_vector(irreps: Irreps):
 
 
 def spherical_harmonics(
-    irreps_out: Union[Irreps, int, Sequence[int]],
-    input: Union[IrrepsArray, jnp.ndarray],
+    irreps_out: Union[e3nn.Irreps, int, Sequence[int]],
+    input: Union[e3nn.IrrepsArray, jnp.ndarray],
     normalize: bool,
     normalization: str = None,
     *,
     algorithm: Tuple[str, ...] = None,
-) -> IrrepsArray:
+) -> e3nn.IrrepsArray:
     r"""Spherical harmonics.
 
     .. image:: https://user-images.githubusercontent.com/333780/79220728-dbe82c00-7e54-11ea-82c7-b3acbd9b2246.gif
@@ -99,39 +100,39 @@ def spherical_harmonics(
         `IrrepsArray`: polynomials of the spherical harmonics
     """
     if normalization is None:
-        normalization = config("spherical_harmonics_normalization")
+        normalization = e3nn.config("spherical_harmonics_normalization")
     assert normalization in ["integral", "component", "norm"]
 
     if isinstance(irreps_out, str):
-        irreps_out = Irreps(irreps_out)
+        irreps_out = e3nn.Irreps(irreps_out)
 
-    if not isinstance(irreps_out, Irreps):
+    if not isinstance(irreps_out, e3nn.Irreps):
         if isinstance(irreps_out, range):
             irreps_out = list(irreps_out)
 
         if isinstance(irreps_out, int):
             l = irreps_out
-            if not isinstance(input, IrrepsArray):
+            if not isinstance(input, e3nn.IrrepsArray):
                 raise ValueError(
                     "If irreps_out is an int, input must be an IrrepsArray."
                 )
             vec_p = _check_is_vector(input.irreps)
-            irreps_out = Irreps([(1, (l, vec_p**l))])
+            irreps_out = e3nn.Irreps([(1, (l, vec_p**l))])
 
         if all(isinstance(l, int) for l in irreps_out):
-            if not isinstance(input, IrrepsArray):
+            if not isinstance(input, e3nn.IrrepsArray):
                 raise ValueError(
                     "If irreps_out is a list of int, input must be an IrrepsArray."
                 )
             vec_p = _check_is_vector(input.irreps)
-            irreps_out = Irreps([(1, (l, vec_p**l)) for l in irreps_out])
+            irreps_out = e3nn.Irreps([(1, (l, vec_p**l)) for l in irreps_out])
 
-    irreps_out = Irreps(irreps_out)
+    irreps_out = e3nn.Irreps(irreps_out)
 
     assert all([l % 2 == 1 or p == 1 for _, (l, p) in irreps_out])
     assert len(set([p for _, (l, p) in irreps_out if l % 2 == 1])) <= 1
 
-    if isinstance(input, IrrepsArray):
+    if isinstance(input, e3nn.IrrepsArray):
         vec_p = _check_is_vector(input.irreps)
         if not all([vec_p == p for _, (l, p) in irreps_out if l % 2 == 1]):
             raise ValueError(
@@ -143,17 +144,17 @@ def spherical_harmonics(
         x = input
 
     if irreps_out.num_irreps == 0:
-        return IrrepsArray(irreps_out, jnp.zeros(x.shape[:-1] + (0,)))
+        return e3nn.IrrepsArray(irreps_out, jnp.zeros(x.shape[:-1] + (0,)))
 
     if algorithm is None:
-        if config("spherical_harmonics_algorithm") == "automatic":
+        if e3nn.config("spherical_harmonics_algorithm") == "automatic":
             # NOTE the dense algorithm is faster to jit than the sparse one
             if irreps_out.lmax <= 8:
                 algorithm = ("recursive", "dense", "custom_jvp")
             else:
                 algorithm = ("legendre", "dense", "custom_jvp")
         else:
-            algorithm = config("spherical_harmonics_algorithm")
+            algorithm = e3nn.config("spherical_harmonics_algorithm")
 
     assert all(
         keyword in ["legendre", "recursive", "dense", "sparse", "custom_jvp"]
@@ -173,7 +174,7 @@ def spherical_harmonics(
         jnp.repeat(y[..., None, :], mul, -2) if mul != 1 else y[..., None, :]
         for (mul, ir), y in zip(irreps_out, sh)
     ]
-    return IrrepsArray.from_list(irreps_out, sh, x.shape[:-1], x.dtype)
+    return e3nn.from_chunks(irreps_out, sh, x.shape[:-1], x.dtype)
 
 
 @partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
@@ -223,7 +224,7 @@ def _jvp(
     primal, res = output[: len(ls)], output[len(ls) :]
 
     def h(l: int, r: jnp.ndarray) -> jnp.ndarray:
-        w = clebsch_gordan(l - 1, l, 1)
+        w = e3nn.clebsch_gordan(l - 1, l, 1)
         if normalization == "norm":
             w *= ((2 * l + 1) * l * (2 * l - 1)) ** 0.5
         else:
@@ -260,7 +261,7 @@ def _recursive_spherical_harmonics(
     normalization: str,
     algorithm: Tuple[str],
 ) -> sympy.Array:
-    context.update(dict(jnp=jnp, clebsch_gordan=clebsch_gordan))
+    context.update(dict(jnp=jnp, clebsch_gordan=e3nn.clebsch_gordan))
 
     if l == 0:
         if 0 not in context:
@@ -292,7 +293,7 @@ def _recursive_spherical_harmonics(
     l2 = biggest_power_of_two(l - 1)
     l1 = l - l2
 
-    w = sqrtQarray_to_sympy(clebsch_gordan(l1, l2, l))
+    w = sqrtQarray_to_sympy(e3nn.clebsch_gordan(l1, l2, l))
     yx = sympy.Array(
         [
             sum(
@@ -326,7 +327,7 @@ def _recursive_spherical_harmonics(
         else:
             x = 1
 
-        w = (x / float(norm)) * clebsch_gordan(l1, l2, l)
+        w = (x / float(norm)) * e3nn.clebsch_gordan(l1, l2, l)
         w = w.astype(input.dtype)
 
         if "dense" in algorithm:
