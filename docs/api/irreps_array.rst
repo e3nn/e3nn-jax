@@ -5,6 +5,9 @@ IrrepsArray
     :members:
 
 
+.. autofunction:: e3nn_jax.from_chunks
+
+
 .. autofunction:: e3nn_jax.as_irreps_array
 
 

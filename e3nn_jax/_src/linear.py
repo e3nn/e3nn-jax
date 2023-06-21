@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+import e3nn_jax as e3nn
 from e3nn_jax import Irreps, IrrepsArray, config
 from e3nn_jax._src.core_tensor_product import _sum_tensors
 from e3nn_jax._src.utils.dtype import get_pytree_dtype
@@ -149,9 +150,7 @@ class FunctionalLinear:
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]
-        return IrrepsArray.from_chunks(
-            self.irreps_out, output, output_shape, output_dtype
-        )
+        return e3nn.from_chunks(self.irreps_out, output, output_shape, output_dtype)
 
     def split_weights(self, weights: jnp.ndarray) -> List[jnp.ndarray]:
         ws = []

@@ -226,7 +226,7 @@ def norm_activation(
 
         list.append(x)
 
-    return e3nn.IrrepsArray.from_list(input.irreps, list, input.shape[:-1], input.dtype)
+    return e3nn.from_chunks(input.irreps, list, input.shape[:-1], input.dtype)
 
 
 def key_value_activation(phi, key, value):

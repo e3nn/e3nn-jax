@@ -104,81 +104,10 @@ class IrrepsArray:
         backend=None,
     ):
         warnings.warn(
-            "IrrepsArray.from_list is deprecated, use IrrepsArray.from_chunks instead.",
+            "IrrepsArray.from_list is deprecated, use e3nn.from_chunks instead.",
             DeprecationWarning,
         )
-        return IrrepsArray.from_chunks(
-            irreps, chunks, leading_shape, dtype, backend=backend
-        )
-
-    @staticmethod
-    def from_chunks(
-        irreps: IntoIrreps,
-        chunks: List[Optional[jnp.ndarray]],
-        leading_shape: Tuple[int, ...],
-        dtype=None,
-        *,
-        backend=None,
-    ) -> "IrrepsArray":
-        r"""Create an IrrepsArray from a list of arrays.
-
-        Args:
-            irreps (Irreps): irreps
-            chunks (list of optional `jax.numpy.ndarray`): list of arrays
-            leading_shape (tuple of int): leading shape of the arrays (without the irreps)
-
-        Returns:
-            IrrepsArray
-        """
-        jnp = _infer_backend(chunks) if backend is None else backend
-
-        irreps = Irreps(irreps)
-        if len(irreps) != len(chunks):
-            raise ValueError(
-                f"IrrepsArray.from_chunks: len(irreps) != len(chunks), {len(irreps)} != {len(chunks)}"
-            )
-
-        if not all(x is None or isinstance(x, jnp.ndarray) for x in chunks):
-            raise ValueError(
-                f"IrrepsArray.from_chunks: chunks contains non-array elements type={[type(x) for x in chunks]}"
-            )
-
-        if not all(
-            x is None or x.shape == leading_shape + (mul, ir.dim)
-            for x, (mul, ir) in zip(chunks, irreps)
-        ):
-            raise ValueError(
-                f"IrrepsArray.from_chunks: chunks shapes {[None if x is None else x.shape for x in chunks]} "
-                f"incompatible with leading shape {leading_shape} and irreps {irreps}. "
-                f"Expecting {[leading_shape + (mul, ir.dim) for (mul, ir) in irreps]}."
-            )
-
-        for x in chunks:
-            if x is not None:
-                dtype = x.dtype
-                break
-
-        if dtype is None:
-            raise ValueError(
-                "IrrepsArray.from_chunks: Need to specify dtype if chunks is empty or contains only None."
-            )
-
-        if irreps.dim > 0:
-            array = jnp.concatenate(
-                [
-                    jnp.zeros(leading_shape + (mul_ir.dim,), dtype)
-                    if x is None
-                    else x.reshape(leading_shape + (mul_ir.dim,))
-                    for mul_ir, x in zip(irreps, chunks)
-                ],
-                axis=-1,
-            )
-        else:
-            array = jnp.zeros(leading_shape + (0,), dtype)
-
-        zero_flags = tuple(x is None for x in chunks)
-
-        return IrrepsArray(irreps, array, zero_flags=zero_flags)
+        return e3nn.from_chunks(irreps, chunks, leading_shape, dtype, backend=backend)
 
     @staticmethod
     def as_irreps_array(array: Union[jnp.ndarray, "IrrepsArray"], *, backend=None):
@@ -326,7 +255,7 @@ class IrrepsArray:
                 eq(mul, x, y)[..., None]
                 for (mul, ir), x, y in zip(self.irreps, self.chunks, other.chunks)
             ]
-            return IrrepsArray.from_chunks(
+            return e3nn.from_chunks(
                 [(mul, "0e") for mul, _ in self.irreps], chunks, leading_shape, bool
             )
 
@@ -662,7 +591,7 @@ class IrrepsArray:
             [mul_ir for mul_ir, zero in zip(self.irreps, self.zero_flags) if not zero]
         )
         chunks = [x for x, zero in zip(self.chunks, self.zero_flags) if not zero]
-        return IrrepsArray.from_chunks(
+        return e3nn.from_chunks(
             irreps,
             chunks,
             self.shape[:-1],
@@ -747,7 +676,7 @@ class IrrepsArray:
 
         backend = _infer_backend(self.array)
         new_irreps = self.irreps.filter(keep=keep, drop=drop, lmax=lmax)
-        return IrrepsArray.from_chunks(
+        return e3nn.from_chunks(
             new_irreps,
             [x for x, mul_ir in zip(self.chunks, self.irreps) if mul_ir in new_irreps],
             self.shape[:-1],
@@ -1231,7 +1160,7 @@ class _MulIndexSliceHelper:
                 list.append(x[..., max(start, i) - i : min(stop, i + mul) - i, :])
 
             i += mul
-        return IrrepsArray.from_chunks(
+        return e3nn.from_chunks(
             irreps,
             list,
             self.irreps_array.shape[:-1],

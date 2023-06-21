@@ -41,7 +41,8 @@ def grad(
             raise TypeError(f"arg{argnums} must be an e3nn.IrrepsArray.")
         irreps_in = x.irreps
         leading_shape_in = x.shape[:-1]
-        args[argnums] = x.list
+        x = e3nn.IrrepsArray(x.irreps, x.array)  # drop zero_flags
+        args[argnums] = x.chunks
 
         def naked_fun(*args, **kwargs) -> List[jnp.ndarray]:
             args = list(args)
@@ -54,14 +55,14 @@ def grad(
                     raise TypeError(
                         f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}."
                     )
-                return y.list, (y.irreps, y.shape[:-1], aux)
+                return y.chunks, (y.irreps, y.shape[:-1], aux)
             else:
                 y = fun(*args, **kwargs)
                 if not isinstance(y, e3nn.IrrepsArray):
                     raise TypeError(
                         f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}."
                     )
-                return y.list, (y.irreps, y.shape[:-1])
+                return y.chunks, (y.irreps, y.shape[:-1])
 
         output = jax.jacobian(
             naked_fun,

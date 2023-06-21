@@ -53,6 +53,7 @@ from e3nn_jax._src.so3 import clebsch_gordan, generators
 from e3nn_jax._src.irreps import Irrep, MulIrrep, Irreps
 from e3nn_jax._src.irreps_array import IrrepsArray
 from e3nn_jax._src.basic import (
+    from_chunks,
     as_irreps_array,
     zeros,
     zeros_like,
@@ -169,6 +170,7 @@ __all__ = [
     "MulIrrep",  # not in docs
     "Irreps",
     "IrrepsArray",
+    "from_chunks",
     "as_irreps_array",
     "zeros",
     "zeros_like",
