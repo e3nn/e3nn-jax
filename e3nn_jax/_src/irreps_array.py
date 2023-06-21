@@ -111,14 +111,6 @@ class IrrepsArray:
 
     @staticmethod
     def as_irreps_array(array: Union[jnp.ndarray, "IrrepsArray"], *, backend=None):
-        """Convert an array to an IrrepsArray.
-
-        Args:
-            array (jax.numpy.ndarray or IrrepsArray): array to convert
-
-        Returns:
-            IrrepsArray
-        """
         warnings.warn(
             "IrrepsArray.as_irreps_array is deprecated, use e3nn.as_irreps_array instead.",
             DeprecationWarning,
@@ -127,7 +119,6 @@ class IrrepsArray:
 
     @staticmethod
     def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> "IrrepsArray":
-        r"""Create an IrrepsArray of zeros."""
         warnings.warn(
             "IrrepsArray.zeros is deprecated, use e3nn.zeros instead.",
             DeprecationWarning,
@@ -136,7 +127,6 @@ class IrrepsArray:
 
     @staticmethod
     def zeros_like(irreps_array: "IrrepsArray") -> "IrrepsArray":
-        r"""Create an IrrepsArray of zeros with the same shape as another IrrepsArray."""
         warnings.warn(
             "IrrepsArray.zeros_like is deprecated, use e3nn.zeros_like instead.",
             DeprecationWarning,
@@ -578,7 +568,6 @@ class IrrepsArray:
         )
 
     def remove_nones(self) -> "IrrepsArray":
-        r"""Remove all None in ``.chunks`` and ``.irreps``."""
         warnings.warn(
             "IrrepsArray.remove_nones is deprecated. Use IrrepsArray.remove_zero_chunks instead.",
             DeprecationWarning,
