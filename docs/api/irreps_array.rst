@@ -5,6 +5,15 @@ IrrepsArray
     :members:
 
 
+.. autofunction:: e3nn_jax.as_irreps_array
+
+
+.. autofunction:: e3nn_jax.zeros
+
+
+.. autofunction:: e3nn_jax.zeros_like
+
+
 .. autofunction:: e3nn_jax.concatenate
 
 

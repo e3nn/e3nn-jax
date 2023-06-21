@@ -180,7 +180,6 @@ class IrrepsArray:
 
         return IrrepsArray(irreps, array, zero_flags=zero_flags)
 
-    # TODO move to e3nn.as_irreps_array?
     @staticmethod
     def as_irreps_array(array: Union[jnp.ndarray, "IrrepsArray"], *, backend=None):
         """Convert an array to an IrrepsArray.
@@ -191,32 +190,29 @@ class IrrepsArray:
         Returns:
             IrrepsArray
         """
-        if isinstance(array, IrrepsArray):
-            return array
-
-        jnp = _infer_backend(array) if backend is None else backend
-        array = jnp.asarray(array)
-
-        if array.ndim == 0:
-            raise ValueError(
-                "IrrepsArray.as_irreps_array: Cannot convert an array of rank 0 to an IrrepsArray."
-            )
-
-        return IrrepsArray(f"{array.shape[-1]}x0e", array)
+        warnings.warn(
+            "IrrepsArray.as_irreps_array is deprecated, use e3nn.as_irreps_array instead.",
+            DeprecationWarning,
+        )
+        return e3nn.as_irreps_array(array)
 
     @staticmethod
     def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> "IrrepsArray":
         r"""Create an IrrepsArray of zeros."""
-        irreps = Irreps(irreps)
-        array = jnp.zeros(leading_shape + (irreps.dim,), dtype=dtype)
-        return IrrepsArray(irreps, array, zero_flags=(True,) * len(irreps))
+        warnings.warn(
+            "IrrepsArray.zeros is deprecated, use e3nn.zeros instead.",
+            DeprecationWarning,
+        )
+        return e3nn.zeros(irreps, leading_shape, dtype)
 
     @staticmethod
     def zeros_like(irreps_array: "IrrepsArray") -> "IrrepsArray":
         r"""Create an IrrepsArray of zeros with the same shape as another IrrepsArray."""
-        return IrrepsArray.zeros(
-            irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype
+        warnings.warn(
+            "IrrepsArray.zeros_like is deprecated, use e3nn.zeros_like instead.",
+            DeprecationWarning,
         )
+        return e3nn.zeros_like(irreps_array)
 
     @property
     def list(self) -> List[Optional[jnp.ndarray]]:

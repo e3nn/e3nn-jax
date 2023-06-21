@@ -9,6 +9,43 @@ from e3nn_jax._src.irreps import IntoIrreps
 from e3nn_jax._src.irreps_array import _infer_backend, _standardize_axis
 
 
+def as_irreps_array(array: Union[jnp.ndarray, e3nn.IrrepsArray], *, backend=None):
+    """Convert an array to an IrrepsArray.
+
+    Args:
+        array (jax.numpy.ndarray or IrrepsArray): array to convert
+
+    Returns:
+        IrrepsArray
+    """
+    if isinstance(array, e3nn.IrrepsArray):
+        return array
+
+    jnp = _infer_backend(array) if backend is None else backend
+    array = jnp.asarray(array)
+
+    if array.ndim == 0:
+        raise ValueError(
+            "IrrepsArray.as_irreps_array: Cannot convert an array of rank 0 to an IrrepsArray."
+        )
+
+    return e3nn.IrrepsArray(f"{array.shape[-1]}x0e", array)
+
+
+def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> e3nn.IrrepsArray:
+    r"""Create an IrrepsArray of zeros."""
+    irreps = e3nn.Irreps(irreps)
+    array = jnp.zeros(leading_shape + (irreps.dim,), dtype=dtype)
+    return e3nn.IrrepsArray(irreps, array, zero_flags=(True,) * len(irreps))
+
+
+def zeros_like(irreps_array: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+    r"""Create an IrrepsArray of zeros with the same shape as another IrrepsArray."""
+    return e3nn.IrrepsArray.zeros(
+        irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype
+    )
+
+
 def _align_two_irreps_arrays(
     input1: e3nn.IrrepsArray, input2: e3nn.IrrepsArray
 ) -> Tuple[e3nn.IrrepsArray, e3nn.IrrepsArray]:
