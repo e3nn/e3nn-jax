@@ -134,7 +134,7 @@ class SymmetricTensorProduct(hk.Module):
 
             # out[irrep_out] : [num_channel, ir_out.dim]
             irreps_out = e3nn.Irreps(sorted(out.keys()))
-            return e3nn.IrrepsArray.from_list(
+            return e3nn.from_chunks(
                 irreps_out,
                 [out[ir][:, None, :] for (_, ir) in irreps_out],
                 (x.shape[0],),

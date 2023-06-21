@@ -121,7 +121,7 @@ def scalar_activation(
     Note:
         The parity of the output depends on the parity of the activation function.
     """
-    input = e3nn.IrrepsArray.as_irreps_array(input)
+    input = e3nn.as_irreps_array(input)
     assert isinstance(input, e3nn.IrrepsArray)
 
     if acts is None:
@@ -180,7 +180,7 @@ def scalar_activation(
             irreps_out, array, zero_flags=[x is None for x in chunks]
         )
 
-    return e3nn.IrrepsArray.from_list(irreps_out, chunks, input.shape[:-1], input.dtype)
+    return e3nn.from_chunks(irreps_out, chunks, input.shape[:-1], input.dtype)
 
 
 def norm_activation(

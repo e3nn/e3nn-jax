@@ -9,13 +9,13 @@ import e3nn_jax as e3nn
 
 
 def test_empty():
-    x = e3nn.IrrepsArray.from_list("", [], (2, 2), jnp.float32)
+    x = e3nn.from_chunks("", [], (2, 2), jnp.float32)
     assert x.irreps == e3nn.Irreps([])
     assert x.shape == (2, 2, 0)
 
 
 def test_convert():
-    id = e3nn.IrrepsArray.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
+    id = e3nn.from_chunks("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
     assert jax.tree_util.tree_map(
         jnp.shape, id._convert("0x0e + 20x0e + 0x0e").chunks
     ) == [None, (1, 20, 1), None]
@@ -23,7 +23,7 @@ def test_convert():
         jnp.shape, id._convert("7x0e + 4x0e + 9x0e").chunks
     ) == [None, (1, 4, 1), (1, 9, 1)]
 
-    id = e3nn.IrrepsArray.from_list("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))], (1,))
+    id = e3nn.from_chunks("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))], (1,))
     assert jax.tree_util.tree_map(
         jnp.shape, id._convert("5x0e + 5x0e + 5x1e + 5x1e").chunks
     ) == [
@@ -33,10 +33,10 @@ def test_convert():
         (1, 5, 3),
     ]
 
-    id = e3nn.IrrepsArray.zeros("10x0e + 10x1e", ())
+    id = e3nn.zeros("10x0e + 10x1e", ())
     id = id._convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
 
-    a = e3nn.IrrepsArray.from_list(
+    a = e3nn.from_chunks(
         "            10x0e  +  0x0e +1x1e  +     0x0e    +          9x1e           + 0x0e",
         [
             jnp.ones((2, 10, 1)),
@@ -49,7 +49,7 @@ def test_convert():
         (2,),
     )
     b = a._convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
-    b = e3nn.IrrepsArray.from_list(b.irreps, b.list, b.shape[:-1])
+    b = e3nn.from_chunks(b.irreps, b.list, b.shape[:-1])
 
     np.testing.assert_allclose(a.array, b.array)
 
@@ -72,7 +72,7 @@ def test_indexing():
     x = e3nn.IrrepsArray("2x0e + 1x2e", jnp.arange(3 * 4 * 7).reshape((3, 4, 7)))
     np.testing.assert_allclose(x[..., 1, -5:].array, x[:3, 1, "2e"].array)
 
-    x = e3nn.IrrepsArray.zeros("2x1e + 2x1e", (3, 3))
+    x = e3nn.zeros("2x1e + 2x1e", (3, 3))
     with pytest.raises(IndexError):
         x[..., "2x1e"]
 
@@ -174,14 +174,12 @@ def test_at_add():
     def f(*shape):
         return 1.0 + jnp.arange(prod(shape)).reshape(shape)
 
-    x = e3nn.IrrepsArray.from_list(
+    x = e3nn.from_chunks(
         "1e + 0e + 0e + 0e",
         [None, None, f(2, 1, 1), f(2, 1, 1)],
         (2,),
     )
-    v = e3nn.IrrepsArray.from_list(
-        "1e + 0e + 0e + 0e", [None, f(1, 1), None, f(1, 1)], ()
-    )
+    v = e3nn.from_chunks("1e + 0e + 0e + 0e", [None, f(1, 1), None, f(1, 1)], ())
     y1 = x.at[0].add(v)
     y2 = e3nn.IrrepsArray(x.irreps, x.array.at[0].add(v.array))
     np.testing.assert_array_equal(y1.array, y2.array)
@@ -216,9 +214,7 @@ def test_norm():
     assert e3nn.norm(x, per_irrep=True).shape == (2, 3)
     assert e3nn.norm(x, per_irrep=False).shape == (2, 1)
 
-    x = e3nn.IrrepsArray.from_list(
-        "2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64
-    )
+    x = e3nn.from_chunks("2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64)
 
     assert e3nn.norm(x).shape == (2, 3)
 
@@ -235,8 +231,6 @@ def test_dot():
     assert e3nn.dot(x, y, per_irrep=True).shape == (2, 3)
     assert e3nn.dot(x, y, per_irrep=False).shape == (2, 1)
 
-    y = e3nn.IrrepsArray.from_list(
-        "2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64
-    )
+    y = e3nn.from_chunks("2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64)
 
     assert e3nn.dot(x, y).shape == (2, 1)

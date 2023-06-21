@@ -601,7 +601,7 @@ def reduce_basis_product(
                 new_irreps.append((mul1 * mul2, ir))
                 new_list.append(x)
 
-    new = e3nn.IrrepsArray.from_list(
+    new = e3nn.from_chunks(
         new_irreps,
         new_list,
         np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]),
@@ -653,7 +653,7 @@ def constrain_rotation_basis_by_permutation_basis(
         new_irreps.append((len(P), ir))
         new_list.append(round_fn(np.einsum("vu,...ui->...vi", P, rot_basis)))
 
-    return e3nn.IrrepsArray.from_list(
+    return e3nn.from_chunks(
         new_irreps, new_list, rotation_basis.shape[:-1], np.float64, backend=np
     )
 

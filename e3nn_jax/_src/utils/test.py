@@ -33,7 +33,7 @@ def equivariance_test(
     """
     args = [e3nn.Irreps(arg) if isinstance(arg, str) else arg for arg in args]
     args = [
-        e3nn.IrrepsArray.as_irreps_array(arg) if isinstance(arg, jnp.ndarray) else arg
+        e3nn.as_irreps_array(arg) if isinstance(arg, jnp.ndarray) else arg
         for arg in args
     ]
 

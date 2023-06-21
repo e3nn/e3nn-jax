@@ -56,7 +56,7 @@ class IrrepsArray:
     Examples:
         >>> import e3nn_jax as e3nn
         >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
-        >>> y = e3nn.IrrepsArray.from_list("1o + 2x0e", [None, jnp.ones((2, 1))], ())
+        >>> y = e3nn.from_chunks("1o + 2x0e", [None, jnp.ones((2, 1))], ())
         >>> x + y
         1x1o+2x0e [1. 1. 1. 2. 2.]
 

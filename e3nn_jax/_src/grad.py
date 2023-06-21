@@ -46,7 +46,7 @@ def grad(
 
         def naked_fun(*args, **kwargs) -> List[jnp.ndarray]:
             args = list(args)
-            args[argnums] = e3nn.IrrepsArray.from_list(
+            args[argnums] = e3nn.from_chunks(
                 irreps_in, args[argnums], leading_shape_in, x.dtype
             )
             if has_aux:
@@ -110,7 +110,7 @@ def grad(
                             + (mir_out.mul * mir_in.mul, ir.dim)
                         )
                     )
-        output = e3nn.IrrepsArray.from_list(
+        output = e3nn.from_chunks(
             irreps, lst, leading_shape_out + leading_shape_in, x.dtype
         )
         if regroup_output:

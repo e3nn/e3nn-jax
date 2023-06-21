@@ -13,6 +13,7 @@ from jax.experimental.sparse import BCOO, sparsify
 from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
 from e3nn_jax._src.einsum import einsum as opt_einsum
 from e3nn_jax._src.utils.dtype import get_pytree_dtype
+import e3nn_jax as e3nn
 
 
 class FunctionalTensorProduct:
@@ -333,7 +334,7 @@ def _left_right(
         dtype = jnp.float32
 
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
-        return IrrepsArray.zeros(self.irreps_out, (), dtype)
+        return e3nn.zeros(self.irreps_out, (), dtype)
 
     if sparse:
         assert (

@@ -2,7 +2,7 @@ import inspect
 from functools import wraps
 
 import jax
-from e3nn_jax import Irreps, IrrepsArray
+import e3nn_jax as e3nn
 
 
 def overload_for_irreps_without_array(
@@ -27,17 +27,15 @@ def overload_for_irreps_without_array(
                 kwargs[k] for k in argnames if k in kwargs
             ]
 
-            if any(isinstance(arg, (Irreps, str)) for arg in concerned_args):
+            if any(isinstance(arg, (e3nn.Irreps, str)) for arg in concerned_args):
                 # assume arguments are Irreps (not IrrepsArray)
 
                 converted_args = {
-                    i: IrrepsArray.zeros(a, shape)
-                    for i, a in enumerate(args)
-                    if i in argnums
+                    i: e3nn.zeros(a, shape) for i, a in enumerate(args) if i in argnums
                 }
                 converted_args.update(
                     {
-                        k: IrrepsArray.zeros(v, shape)
+                        k: e3nn.zeros(v, shape)
                         for k, v in kwargs.items()
                         if k in argnames
                     }
@@ -50,11 +48,12 @@ def overload_for_irreps_without_array(
 
                 output = jax.eval_shape(fn, converted_args)
 
-                if isinstance(output, IrrepsArray):
+                if isinstance(output, e3nn.IrrepsArray):
                     return output.irreps
                 if isinstance(output, tuple):
                     return tuple(
-                        o.irreps if isinstance(o, IrrepsArray) else o for o in output
+                        o.irreps if isinstance(o, e3nn.IrrepsArray) else o
+                        for o in output
                     )
                 raise TypeError(
                     f"{func.__name__} returned {type(output)} which is not supported by `overload_irrep_no_data`."

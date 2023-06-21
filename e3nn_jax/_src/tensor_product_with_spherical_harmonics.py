@@ -34,7 +34,7 @@ def tensor_product_with_spherical_harmonics(
         >>> assert output1.irreps == output2.irreps
         >>> assert jnp.allclose(output1.array, output2.array, atol=1e-6)
     """
-    input = e3nn.IrrepsArray.as_irreps_array(input)
+    input = e3nn.as_irreps_array(input)
 
     if not (vector.irreps == "1o" or vector.irreps == "1e"):
         raise ValueError(
@@ -135,7 +135,7 @@ def impl(
 
                 outputs.append(out)
 
-    out = e3nn.IrrepsArray.from_list(irreps_out, outputs, (), x.dtype)
+    out = e3nn.from_chunks(irreps_out, outputs, (), x.dtype)
     out = out.regroup()  # <-- ops
     out = out.transform_by_angles(alpha, beta, 0.0)  # <-- ops
 

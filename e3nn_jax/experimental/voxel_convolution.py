@@ -278,7 +278,7 @@ def _call(
                 i += 1
             else:
                 list.append(None)
-        output = e3nn.IrrepsArray.from_list(
+        output = e3nn.from_chunks(
             self.irreps_out, list, output.shape[:-1], output.dtype
         )
 
