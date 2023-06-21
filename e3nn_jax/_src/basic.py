@@ -170,13 +170,10 @@ def concatenate(arrays: List[e3nn.IrrepsArray], axis: int = -1) -> e3nn.IrrepsAr
     if {x.irreps for x in arrays} != {arrays[0].irreps}:
         raise ValueError("Irreps must be the same for all arrays")
 
-    arrays = [
-        x.replace_none_with_zeros() for x in arrays
-    ]  # TODO this could be optimized
     return e3nn.IrrepsArray(
         irreps=arrays[0].irreps,
         array=jnp.concatenate([x.array for x in arrays], axis=axis),
-        list=[jnp.concatenate(xs, axis=axis) for xs in zip(*[x.list for x in arrays])],
+        zero_flags=[all(x) for x in zip(*[x.zero_flags for x in arrays])],
     )
 
 
@@ -224,13 +221,10 @@ def stack(arrays: List[e3nn.IrrepsArray], axis=0) -> e3nn.IrrepsArray:
     if {x.irreps for x in arrays} != {arrays[0].irreps}:
         raise ValueError("Irreps must be the same for all arrays")
 
-    arrays = [
-        x.replace_none_with_zeros() for x in arrays
-    ]  # TODO this could be optimized
     return e3nn.IrrepsArray(
         irreps=arrays[0].irreps,
         array=jnp.stack([x.array for x in arrays], axis=axis),
-        list=[jnp.stack(xs, axis=axis) for xs in zip(*[x.list for x in arrays])],
+        zero_flags=[all(x) for x in zip(*[x.zero_flags for x in arrays])],
     )
 
 
