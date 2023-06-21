@@ -41,4 +41,4 @@ class FullyConnectedTensorProduct(hk.Module):
             lambda x1, x2: tp.left_right(ws, x1, x2, **kwargs)
         )
         output = f(x1, x2)
-        return output._convert(self.irreps_out)
+        return output.rechunk(self.irreps_out)
