@@ -17,8 +17,8 @@ def test_convolution(keys):
         irreps_out=irreps_out,
         irreps_sh=irreps_sh,
         diameter=3.9,
-        num_radial_basis={0: 3, 1: 2, 2: 1},
-        relative_starts={0: 0.0, 1: 0.0, 2: 0.5},
+        num_radial_basis=2,
+        relative_starts=0.0,
         steps=(1.0, 1.0, 1.0),
     )
 
