@@ -1,4 +1,3 @@
-from functools import partial
 from math import prod
 
 import haiku as hk
@@ -8,7 +7,6 @@ import jax.numpy as jnp
 import e3nn_jax as e3nn
 
 
-@partial(jax.jit, static_argnums=(5, 6, 7, 8, 9, 10, 11))
 def _batch_norm(
     input,
     running_mean,

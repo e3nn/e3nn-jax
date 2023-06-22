@@ -313,11 +313,6 @@ def _normalize_instruction_path_weights(
     return [update(instruction) for instruction in instructions]
 
 
-@partial(
-    jax.jit,
-    static_argnums=(0,),
-    static_argnames=("custom_einsum_jvp", "fused", "sparse"),
-)
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
     self: FunctionalTensorProduct,
@@ -621,7 +616,6 @@ def _fused_left_right(
     return IrrepsArray(self.irreps_out, out)
 
 
-@partial(jax.jit, static_argnums=(0,), static_argnames=("custom_einsum_jvp"))
 @partial(jax.profiler.annotate_function, name="TensorProduct.right")
 def _right(
     self: FunctionalTensorProduct,

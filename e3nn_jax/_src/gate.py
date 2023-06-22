@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Callable
 
 import jax
@@ -8,7 +7,6 @@ from e3nn_jax import IrrepsArray, scalar_activation
 from e3nn_jax._src.utils.decorators import overload_for_irreps_without_array
 
 
-@partial(jax.jit, static_argnums=(1, 2, 3, 4, 5))
 def _gate(
     input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, normalize_act
 ) -> IrrepsArray:
