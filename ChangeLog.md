@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **[BREAKING]** `e3nn.utils.assert_equivariant` has the same signature as `e3nn.utils.equivariance_test`
 - **[BREAKING]** Move `as_irreps_array`, `zeros` and `zeros_like` from `e3nn.IrrepsArray` to `e3nn`
+- **[BREAKING]** Move `IrrepsArray.from_list` to `e3nn.from_chunks`
+- **[BREAKING]** Rename `IrrepsArray.list` into `IrrepsArray.chunks`
+- **[BREAKING]** Rename `IrrepsArray.remove_nones` into `IrrepsArray.remove_zero_chunks`
+- `e3nn.IrrepsArray` has now only `.array` as data attribute.
+
+### Added
+- `e3nn.IrrepsArray.rechunk`
+- `e3nn.IrrepsArray.zero_flags` a tuple of bools that indicates which chunks are zero
 
 ## [0.18.0] - 2023-06-19
 ### Changed
