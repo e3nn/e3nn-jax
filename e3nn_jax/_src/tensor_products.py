@@ -58,6 +58,7 @@ def tensor_product(
 
         Usage in combination with `haiku.Linear` or `flax.Linear`:
 
+        >>> import jax
         >>> import flax.linen as nn
         >>> linear = e3nn.flax.Linear("3x1e")
         >>> params = linear.init(jax.random.PRNGKey(0), e3nn.tensor_product(x, y))

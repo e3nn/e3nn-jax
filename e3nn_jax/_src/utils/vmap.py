@@ -22,6 +22,7 @@ def vmap(
         Batched/vectorized version of ``fun``.
 
     Example:
+        >>> import jax.numpy as jnp
         >>> x = e3nn.from_chunks("0e + 0e", [jnp.ones((100, 1, 1)), None], (100,))
         >>> x.zero_flags
         (False, True)
