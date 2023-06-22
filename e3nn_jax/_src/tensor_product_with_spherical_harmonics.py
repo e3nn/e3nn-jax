@@ -47,7 +47,7 @@ def tensor_product_with_spherical_harmonics(
 
     f = impl
     for _ in range(len(leading_shape)):
-        f = jax.vmap(f, in_axes=(0, 0, None), out_axes=0)
+        f = e3nn.utils.vmap(f, in_axes=(0, 0, None), out_axes=0)
 
     return f(input, vector, degree)
 

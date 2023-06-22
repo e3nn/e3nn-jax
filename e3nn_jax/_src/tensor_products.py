@@ -1,7 +1,6 @@
 from functools import partial
 from typing import List, Optional
 
-import jax
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
@@ -16,7 +15,7 @@ def naive_broadcast_decorator(func):
         args = [arg.broadcast_to(leading_shape + (-1,)) for arg in args]
         f = func
         for _ in range(len(leading_shape)):
-            f = jax.vmap(f)
+            f = e3nn.utils.vmap(f)
         return f(*args)
 
     return wrapper

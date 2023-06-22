@@ -1,6 +1,8 @@
 Utils
 =====
 
+.. autofunction:: e3nn_jax.utils.vmap
+
 .. autofunction:: e3nn_jax.utils.equivariance_test
 
 .. autofunction:: e3nn_jax.utils.assert_equivariant

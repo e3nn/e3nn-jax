@@ -3,7 +3,6 @@ from typing import Dict, Optional, Tuple, Union
 
 import flax
 import haiku as hk
-import jax
 import jax.numpy as jnp
 from jax import lax
 
@@ -218,7 +217,7 @@ def _kernel(
 
     tp_right = tp.right
     for _ in range(3):
-        tp_right = jax.vmap(tp_right, (0, 0), 0)
+        tp_right = e3nn.utils.vmap(tp_right, (0, 0), 0)
     k = tp_right(ws, sh)  # [x, y, z, irreps_in.dim, irreps_out.dim]
 
     # self-connection, center of the kernel

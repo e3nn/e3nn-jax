@@ -230,15 +230,10 @@ def linear_vanilla(
         for ins in linear.instructions
     ]
     f = lambda x: linear(w, x)
-    input0 = input
     for _ in range(input.ndim - 1):
-        f = jax.vmap(f)
-        input0 = input0[0]
+        f = e3nn.utils.vmap(f)
 
-    # vmap will drop the zero_flags, so we need to recompute them:
-    output0 = linear(w, input0)
-    output = f(input)
-    return IrrepsArray(output.irreps, output.array, zero_flags=output0.zero_flags)
+    return f(input)
 
 
 def linear_indexed(
@@ -267,7 +262,7 @@ def linear_indexed(
 
     f = lin
     for _ in range(input.ndim - 1):
-        f = jax.vmap(f)
+        f = e3nn.utils.vmap(f)
     return f(w, input)
 
 
@@ -307,7 +302,7 @@ def linear_mixed(
 
     f = lin
     for _ in range(input.ndim - 1):
-        f = jax.vmap(f)
+        f = e3nn.utils.vmap(f)
     return f(w, input)  # (..., irreps)
 
 
@@ -348,5 +343,5 @@ def linear_mixed_per_channel(
 
     f = lin
     for _ in range(input.ndim - 1):
-        f = jax.vmap(f)
+        f = e3nn.utils.vmap(f)
     return f(w, input)  # (..., num_channels, irreps)

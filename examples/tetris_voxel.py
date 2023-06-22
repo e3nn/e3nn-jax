@@ -42,7 +42,7 @@ class Model(flax.linen.Module):
 
         g = e3nn.gate
         for _ in range(1 + 3):
-            g = jax.vmap(g)
+            g = e3nn.utils.vmap(g)
 
         # Shallower and wider convolutions also works
 
