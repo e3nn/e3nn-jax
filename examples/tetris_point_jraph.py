@@ -96,24 +96,23 @@ class Model(flax.linen.Module):
             graphs, positions
         )
         graphs = Layer("0o + 7x0e", ann)(graphs, positions)
-        return graphs.nodes
+
+        num_graphs = len(graphs.n_node)
+        pred = e3nn.scatter_sum(graphs.nodes, nel=graphs.n_node)  # [num_graphs, 1 + 7]
+        pred = pred.array
+        odd, even1, even2 = pred[:, :1], pred[:, 1:2], pred[:, 2:]
+        logits = jnp.concatenate([odd * even1, -odd * even1, even2], axis=1)
+        assert logits.shape == (num_graphs, 8)
+
+        return logits
 
 
 def train(seeds=20, steps=200, plot=True):
     model = Model()
     opt = optax.adam(learning_rate=0.01)
 
-    def loss_pred(params, graphs):
-        num_graphs = len(graphs.n_node)
-
-        pred = model.apply(params, graphs)
-        pred = e3nn.scatter_sum(pred, nel=graphs.n_node)  # [num_graphs, 1 + 7]
-        assert pred.irreps == "0o + 7x0e", pred.irreps
-        assert pred.shape == (num_graphs, 8), pred.shape
-        pred = pred.array
-        odd, even1, even2 = pred[:, :1], pred[:, 1:2], pred[:, 2:]
-        logits = jnp.concatenate([odd * even1, -odd * even1, even2], axis=1)
-        assert logits.shape == (num_graphs, 8), logits.shape
+    def loss_fn(params, graphs):
+        logits = model.apply(params, graphs)
         labels = graphs.globals  # [num_graphs]
 
         loss = optax.softmax_cross_entropy_with_integer_labels(logits, labels)
@@ -121,8 +120,8 @@ def train(seeds=20, steps=200, plot=True):
         return loss, logits
 
     @jax.jit
-    def update(params, opt_state, graphs):
-        grad_fn = jax.value_and_grad(loss_pred, has_aux=True)
+    def update_fn(params, opt_state, graphs):
+        grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
         (loss, logits), grads = grad_fn(params, graphs)
         labels = graphs.globals
         accuracy = jnp.mean(jnp.argmax(logits, axis=1) == labels)
@@ -140,7 +139,7 @@ def train(seeds=20, steps=200, plot=True):
     # compile jit
     wall = time.perf_counter()
     print("compiling...")
-    _, _, _, _, logits = update(params, opt_state, graphs)
+    _, _, _, _, logits = update_fn(params, opt_state, graphs)
     logits.block_until_ready()
 
     print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
@@ -154,7 +153,7 @@ def train(seeds=20, steps=200, plot=True):
         done = False
         wall = time.perf_counter()
         for it in range(1, steps + 1):
-            params, opt_state, loss, accuracy, logits = update(
+            params, opt_state, loss, accuracy, logits = update_fn(
                 params, opt_state, graphs
             )
             losses.append(loss)
