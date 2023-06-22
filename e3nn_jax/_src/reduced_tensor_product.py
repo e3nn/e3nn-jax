@@ -588,8 +588,8 @@ def reduce_basis_product(
     new_irreps: List[Tuple[int, e3nn.Irrep]] = []
     new_list = []
 
-    for (mul1, ir1), x1 in zip(basis1.irreps, basis1.list):
-        for (mul2, ir2), x2 in zip(basis2.irreps, basis2.list):
+    for (mul1, ir1), x1 in zip(basis1.irreps, basis1.chunks):
+        for (mul2, ir2), x2 in zip(basis2.irreps, basis2.chunks):
             for ir in ir1 * ir2:
                 if filter_ir_out is not None and ir not in filter_ir_out:
                     continue
@@ -601,7 +601,7 @@ def reduce_basis_product(
                 new_irreps.append((mul1 * mul2, ir))
                 new_list.append(x)
 
-    new = e3nn.IrrepsArray.from_list(
+    new = e3nn.from_chunks(
         new_irreps,
         new_list,
         np.broadcast_shapes(basis1.shape[:-1], basis2.shape[:-1]),
@@ -639,7 +639,7 @@ def constrain_rotation_basis_by_permutation_basis(
 
     for ir in sorted({ir for mul, ir in rotation_basis.irreps}):
         idx = [i for i, (mul, ir_) in enumerate(rotation_basis.irreps) if ir == ir_]
-        rot_basis = np.concatenate([rotation_basis.list[i] for i in idx], axis=-2)
+        rot_basis = np.concatenate([rotation_basis.chunks[i] for i in idx], axis=-2)
         mul = rot_basis.shape[-2]
         R = rot_basis[..., 0]
         R = np.reshape(R, (-1, mul)).T  # (mul, dim)
@@ -653,7 +653,7 @@ def constrain_rotation_basis_by_permutation_basis(
         new_irreps.append((len(P), ir))
         new_list.append(round_fn(np.einsum("vu,...ui->...vi", P, rot_basis)))
 
-    return e3nn.IrrepsArray.from_list(
+    return e3nn.from_chunks(
         new_irreps, new_list, rotation_basis.shape[:-1], np.float64, backend=np
     )
 

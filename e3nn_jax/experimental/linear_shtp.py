@@ -79,7 +79,7 @@ class LinearSHTP(flax.linen.Module):
             else:
                 mulz = None
 
-            for (ix, (mulx, irx)), x in zip(enumerate(input.irreps), input.list):
+            for (ix, (mulx, irx)), x in zip(enumerate(input.irreps), input.chunks):
                 if x is None:
                     continue
 
@@ -152,7 +152,7 @@ class LinearSHTP(flax.linen.Module):
                 irreps_out_.append((z.shape[0], irz))
                 outputs.append(z)
 
-        out = e3nn.IrrepsArray.from_list(irreps_out_, outputs, (), input.dtype)
+        out = e3nn.from_chunks(irreps_out_, outputs, (), input.dtype)
         out = out.regroup()
 
         # Rotate back
@@ -205,7 +205,7 @@ def shtp(
     outputs = []
 
     for irz in filter_irreps_out:
-        for (mulx, irx), x in zip(input.irreps, input.list):
+        for (mulx, irx), x in zip(input.irreps, input.chunks):
             if x is None:
                 continue
 
@@ -244,7 +244,7 @@ def shtp(
                 irreps_out.append((z.shape[0], irz))
                 outputs.append(z)
 
-    out = e3nn.IrrepsArray.from_list(irreps_out, outputs, (), x.dtype)
+    out = e3nn.from_chunks(irreps_out, outputs, (), x.dtype)
     out = out.regroup()
 
     # Rotate back

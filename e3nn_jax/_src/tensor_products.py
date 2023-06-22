@@ -3,9 +3,11 @@ from typing import List, Optional
 
 import jax
 import jax.numpy as jnp
+
+import e3nn_jax as e3nn
 from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsArray, config
-from e3nn_jax._src.utils.decorators import overload_for_irreps_without_array
 from e3nn_jax._src.basic import _align_two_irreps_arrays
+from e3nn_jax._src.utils.decorators import overload_for_irreps_without_array
 
 
 def naive_broadcast_decorator(func):
@@ -69,8 +71,8 @@ def tensor_product(
         >>> e3nn.tensor_product("2x1e + 2e", "2e")
         1x0e+3x1e+3x2e+3x3e+1x4e
     """
-    input1 = IrrepsArray.as_irreps_array(input1)
-    input2 = IrrepsArray.as_irreps_array(input2)
+    input1 = e3nn.as_irreps_array(input1)
+    input2 = e3nn.as_irreps_array(input2)
 
     if regroup_output:
         input1 = input1.regroup()
@@ -153,8 +155,8 @@ def elementwise_tensor_product(
         >>> e3nn.elementwise_tensor_product(x, y)
         1x1e+1x0o+1x1e [ 0.  0.  0.  3.  8. 12. 16.]
     """
-    input1 = IrrepsArray.as_irreps_array(input1)
-    input2 = IrrepsArray.as_irreps_array(input2)
+    input1 = e3nn.as_irreps_array(input1)
+    input2 = e3nn.as_irreps_array(input2)
 
     if filter_ir_out is not None:
         filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
@@ -223,7 +225,7 @@ def tensor_square(
         >>> e3nn.tensor_square(x, normalized_input=True)
         2x0e+1x1o+1x2e [100.    14.    17.32  34.64  51.96  11.62   7.75  -2.24  23.24  15.49]
     """
-    input = IrrepsArray.as_irreps_array(input)
+    input = e3nn.as_irreps_array(input)
 
     if regroup_output:
         input = input.regroup()

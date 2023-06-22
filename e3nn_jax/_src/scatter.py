@@ -178,34 +178,6 @@ def index_add(
     out_dim: int = None,
     map_back: bool = False,
 ) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
-    r"""Perform the operation.
-
-    ```
-    out = zeros(out_dim, ...)
-    out[indices] += input
-    ```
-
-    if ``map_back`` is ``True``, then the output is mapped back to the input position.
-
-    ```
-    return out[indices]
-    ```
-
-    Args:
-        indices (`jax.numpy.ndarray`): array of indices
-        input (`jax.numpy.ndarray` or `IrrepsArray`): array of data
-        out_dim (int): size of the output
-        map_back (bool): whether to map back to the input position
-
-    Returns:
-        `jax.numpy.ndarray` or ``IrrepsArray``: output
-
-    Examples:
-       >>> i = jnp.array([0, 2, 2, 0])
-       >>> x = jnp.array([1.0, 2.0, 3.0, -10.0])
-       >>> index_add(i, x, out_dim=4)
-       Array([-9.,  0.,  5.,  0.], dtype=float32)
-    """
     warnings.warn(
         "e3nn.index_add is deprecated, use e3nn.scatter_sum instead", DeprecationWarning
     )

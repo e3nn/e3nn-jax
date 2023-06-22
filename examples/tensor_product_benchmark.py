@@ -109,7 +109,7 @@ def main():
     f = tp.apply
     if args.lists:
         f_1 = f
-        f = lambda w, x1, x2: f_1(w, x1, x2).list
+        f = lambda w, x1, x2: f_1(w, x1, x2).chunks
     else:
         f_1 = f
         f = lambda w, x1, x2: f_1(w, x1, x2).array

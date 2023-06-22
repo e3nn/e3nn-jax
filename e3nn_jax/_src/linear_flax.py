@@ -91,7 +91,7 @@ class Linear(flax.linen.Module):
             input: e3nn.IrrepsArray = input_or_none
         del weights_or_input, input_or_none
 
-        input = e3nn.IrrepsArray.as_irreps_array(input)
+        input = e3nn.as_irreps_array(input)
 
         dtype = get_pytree_dtype(weights, input)
         if dtype.kind == "i":
@@ -104,7 +104,7 @@ class Linear(flax.linen.Module):
                     f"e3nn.flax.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({self.irreps_in})"
                 )
 
-        input = input.remove_nones().regroup()
+        input = input.remove_zero_chunks().regroup()
         output_irreps = e3nn.Irreps(self.irreps_out).simplify()
 
         if self.channel_out is not None:
@@ -167,4 +167,4 @@ class Linear(flax.linen.Module):
 
         if self.channel_out is not None:
             output = output.mul_to_axis(self.channel_out)
-        return output._convert(self.irreps_out)
+        return output.rechunk(self.irreps_out)

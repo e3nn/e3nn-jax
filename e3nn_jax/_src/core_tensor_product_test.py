@@ -179,7 +179,7 @@ def test_normalization(
     x1 = e3nn.normal(tp.irreps_in1, next(keys), (), normalization=irrep_normalization)
     x2 = e3nn.normal(tp.irreps_in2, next(keys), (), normalization=irrep_normalization)
 
-    v, s = tp.left_right(ws, x1, x2).list
+    v, s = tp.left_right(ws, x1, x2).chunks
 
     assert jnp.exp(jnp.abs(jnp.log(jnp.mean(s**2)))) < 2.0
     if irrep_normalization == "component":

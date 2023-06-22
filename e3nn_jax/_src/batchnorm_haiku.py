@@ -5,7 +5,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from e3nn_jax import Irreps, IrrepsArray, config
+import e3nn_jax as e3nn
 
 
 @partial(jax.jit, static_argnums=(5, 6, 7, 8, 9, 10, 11))
@@ -40,7 +40,7 @@ def _batch_norm(
     i_rmu = 0  # index for running_mean
     i_bia = 0  # index for bias
 
-    for (mul, ir), field in zip(input.irreps, input.list):
+    for (mul, ir), field in zip(input.irreps, input.chunks):
         if field is None:
             # [batch, sample, mul, repr]
             if ir.is_scalar():  # scalars
@@ -120,9 +120,7 @@ def _batch_norm(
             fields.append(field)  # [batch, sample, mul, repr]
         i_wei += mul
 
-    output = IrrepsArray.from_list(
-        input.irreps, fields, (batch, prod(size)), input.dtype
-    )
+    output = e3nn.from_chunks(input.irreps, fields, (batch, prod(size)), input.dtype)
     output = output.reshape((batch,) + tuple(size) + (-1,))
     return output, new_means, new_vars
 
@@ -149,7 +147,7 @@ class BatchNorm(hk.Module):
     def __init__(
         self,
         *,
-        irreps: Irreps = None,
+        irreps: e3nn.Irreps = None,
         eps: float = 1e-4,
         momentum: float = 0.1,
         affine: bool = True,
@@ -161,7 +159,7 @@ class BatchNorm(hk.Module):
 
         # TODO test with and without irreps argument given
 
-        self.irreps = Irreps(irreps) if irreps is not None else irreps
+        self.irreps = e3nn.Irreps(irreps) if irreps is not None else irreps
         self.eps = eps
         self.momentum = momentum
         self.affine = affine
@@ -172,7 +170,7 @@ class BatchNorm(hk.Module):
         self.reduce = reduce
 
         if normalization is None:
-            normalization = config("irrep_normalization")
+            normalization = e3nn.config("irrep_normalization")
         assert normalization in [
             "norm",
             "component",
@@ -182,7 +180,9 @@ class BatchNorm(hk.Module):
     def __repr__(self):
         return f"{self.__class__.__name__} ({self.irreps}, eps={self.eps}, momentum={self.momentum})"
 
-    def __call__(self, input: IrrepsArray, is_training: bool = True) -> IrrepsArray:
+    def __call__(
+        self, input: e3nn.IrrepsArray, is_training: bool = True
+    ) -> e3nn.IrrepsArray:
         r"""Evaluate the batch normalization.
 
         Args:
@@ -193,7 +193,7 @@ class BatchNorm(hk.Module):
             output: normalized tensor of shape ``(batch, [spatial], irreps.dim)``
         """
         if self.irreps is not None:
-            input = input._convert(self.irreps)
+            input = input.rechunk(self.irreps)
 
         num_scalar = sum(mul for mul, ir in input.irreps if ir.is_scalar())
         num_features = input.irreps.num_irreps

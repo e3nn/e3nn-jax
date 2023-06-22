@@ -9,6 +9,110 @@ from e3nn_jax._src.irreps import IntoIrreps
 from e3nn_jax._src.irreps_array import _infer_backend, _standardize_axis
 
 
+def from_chunks(
+    irreps: IntoIrreps,
+    chunks: List[Optional[jnp.ndarray]],
+    leading_shape: Tuple[int, ...],
+    dtype=None,
+    *,
+    backend=None,
+) -> e3nn.IrrepsArray:
+    r"""Create an IrrepsArray from a list of arrays.
+
+    Args:
+        irreps (Irreps): irreps
+        chunks (list of optional `jax.numpy.ndarray`): list of arrays
+        leading_shape (tuple of int): leading shape of the arrays (without the irreps)
+
+    Returns:
+        IrrepsArray
+    """
+    jnp = _infer_backend(chunks) if backend is None else backend
+
+    irreps = e3nn.Irreps(irreps)
+    if len(irreps) != len(chunks):
+        raise ValueError(
+            f"e3nn.from_chunks: len(irreps) != len(chunks), {len(irreps)} != {len(chunks)}"
+        )
+
+    if not all(x is None or isinstance(x, jnp.ndarray) for x in chunks):
+        raise ValueError(
+            f"e3nn.from_chunks: chunks contains non-array elements type={[type(x) for x in chunks]}"
+        )
+
+    if not all(
+        x is None or x.shape == leading_shape + (mul, ir.dim)
+        for x, (mul, ir) in zip(chunks, irreps)
+    ):
+        raise ValueError(
+            f"e3nn.from_chunks: chunks shapes {[None if x is None else x.shape for x in chunks]} "
+            f"incompatible with leading shape {leading_shape} and irreps {irreps}. "
+            f"Expecting {[leading_shape + (mul, ir.dim) for (mul, ir) in irreps]}."
+        )
+
+    for x in chunks:
+        if x is not None:
+            dtype = x.dtype
+            break
+
+    if dtype is None:
+        raise ValueError(
+            "e3nn.from_chunks: Need to specify dtype if chunks is empty or contains only None."
+        )
+
+    if irreps.dim > 0:
+        array = jnp.concatenate(
+            [
+                jnp.zeros(leading_shape + (mul_ir.dim,), dtype)
+                if x is None
+                else x.reshape(leading_shape + (mul_ir.dim,))
+                for mul_ir, x in zip(irreps, chunks)
+            ],
+            axis=-1,
+        )
+    else:
+        array = jnp.zeros(leading_shape + (0,), dtype)
+
+    zero_flags = tuple(x is None for x in chunks)
+
+    return e3nn.IrrepsArray(irreps, array, zero_flags=zero_flags)
+
+
+def as_irreps_array(array: Union[jnp.ndarray, e3nn.IrrepsArray], *, backend=None):
+    """Convert an array to an IrrepsArray.
+
+    Args:
+        array (jax.numpy.ndarray or IrrepsArray): array to convert
+
+    Returns:
+        IrrepsArray
+    """
+    if isinstance(array, e3nn.IrrepsArray):
+        return array
+
+    jnp = _infer_backend(array) if backend is None else backend
+    array = jnp.asarray(array)
+
+    if array.ndim == 0:
+        raise ValueError(
+            "e3nn.as_irreps_array: Cannot convert an array of rank 0 to an IrrepsArray."
+        )
+
+    return e3nn.IrrepsArray(f"{array.shape[-1]}x0e", array)
+
+
+def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> e3nn.IrrepsArray:
+    r"""Create an IrrepsArray of zeros."""
+    irreps = e3nn.Irreps(irreps)
+    array = jnp.zeros(leading_shape + (irreps.dim,), dtype=dtype)
+    return e3nn.IrrepsArray(irreps, array, zero_flags=(True,) * len(irreps))
+
+
+def zeros_like(irreps_array: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+    r"""Create an IrrepsArray of zeros with the same shape as another IrrepsArray."""
+    return e3nn.zeros(irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype)
+
+
 def _align_two_irreps_arrays(
     input1: e3nn.IrrepsArray, input2: e3nn.IrrepsArray
 ) -> Tuple[e3nn.IrrepsArray, e3nn.IrrepsArray]:
@@ -32,8 +136,8 @@ def _align_two_irreps_arrays(
 
         i += 1
 
-    input1 = input1._convert(irreps_in1)
-    input2 = input2._convert(irreps_in2)
+    input1 = input1.rechunk(irreps_in1)
+    input2 = input2.rechunk(irreps_in2)
 
     assert [mul for mul, _ in input1.irreps] == [mul for mul, _ in input2.irreps]
     return input1, input2
@@ -55,16 +159,13 @@ def _reduce(
         return e3nn.IrrepsArray(
             array.irreps,
             op(array.array, axis=axis, keepdims=keepdims),
-            [
-                None if x is None else op(x, axis=axis, keepdims=keepdims)
-                for x in array.list
-            ],
+            zero_flags=array.zero_flags,
         )
 
     array = _reduce(op, array, axis=axis[:-1], keepdims=keepdims)
-    return e3nn.IrrepsArray.from_list(
+    return e3nn.from_chunks(
         e3nn.Irreps([(1, ir) for _, ir in array.irreps]),
-        [None if x is None else op(x, axis=-2, keepdims=True) for x in array.list],
+        [None if x is None else op(x, axis=-2, keepdims=True) for x in array.chunks],
         array.shape[:-1],
         array.dtype,
     )
@@ -157,7 +258,7 @@ def concatenate(arrays: List[e3nn.IrrepsArray], axis: int = -1) -> e3nn.IrrepsAr
     if len(arrays) == 0:
         raise ValueError("Cannot concatenate empty list of IrrepsArray")
 
-    arrays = [e3nn.IrrepsArray.as_irreps_array(x) for x in arrays]
+    arrays = [e3nn.as_irreps_array(x) for x in arrays]
     axis = _standardize_axis(axis, arrays[0].ndim)[0]
 
     jnp = _infer_backend([x.array for x in arrays])
@@ -167,19 +268,16 @@ def concatenate(arrays: List[e3nn.IrrepsArray], axis: int = -1) -> e3nn.IrrepsAr
         return e3nn.IrrepsArray(
             irreps=irreps,
             array=jnp.concatenate([x.array for x in arrays], axis=-1),
-            list=sum([x.list for x in arrays], []),
+            zero_flags=sum([x.zero_flags for x in arrays], ()),
         )
 
     if {x.irreps for x in arrays} != {arrays[0].irreps}:
         raise ValueError("Irreps must be the same for all arrays")
 
-    arrays = [
-        x.replace_none_with_zeros() for x in arrays
-    ]  # TODO this could be optimized
     return e3nn.IrrepsArray(
         irreps=arrays[0].irreps,
         array=jnp.concatenate([x.array for x in arrays], axis=axis),
-        list=[jnp.concatenate(xs, axis=axis) for xs in zip(*[x.list for x in arrays])],
+        zero_flags=[all(x) for x in zip(*[x.zero_flags for x in arrays])],
     )
 
 
@@ -227,13 +325,10 @@ def stack(arrays: List[e3nn.IrrepsArray], axis=0) -> e3nn.IrrepsArray:
     if {x.irreps for x in arrays} != {arrays[0].irreps}:
         raise ValueError("Irreps must be the same for all arrays")
 
-    arrays = [
-        x.replace_none_with_zeros() for x in arrays
-    ]  # TODO this could be optimized
     return e3nn.IrrepsArray(
         irreps=arrays[0].irreps,
         array=jnp.stack([x.array for x in arrays], axis=axis),
-        list=[jnp.stack(xs, axis=axis) for xs in zip(*[x.list for x in arrays])],
+        zero_flags=[all(x) for x in zip(*[x.zero_flags for x in arrays])],
     )
 
 
@@ -275,9 +370,9 @@ def norm(
         return x
 
     if per_irrep:
-        return e3nn.IrrepsArray.from_list(
+        return e3nn.from_chunks(
             [(mul, "0e") for mul, _ in array.irreps],
-            [f(x) for x in array.list],
+            [f(x) for x in array.chunks],
             array.shape[:-1],
             array.dtype,
         )
@@ -320,13 +415,13 @@ def dot(
     if per_irrep:
         out = []
         dtype = a.dtype
-        for x, y in zip(a.list, b.list):
+        for x, y in zip(a.chunks, b.chunks):
             if x is None or y is None:
                 out.append(None)
             else:
                 out.append(jnp.sum(jnp.conj(x) * y, axis=-1, keepdims=True))
                 dtype = out[-1].dtype
-        return e3nn.IrrepsArray.from_list(
+        return e3nn.from_chunks(
             [(mul, "0e") for mul, _ in a.irreps],
             out,
             a.shape[:-1],
@@ -334,13 +429,13 @@ def dot(
         )
     else:
         out = 0.0
-        for x, y in zip(a.list, b.list):
+        for x, y in zip(a.chunks, b.chunks):
             if x is None or y is None:
                 continue
             out = out + jnp.sum(jnp.conj(x) * y, axis=(-2, -1))
         if isinstance(out, float):
             shape = jnp.broadcast_shapes(a.shape[:-1], b.shape[:-1])
-            return e3nn.IrrepsArray.zeros("0e", shape, dtype=a.dtype)
+            return e3nn.zeros("0e", shape, dtype=a.dtype)
         return e3nn.IrrepsArray("0e", out[..., None])
 
 
@@ -379,7 +474,7 @@ def cross(a: e3nn.IrrepsArray, b: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
     dtype = a.dtype
 
     for ((mul, irx), x), ((_, iry), y) in zip(
-        zip(a.irreps, a.list), zip(b.irreps, b.list)
+        zip(a.irreps, a.chunks), zip(b.irreps, b.chunks)
     ):
         irreps_out.append((mul, (1, irx.p * iry.p)))
         if x is None or y is None:
@@ -388,7 +483,7 @@ def cross(a: e3nn.IrrepsArray, b: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
             out.append(jnp.cross(x, y, axis=-1))
             dtype = out[-1].dtype
 
-    return e3nn.IrrepsArray.from_list(irreps_out, out, shape, dtype)
+    return e3nn.from_chunks(irreps_out, out, shape, dtype)
 
 
 def normal(
@@ -461,7 +556,7 @@ def normal(
             r = jax.random.normal(k, leading_shape + (mul, ir.dim), dtype=dtype)
             r = r / jnp.linalg.norm(r, axis=-1, keepdims=True)
             list.append(r)
-        return e3nn.IrrepsArray.from_list(irreps, list, leading_shape, dtype)
+        return e3nn.from_chunks(irreps, list, leading_shape, dtype)
     else:
         if normalization == "component":
             return e3nn.IrrepsArray(
@@ -475,6 +570,6 @@ def normal(
                 r = jax.random.normal(k, leading_shape + (mul, ir.dim), dtype=dtype)
                 r = r / jnp.sqrt(ir.dim)
                 list.append(r)
-            return e3nn.IrrepsArray.from_list(irreps, list, leading_shape, dtype)
+            return e3nn.from_chunks(irreps, list, leading_shape, dtype)
         else:
             raise ValueError("Normalization needs to be 'norm' or 'component'")

@@ -8,7 +8,7 @@ def test_config(keys):
     assert e3nn.config("irrep_normalization") == "component"
 
     inputs = e3nn.normal("10x1e", keys[0], (2,))
-    s, p, d = e3nn.elementwise_tensor_product(inputs[0], inputs[1]).list
+    s, p, d = e3nn.elementwise_tensor_product(inputs[0], inputs[1]).chunks
 
     assert jnp.exp(jnp.abs(jnp.log(jnp.mean(p**2)))) < 2.0
     assert jnp.exp(jnp.abs(jnp.log(jnp.mean(d**2)))) < 2.0
@@ -17,7 +17,7 @@ def test_config(keys):
     assert e3nn.config("irrep_normalization") == "norm"
 
     inputs = e3nn.normal("10x1e", keys[0], (2,))
-    s, p, d = e3nn.elementwise_tensor_product(inputs[0], inputs[1]).list
+    s, p, d = e3nn.elementwise_tensor_product(inputs[0], inputs[1]).chunks
 
     assert jnp.exp(jnp.abs(jnp.log(jnp.mean(jnp.sum(p**2, axis=1))))) < 2.0
     assert jnp.exp(jnp.abs(jnp.log(jnp.mean(jnp.sum(d**2, axis=1))))) < 2.0

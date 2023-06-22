@@ -27,7 +27,7 @@ def test_point_convolution(keys):
             lambda r: radial_basis(r, cutoff, 8),
             avg_num_neighbors=2.0,
             mlp_neurons=[64],
-        )(positions, features, senders, receivers)
+        )(positions, features, senders, receivers).remove_zero_chunks()
 
     model_init = jax.jit(model.init)
     model_apply = jax.jit(model.apply)
@@ -49,8 +49,7 @@ def test_point_convolution(keys):
     out = model_apply(w, pos, feat, src, dst)
 
     assert out.shape[:-1] == feat.shape[:-1]
-    assert out.irreps == e3nn.Irreps("8x0e + 8x0o + 5e")
-    assert out.list[2] is None
+    assert out.irreps == e3nn.Irreps("8x0e")
 
     assert_equivariant(
         lambda pos, x: model_apply(w, pos, x, src, dst),

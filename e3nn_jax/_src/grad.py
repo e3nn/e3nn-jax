@@ -41,12 +41,12 @@ def grad(
             raise TypeError(f"arg{argnums} must be an e3nn.IrrepsArray.")
         irreps_in = x.irreps
         leading_shape_in = x.shape[:-1]
-        x = x.replace_none_with_zeros()
-        args[argnums] = x.list
+        x = e3nn.IrrepsArray(x.irreps, x.array)  # drop zero_flags
+        args[argnums] = x.chunks
 
         def naked_fun(*args, **kwargs) -> List[jnp.ndarray]:
             args = list(args)
-            args[argnums] = e3nn.IrrepsArray.from_list(
+            args[argnums] = e3nn.from_chunks(
                 irreps_in, args[argnums], leading_shape_in, x.dtype
             )
             if has_aux:
@@ -55,14 +55,14 @@ def grad(
                     raise TypeError(
                         f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}."
                     )
-                return y.list, (y.irreps, y.shape[:-1], aux)
+                return y.chunks, (y.irreps, y.shape[:-1], aux)
             else:
                 y = fun(*args, **kwargs)
                 if not isinstance(y, e3nn.IrrepsArray):
                     raise TypeError(
                         f"Expected equivariant function to return an e3nn.IrrepsArray, got {type(y)}."
                     )
-                return y.list, (y.irreps, y.shape[:-1])
+                return y.chunks, (y.irreps, y.shape[:-1])
 
         output = jax.jacobian(
             naked_fun,
@@ -110,7 +110,7 @@ def grad(
                             + (mir_out.mul * mir_in.mul, ir.dim)
                         )
                     )
-        output = e3nn.IrrepsArray.from_list(
+        output = e3nn.from_chunks(
             irreps, lst, leading_shape_out + leading_shape_in, x.dtype
         )
         if regroup_output:

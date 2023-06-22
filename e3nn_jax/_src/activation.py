@@ -121,7 +121,7 @@ def scalar_activation(
     Note:
         The parity of the output depends on the parity of the activation function.
     """
-    input = e3nn.IrrepsArray.as_irreps_array(input)
+    input = e3nn.as_irreps_array(input)
     assert isinstance(input, e3nn.IrrepsArray)
 
     if acts is None:
@@ -132,10 +132,10 @@ def scalar_activation(
 
     assert len(input.irreps) == len(acts), (input.irreps, acts)
 
-    list = []
+    chunks = []
 
     irreps_out = []
-    for (mul, (l_in, p_in)), x, act in zip(input.irreps, input.list, acts):
+    for (mul, (l_in, p_in)), x, act in zip(input.irreps, input.chunks, acts):
         if act is not None:
             if l_in != 0:
                 raise ValueError(
@@ -154,14 +154,16 @@ def scalar_activation(
             irreps_out.append((mul, (0, p_out)))
             if x is None:
                 if is_zero_in_zero(act):
-                    list.append(None)
+                    chunks.append(None)
                 else:
-                    list.append(act(jnp.ones(input.shape[:-1] + (mul, 1), input.dtype)))
+                    chunks.append(
+                        act(jnp.ones(input.shape[:-1] + (mul, 1), input.dtype))
+                    )
             else:
-                list.append(act(x))
+                chunks.append(act(x))
         else:
             irreps_out.append((mul, (l_in, p_in)))
-            list.append(x)
+            chunks.append(x)
 
     irreps_out = e3nn.Irreps(irreps_out)
 
@@ -174,9 +176,11 @@ def scalar_activation(
             if normalize_act:
                 act = normalize_function(act)
             array = act(input.array)
-        return e3nn.IrrepsArray(irreps=irreps_out, array=array, list=list)
+        return e3nn.IrrepsArray(
+            irreps_out, array, zero_flags=[x is None for x in chunks]
+        )
 
-    return e3nn.IrrepsArray.from_list(irreps_out, list, input.shape[:-1], input.dtype)
+    return e3nn.from_chunks(irreps_out, chunks, input.shape[:-1], input.dtype)
 
 
 def norm_activation(
@@ -208,7 +212,7 @@ def norm_activation(
 
     list = []
 
-    for x, act in zip(input.list, acts):
+    for x, act in zip(input.chunks, acts):
         if act is None:
             list.append(x)
             continue
@@ -222,7 +226,7 @@ def norm_activation(
 
         list.append(x)
 
-    return e3nn.IrrepsArray.from_list(input.irreps, list, input.shape[:-1], input.dtype)
+    return e3nn.from_chunks(input.irreps, list, input.shape[:-1], input.dtype)
 
 
 def key_value_activation(phi, key, value):

@@ -244,7 +244,7 @@ def _call(
     if not isinstance(input, e3nn.IrrepsArray):
         raise ValueError("Convolution: input should be of type IrrepsArray")
 
-    input = input.remove_nones().simplify()
+    input = input.remove_zero_chunks().simplify()
 
     irreps_out = e3nn.Irreps(
         [
@@ -274,11 +274,11 @@ def _call(
         i = 0
         for mul_ir in e3nn.Irreps(self.irreps_out):
             if i < len(irreps_out) and irreps_out[i] == mul_ir:
-                list.append(output.list[i])
+                list.append(output.chunks[i])
                 i += 1
             else:
                 list.append(None)
-        output = e3nn.IrrepsArray.from_list(
+        output = e3nn.from_chunks(
             self.irreps_out, list, output.shape[:-1], output.dtype
         )
 

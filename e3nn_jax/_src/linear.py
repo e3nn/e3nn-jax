@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+import e3nn_jax as e3nn
 from e3nn_jax import Irreps, IrrepsArray, config
 from e3nn_jax._src.core_tensor_product import _sum_tensors
 from e3nn_jax._src.utils.dtype import get_pytree_dtype
@@ -149,9 +150,7 @@ class FunctionalLinear:
             )
             for i_out, mul_ir_out in enumerate(self.irreps_out)
         ]
-        return IrrepsArray.from_list(
-            self.irreps_out, output, output_shape, output_dtype
-        )
+        return e3nn.from_chunks(self.irreps_out, output, output_shape, output_dtype)
 
     def split_weights(self, weights: jnp.ndarray) -> List[jnp.ndarray]:
         ws = []
@@ -166,7 +165,7 @@ class FunctionalLinear:
     def __call__(
         self, ws: Union[List[jnp.ndarray], jnp.ndarray], input: IrrepsArray
     ) -> IrrepsArray:
-        input = input._convert(self.irreps_in)
+        input = input.rechunk(self.irreps_in)
         if input.ndim != 1:
             raise ValueError(
                 f"FunctionalLinear does not support broadcasting, input shape is {input.shape}"
@@ -180,8 +179,9 @@ class FunctionalLinear:
             if ins.i_in == -1
             else (
                 None
-                if input.list[ins.i_in] is None
-                else ins.path_weight * jnp.einsum("uw,ui->wi", w, input.list[ins.i_in])
+                if input.chunks[ins.i_in] is None
+                else ins.path_weight
+                * jnp.einsum("uw,ui->wi", w, input.chunks[ins.i_in])
             )
             for ins, w in zip(self.instructions, ws)
         ]
@@ -230,9 +230,15 @@ def linear_vanilla(
         for ins in linear.instructions
     ]
     f = lambda x: linear(w, x)
+    input0 = input
     for _ in range(input.ndim - 1):
         f = jax.vmap(f)
-    return f(input)
+        input0 = input0[0]
+
+    # vmap will drop the zero_flags, so we need to recompute them:
+    output0 = linear(w, input0)
+    output = f(input)
+    return IrrepsArray(output.irreps, output.array, zero_flags=output0.zero_flags)
 
 
 def linear_indexed(

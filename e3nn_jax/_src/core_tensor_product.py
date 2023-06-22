@@ -13,6 +13,7 @@ from jax.experimental.sparse import BCOO, sparsify
 from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
 from e3nn_jax._src.einsum import einsum as opt_einsum
 from e3nn_jax._src.utils.dtype import get_pytree_dtype
+import e3nn_jax as e3nn
 
 
 class FunctionalTensorProduct:
@@ -169,8 +170,8 @@ class FunctionalTensorProduct:
         return _left_right(
             self,
             weights,
-            input1._convert(self.irreps_in1),
-            input2._convert(self.irreps_in2),
+            input1.rechunk(self.irreps_in1),
+            input2.rechunk(self.irreps_in2),
             custom_einsum_jvp=custom_einsum_jvp,
             fused=fused,
             sparse=sparse,
@@ -202,7 +203,7 @@ class FunctionalTensorProduct:
         return _right(
             self,
             weights,
-            input2._convert(self.irreps_in2),
+            input2.rechunk(self.irreps_in2),
             custom_einsum_jvp=custom_einsum_jvp,
         )
 
@@ -333,7 +334,7 @@ def _left_right(
         dtype = jnp.float32
 
     if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
-        return IrrepsArray.zeros(self.irreps_out, (), dtype)
+        return e3nn.zeros(self.irreps_out, (), dtype)
 
     if sparse:
         assert (
@@ -402,9 +403,9 @@ def _block_left_right(
     @lru_cache(maxsize=None)
     def multiply(in1, in2, mode):
         if mode == "uv":
-            return einsum("ui,vj->uvij", input1.list[in1], input2.list[in2])
+            return einsum("ui,vj->uvij", input1.chunks[in1], input2.chunks[in2])
         if mode == "uu":
-            return einsum("ui,uj->uij", input1.list[in1], input2.list[in2])
+            return einsum("ui,uj->uij", input1.chunks[in1], input2.chunks[in2])
 
     weight_index = 0
 
@@ -425,8 +426,8 @@ def _block_left_right(
             # out_list += [None]
             continue
 
-        x1 = input1.list[ins.i_in1]
-        x2 = input2.list[ins.i_in2]
+        x1 = input1.chunks[ins.i_in1]
+        x2 = input2.chunks[ins.i_in2]
 
         if x1 is None or x2 is None:
             out_list += [None]
@@ -510,7 +511,7 @@ def _block_left_right(
         )
         for i_out, mul_ir_out in enumerate(self.irreps_out)
     ]
-    return IrrepsArray.from_list(self.irreps_out, out, (), dtype)
+    return e3nn.from_chunks(self.irreps_out, out, (), dtype)
 
 
 def _fused_left_right(
@@ -654,7 +655,7 @@ def _right(
         mul_ir_in2 = self.irreps_in2[ins.i_in2]
         mul_ir_out = self.irreps_out[ins.i_out]
 
-        x2 = input2.list[ins.i_in2]
+        x2 = input2.chunks[ins.i_in2]
 
         if ins.has_weight:
             w = weights[weight_index]

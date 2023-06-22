@@ -49,7 +49,7 @@ class Model(flax.linen.Module):
     @flax.linen.compact
     def __call__(self, pos, edge_src, edge_dst):
         pos = e3nn.IrrepsArray("1o", pos)
-        node_feat = e3nn.IrrepsArray.ones("0e", (pos.shape[0],), pos.dtype)
+        node_feat = e3nn.IrrepsArray("0e", jnp.ones((pos.shape[0], 1), pos.dtype))
 
         kw = dict(
             radial_basis=lambda r: jnp.ones_like(r)[:, None],

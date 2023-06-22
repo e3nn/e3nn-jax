@@ -101,9 +101,7 @@ def _call(
 
     messages = messages * mix  # [n_edges, irreps]
 
-    zeros = e3nn.IrrepsArray.zeros(
-        messages.irreps, node_feats.shape[:1], messages.dtype
-    )
+    zeros = e3nn.zeros(messages.irreps, node_feats.shape[:1], messages.dtype)
     node_feats = zeros.at[receivers].add(messages)  # [n_nodes, irreps]
 
     node_feats = node_feats / jnp.sqrt(self.avg_num_neighbors)

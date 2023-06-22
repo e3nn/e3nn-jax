@@ -9,34 +9,34 @@ import e3nn_jax as e3nn
 
 
 def test_empty():
-    x = e3nn.IrrepsArray.from_list("", [], (2, 2), jnp.float32)
+    x = e3nn.from_chunks("", [], (2, 2), jnp.float32)
     assert x.irreps == e3nn.Irreps([])
     assert x.shape == (2, 2, 0)
 
 
 def test_convert():
-    id = e3nn.IrrepsArray.from_list("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
+    id = e3nn.from_chunks("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
     assert jax.tree_util.tree_map(
-        lambda x: x.shape, id._convert("0x0e + 20x0e + 0x0e")
-    ).list == [None, (1, 20, 1), None]
+        jnp.shape, id.rechunk("0x0e + 20x0e + 0x0e").chunks
+    ) == [None, (1, 20, 1), None]
     assert jax.tree_util.tree_map(
-        lambda x: x.shape, id._convert("7x0e + 4x0e + 9x0e")
-    ).list == [None, (1, 4, 1), (1, 9, 1)]
+        jnp.shape, id.rechunk("7x0e + 4x0e + 9x0e").chunks
+    ) == [None, (1, 4, 1), (1, 9, 1)]
 
-    id = e3nn.IrrepsArray.from_list("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))], (1,))
+    id = e3nn.from_chunks("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))], (1,))
     assert jax.tree_util.tree_map(
-        lambda x: x.shape, id._convert("5x0e + 5x0e + 5x1e + 5x1e")
-    ).list == [
+        jnp.shape, id.rechunk("5x0e + 5x0e + 5x1e + 5x1e").chunks
+    ) == [
         None,
         None,
         (1, 5, 3),
         (1, 5, 3),
     ]
 
-    id = e3nn.IrrepsArray.zeros("10x0e + 10x1e", ())
-    id = id._convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
+    id = e3nn.zeros("10x0e + 10x1e", ())
+    id = id.rechunk("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
 
-    a = e3nn.IrrepsArray.from_list(
+    a = e3nn.from_chunks(
         "            10x0e  +  0x0e +1x1e  +     0x0e    +          9x1e           + 0x0e",
         [
             jnp.ones((2, 10, 1)),
@@ -48,8 +48,8 @@ def test_convert():
         ],
         (2,),
     )
-    b = a._convert("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
-    b = e3nn.IrrepsArray.from_list(b.irreps, b.list, b.shape[:-1])
+    b = a.rechunk("5x0e + 0x2e + 5x0e + 0x2e + 5x1e + 5x1e")
+    b = e3nn.from_chunks(b.irreps, b.chunks, b.shape[:-1])
 
     np.testing.assert_allclose(a.array, b.array)
 
@@ -72,7 +72,7 @@ def test_indexing():
     x = e3nn.IrrepsArray("2x0e + 1x2e", jnp.arange(3 * 4 * 7).reshape((3, 4, 7)))
     np.testing.assert_allclose(x[..., 1, -5:].array, x[:3, 1, "2e"].array)
 
-    x = e3nn.IrrepsArray.zeros("2x1e + 2x1e", (3, 3))
+    x = e3nn.zeros("2x1e + 2x1e", (3, 3))
     with pytest.raises(IndexError):
         x[..., "2x1e"]
 
@@ -153,46 +153,44 @@ def test_at_set():
     y = x.at[0, 1].set(0)
     assert y.shape == x.shape
     np.testing.assert_allclose(y[0, 1].array, 0)
-    np.testing.assert_allclose(y[0, 1].list[0], 0)
-    np.testing.assert_allclose(y[0, 1].list[1], 0)
+    np.testing.assert_allclose(y[0, 1].chunks[0], 0)
+    np.testing.assert_allclose(y[0, 1].chunks[1], 0)
     np.testing.assert_allclose(y[0, 2].array, x[0, 2].array)
-    np.testing.assert_allclose(y[0, 2].list[0], x[0, 2].list[0])
-    np.testing.assert_allclose(y[0, 2].list[1], x[0, 2].list[1])
+    np.testing.assert_allclose(y[0, 2].chunks[0], x[0, 2].chunks[0])
+    np.testing.assert_allclose(y[0, 2].chunks[1], x[0, 2].chunks[1])
 
     v = e3nn.IrrepsArray("0e + 1e", jnp.arange(4 * 4).reshape((4, 4)))
     y = x.at[1].set(v)
     assert y.shape == x.shape
     np.testing.assert_allclose(y[1].array, v.array)
-    np.testing.assert_allclose(y[1].list[0], v.list[0])
-    np.testing.assert_allclose(y[1].list[1], v.list[1])
+    np.testing.assert_allclose(y[1].chunks[0], v.chunks[0])
+    np.testing.assert_allclose(y[1].chunks[1], v.chunks[1])
     np.testing.assert_allclose(y[0].array, x[0].array)
-    np.testing.assert_allclose(y[0].list[0], x[0].list[0])
-    np.testing.assert_allclose(y[0].list[1], x[0].list[1])
+    np.testing.assert_allclose(y[0].chunks[0], x[0].chunks[0])
+    np.testing.assert_allclose(y[0].chunks[1], x[0].chunks[1])
 
 
 def test_at_add():
     def f(*shape):
         return 1.0 + jnp.arange(prod(shape)).reshape(shape)
 
-    x = e3nn.IrrepsArray.from_list(
+    x = e3nn.from_chunks(
         "1e + 0e + 0e + 0e",
         [None, None, f(2, 1, 1), f(2, 1, 1)],
         (2,),
     )
-    v = e3nn.IrrepsArray.from_list(
-        "1e + 0e + 0e + 0e", [None, f(1, 1), None, f(1, 1)], ()
-    )
+    v = e3nn.from_chunks("1e + 0e + 0e + 0e", [None, f(1, 1), None, f(1, 1)], ())
     y1 = x.at[0].add(v)
     y2 = e3nn.IrrepsArray(x.irreps, x.array.at[0].add(v.array))
     np.testing.assert_array_equal(y1.array, y2.array)
-    assert y1.list[0] is None
-    assert y1.list[1] is not None
-    assert y1.list[2] is not None
-    assert y1.list[3] is not None
-    np.testing.assert_allclose(0, y2.list[0])
-    np.testing.assert_array_equal(y1.list[1], y2.list[1])
-    np.testing.assert_array_equal(y1.list[2], y2.list[2])
-    np.testing.assert_array_equal(y1.list[3], y2.list[3])
+    assert y1.chunks[0] is None
+    assert y1.chunks[1] is not None
+    assert y1.chunks[2] is not None
+    assert y1.chunks[3] is not None
+    np.testing.assert_allclose(0, y2.chunks[0])
+    np.testing.assert_array_equal(y1.chunks[1], y2.chunks[1])
+    np.testing.assert_array_equal(y1.chunks[2], y2.chunks[2])
+    np.testing.assert_array_equal(y1.chunks[3], y2.chunks[3])
 
 
 def test_slice_by_mul():
@@ -204,7 +202,7 @@ def test_slice_by_mul():
     y = x.slice_by_mul[:0]
     assert y.irreps == ""
     assert y.array.shape == (0,)
-    assert len(y.list) == 0
+    assert len(y.chunks) == 0
 
 
 def test_norm():
@@ -216,9 +214,7 @@ def test_norm():
     assert e3nn.norm(x, per_irrep=True).shape == (2, 3)
     assert e3nn.norm(x, per_irrep=False).shape == (2, 1)
 
-    x = e3nn.IrrepsArray.from_list(
-        "2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64
-    )
+    x = e3nn.from_chunks("2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64)
 
     assert e3nn.norm(x).shape == (2, 3)
 
@@ -235,8 +231,6 @@ def test_dot():
     assert e3nn.dot(x, y, per_irrep=True).shape == (2, 3)
     assert e3nn.dot(x, y, per_irrep=False).shape == (2, 1)
 
-    y = e3nn.IrrepsArray.from_list(
-        "2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64
-    )
+    y = e3nn.from_chunks("2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64)
 
     assert e3nn.dot(x, y).shape == (2, 1)
