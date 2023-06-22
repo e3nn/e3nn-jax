@@ -99,7 +99,7 @@ def train(steps=2000):
 
         updates, opt_state = opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
-        return params, opt_state, accuracy, logits
+        return params, opt_state, accuracy
 
     # Dataset
     x, y = tetris()
@@ -112,20 +112,19 @@ def train(steps=2000):
     # compile jit
     wall = time.perf_counter()
     print("compiling...", flush=True)
-    _, _, accuracy, _ = update_fn(params, opt_state, x, y)
+    _, _, accuracy = update_fn(params, opt_state, x, y)
     print(f"initial accuracy = {100 * accuracy:.0f}%", flush=True)
     print(f"compilation took {time.perf_counter() - wall:.1f}s")
 
     # Train
     wall = time.perf_counter()
     print("training...", flush=True)
-    for it in tqdm(range(1, steps + 1)):
-        params, opt_state, accuracy, logits = update_fn(params, opt_state, x, y)
+    for _ in tqdm(range(steps)):
+        params, opt_state, accuracy = update_fn(params, opt_state, x, y)
         if accuracy == 1.0:
             break
 
     print(f"final accuracy = {100 * accuracy:.0f}%")
-    print(f"training took {time.perf_counter() - wall:.1f}s")
 
 
 if __name__ == "__main__":

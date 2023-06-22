@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 import jraph
 import optax
+from tqdm.auto import tqdm
 
 import e3nn_jax as e3nn
 
@@ -127,7 +128,7 @@ def train(steps=200):
 
         updates, opt_state = opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
-        return params, opt_state, accuracy, logits
+        return params, opt_state, accuracy
 
     # Dataset
     graphs = tetris()
@@ -140,21 +141,20 @@ def train(steps=200):
     # compile jit
     wall = time.perf_counter()
     print("compiling...", flush=True)
-    _, _, accuracy, _ = update_fn(params, opt_state, graphs)
+    _, _, accuracy = update_fn(params, opt_state, graphs)
     print(f"initial accuracy = {100 * accuracy:.0f}%", flush=True)
     print(f"compilation took {time.perf_counter() - wall:.1f}s")
 
     # Train
     wall = time.perf_counter()
     print("training...", flush=True)
-    for it in range(1, steps + 1):
-        params, opt_state, accuracy, logits = update_fn(params, opt_state, graphs)
+    for _ in tqdm(range(steps)):
+        params, opt_state, accuracy = update_fn(params, opt_state, graphs)
 
         if accuracy == 1.0:
             break
 
     print(f"final accuracy = {100 * accuracy:.0f}%")
-    print(f"training took {time.perf_counter() - wall:.1f}s")
 
 
 if __name__ == "__main__":
