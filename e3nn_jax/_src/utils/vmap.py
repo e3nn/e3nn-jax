@@ -30,10 +30,6 @@ def vmap(
         >>> y.zero_flags
         (False, True)
     """
-    if in_axes == -1:
-        raise ValueError("in_axes=-1 is not supported for e3nn.vmap")
-    if out_axes == -1:
-        raise ValueError("out_axes=-1 is not supported for e3nn.vmap")
 
     def to_via(x):
         return _VIA(x) if isinstance(x, e3nn.IrrepsArray) else x
