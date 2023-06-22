@@ -12,8 +12,8 @@ from e3nn_jax._src.utils.decorators import overload_for_irreps_without_array
 def _gate(
     input: IrrepsArray, even_act, odd_act, even_gate_act, odd_gate_act, normalize_act
 ) -> IrrepsArray:
-    scalars = input.filtered(keep=["0e", "0o"])
-    vectors = input.filtered(drop=["0e", "0o"])
+    scalars = input.filter(keep=["0e", "0o"])
+    vectors = input.filter(drop=["0e", "0o"])
     del input
 
     if vectors.shape[-1] == 0:

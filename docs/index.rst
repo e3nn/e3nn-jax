@@ -282,7 +282,7 @@ The irrep index is always the last index.
 
 .. jupyter-execute::
 
-    z.sorted().simplify()
+    z.sort().simplify()
 
 .. jupyter-execute::
 

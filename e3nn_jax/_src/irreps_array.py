@@ -613,7 +613,7 @@ class IrrepsArray:
         r"""Sort the irreps.
 
         Examples:
-            >>> IrrepsArray("0e + 1o + 2x0e", jnp.arange(6)).sorted()
+            >>> IrrepsArray("0e + 1o + 2x0e", jnp.arange(6)).sort()
             1x0e+2x0e+1x1o [0 4 5 1 2 3]
         """
         irreps, p, inv = self.irreps.sort()
@@ -641,7 +641,7 @@ class IrrepsArray:
             >>> IrrepsArray("0e + 1o + 2x0e", jnp.arange(6)).regroup()
             3x0e+1x1o [0 4 5 1 2 3]
         """
-        return self.sorted().simplify()
+        return self.sort().simplify()
 
     def filter(
         self,
