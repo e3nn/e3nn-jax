@@ -36,7 +36,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install wheel
         pip install -r requirements.txt
-        pip install plotly jraph
+        pip install plotly kaleido jraph
     - name: Install pytest
       run: |
         pip install pytest pytest-cov
