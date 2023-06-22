@@ -506,17 +506,27 @@ class IrrepsArray:
                 zero_flags=self.zero_flags[irreps_start:irreps_stop],
             )[index[:-1] + (slice(None),)]
 
-        if len(index) == self.ndim or any(map(_is_ellipse, index)):
-            if not (_is_ellipse(index[-1]) or _is_none_slice(index[-1])):
-                if isinstance(index[-1], int):
-                    raise IndexError(
-                        f"Error in IrrepsArray.__getitem__, integer index in the irreps dimension is not supported, "
-                        f"try x[..., {index[-1]}:{index[-1] + 1}] instead."
-                    )
+        # Prevent None at last index  x[..., None] and x[:, :, None]
+        if (
+            len(index[:-1]) == self.ndim or any(map(_is_ellipse, index[:-1]))
+        ) and index[-1] is None:
+            raise IndexError(
+                "Error in IrrepsArray.__getitem__, cannot add a new dimension at the end."
+            )
+
+        # Prevent indexing the last axis
+        if (len(index) == self.ndim or any(map(_is_ellipse, index[:-1]))) and not (
+            _is_ellipse(index[-1]) or _is_none_slice(index[-1]) or index[-1] is None
+        ):
+            if isinstance(index[-1], int):
                 raise IndexError(
-                    f"Error in IrrepsArray.__getitem__, indexing the irreps dimension with [..., {index[-1]}] "
-                    "is not supported."
+                    f"Error in IrrepsArray.__getitem__, integer index in the irreps dimension is not supported, "
+                    f"try x[..., {index[-1]}:{index[-1] + 1}] instead."
                 )
+            raise IndexError(
+                f"Error in IrrepsArray.__getitem__, indexing the irreps dimension with [..., {index[-1]}] "
+                "is not supported."
+            )
 
         # Support of x[index, :]
         return IrrepsArray(self.irreps, self.array[index], zero_flags=self.zero_flags)
