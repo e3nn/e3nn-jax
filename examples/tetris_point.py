@@ -4,26 +4,23 @@ import flax
 import jax
 import jax.numpy as jnp
 import jraph
-import matplotlib.pyplot as plt
 import optax
 
 import e3nn_jax as e3nn
 
 
 def tetris() -> jraph.GraphsTuple:
-    pos = jnp.array(
-        [
-            [(0, 0, 0), (0, 0, 1), (1, 0, 0), (1, 1, 0)],  # chiral_shape_1
-            [(0, 0, 0), (0, 0, 1), (1, 0, 0), (1, -1, 0)],  # chiral_shape_2
-            [(0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0)],  # square
-            [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3)],  # line
-            [(0, 0, 0), (0, 0, 1), (0, 1, 0), (1, 0, 0)],  # corner
-            [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0)],  # L
-            [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 1)],  # T
-            [(0, 0, 0), (1, 0, 0), (1, 1, 0), (2, 1, 0)],  # zigzag
-        ],
-        dtype=jnp.float32,
-    )
+    pos = [
+        [[0, 0, 0], [0, 0, 1], [1, 0, 0], [1, 1, 0]],  # chiral_shape_1
+        [[1, 1, 1], [1, 1, 2], [2, 1, 1], [2, 0, 1]],  # chiral_shape_2
+        [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]],  # square
+        [[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 0, 3]],  # line
+        [[0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0]],  # corner
+        [[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 1, 0]],  # L
+        [[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 1, 1]],  # T
+        [[0, 0, 0], [1, 0, 0], [1, 1, 0], [2, 1, 0]],  # zigzag
+    ]
+    pos = jnp.array(pos, dtype=jnp.float32)
 
     # Since chiral shapes are the mirror of one another we need an *odd* scalar to distinguish them
     labels = jnp.arange(8)
@@ -107,8 +104,10 @@ class Model(flax.linen.Module):
         return logits
 
 
-def train(seeds=20, steps=200, plot=True):
+def train(steps=200):
     model = Model()
+
+    # Optimizer
     opt = optax.adam(learning_rate=0.01)
 
     def loss_fn(params, graphs):
@@ -121,64 +120,41 @@ def train(seeds=20, steps=200, plot=True):
 
     @jax.jit
     def update_fn(params, opt_state, graphs):
-        grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-        (loss, logits), grads = grad_fn(params, graphs)
+        grad_fn = jax.grad(loss_fn, has_aux=True)
+        grads, logits = grad_fn(params, graphs)
         labels = graphs.globals
         accuracy = jnp.mean(jnp.argmax(logits, axis=1) == labels)
 
         updates, opt_state = opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
-        return params, opt_state, loss, accuracy, logits
+        return params, opt_state, accuracy, logits
 
+    # Dataset
     graphs = tetris()
 
+    # Init
     init = jax.jit(model.init)
     params = init(jax.random.PRNGKey(3), graphs)
     opt_state = opt.init(params)
 
     # compile jit
     wall = time.perf_counter()
-    print("compiling...")
-    _, _, _, _, logits = update_fn(params, opt_state, graphs)
-    logits.block_until_ready()
+    print("compiling...", flush=True)
+    _, _, accuracy, _ = update_fn(params, opt_state, graphs)
+    print(f"initial accuracy = {100 * accuracy:.0f}%", flush=True)
+    print(f"compilation took {time.perf_counter() - wall:.1f}s")
 
-    print(f"It took {time.perf_counter() - wall:.1f}s to compile jit.")
+    # Train
+    wall = time.perf_counter()
+    print("training...", flush=True)
+    for it in range(1, steps + 1):
+        params, opt_state, accuracy, logits = update_fn(params, opt_state, graphs)
 
-    iterations = []
-    for seed in range(seeds):
-        params = init(jax.random.PRNGKey(seed), graphs)
-        opt_state = opt.init(params)
+        if accuracy == 1.0:
+            break
 
-        losses = []
-        done = False
-        wall = time.perf_counter()
-        for it in range(1, steps + 1):
-            params, opt_state, loss, accuracy, logits = update_fn(
-                params, opt_state, graphs
-            )
-            losses.append(loss)
-
-            if not done and accuracy == 1.0:
-                done = True
-                total = time.perf_counter() - wall
-                print(
-                    f"[{seed}] 100% accuracy reached in {1000 * total:.0f}ms "
-                    f"after {it} iterations ({1000 * total/it:.1f}ms/it)."
-                )
-                iterations += [it]
-
-        if plot:
-            plt.plot(losses)
-
-    jnp.set_printoptions(precision=0, suppress=True)
-    print(logits)
-
-    if plot:
-        plt.xlabel("iteration")
-        plt.ylabel("loss")
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.show()
+    print(f"final accuracy = {100 * accuracy:.0f}%")
+    print(f"training took {time.perf_counter() - wall:.1f}s")
 
 
 if __name__ == "__main__":
