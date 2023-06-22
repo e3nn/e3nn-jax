@@ -1,4 +1,4 @@
-from examples.tetris_point_jraph import train
+from examples.tetris_point import train
 
 
 def test_tetris_point():
