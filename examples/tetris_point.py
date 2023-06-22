@@ -22,8 +22,6 @@ def tetris() -> jraph.GraphsTuple:
         [[0, 0, 0], [1, 0, 0], [1, 1, 0], [2, 1, 0]],  # zigzag
     ]
     pos = jnp.array(pos, dtype=jnp.float32)
-
-    # Since chiral shapes are the mirror of one another we need an *odd* scalar to distinguish them
     labels = jnp.arange(8)
 
     graphs = []
@@ -38,7 +36,7 @@ def tetris() -> jraph.GraphsTuple:
                 globals=l[None],  # [num_graphs]
                 senders=senders,  # [num_edges]
                 receivers=receivers,  # [num_edges]
-                n_node=jnp.array([4]),  # [num_graphs]
+                n_node=jnp.array([len(p)]),  # [num_graphs]
                 n_edge=jnp.array([len(senders)]),  # [num_graphs]
             )
         ]
@@ -48,28 +46,27 @@ def tetris() -> jraph.GraphsTuple:
 
 class Layer(flax.linen.Module):
     target_irreps: e3nn.Irreps
-    avg_num_neighbors: float
+    denominator: float
     sh_lmax: int = 3
 
     @flax.linen.compact
     def __call__(self, graphs, positions):
         target_irreps = e3nn.Irreps(self.target_irreps)
-        vectors = (
-            positions[graphs.receivers] - positions[graphs.senders]
-        )  # [n_edges, 1e or 1o]
-        sh = e3nn.spherical_harmonics(list(range(1, self.sh_lmax + 1)), vectors, True)
 
         def update_edge_fn(edge_features, sender_features, receiver_features, globals):
+            sh = e3nn.spherical_harmonics(
+                list(range(1, self.sh_lmax + 1)),
+                positions[graphs.receivers] - positions[graphs.senders],
+                True,
+            )
             return e3nn.concatenate(
                 [sender_features, e3nn.tensor_product(sender_features, sh)]
             ).regroup()
 
         def update_node_fn(node_features, sender_features, receiver_features, globals):
-            node_feats = receiver_features / jnp.sqrt(self.avg_num_neighbors)
+            node_feats = receiver_features / self.denominator
             node_feats = e3nn.flax.Linear(target_irreps, name="linear_pre")(node_feats)
-            node_feats = e3nn.scalar_activation(
-                node_feats, even_act=jax.nn.gelu, odd_act=jax.nn.tanh
-            )
+            node_feats = e3nn.scalar_activation(node_feats)
             node_feats = e3nn.flax.Linear(target_irreps, name="linear_post")(node_feats)
             shortcut = e3nn.flax.Linear(
                 node_feats.irreps, name="shortcut", force_irreps_out=True
@@ -83,24 +80,20 @@ class Model(flax.linen.Module):
     @flax.linen.compact
     def __call__(self, graphs):
         positions = e3nn.IrrepsArray("1o", graphs.nodes)
-
         graphs = graphs._replace(nodes=jnp.ones((len(positions), 1)))
 
-        ann = 2.0
-        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", ann)(
-            graphs, positions
-        )
-        graphs = Layer("32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o", ann)(
-            graphs, positions
-        )
-        graphs = Layer("0o + 7x0e", ann)(graphs, positions)
+        layers = 2 * ["32x0e + 32x0o + 8x1e + 8x1o + 8x2e + 8x2o"] + ["0o + 7x0e"]
 
-        num_graphs = len(graphs.n_node)
-        pred = e3nn.scatter_sum(graphs.nodes, nel=graphs.n_node)  # [num_graphs, 1 + 7]
-        pred = pred.array
+        for irreps in layers:
+            graphs = Layer(irreps, 1.5)(graphs, positions)
+
+        # Readout logits
+        pred = e3nn.scatter_sum(
+            graphs.nodes.array, nel=graphs.n_node
+        )  # [num_graphs, 1 + 7]
         odd, even1, even2 = pred[:, :1], pred[:, 1:2], pred[:, 2:]
         logits = jnp.concatenate([odd * even1, -odd * even1, even2], axis=1)
-        assert logits.shape == (num_graphs, 8)
+        assert logits.shape == (len(graphs.n_node), 8)  # [num_graphs, num_classes]
 
         return logits
 
