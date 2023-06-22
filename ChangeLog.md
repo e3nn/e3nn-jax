@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- **[BREAKING]** `e3nn.flax.Linear` and `e3nn.haiku.Linear` now don't output the impossible irreps anymore. To force the output of all irreps, use `force_irreps_out = True`. For instance `e3nn.flax.Linear("0e + 1o")("0e")` will now return `"0e"` instead of `"0e + 1o"`.
 - **[BREAKING]** `e3nn.utils.assert_equivariant` has the same signature as `e3nn.utils.equivariance_test`
 - **[BREAKING]** Move `as_irreps_array`, `zeros` and `zeros_like` from `e3nn.IrrepsArray` to `e3nn`
 - **[BREAKING]** Move `IrrepsArray.from_list` to `e3nn.from_chunks`

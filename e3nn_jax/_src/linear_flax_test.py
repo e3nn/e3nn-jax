@@ -17,7 +17,8 @@ def test_linear_vanilla(keys, irreps_in, irreps_out):
     x = e3nn.normal(irreps_in, next(keys), (128,))
     w = linear.init(next(keys), x)
     y = linear.apply(w, x)
-    assert y.shape == (128, e3nn.Irreps(irreps_out).dim)
+    assert jnp.all(y.array != 0.0)  # unaccessible irreps are discarded
+    assert y.shape == (128, y.irreps.dim)
 
 
 @pytest.mark.parametrize(
@@ -34,7 +35,8 @@ def test_linear_indexed(keys, irreps_in, irreps_out):
     i = jnp.arange(128) % 10
     w = linear.init(next(keys), i, x)
     y = linear.apply(w, i, x)
-    assert y.shape == (128, e3nn.Irreps(irreps_out).dim)
+    assert jnp.all(y.array != 0.0)  # unaccessible irreps are discarded
+    assert y.shape == (128, y.irreps.dim)
 
 
 @pytest.mark.parametrize(
@@ -49,7 +51,8 @@ def test_linear_mixed(keys, irreps_in, irreps_out):
     e = jax.random.normal(next(keys), (128, 10))
     w = linear.init(next(keys), e, x)
     y = linear.apply(w, e, x)
-    assert y.shape == (128, e3nn.Irreps(irreps_out).dim)
+    assert jnp.all(y.array != 0.0)  # unaccessible irreps are discarded
+    assert y.shape == (128, y.irreps.dim)
 
 
 @pytest.mark.parametrize(
@@ -66,7 +69,8 @@ def test_linear_mixed_per_channel(keys, irreps_in, irreps_out):
     e = jax.random.normal(next(keys), (10,))
     w = jax.jit(linear.init)(next(keys), e, x)
     y = linear.apply(w, e, x)
-    assert y.shape == (128, e3nn.Irreps(irreps_out).dim)
+    assert jnp.all(y.array != 0.0)  # unaccessible irreps are discarded
+    assert y.shape == (128, y.irreps.dim)
 
 
 @pytest.mark.parametrize(

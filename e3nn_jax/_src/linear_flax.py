@@ -19,7 +19,7 @@ class Linear(flax.linen.Module):
     r"""Equivariant Linear Flax module
 
     Args:
-        irreps_out (`Irreps`): output representations.
+        irreps_out (`Irreps`): output representations, if allowed bu Schur's lemma.
         channel_out (optional int): if specified, the last axis before the irreps
             is assumed to be the channel axis and is mixed with the irreps.
         irreps_in (optional `Irreps`): input representations. If not specified,
@@ -31,6 +31,7 @@ class Linear(flax.linen.Module):
             0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
         num_indexed_weights (optional int): number of indexed weights. See example below.
         weights_per_channel (bool): whether to have one set of weights per channel.
+        force_irreps_out (bool): whether to force the output irreps to be the one specified in `irreps_out`.
 
     Examples:
         Vanilla::
@@ -38,9 +39,11 @@ class Linear(flax.linen.Module):
             >>> import e3nn_jax as e3nn
             >>> import jax
             >>>
-            >>> linear = Linear("2x0e + 1o")
+            >>> linear = Linear("2x0e + 1o + 2e")
             >>> x = e3nn.normal("0e + 1o")
             >>> w = linear.init(jax.random.PRNGKey(0), x)
+            >>> linear.apply(w, x).irreps  # Note that the 2e is discarded
+            2x0e+1x1o
             >>> linear.apply(w, x).shape
             (5,)
 
@@ -68,6 +71,7 @@ class Linear(flax.linen.Module):
     biases: bool = False
     num_indexed_weights: Optional[int] = None
     weights_per_channel: bool = False
+    force_irreps_out: bool = False
 
     @flax.linen.compact
     def __call__(self, weights_or_input, input_or_none=None) -> e3nn.IrrepsArray:
@@ -105,7 +109,13 @@ class Linear(flax.linen.Module):
                 )
 
         input = input.remove_zero_chunks().regroup()
-        output_irreps = e3nn.Irreps(self.irreps_out).simplify()
+        if self.force_irreps_out:
+            output_irreps = e3nn.Irreps(self.irreps_out).simplify()
+        else:
+            output_irreps_unsimplified = e3nn.Irreps(self.irreps_out).filter(
+                input.irreps
+            )
+            output_irreps = output_irreps_unsimplified.simplify()
 
         if self.channel_out is not None:
             assert not self.weights_per_channel
@@ -167,4 +177,8 @@ class Linear(flax.linen.Module):
 
         if self.channel_out is not None:
             output = output.mul_to_axis(self.channel_out)
-        return output.rechunk(self.irreps_out)
+
+        if self.force_irreps_out:
+            return output.rechunk(self.irreps_out)
+        else:
+            return output.rechunk(output_irreps_unsimplified)

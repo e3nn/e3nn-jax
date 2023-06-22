@@ -19,7 +19,7 @@ class Linear(hk.Module):
     r"""Equivariant Linear Haiku Module.
 
     Args:
-        irreps_out (`Irreps`): output representations.
+        irreps_out (`Irreps`): output representations, if allowed bu Schur's lemma.
         channel_out (optional int): if specified, the last axis before the irreps
             is assumed to be the channel axis and is mixed with the irreps.
         irreps_in (optional `Irreps`): input representations. If not specified,
@@ -32,6 +32,7 @@ class Linear(hk.Module):
         get_parameter (optional Callable): function to get the parameters.
         num_indexed_weights (optional int): number of indexed weights. See example below.
         weights_per_channel (bool): whether to have one set of weights per channel.
+        force_irreps_out (bool): whether to force the output irreps to be the one specified in `irreps_out`.
         name (optional str): name of the module.
 
     Examples:
@@ -43,10 +44,12 @@ class Linear(hk.Module):
             >>> @hk.without_apply_rng
             ... @hk.transform
             ... def linear(x):
-            ...     return e3nn.haiku.Linear("0e + 1o")(x)
+            ...     return e3nn.haiku.Linear("0e + 1o + 2e")(x)
             >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
             >>> params = linear.init(jax.random.PRNGKey(0), x)
             >>> y = linear.apply(params, x)
+            >>> y.irreps  # Note that the 2e is discarded
+            1x0e+1x1o
             >>> y.shape
             (4,)
 
@@ -91,6 +94,7 @@ class Linear(hk.Module):
         ] = None,
         num_indexed_weights: Optional[int] = None,
         weights_per_channel: bool = False,
+        force_irreps_out: bool = False,
         name: Optional[str] = None,
     ):
         super().__init__(name)
@@ -102,6 +106,7 @@ class Linear(hk.Module):
         self.path_normalization = path_normalization
         self.num_indexed_weights = num_indexed_weights
         self.weights_per_channel = weights_per_channel
+        self.force_irreps_out = force_irreps_out
 
         if gradient_normalization is None:
             gradient_normalization = e3nn.config("gradient_normalization")
@@ -163,7 +168,11 @@ class Linear(hk.Module):
                 )
 
         input = input.remove_zero_chunks().regroup()
-        output_irreps = self.irreps_out.simplify()
+        if self.force_irreps_out:
+            output_irreps = self.irreps_out.simplify()
+        else:
+            output_irreps_unsimplified = self.irreps_out.filter(input.irreps)
+            output_irreps = output_irreps_unsimplified.simplify()
 
         if self.channel_out is not None:
             assert not self.weights_per_channel
@@ -220,4 +229,8 @@ class Linear(hk.Module):
 
         if self.channel_out is not None:
             output = output.mul_to_axis(self.channel_out)
-        return output.rechunk(self.irreps_out)
+
+        if self.force_irreps_out:
+            return output.rechunk(self.irreps_out)
+        else:
+            return output.rechunk(output_irreps_unsimplified)
