@@ -82,13 +82,11 @@ def main():
                 assert not args.module
                 x1 = x1.mul_to_axis()  # (batch, channels, irreps)
                 x2 = x2.mul_to_axis()  # (batch, channels, irreps)
-                x = e3nn.tensor_product(
-                    x1[..., :, None, :], x2[..., None, :, :], **kwargs
-                )
+                x = e3nn.tensor_product(x1[..., :, None, :], x2[..., None, :, :])
                 x = x.reshape(x.shape[:-3] + (-1,) + x.shape[-1:])
                 x = x.axis_to_mul()
             else:
-                x = e3nn.tensor_product(x1, x2, **kwargs)
+                x = e3nn.tensor_product(x1, x2)
 
             if args.weights:
                 return e3nn.haiku.Linear(args.irreps_out)(x)

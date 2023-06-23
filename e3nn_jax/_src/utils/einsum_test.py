@@ -1,6 +1,7 @@
 import jax
-from e3nn_jax._src.einsum import einsum
 from jax.test_util import check_grads
+
+from e3nn_jax._src.utils.einsum import einsum
 
 
 def test_check_grads(keys):

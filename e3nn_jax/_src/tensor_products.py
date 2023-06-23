@@ -4,35 +4,44 @@ from typing import List, Optional
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
-from e3nn_jax import FunctionalTensorProduct, Irrep, Irreps, IrrepsArray, config
 from e3nn_jax._src.basic import _align_two_irreps_arrays
 from e3nn_jax._src.utils.decorators import overload_for_irreps_without_array
 
 
-def naive_broadcast_decorator(func):
-    def wrapper(*args):
-        leading_shape = jnp.broadcast_shapes(*(arg.shape[:-1] for arg in args))
-        args = [arg.broadcast_to(leading_shape + (-1,)) for arg in args]
-        f = func
-        for _ in range(len(leading_shape)):
-            f = e3nn.utils.vmap(f)
-        return f(*args)
+def _prepare_inputs(input1, input2):
+    input1 = e3nn.as_irreps_array(input1)
+    input2 = e3nn.as_irreps_array(input2)
 
-    return wrapper
+    if input1.dtype != input2.dtype:
+        raise ValueError(
+            f"e3nn.tensor_product: inputs must have the same dtype, got {input1.dtype} and {input2.dtype}"
+        )
+
+    leading_shape = jnp.broadcast_shapes(input1.shape[:-1], input2.shape[:-1])
+    input1 = input1.broadcast_to(leading_shape + (-1,))
+    input2 = input2.broadcast_to(leading_shape + (-1,))
+    return input1, input2, leading_shape
+
+
+def _validate_filter_ir_out(filter_ir_out):
+    if filter_ir_out is not None:
+        if isinstance(filter_ir_out, str):
+            filter_ir_out = e3nn.Irreps(filter_ir_out)
+        if isinstance(filter_ir_out, e3nn.Irrep):
+            filter_ir_out = [filter_ir_out]
+        filter_ir_out = [e3nn.Irrep(ir) for ir in filter_ir_out]
+    return filter_ir_out
 
 
 @overload_for_irreps_without_array((0, 1))
 def tensor_product(
-    input1: IrrepsArray,
-    input2: IrrepsArray,
+    input1: e3nn.IrrepsArray,
+    input2: e3nn.IrrepsArray,
     *,
-    filter_ir_out: Optional[List[Irrep]] = None,
+    filter_ir_out: Optional[List[e3nn.Irrep]] = None,
     irrep_normalization: Optional[str] = None,
-    custom_einsum_jvp: bool = None,
-    fused: bool = None,
-    sparse: bool = None,
     regroup_output: bool = True,
-) -> IrrepsArray:
+) -> e3nn.IrrepsArray:
     """Tensor product reduced into irreps.
 
     Args:
@@ -71,56 +80,46 @@ def tensor_product(
         >>> e3nn.tensor_product("2x1e + 2e", "2e")
         1x0e+3x1e+3x2e+3x3e+1x4e
     """
-    input1 = e3nn.as_irreps_array(input1)
-    input2 = e3nn.as_irreps_array(input2)
+    input1, input2, leading_shape = _prepare_inputs(input1, input2)
+    filter_ir_out = _validate_filter_ir_out(filter_ir_out)
+
+    if irrep_normalization is None:
+        irrep_normalization = e3nn.config("irrep_normalization")
 
     if regroup_output:
         input1 = input1.regroup()
         input2 = input2.regroup()
 
-    if filter_ir_out is not None:
-        if isinstance(filter_ir_out, str):
-            filter_ir_out = Irreps(filter_ir_out)
-        if isinstance(filter_ir_out, Irrep):
-            filter_ir_out = [filter_ir_out]
-        filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
-
     irreps_out = []
-    instructions = []
-    for i_1, (mul_1, ir_1) in enumerate(input1.irreps):
-        for i_2, (mul_2, ir_2) in enumerate(input2.irreps):
+    chunks = []
+    for (mul_1, ir_1), x1 in zip(input1.irreps, input1.chunks):
+        for (mul_2, ir_2), x2 in zip(input2.irreps, input2.chunks):
             for ir_out in ir_1 * ir_2:
                 if filter_ir_out is not None and ir_out not in filter_ir_out:
                     continue
 
-                i_out = len(irreps_out)
                 irreps_out.append((mul_1 * mul_2, ir_out))
-                instructions += [(i_1, i_2, i_out, "uvuv", False)]
+                cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
 
-    irreps_out = Irreps(irreps_out)
-    irreps_out, p, _ = irreps_out.sort()
+                if irrep_normalization == "component":
+                    cg = cg * jnp.sqrt(ir_out.dim)
+                elif irrep_normalization == "norm":
+                    cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
+                elif irrep_normalization == "none":
+                    pass
+                else:
+                    raise ValueError(
+                        f"irrep_normalization={irrep_normalization} not supported"
+                    )
 
-    instructions = [
-        (i_1, i_2, p[i_out], mode, train)
-        for i_1, i_2, i_out, mode, train in instructions
-    ]
+                chunk = jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, cg)
+                chunk = jnp.reshape(
+                    chunk, chunk.shape[:-3] + (mul_1 * mul_2, ir_out.dim)
+                )
+                chunks.append(chunk)
 
-    tp = FunctionalTensorProduct(
-        input1.irreps,
-        input2.irreps,
-        irreps_out,
-        instructions,
-        irrep_normalization=irrep_normalization,
-    )
-
-    output = naive_broadcast_decorator(
-        partial(
-            tp.left_right,
-            fused=fused,
-            sparse=sparse,
-            custom_einsum_jvp=custom_einsum_jvp,
-        )
-    )(input1, input2)
+    output = e3nn.from_chunks(irreps_out, chunks, leading_shape, input1.dtype)
+    output = output.sort()
     if regroup_output:
         output = output.regroup()
     return output
@@ -128,12 +127,12 @@ def tensor_product(
 
 @overload_for_irreps_without_array((0, 1))
 def elementwise_tensor_product(
-    input1: IrrepsArray,
-    input2: IrrepsArray,
+    input1: e3nn.IrrepsArray,
+    input2: e3nn.IrrepsArray,
     *,
-    filter_ir_out=None,
-    irrep_normalization: str = None,
-) -> IrrepsArray:
+    filter_ir_out: Optional[List[e3nn.Irrep]] = None,
+    irrep_normalization: Optional[str] = None,
+) -> e3nn.IrrepsArray:
     r"""Elementwise tensor product of two `IrrepsArray`.
 
     Args:
@@ -155,52 +154,58 @@ def elementwise_tensor_product(
         >>> e3nn.elementwise_tensor_product(x, y)
         1x1e+1x0o+1x1e [ 0.  0.  0.  3.  8. 12. 16.]
     """
-    input1 = e3nn.as_irreps_array(input1)
-    input2 = e3nn.as_irreps_array(input2)
+    input1, input2, leading_shape = _prepare_inputs(input1, input2)
+    filter_ir_out = _validate_filter_ir_out(filter_ir_out)
 
-    if filter_ir_out is not None:
-        filter_ir_out = [Irrep(ir) for ir in filter_ir_out]
+    if irrep_normalization is None:
+        irrep_normalization = e3nn.config("irrep_normalization")
 
     if input1.irreps.num_irreps != input2.irreps.num_irreps:
         raise ValueError(
-            f"Number of irreps must be the same, got {input1.irreps.num_irreps} and {input2.irreps.num_irreps}"
+            f"e3nn.elementwise_tensor_product: inputs must have the same number of irreps, got {input1.irreps.num_irreps} and {input2.irreps.num_irreps}"
         )
 
     input1, input2 = _align_two_irreps_arrays(input1, input2)
 
     irreps_out = []
-    instructions = []
-    for i, ((mul, ir_1), (mul_2, ir_2)) in enumerate(zip(input1.irreps, input2.irreps)):
-        assert mul == mul_2
-        for ir in ir_1 * ir_2:
-            if filter_ir_out is not None and ir not in filter_ir_out:
+    chunks = []
+    for (mul, ir_1), x1, (_, ir_2), x2 in zip(
+        input1.irreps, input1.chunks, input2.irreps, input2.chunks
+    ):
+        for ir_out in ir_1 * ir_2:
+            if filter_ir_out is not None and ir_out not in filter_ir_out:
                 continue
 
-            i_out = len(irreps_out)
-            irreps_out.append((mul, ir))
-            instructions += [(i, i, i_out, "uuu", False)]
+            irreps_out.append((mul, ir_out))
+            cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
 
-    tp = FunctionalTensorProduct(
-        input1.irreps,
-        input2.irreps,
-        irreps_out,
-        instructions,
-        irrep_normalization=irrep_normalization,
-    )
+            if irrep_normalization == "component":
+                cg = cg * jnp.sqrt(ir_out.dim)
+            elif irrep_normalization == "norm":
+                cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
+            elif irrep_normalization == "none":
+                pass
+            else:
+                raise ValueError(
+                    f"irrep_normalization={irrep_normalization} not supported"
+                )
 
-    return naive_broadcast_decorator(tp.left_right)(input1, input2)
+            chunk = jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, cg)
+            chunks.append(chunk)
+
+    return e3nn.from_chunks(irreps_out, chunks, leading_shape, input1.dtype)
 
 
 @overload_for_irreps_without_array((0,))
 def tensor_square(
-    input: IrrepsArray,
+    input: e3nn.IrrepsArray,
     *,
     irrep_normalization: Optional[str] = None,
     normalized_input: bool = False,
     custom_einsum_jvp: bool = None,
     fused: bool = None,
     regroup_output: bool = True,
-) -> IrrepsArray:
+) -> e3nn.IrrepsArray:
     r"""Tensor product of a `IrrepsArray` with itself.
 
     Args:
@@ -231,7 +236,7 @@ def tensor_square(
         input = input.regroup()
 
     if irrep_normalization is None:
-        irrep_normalization = config("irrep_normalization")
+        irrep_normalization = e3nn.config("irrep_normalization")
 
     assert irrep_normalization in ["component", "norm", "none"]
 
@@ -313,13 +318,15 @@ def tensor_square(
                         irreps_out.append((mul, ir_out))
                         instructions += [(i, i, i_out, "uuu", False, alpha)]
 
-    irreps_out = Irreps(irreps_out)
+    irreps_out = e3nn.Irreps(irreps_out)
     irreps_out, p, _ = irreps_out.sort()
 
     instructions = [
         (i_1, i_2, p[i_out], mode, train, alpha)
         for i_1, i_2, i_out, mode, train, alpha in instructions
     ]
+
+    from e3nn_jax.legacy import FunctionalTensorProduct
 
     tp = FunctionalTensorProduct(
         input.irreps,
@@ -329,45 +336,12 @@ def tensor_square(
         irrep_normalization="none",
     )
 
-    output = naive_broadcast_decorator(
-        partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp)
-    )(input, input)
+    f = partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp)
+    for _ in range(input.ndim - 1):
+        f = e3nn.utils.vmap(f)
+
+    output = f(input, input)
+
     if regroup_output:
         output = output.regroup()
     return output
-
-
-def FunctionalFullyConnectedTensorProduct(
-    irreps_in1: Irreps,
-    irreps_in2: Irreps,
-    irreps_out: Irreps,
-    in1_var: Optional[List[float]] = None,
-    in2_var: Optional[List[float]] = None,
-    out_var: Optional[List[float]] = None,
-    irrep_normalization: str = None,
-    path_normalization: str = None,
-    gradient_normalization: str = None,
-):
-    irreps_in1 = Irreps(irreps_in1)
-    irreps_in2 = Irreps(irreps_in2)
-    irreps_out = Irreps(irreps_out)
-
-    instructions = [
-        (i_1, i_2, i_out, "uvw", True)
-        for i_1, (_, ir_1) in enumerate(irreps_in1)
-        for i_2, (_, ir_2) in enumerate(irreps_in2)
-        for i_out, (_, ir_out) in enumerate(irreps_out)
-        if ir_out in ir_1 * ir_2
-    ]
-    return FunctionalTensorProduct(
-        irreps_in1,
-        irreps_in2,
-        irreps_out,
-        instructions,
-        in1_var,
-        in2_var,
-        out_var,
-        irrep_normalization,
-        path_normalization,
-        gradient_normalization,
-    )
