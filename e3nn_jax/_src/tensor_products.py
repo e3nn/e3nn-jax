@@ -162,7 +162,8 @@ def elementwise_tensor_product(
 
     if input1.irreps.num_irreps != input2.irreps.num_irreps:
         raise ValueError(
-            f"e3nn.elementwise_tensor_product: inputs must have the same number of irreps, got {input1.irreps.num_irreps} and {input2.irreps.num_irreps}"
+            "e3nn.elementwise_tensor_product: inputs must have the same number of irreps, "
+            f"got {input1.irreps.num_irreps} and {input2.irreps.num_irreps}"
         )
 
     input1, input2 = _align_two_irreps_arrays(input1, input2)
