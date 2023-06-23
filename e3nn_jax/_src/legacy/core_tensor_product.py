@@ -3,7 +3,7 @@
 import collections
 import itertools
 from dataclasses import dataclass, field, replace
-from functools import lru_cache, partial
+from functools import partial
 from math import prod, sqrt
 from typing import Callable, List, Optional, Tuple, Union
 
