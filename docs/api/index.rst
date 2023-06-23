@@ -16,3 +16,4 @@ API
     s2
     extra
     utils
+    legacy

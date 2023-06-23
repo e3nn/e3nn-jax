@@ -25,8 +25,4 @@ Tensor Products
 .. autofunction:: e3nn_jax.tensor_product_with_spherical_harmonics
 
 
-.. autoclass:: e3nn_jax.FunctionalTensorProduct
-    :members:
-
-
 .. autofunction:: e3nn_jax.sh
