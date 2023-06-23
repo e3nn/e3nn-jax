@@ -93,7 +93,7 @@ def assert_equivariant(
 
 
 def assert_output_dtype_matches_input_dtype(fun: Callable, *args, **kwargs):
-    """Checks that the dtype of fun(*args, **kwargs) matches that of the input (*args, **kwargs).
+    """Checks that the dtype of ``fun(*args, **kwargs)`` matches that of the input ``(*args, **kwargs)``.
 
     Args:
         fun: function to test

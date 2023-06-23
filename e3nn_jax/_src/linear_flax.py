@@ -31,7 +31,7 @@ class Linear(flax.linen.Module):
             0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
         num_indexed_weights (optional int): number of indexed weights. See example below.
         weights_per_channel (bool): whether to have one set of weights per channel.
-        force_irreps_out (bool): whether to force the output irreps to be the one specified in `irreps_out`.
+        force_irreps_out (bool): whether to force the output irreps to be the one specified in ``irreps_out``.
 
     Examples:
         Vanilla::

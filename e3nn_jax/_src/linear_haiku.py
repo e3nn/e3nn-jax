@@ -32,7 +32,7 @@ class Linear(hk.Module):
         get_parameter (optional Callable): function to get the parameters.
         num_indexed_weights (optional int): number of indexed weights. See example below.
         weights_per_channel (bool): whether to have one set of weights per channel.
-        force_irreps_out (bool): whether to force the output irreps to be the one specified in `irreps_out`.
+        force_irreps_out (bool): whether to force the output irreps to be the one specified in ``irreps_out``.
         name (optional str): name of the module.
 
     Examples:
