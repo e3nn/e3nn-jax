@@ -1,9 +1,11 @@
 import haiku as hk
 import jax
 import jax.numpy as jnp
-import pytest
 import numpy as np
+import pytest
+
 import e3nn_jax as e3nn
+from e3nn_jax.legacy import FunctionalTensorProduct
 
 
 class SlowLinear:
@@ -26,7 +28,7 @@ class SlowLinear:
             if ir_in == ir_out
         ]
 
-        self.tp = e3nn.FunctionalTensorProduct(
+        self.tp = FunctionalTensorProduct(
             irreps_in,
             "0e",
             irreps_out,

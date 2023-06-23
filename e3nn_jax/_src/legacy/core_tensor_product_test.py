@@ -3,6 +3,10 @@ import jax.numpy as jnp
 import pytest
 
 import e3nn_jax as e3nn
+from e3nn_jax.legacy import (
+    FunctionalFullyConnectedTensorProduct,
+    FunctionalTensorProduct,
+)
 
 
 @pytest.mark.parametrize("custom_einsum_jvp", [False, True])
@@ -10,7 +14,7 @@ import e3nn_jax as e3nn
 @pytest.mark.parametrize("jitted", [False, True])
 @pytest.mark.parametrize("irrep_normalization", ["component", "norm"])
 def test_modes(keys, irrep_normalization, jitted, connection_mode, custom_einsum_jvp):
-    tp = e3nn.FunctionalTensorProduct(
+    tp = FunctionalTensorProduct(
         e3nn.Irreps("10x0o + 10x1o + 1x2e"),
         e3nn.Irreps("10x0o + 10x1o + 1x2o"),
         e3nn.Irreps("10x0e + 10x1e + 2x2o"),
@@ -51,7 +55,7 @@ def test_modes(keys, irrep_normalization, jitted, connection_mode, custom_einsum
 
 
 def test_zero_dim(keys):
-    tp = e3nn.FunctionalTensorProduct(
+    tp = FunctionalTensorProduct(
         "0x0e + 1e",
         "0e + 0x1e",
         "0x0e + 1e",
@@ -73,7 +77,7 @@ def test_zero_dim(keys):
 
 
 def test_fused(keys):
-    tp = e3nn.FunctionalTensorProduct(
+    tp = FunctionalTensorProduct(
         "10x0e + 5x1e",
         "0e + 1e + 3x1e",
         "10x0e + 5x1e + 30x1e",
@@ -97,7 +101,7 @@ def test_fused(keys):
 
 
 def test_fused_no_weight(keys):
-    tp = e3nn.FunctionalTensorProduct(
+    tp = FunctionalTensorProduct(
         "10x0e",
         "10x0e",
         "10x0e",
@@ -118,7 +122,7 @@ def test_fused_no_weight(keys):
 
 
 def test_fused_mix_weight(keys):
-    tp = e3nn.FunctionalTensorProduct(
+    tp = FunctionalTensorProduct(
         "5x0e",
         "5x0e",
         "5x0e",
@@ -140,7 +144,7 @@ def test_fused_mix_weight(keys):
 
 
 def test_fuse(keys):
-    tp = e3nn.FunctionalFullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
+    tp = FunctionalFullyConnectedTensorProduct("2x0e+1e", "0e+1e", "1e+0e")
 
     ws = [
         jax.random.normal(next(keys), ins.path_shape)
@@ -162,7 +166,7 @@ def test_fuse(keys):
 def test_normalization(
     keys, irrep_normalization, path_normalization, gradient_normalization
 ):
-    tp = e3nn.FunctionalFullyConnectedTensorProduct(
+    tp = FunctionalFullyConnectedTensorProduct(
         "5x0e+1x0e+10x1e",
         "2x0e+2x1e+10x1e",
         "1000x1e+1000x0e",

@@ -1,4 +1,4 @@
-__version__ = "0.19.1"
+__version__ = "0.19.2"
 
 from e3nn_jax._src.config import config
 from e3nn_jax._src.rotation import (
@@ -74,11 +74,8 @@ from e3nn_jax._src.radial import (
     poly_envelope,
     soft_envelope,
 )
-from e3nn_jax._src.instruction import Instruction
 from e3nn_jax._src.linear import FunctionalLinear
-from e3nn_jax._src.core_tensor_product import FunctionalTensorProduct
 from e3nn_jax._src.tensor_products import (
-    FunctionalFullyConnectedTensorProduct,
     tensor_product,
     elementwise_tensor_product,
     tensor_square,
@@ -165,7 +162,6 @@ __all__ = [
     "su2_generators",  # not in docs
     "clebsch_gordan",
     "generators",  # TODO could be moved into Irrep
-    "Instruction",  # not in docs
     "Irrep",
     "MulIrrep",  # not in docs
     "Irreps",
@@ -189,8 +185,6 @@ __all__ = [
     "soft_one_hot_linspace",
     "bessel",
     "FunctionalLinear",  # not in docs
-    "FunctionalTensorProduct",
-    "FunctionalFullyConnectedTensorProduct",  # deprecated
     "tensor_product",
     "elementwise_tensor_product",
     "tensor_square",

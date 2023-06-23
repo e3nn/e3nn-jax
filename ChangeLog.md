@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.2] - 2023-06-23
+### Changed
+- **[BREAKING]** Move `Instruction`, `FunctionalTensorProduct` and `FunctionalFullyConnectedTensorProduct` into `e3nn.legacy` submodule
+- Reimplement `e3nn.tensor_product` and `e3nn.elementwise_tensor_product` in a simpler way
+
 ## [0.19.1] - 2023-06-22
 ### Added
 - `e3nn.utils.vmap` to propagate `zero_flags` in the vectorized function.

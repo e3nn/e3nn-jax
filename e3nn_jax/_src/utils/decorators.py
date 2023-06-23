@@ -31,14 +31,10 @@ def overload_for_irreps_without_array(
                 # assume arguments are Irreps (not IrrepsArray)
 
                 converted_args = {
-                    i: e3nn.zeros(a, shape) for i, a in enumerate(args) if i in argnums
+                    i: e3nn.zeros(args[i], shape) for i in argnums if i < len(args)
                 }
                 converted_args.update(
-                    {
-                        k: e3nn.zeros(v, shape)
-                        for k, v in kwargs.items()
-                        if k in argnames
-                    }
+                    {k: e3nn.zeros(kwargs[k], shape) for k in argnames if k in kwargs}
                 )
 
                 def fn(converted_args):
@@ -48,15 +44,10 @@ def overload_for_irreps_without_array(
 
                 output = jax.eval_shape(fn, converted_args)
 
-                if isinstance(output, e3nn.IrrepsArray):
-                    return output.irreps
-                if isinstance(output, tuple):
-                    return tuple(
-                        o.irreps if isinstance(o, e3nn.IrrepsArray) else o
-                        for o in output
-                    )
-                raise TypeError(
-                    f"{func.__name__} returned {type(output)} which is not supported by `overload_irrep_no_data`."
+                return jax.tree_util.tree_map(
+                    lambda o: o.irreps if isinstance(o, e3nn.IrrepsArray) else o,
+                    output,
+                    is_leaf=lambda o: isinstance(o, e3nn.IrrepsArray),
                 )
 
             # otherwise, assume arguments are IrrepsArray

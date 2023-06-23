@@ -2,7 +2,8 @@
 
 import collections
 import itertools
-from functools import lru_cache, partial
+from dataclasses import dataclass, field, replace
+from functools import partial
 from math import prod, sqrt
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -10,10 +11,103 @@ import jax
 import jax.numpy as jnp
 from jax.experimental.sparse import BCOO, sparsify
 
-from e3nn_jax import Instruction, Irreps, IrrepsArray, clebsch_gordan, config
-from e3nn_jax._src.einsum import einsum as opt_einsum
-from e3nn_jax._src.utils.dtype import get_pytree_dtype
 import e3nn_jax as e3nn
+from e3nn_jax._src.utils.dtype import get_pytree_dtype
+from e3nn_jax._src.utils.einsum import einsum as opt_einsum
+from e3nn_jax._src.utils.sum_tensors import sum_tensors
+
+
+@dataclass(init=True, repr=True, eq=True, order=False, unsafe_hash=False, frozen=True)
+class Instruction:
+    """Defines an instruction for a tensor product."""
+
+    i_in1: int
+    i_in2: int
+    i_out: int
+    connection_mode: str
+    has_weight: bool
+    path_weight: float
+    weight_std: float
+    first_input_multiplicity: int
+    second_input_multiplicity: int
+    output_multiplicity: int
+    path_shape: Tuple[int, ...] = field(init=False)
+    num_elements: int = field(init=False)
+
+    def __post_init__(self):
+        if self.connection_mode not in [
+            "uvw",
+            "uvu",
+            "uvv",
+            "uuw",
+            "uuu",
+            "uvuv",
+            "uvu<v",
+            "u<vw",
+        ]:
+            raise ValueError(
+                f"Unsupported connection_mode {self.connection_mode} for instruction."
+            )
+
+        path_shape = {
+            "uvw": (
+                self.first_input_multiplicity,
+                self.second_input_multiplicity,
+                self.output_multiplicity,
+            ),
+            "uvu": (self.first_input_multiplicity, self.second_input_multiplicity),
+            "uvv": (self.first_input_multiplicity, self.second_input_multiplicity),
+            "uuw": (self.first_input_multiplicity, self.output_multiplicity),
+            "uuu": (self.first_input_multiplicity,),
+            "uvuv": (self.first_input_multiplicity, self.second_input_multiplicity),
+            "uvu<v": (
+                self.first_input_multiplicity
+                * (self.second_input_multiplicity - 1)
+                // 2,
+            ),
+            "u<vw": (
+                self.first_input_multiplicity
+                * (self.second_input_multiplicity - 1)
+                // 2,
+                self.output_multiplicity,
+            ),
+        }[self.connection_mode]
+        super().__setattr__("path_shape", path_shape)
+
+        num_elements = {
+            "uvw": (self.first_input_multiplicity * self.second_input_multiplicity),
+            "uvu": self.second_input_multiplicity,
+            "uvv": self.first_input_multiplicity,
+            "uuw": self.first_input_multiplicity,
+            "uuu": 1,
+            "uvuv": 1,
+            "uvu<v": 1,
+            "u<vw": self.first_input_multiplicity
+            * (self.second_input_multiplicity - 1)
+            // 2,
+        }[self.connection_mode]
+        super().__setattr__("num_elements", num_elements)
+
+    def replace(self, **changes) -> "Instruction":
+        return replace(self, **changes)
+
+    def __repr__(self) -> str:
+        return (
+            "Instruction("
+            + ", ".join(
+                [
+                    f"i={self.i_in1},{self.i_in2},{self.i_out}",
+                    f"mode={self.connection_mode}",
+                    f"has_weight={self.has_weight}",
+                    f"path_weight={self.path_weight}",
+                    f"weight_std={self.weight_std}",
+                    f"mul={self.first_input_multiplicity},{self.second_input_multiplicity},{self.output_multiplicity}",
+                    f"path_shape={self.path_shape}",
+                    f"num_elements={self.num_elements}",
+                ]
+            )
+            + ")"
+        )
 
 
 class FunctionalTensorProduct:
@@ -39,17 +133,17 @@ class FunctionalTensorProduct:
         gradient_normalization (str or float): Normalization of the gradients, ``element`` or ``path``.
             0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
     """
-    irreps_in1: Irreps
-    irreps_in2: Irreps
-    irreps_out: Irreps
+    irreps_in1: e3nn.Irreps
+    irreps_in2: e3nn.Irreps
+    irreps_out: e3nn.Irreps
     instructions: List[Instruction]
     output_mask: jnp.ndarray
 
     def __init__(
         self,
-        irreps_in1: Irreps,
-        irreps_in2: Irreps,
-        irreps_out: Irreps,
+        irreps_in1: e3nn.Irreps,
+        irreps_in2: e3nn.Irreps,
+        irreps_out: e3nn.Irreps,
         instructions: List[Tuple[int, int, int, str, bool, Optional[float]]],
         in1_var: Optional[List[float]] = None,
         in2_var: Optional[List[float]] = None,
@@ -58,9 +152,9 @@ class FunctionalTensorProduct:
         path_normalization: Union[str, float] = None,
         gradient_normalization: Union[str, float] = None,
     ):
-        self.irreps_in1 = Irreps(irreps_in1)
-        self.irreps_in2 = Irreps(irreps_in2)
-        self.irreps_out = Irreps(irreps_out)
+        self.irreps_in1 = e3nn.Irreps(irreps_in1)
+        self.irreps_in2 = e3nn.Irreps(irreps_in2)
+        self.irreps_out = e3nn.Irreps(irreps_out)
         del irreps_in1, irreps_in2, irreps_out
 
         instructions = [x if len(x) == 6 else x + (1.0,) for x in instructions]
@@ -90,15 +184,15 @@ class FunctionalTensorProduct:
             out_var = [1.0 for _ in self.irreps_out]
 
         if irrep_normalization is None:
-            irrep_normalization = config("irrep_normalization")
+            irrep_normalization = e3nn.config("irrep_normalization")
 
         if path_normalization is None:
-            path_normalization = config("path_normalization")
+            path_normalization = e3nn.config("path_normalization")
         if isinstance(path_normalization, str):
             path_normalization = {"element": 0.0, "path": 1.0}[path_normalization]
 
         if gradient_normalization is None:
-            gradient_normalization = config("gradient_normalization")
+            gradient_normalization = e3nn.config("gradient_normalization")
         if isinstance(gradient_normalization, str):
             gradient_normalization = {"element": 0.0, "path": 1.0}[
                 gradient_normalization
@@ -138,13 +232,13 @@ class FunctionalTensorProduct:
     def left_right(
         self,
         weights: Union[List[jnp.ndarray], jnp.ndarray],
-        input1: IrrepsArray,
-        input2: IrrepsArray = None,
+        input1: e3nn.IrrepsArray,
+        input2: e3nn.IrrepsArray = None,
         *,
         custom_einsum_jvp: bool = None,
         fused: bool = None,
         sparse: bool = None,
-    ) -> IrrepsArray:
+    ) -> e3nn.IrrepsArray:
         r"""Compute the tensor product of two input tensors.
 
         Args:
@@ -158,11 +252,11 @@ class FunctionalTensorProduct:
             `IrrepsArray`: The output tensor.
         """
         if custom_einsum_jvp is None:
-            custom_einsum_jvp = config("custom_einsum_jvp")
+            custom_einsum_jvp = e3nn.config("custom_einsum_jvp")
         if fused is None:
-            fused = config("fused")
+            fused = e3nn.config("fused")
         if sparse is None:
-            sparse = config("sparse_tp")
+            sparse = e3nn.config("sparse_tp")
 
         if input2 is None:
             weights, input1, input2 = [], weights, input1
@@ -180,7 +274,7 @@ class FunctionalTensorProduct:
     def right(
         self,
         weights: List[jnp.ndarray],
-        input2: IrrepsArray = None,
+        input2: e3nn.IrrepsArray = None,
         *,
         custom_einsum_jvp=None,
     ) -> jnp.ndarray:
@@ -195,7 +289,7 @@ class FunctionalTensorProduct:
             A matrix of shape ``(irreps_in1.dim, irreps_out.dim)``.
         """
         if custom_einsum_jvp is None:
-            custom_einsum_jvp = config("custom_einsum_jvp")
+            custom_einsum_jvp = e3nn.config("custom_einsum_jvp")
 
         if input2 is None:
             weights, input2 = [], weights
@@ -217,18 +311,6 @@ class FunctionalTensorProduct:
         )
 
 
-def _sum_tensors(xs, shape, empty_return_none=False, dtype=None):
-    xs = [x for x in xs if x is not None]
-    if len(xs) > 0:
-        out = xs[0].reshape(shape)
-        for x in xs[1:]:
-            out = out + x.reshape(shape)
-        return out
-    if empty_return_none:
-        return None
-    return jnp.zeros(shape, dtype=dtype)
-
-
 def _flat_concatenate(xs):
     if any(x is None for x in xs):
         return None
@@ -239,9 +321,9 @@ def _flat_concatenate(xs):
 
 def _normalize_instruction_path_weights(
     instructions: List[Instruction],
-    first_input_irreps: Irreps,
-    second_input_irreps: Irreps,
-    output_irreps: Irreps,
+    first_input_irreps: e3nn.Irreps,
+    second_input_irreps: e3nn.Irreps,
+    output_irreps: e3nn.Irreps,
     first_input_variance: List[float],
     second_input_variance: List[float],
     output_variance: List[float],
@@ -317,8 +399,8 @@ def _normalize_instruction_path_weights(
 def _left_right(
     self: FunctionalTensorProduct,
     weights: Union[List[jnp.ndarray], jnp.ndarray],
-    input1: IrrepsArray,
-    input2: IrrepsArray,
+    input1: e3nn.IrrepsArray,
+    input2: e3nn.IrrepsArray,
     *,
     custom_einsum_jvp: bool = False,
     fused: bool = False,
@@ -389,19 +471,12 @@ def _left_right(
 def _block_left_right(
     self: FunctionalTensorProduct,
     weights_list: List[jnp.ndarray],
-    input1: IrrepsArray,
-    input2: IrrepsArray,
+    input1: e3nn.IrrepsArray,
+    input2: e3nn.IrrepsArray,
     einsum: Callable,
     sparse: bool,
     dtype: jnp.dtype,
-) -> IrrepsArray:
-    @lru_cache(maxsize=None)
-    def multiply(in1, in2, mode):
-        if mode == "uv":
-            return einsum("ui,vj->uvij", input1.chunks[in1], input2.chunks[in2])
-        if mode == "uu":
-            return einsum("ui,uj->uij", input1.chunks[in1], input2.chunks[in2])
-
+) -> e3nn.IrrepsArray:
     weight_index = 0
 
     out_list = []
@@ -428,10 +503,8 @@ def _block_left_right(
             out_list += [None]
             continue
 
-        xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
-
         with jax.ensure_compile_time_eval():
-            w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+            w3j = e3nn.clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
             w3j = ins.path_weight * w3j
             w3j = w3j.astype(dtype)
             if sparse:
@@ -439,46 +512,46 @@ def _block_left_right(
 
         if ins.connection_mode == "uvw":
             assert ins.has_weight
-            out = einsum("uvw,ijk,uvij->wk", w, w3j, xx)
+            out = einsum("uvw,ijk,ui,vj->wk", w, w3j, x1, x2)
         if ins.connection_mode == "uvu":
             assert mul_ir_in1.mul == mul_ir_out.mul
             if ins.has_weight:
-                out = einsum("uv,ijk,uvij->uk", w, w3j, xx)
+                out = einsum("uv,ijk,ui,vj->uk", w, w3j, x1, x2)
             else:
                 # not so useful operation because v is summed
-                out = einsum("ijk,uvij->uk", w3j, xx)
+                out = einsum("ijk,ui,vj->uk", w3j, x1, x2)
         if ins.connection_mode == "uvv":
             assert mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                out = einsum("uv,ijk,uvij->vk", w, w3j, xx)
+                out = einsum("uv,ijk,ui,vj->vk", w, w3j, x1, x2)
             else:
                 # not so useful operation because u is summed
-                out = einsum("ijk,uvij->vk", w3j, xx)
+                out = einsum("ijk,ui,vj->vk", w3j, x1, x2)
         if ins.connection_mode == "uuw":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             if ins.has_weight:
-                out = einsum("uw,ijk,uij->wk", w, w3j, xx)
+                out = einsum("uw,ijk,ui,uj->wk", w, w3j, x1, x2)
             else:
                 # equivalent to tp(x, y, 'uuu').sum('u')
                 assert mul_ir_out.mul == 1
-                out = einsum("ijk,uij->k", w3j, xx)
+                out = einsum("ijk,ui,uj->k", w3j, x1, x2)
         if ins.connection_mode == "uuu":
             assert mul_ir_in1.mul == mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                out = einsum("u,ijk,uij->uk", w, w3j, xx)
+                out = einsum("u,ijk,ui,uj->uk", w, w3j, x1, x2)
             else:
-                out = einsum("ijk,uij->uk", w3j, xx)
+                out = einsum("ijk,ui,uj->uk", w3j, x1, x2)
         if ins.connection_mode == "uvuv":
             assert mul_ir_in1.mul * mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                out = einsum("uv,ijk,uvij->uvk", w, w3j, xx)
+                out = einsum("uv,ijk,ui,vj->uvk", w, w3j, x1, x2)
             else:
-                out = einsum("ijk,uvij->uvk", w3j, xx)
+                out = einsum("ijk,ui,vj->uvk", w3j, x1, x2)
         if ins.connection_mode == "uvu<v":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             assert mul_ir_in1.mul * (mul_ir_in1.mul - 1) // 2 == mul_ir_out.mul
             i = jnp.triu_indices(mul_ir_in1.mul, 1)
-            xx = xx[i[0], i[1]]  # uvij -> wij
+            xx = jnp.einsum("ui,vj->uvij", x1, x2)[i[0], i[1]]  # uvij -> wij
             if ins.has_weight:
                 out = einsum("w,ijk,wij->wk", w, w3j, xx)
             else:
@@ -487,14 +560,14 @@ def _block_left_right(
             assert mul_ir_in1.mul == mul_ir_in2.mul
             assert ins.has_weight
             i = jnp.triu_indices(mul_ir_in1.mul, 1)
-            xx = multiply(ins.i_in1, ins.i_in2, "uv")
-            xx = xx[i[0], i[1]]  # uvij -> qij
-            out = einsum("qw,ijk,qij->wk", w, w3j, xx)
+            out = einsum(
+                "qw,ijk,qij->wk", w, w3j, jnp.einsum("ui,vj->uvij", x1, x2)[i[0], i[1]]
+            )
 
         out_list += [out]
 
     out = [
-        _sum_tensors(
+        sum_tensors(
             [
                 out
                 for ins, out in zip(self.instructions, out_list)
@@ -512,12 +585,12 @@ def _block_left_right(
 def _fused_left_right(
     self: FunctionalTensorProduct,
     weights_flat: jnp.ndarray,
-    input1: IrrepsArray,
-    input2: IrrepsArray,
+    input1: e3nn.IrrepsArray,
+    input2: e3nn.IrrepsArray,
     einsum: Callable,
     sparse: bool,
     dtype: jnp.dtype,
-) -> IrrepsArray:
+) -> e3nn.IrrepsArray:
     with jax.ensure_compile_time_eval():
         num_path = weights_flat.size
         has_path_with_no_weights = any(not ins.has_weight for ins in self.instructions)
@@ -546,7 +619,7 @@ def _fused_left_right(
             s2 = self.irreps_in2[: ins.i_in2].dim
             so = self.irreps_out[: ins.i_out].dim
 
-            w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+            w3j = e3nn.clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
 
             def set_w3j(x, i, u, v, w):
                 return x.at[
@@ -613,14 +686,14 @@ def _fused_left_right(
             out = einsum(
                 "p,pijk,i,j->k", weights_flat, big_w3j, input1.array, input2.array
             )
-    return IrrepsArray(self.irreps_out, out)
+    return e3nn.IrrepsArray(self.irreps_out, out)
 
 
 @partial(jax.profiler.annotate_function, name="TensorProduct.right")
 def _right(
     self: FunctionalTensorProduct,
     weights: List[jnp.ndarray],
-    input2: IrrepsArray,
+    input2: e3nn.IrrepsArray,
     *,
     custom_einsum_jvp: bool = False,
 ) -> jnp.ndarray:
@@ -667,7 +740,7 @@ def _right(
             continue
 
         with jax.ensure_compile_time_eval():
-            w3j = clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
+            w3j = e3nn.clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
             w3j = w3j.astype(dtype)
 
         if ins.connection_mode == "uvw":
@@ -718,7 +791,7 @@ def _right(
         [
             jnp.concatenate(
                 [
-                    _sum_tensors(
+                    sum_tensors(
                         [
                             out
                             for ins, out in zip(self.instructions, out_list)

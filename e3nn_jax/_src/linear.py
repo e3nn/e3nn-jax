@@ -7,7 +7,7 @@ import numpy as np
 
 import e3nn_jax as e3nn
 from e3nn_jax import Irreps, IrrepsArray, config
-from e3nn_jax._src.core_tensor_product import _sum_tensors
+from e3nn_jax._src.utils.sum_tensors import sum_tensors
 from e3nn_jax._src.utils.dtype import get_pytree_dtype
 
 
@@ -135,7 +135,7 @@ class FunctionalLinear:
 
     def aggregate_paths(self, paths, output_shape, output_dtype) -> IrrepsArray:
         output = [
-            _sum_tensors(
+            sum_tensors(
                 [
                     out
                     for ins, out in zip(self.instructions, paths)

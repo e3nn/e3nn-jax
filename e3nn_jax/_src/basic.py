@@ -113,31 +113,39 @@ def zeros_like(irreps_array: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
     return e3nn.zeros(irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype)
 
 
-def _align_two_irreps_arrays(
-    input1: e3nn.IrrepsArray, input2: e3nn.IrrepsArray
-) -> Tuple[e3nn.IrrepsArray, e3nn.IrrepsArray]:
-    assert input1.irreps.num_irreps == input2.irreps.num_irreps
+def _align_two_irreps(
+    irreps1: e3nn.Irreps, irreps2: e3nn.Irreps
+) -> Tuple[e3nn.Irreps, e3nn.Irreps]:
+    assert irreps1.num_irreps == irreps2.num_irreps
 
-    irreps_in1 = list(input1.irreps)
-    irreps_in2 = list(input2.irreps)
+    irreps1 = list(irreps1)
+    irreps2 = list(irreps2)
 
     i = 0
-    while i < min(len(irreps_in1), len(irreps_in2)):
-        mul_1, ir_1 = irreps_in1[i]
-        mul_2, ir_2 = irreps_in2[i]
+    while i < min(len(irreps1), len(irreps2)):
+        mul_1, ir_1 = irreps1[i]
+        mul_2, ir_2 = irreps2[i]
 
         if mul_1 < mul_2:
-            irreps_in2[i] = (mul_1, ir_2)
-            irreps_in2.insert(i + 1, (mul_2 - mul_1, ir_2))
+            irreps2[i] = (mul_1, ir_2)
+            irreps2.insert(i + 1, (mul_2 - mul_1, ir_2))
 
         if mul_2 < mul_1:
-            irreps_in1[i] = (mul_2, ir_1)
-            irreps_in1.insert(i + 1, (mul_1 - mul_2, ir_1))
+            irreps1[i] = (mul_2, ir_1)
+            irreps1.insert(i + 1, (mul_1 - mul_2, ir_1))
 
         i += 1
 
-    input1 = input1.rechunk(irreps_in1)
-    input2 = input2.rechunk(irreps_in2)
+    assert [mul for mul, _ in irreps1] == [mul for mul, _ in irreps2]
+    return e3nn.Irreps(irreps1), e3nn.Irreps(irreps2)
+
+
+def _align_two_irreps_arrays(
+    input1: e3nn.IrrepsArray, input2: e3nn.IrrepsArray
+) -> Tuple[e3nn.IrrepsArray, e3nn.IrrepsArray]:
+    irreps1, irreps2 = _align_two_irreps(input1.irreps, input2.irreps)
+    input1 = input1.rechunk(irreps1)
+    input2 = input2.rechunk(irreps2)
 
     assert [mul for mul, _ in input1.irreps] == [mul for mul, _ in input2.irreps]
     return input1, input2
