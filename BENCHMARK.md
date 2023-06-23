@@ -15,6 +15,7 @@ irreps = 128x0e + 128x1e + 128x2e
 |jax 0.4.11     | e3nn 0.19.2 | 3.52ms                 | tensor_product -> Linear    |
 |jax 0.4.11     | e3nn 0.19.2 | 4.58ms                 | FullyConnectedTensorProduct |
 |jax 0.4.11     | e3nn 0.19.1 | 5.87ms                 | tensor_product -> Linear    |
+|jax 0.4.11     | e3nn 0.19.1 | 4.58ms                 | FullyConnectedTensorProduct |
 
 ## Records on NVIDIA RTX A5000 using cuda 12.0
 
