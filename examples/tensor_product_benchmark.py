@@ -1,4 +1,5 @@
 import argparse
+import re
 import time
 
 import haiku as hk
@@ -160,7 +161,10 @@ def main():
     print(f"{1e3 * perloop:.2f} ms")
 
     with open("xla.txt", "wt") as file:
-        file.write(jit_code(f, w, *inputs))
+        code = jit_code(f, w, *inputs)
+        code = re.sub(r"\d", "", code)
+
+        file.write(code)
 
 
 if __name__ == "__main__":
