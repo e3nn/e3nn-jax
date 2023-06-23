@@ -477,13 +477,6 @@ def _block_left_right(
     sparse: bool,
     dtype: jnp.dtype,
 ) -> e3nn.IrrepsArray:
-    @lru_cache(maxsize=None)
-    def multiply(in1, in2, mode):
-        if mode == "uv":
-            return einsum("ui,vj->uvij", input1.chunks[in1], input2.chunks[in2])
-        if mode == "uu":
-            return einsum("ui,uj->uij", input1.chunks[in1], input2.chunks[in2])
-
     weight_index = 0
 
     out_list = []
@@ -510,8 +503,6 @@ def _block_left_right(
             out_list += [None]
             continue
 
-        xx = multiply(ins.i_in1, ins.i_in2, ins.connection_mode[:2])
-
         with jax.ensure_compile_time_eval():
             w3j = e3nn.clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
             w3j = ins.path_weight * w3j
@@ -521,46 +512,46 @@ def _block_left_right(
 
         if ins.connection_mode == "uvw":
             assert ins.has_weight
-            out = einsum("uvw,ijk,uvij->wk", w, w3j, xx)
+            out = einsum("uvw,ijk,ui,vj->wk", w, w3j, x1, x2)
         if ins.connection_mode == "uvu":
             assert mul_ir_in1.mul == mul_ir_out.mul
             if ins.has_weight:
-                out = einsum("uv,ijk,uvij->uk", w, w3j, xx)
+                out = einsum("uv,ijk,ui,vj->uk", w, w3j, x1, x2)
             else:
                 # not so useful operation because v is summed
-                out = einsum("ijk,uvij->uk", w3j, xx)
+                out = einsum("ijk,ui,vj->uk", w3j, x1, x2)
         if ins.connection_mode == "uvv":
             assert mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                out = einsum("uv,ijk,uvij->vk", w, w3j, xx)
+                out = einsum("uv,ijk,ui,vj->vk", w, w3j, x1, x2)
             else:
                 # not so useful operation because u is summed
-                out = einsum("ijk,uvij->vk", w3j, xx)
+                out = einsum("ijk,ui,vj->vk", w3j, x1, x2)
         if ins.connection_mode == "uuw":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             if ins.has_weight:
-                out = einsum("uw,ijk,uij->wk", w, w3j, xx)
+                out = einsum("uw,ijk,ui,uj->wk", w, w3j, x1, x2)
             else:
                 # equivalent to tp(x, y, 'uuu').sum('u')
                 assert mul_ir_out.mul == 1
-                out = einsum("ijk,uij->k", w3j, xx)
+                out = einsum("ijk,ui,uj->k", w3j, x1, x2)
         if ins.connection_mode == "uuu":
             assert mul_ir_in1.mul == mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                out = einsum("u,ijk,uij->uk", w, w3j, xx)
+                out = einsum("u,ijk,ui,uj->uk", w, w3j, x1, x2)
             else:
-                out = einsum("ijk,uij->uk", w3j, xx)
+                out = einsum("ijk,ui,uj->uk", w3j, x1, x2)
         if ins.connection_mode == "uvuv":
             assert mul_ir_in1.mul * mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
-                out = einsum("uv,ijk,uvij->uvk", w, w3j, xx)
+                out = einsum("uv,ijk,ui,vj->uvk", w, w3j, x1, x2)
             else:
-                out = einsum("ijk,uvij->uvk", w3j, xx)
+                out = einsum("ijk,ui,vj->uvk", w3j, x1, x2)
         if ins.connection_mode == "uvu<v":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             assert mul_ir_in1.mul * (mul_ir_in1.mul - 1) // 2 == mul_ir_out.mul
             i = jnp.triu_indices(mul_ir_in1.mul, 1)
-            xx = xx[i[0], i[1]]  # uvij -> wij
+            xx = jnp.einsum("ui,vj->uvij", x1, x2)[i[0], i[1]]  # uvij -> wij
             if ins.has_weight:
                 out = einsum("w,ijk,wij->wk", w, w3j, xx)
             else:
@@ -569,9 +560,9 @@ def _block_left_right(
             assert mul_ir_in1.mul == mul_ir_in2.mul
             assert ins.has_weight
             i = jnp.triu_indices(mul_ir_in1.mul, 1)
-            xx = multiply(ins.i_in1, ins.i_in2, "uv")
-            xx = xx[i[0], i[1]]  # uvij -> qij
-            out = einsum("qw,ijk,qij->wk", w, w3j, xx)
+            out = einsum(
+                "qw,ijk,qij->wk", w, w3j, jnp.einsum("ui,vj->uvij", x1, x2)[i[0], i[1]]
+            )
 
         out_list += [out]
 

@@ -12,8 +12,8 @@ irreps = 128x0e + 128x1e + 128x2e
 
 |version        |             | time                   |                             |
 |---------------|-------------|------------------------|-----------------------------|
-|jax 0.4.11     | e3nn 0.19.2 | 3.52ms                 | tensor_product -> Linear    |
-|jax 0.4.11     | e3nn 0.19.2 | 4.58ms                 | FullyConnectedTensorProduct |
+|jax 0.4.11     | e3nn 0.19.2 | 3.52ms                 | tensor_product -> Linear    | (improvement due to merge of two einsums, no more ui,vj->uvij followed by uvij,ijk->uvk)
+|jax 0.4.11     | e3nn 0.19.2 | 3.57ms                 | FullyConnectedTensorProduct | (improvement due to merge of two einsums, no more ui,vj->uvij followed by uvij,ijk->uvk)
 |jax 0.4.11     | e3nn 0.19.1 | 5.87ms                 | tensor_product -> Linear    |
 |jax 0.4.11     | e3nn 0.19.1 | 4.58ms                 | FullyConnectedTensorProduct |
 
