@@ -13,6 +13,14 @@ def test_tensor_product():
     np.testing.assert_allclose(x3.array, jnp.array([0.0, 0.0, 1 / 2**0.5]))
 
 
+def test_tensor_product_with_zeros():
+    x1 = e3nn.from_chunks("1o", [None], (), jnp.float32)
+    x2 = e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0]))
+    x3 = e3nn.tensor_product(x1, x2)
+    assert x3.irreps == "0e + 1e + 2e"
+    assert x3.zero_flags == (True, True, True)
+
+
 def test_tensor_product_irreps():
     irreps = e3nn.tensor_product("1o", "1o", filter_ir_out=("1e",))
     assert irreps == e3nn.Irreps("1e")

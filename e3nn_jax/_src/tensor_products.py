@@ -6,16 +6,16 @@ import jax.numpy as jnp
 import e3nn_jax as e3nn
 from e3nn_jax._src.basic import _align_two_irreps_arrays
 from e3nn_jax._src.utils.decorators import overload_for_irreps_without_array
+from e3nn_jax._src.utils.dtype import get_pytree_dtype
 
 
 def _prepare_inputs(input1, input2):
     input1 = e3nn.as_irreps_array(input1)
     input2 = e3nn.as_irreps_array(input2)
 
-    if input1.dtype != input2.dtype:
-        raise ValueError(
-            f"e3nn.tensor_product: inputs must have the same dtype, got {input1.dtype} and {input2.dtype}"
-        )
+    dtype = get_pytree_dtype(input1, input2)
+    input1 = input1.astype(dtype)
+    input2 = input2.astype(dtype)
 
     leading_shape = jnp.broadcast_shapes(input1.shape[:-1], input2.shape[:-1])
     input1 = input1.broadcast_to(leading_shape + (-1,))
@@ -99,23 +99,28 @@ def tensor_product(
                     continue
 
                 irreps_out.append((mul_1 * mul_2, ir_out))
-                cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
 
-                if irrep_normalization == "component":
-                    cg = cg * jnp.sqrt(ir_out.dim)
-                elif irrep_normalization == "norm":
-                    cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
-                elif irrep_normalization == "none":
-                    pass
-                else:
-                    raise ValueError(
-                        f"irrep_normalization={irrep_normalization} not supported"
+                if x1 is not None and x2 is not None:
+                    cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
+
+                    if irrep_normalization == "component":
+                        cg = cg * jnp.sqrt(ir_out.dim)
+                    elif irrep_normalization == "norm":
+                        cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
+                    elif irrep_normalization == "none":
+                        pass
+                    else:
+                        raise ValueError(
+                            f"irrep_normalization={irrep_normalization} not supported"
+                        )
+
+                    chunk = jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, cg)
+                    chunk = jnp.reshape(
+                        chunk, chunk.shape[:-3] + (mul_1 * mul_2, ir_out.dim)
                     )
+                else:
+                    chunk = None
 
-                chunk = jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, cg)
-                chunk = jnp.reshape(
-                    chunk, chunk.shape[:-3] + (mul_1 * mul_2, ir_out.dim)
-                )
                 chunks.append(chunk)
 
     output = e3nn.from_chunks(irreps_out, chunks, leading_shape, input1.dtype)
