@@ -1,4 +1,5 @@
 import argparse
+import re
 import time
 
 import haiku as hk
@@ -23,23 +24,36 @@ def t_or_f(arg):
 
 def main():
     parser = argparse.ArgumentParser(prog="tensor_product_benchmark")
-    parser.add_argument("--jit", type=t_or_f, default=True)
+
+    # Problem settings:
     parser.add_argument("--irreps", type=str, default="128x0e + 128x1e + 128x2e")
     parser.add_argument("--irreps-in1", type=str, default=None)
     parser.add_argument("--irreps-in2", type=str, default=None)
     parser.add_argument("--irreps-out", type=str, default=None)
     parser.add_argument("--backward", type=t_or_f, default=True)
-    parser.add_argument("--custom-einsum-jvp", type=t_or_f, default=False)
+    parser.add_argument("--weights", type=t_or_f, default=True)
     parser.add_argument("--extrachannels", type=t_or_f, default=False)
+
+    # Compilation settings:
+    parser.add_argument("--jit", type=t_or_f, default=True)
+    parser.add_argument("--lists", type=t_or_f, default=False)
+
+    # Legacy Implementation settings:
+    parser.add_argument("--module", type=t_or_f, default=False)
+    parser.add_argument("--custom-einsum-jvp", type=t_or_f, default=False)
     parser.add_argument("--fused", type=t_or_f, default=False)
     parser.add_argument("--sparse", type=t_or_f, default=False)
-    parser.add_argument("--weights", type=t_or_f, default=True)
-    parser.add_argument("--lists", type=t_or_f, default=False)
-    parser.add_argument("--module", type=t_or_f, default=False)
+
+    # Benchmark settings:
     parser.add_argument("-n", type=int, default=1000)
     parser.add_argument("--batch", type=int, default=64)
 
     args = parser.parse_args()
+
+    if not args.module:
+        assert not args.custom_einsum_jvp
+        assert not args.fused
+        assert not args.sparse
 
     args.irreps_in1 = e3nn.Irreps(args.irreps_in1 if args.irreps_in1 else args.irreps)
     args.irreps_in2 = e3nn.Irreps(args.irreps_in2 if args.irreps_in2 else args.irreps)
@@ -133,6 +147,8 @@ def main():
         z = f(w, *inputs)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), z)
 
+    print("output sum:", sum(jnp.sum(x) for x in jax.tree_util.tree_leaves(z)))
+
     t = time.perf_counter()
 
     for _ in range(args.n):
@@ -145,7 +161,10 @@ def main():
     print(f"{1e3 * perloop:.2f} ms")
 
     with open("xla.txt", "wt") as file:
-        file.write(jit_code(f, w, *inputs))
+        code = jit_code(f, w, *inputs)
+        code = re.sub(r"\d", "", code)
+
+        file.write(code)
 
 
 if __name__ == "__main__":
