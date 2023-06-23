@@ -23,23 +23,36 @@ def t_or_f(arg):
 
 def main():
     parser = argparse.ArgumentParser(prog="tensor_product_benchmark")
-    parser.add_argument("--jit", type=t_or_f, default=True)
+
+    # Problem settings:
     parser.add_argument("--irreps", type=str, default="128x0e + 128x1e + 128x2e")
     parser.add_argument("--irreps-in1", type=str, default=None)
     parser.add_argument("--irreps-in2", type=str, default=None)
     parser.add_argument("--irreps-out", type=str, default=None)
     parser.add_argument("--backward", type=t_or_f, default=True)
-    parser.add_argument("--custom-einsum-jvp", type=t_or_f, default=False)
+    parser.add_argument("--weights", type=t_or_f, default=True)
     parser.add_argument("--extrachannels", type=t_or_f, default=False)
+
+    # Compilation settings:
+    parser.add_argument("--jit", type=t_or_f, default=True)
+    parser.add_argument("--lists", type=t_or_f, default=False)
+
+    # Legacy Implementation settings:
+    parser.add_argument("--module", type=t_or_f, default=False)
+    parser.add_argument("--custom-einsum-jvp", type=t_or_f, default=False)
     parser.add_argument("--fused", type=t_or_f, default=False)
     parser.add_argument("--sparse", type=t_or_f, default=False)
-    parser.add_argument("--weights", type=t_or_f, default=True)
-    parser.add_argument("--lists", type=t_or_f, default=False)
-    parser.add_argument("--module", type=t_or_f, default=False)
+
+    # Benchmark settings:
     parser.add_argument("-n", type=int, default=1000)
     parser.add_argument("--batch", type=int, default=64)
 
     args = parser.parse_args()
+
+    if not args.module:
+        assert not args.custom_einsum_jvp
+        assert not args.fused
+        assert not args.sparse
 
     args.irreps_in1 = e3nn.Irreps(args.irreps_in1 if args.irreps_in1 else args.irreps)
     args.irreps_in2 = e3nn.Irreps(args.irreps_in2 if args.irreps_in2 else args.irreps)
@@ -82,13 +95,11 @@ def main():
                 assert not args.module
                 x1 = x1.mul_to_axis()  # (batch, channels, irreps)
                 x2 = x2.mul_to_axis()  # (batch, channels, irreps)
-                x = e3nn.tensor_product(
-                    x1[..., :, None, :], x2[..., None, :, :], **kwargs
-                )
+                x = e3nn.tensor_product(x1[..., :, None, :], x2[..., None, :, :])
                 x = x.reshape(x.shape[:-3] + (-1,) + x.shape[-1:])
                 x = x.axis_to_mul()
             else:
-                x = e3nn.tensor_product(x1, x2, **kwargs)
+                x = e3nn.tensor_product(x1, x2)
 
             if args.weights:
                 return e3nn.haiku.Linear(args.irreps_out)(x)
@@ -134,6 +145,8 @@ def main():
     for _ in range(max(int(args.n // 100), 1)):
         z = f(w, *inputs)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), z)
+
+    print("output sum:", sum(jnp.sum(x) for x in jax.tree_util.tree_leaves(z)))
 
     t = time.perf_counter()
 
