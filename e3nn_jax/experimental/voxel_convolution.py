@@ -7,6 +7,7 @@ import jax.numpy as jnp
 from jax import lax
 
 import e3nn_jax as e3nn
+from e3nn_jax.legacy import FunctionalFullyConnectedTensorProduct
 
 
 class ConvolutionHaiku(hk.Module):
@@ -190,9 +191,7 @@ def _kernel(
     lattice = lattice.astype(dtype)
 
     # convolution kernel
-    tp = e3nn.FunctionalFullyConnectedTensorProduct(
-        irreps_in, self.irreps_sh, irreps_out
-    )
+    tp = FunctionalFullyConnectedTensorProduct(irreps_in, self.irreps_sh, irreps_out)
 
     ws = [
         _tp_weight(
