@@ -14,6 +14,9 @@ def _prepare_inputs(input1, input2):
     input2 = e3nn.as_irreps_array(input2)
 
     dtype = get_pytree_dtype(input1, input2)
+    if dtype.kind == "i":
+        dtype = jnp.ones(()).dtype
+
     input1 = input1.astype(dtype)
     input2 = input2.astype(dtype)
 
