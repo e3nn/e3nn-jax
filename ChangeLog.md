@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.3] - 2023-06-24
+### Fixed
+- Fix missing support for zero flags in `e3nn.elementwise_tensor_product`
+
 ## [0.19.2] - 2023-06-23
 ### Changed
 - **[BREAKING]** Move `Instruction`, `FunctionalTensorProduct` and `FunctionalFullyConnectedTensorProduct` into `e3nn.legacy` submodule
