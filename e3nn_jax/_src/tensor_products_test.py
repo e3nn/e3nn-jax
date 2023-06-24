@@ -1,4 +1,5 @@
 import haiku as hk
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -17,6 +18,14 @@ def test_tensor_product_with_zeros():
     x1 = e3nn.from_chunks("1o", [None], (), jnp.float32)
     x2 = e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0]))
     x3 = e3nn.tensor_product(x1, x2)
+    assert x3.irreps == "0e + 1e + 2e"
+    assert x3.zero_flags == (True, True, True)
+
+
+def test_elementwise_with_zeros():
+    x1 = e3nn.from_chunks("1o", [None], (), jnp.float32)
+    x2 = e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0]))
+    x3 = e3nn.elementwise_tensor_product(x1, x2)
     assert x3.irreps == "0e + 1e + 2e"
     assert x3.zero_flags == (True, True, True)
 
@@ -106,3 +115,19 @@ def test_tensor_square_and_spherical_harmonics(keys):
     )["2e"]
     y2 = e3nn.spherical_harmonics("2e", x, normalize=True, normalization="component")
     np.testing.assert_allclose(y1.array, y2.array, atol=1e-5)
+
+
+def test_tensor_product_dtype():
+    jax.config.update("jax_enable_x64", True)
+    x1 = e3nn.IrrepsArray("1o", jnp.array([1.0, 0.0, 0.0]))
+    x2 = e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0]))
+    e3nn.utils.assert_output_dtype_matches_input_dtype(e3nn.tensor_product, x1, x2)
+
+
+def test_elementwise_dtype():
+    jax.config.update("jax_enable_x64", True)
+    x1 = e3nn.IrrepsArray("1o", jnp.array([1.0, 0.0, 0.0]))
+    x2 = e3nn.IrrepsArray("1o", jnp.array([0.0, 1.0, 0.0]))
+    e3nn.utils.assert_output_dtype_matches_input_dtype(
+        e3nn.elementwise_tensor_product, x1, x2
+    )

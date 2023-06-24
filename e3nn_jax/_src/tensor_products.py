@@ -114,6 +114,7 @@ def tensor_product(
                             f"irrep_normalization={irrep_normalization} not supported"
                         )
 
+                    cg = cg.astype(x1.dtype)
                     chunk = jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, cg)
                     chunk = jnp.reshape(
                         chunk, chunk.shape[:-3] + (mul_1 * mul_2, ir_out.dim)
@@ -183,20 +184,26 @@ def elementwise_tensor_product(
                 continue
 
             irreps_out.append((mul, ir_out))
-            cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
 
-            if irrep_normalization == "component":
-                cg = cg * jnp.sqrt(ir_out.dim)
-            elif irrep_normalization == "norm":
-                cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
-            elif irrep_normalization == "none":
-                pass
+            if x1 is not None and x2 is not None:
+                cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
+
+                if irrep_normalization == "component":
+                    cg = cg * jnp.sqrt(ir_out.dim)
+                elif irrep_normalization == "norm":
+                    cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
+                elif irrep_normalization == "none":
+                    pass
+                else:
+                    raise ValueError(
+                        f"irrep_normalization={irrep_normalization} not supported"
+                    )
+
+                cg = cg.astype(x1.dtype)
+                chunk = jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, cg)
             else:
-                raise ValueError(
-                    f"irrep_normalization={irrep_normalization} not supported"
-                )
+                chunk = None
 
-            chunk = jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, cg)
             chunks.append(chunk)
 
     return e3nn.from_chunks(irreps_out, chunks, leading_shape, input1.dtype)
