@@ -1,0 +1,6 @@
+[flake8]
+ignore = E741, E203, W503, E731
+max-line-length = 127
+max-complexity = 64
+select = B,C,E,F,W,T4,B9
+exclude = .eggs,*.egg,build,dist,docs/_build,notebook

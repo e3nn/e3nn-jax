@@ -1,6 +1,7 @@
 import collections
 import dataclasses
 import itertools
+import math
 from typing import Callable, List, NamedTuple, Optional, Tuple, Union
 
 import jax
@@ -820,6 +821,16 @@ class Irreps(tuple):
             5
         """
         return sum(mul for mul, _ in self)
+
+    @property
+    def mul_gcd(self) -> int:
+        """Greatest common divisor of the multiplicities.
+
+        Examples:
+            >>> Irreps("3x0e + 2x1e").mul_gcd
+            1
+        """
+        return math.gcd(*[mul for mul, _ in self])
 
     @property
     def ls(self) -> List[int]:
