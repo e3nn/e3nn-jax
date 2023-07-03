@@ -226,7 +226,7 @@ class IrrepsArray:
         if isinstance(other, IrrepsArray):
             if self.irreps != other.irreps:
                 raise ValueError(
-                    "IrrepsArray({self.irreps}) == IrrepsArray({other.irreps}) is not equivariant."
+                    "IrrepsArray({self.irreps}, shape={self.shape}) == IrrepsArray({other.irreps}) is not equivariant."
                 )
 
             leading_shape = jnp.broadcast_shapes(self.shape[:-1], other.shape[:-1])
@@ -252,7 +252,7 @@ class IrrepsArray:
         other = jnp.asarray(other)
         if self.irreps.lmax > 0 or (other.ndim > 0 and other.shape[-1] != 1):
             raise ValueError(
-                f"IrrepsArray({self.irreps}) == scalar(shape={other.shape}) is not equivariant."
+                f"IrrepsArray({self.irreps}, shape={self.shape}) == scalar(shape={other.shape}) is not equivariant."
             )
         return IrrepsArray(self.irreps, self.array == other)
 
@@ -271,11 +271,13 @@ class IrrepsArray:
             if all(ir == "0e" for _, ir in self.irreps):
                 other = jnp.asarray(other)
                 return IrrepsArray(self.irreps, self.array + other)
-            raise ValueError(f"IrrepsArray({self.irreps}) + scalar is not equivariant.")
+            raise ValueError(
+                f"IrrepsArray({self.irreps}, shape={self.shape}) + scalar is not equivariant."
+            )
 
         if self.irreps != other.irreps:
             raise ValueError(
-                f"IrrepsArray({self.irreps}) + IrrepsArray({other.irreps}) is not equivariant."
+                f"IrrepsArray({self.irreps}, shape={self.shape}) + IrrepsArray({other.irreps}) is not equivariant."
             )
 
         zero_flags = tuple(x and y for x, y in zip(self.zero_flags, other.zero_flags))
@@ -298,11 +300,13 @@ class IrrepsArray:
             if all(ir == "0e" for _, ir in self.irreps):
                 other = jnp.asarray(other)
                 return IrrepsArray(irreps=self.irreps, array=self.array - other)
-            raise ValueError(f"IrrepsArray({self.irreps}) - scalar is not equivariant.")
+            raise ValueError(
+                f"IrrepsArray({self.irreps}, shape={self.shape}) - scalar is not equivariant."
+            )
 
         if self.irreps != other.irreps:
             raise ValueError(
-                f"IrrepsArray({self.irreps}) - IrrepsArray({other.irreps}) is not equivariant."
+                f"IrrepsArray({self.irreps}, shape={self.shape}) - IrrepsArray({other.irreps}) is not equivariant."
             )
 
         zero_flags = tuple(x and y for x, y in zip(self.zero_flags, other.zero_flags))
@@ -321,12 +325,13 @@ class IrrepsArray:
         if isinstance(other, IrrepsArray):
             if self.irreps.num_irreps != other.irreps.num_irreps:
                 raise ValueError(
-                    f"IrrepsArray({self.irreps}) * IrrepsArray({other.irreps}) only works if the number of irreps is the same."
+                    f"IrrepsArray({self.irreps}, shape={self.shape}) * IrrepsArray({other.irreps}) "
+                    "only works if the number of irreps is the same."
                 )
             irreps_out = e3nn.elementwise_tensor_product(self.irreps, other.irreps)
             if irreps_out.num_irreps != self.irreps.num_irreps:
                 raise ValueError(
-                    f"IrrepsArray({self.irreps}) * IrrepsArray({other.irreps}) "
+                    f"IrrepsArray({self.irreps}, shape={self.shape}) * IrrepsArray({other.irreps}) "
                     "is only supported for scalar * irreps and irreps * scalar. "
                     "To perform irreps * irreps use e3nn.elementwise_tensor_product or e3nn.tensor_product."
                 )
@@ -339,7 +344,7 @@ class IrrepsArray:
 
         if self.irreps.lmax > 0 and other.ndim > 0 and other.shape[-1] != 1:
             raise ValueError(
-                f"IrrepsArray({self.irreps}) * scalar(shape={other.shape}) is not equivariant."
+                f"IrrepsArray({self.irreps}, shape={self.shape}) * scalar(shape={other.shape}) is not equivariant."
             )
 
         return IrrepsArray(self.irreps, self.array * other, zero_flags=self.zero_flags)
@@ -361,7 +366,7 @@ class IrrepsArray:
                 or self.irreps.num_irreps != other.irreps.num_irreps
             ):
                 raise ValueError(
-                    f"IrrepsArray({self.irreps}) / IrrepsArray({other.irreps}) is not equivariant."
+                    f"IrrepsArray({self.irreps}, shape={self.shape}) / IrrepsArray({other.irreps}) is not equivariant."
                 )
 
             if any(x is None for x in other.chunks):
@@ -378,7 +383,7 @@ class IrrepsArray:
 
         if self.irreps.lmax > 0 and other.ndim > 0 and other.shape[-1] != 1:
             raise ValueError(
-                f"IrrepsArray({self.irreps}) / scalar(shape={other.shape}) is not equivariant."
+                f"IrrepsArray({self.irreps}, shape={self.shape}) / scalar(shape={other.shape}) is not equivariant."
             )
 
         return IrrepsArray(self.irreps, self.array / other, zero_flags=self.zero_flags)
@@ -391,7 +396,7 @@ class IrrepsArray:
         other = jnp.asarray(other)
         if self.irreps.lmax > 0:
             raise ValueError(
-                f"scalar(shape={other.shape}) / IrrepsArray({self.irreps}) is not equivariant."
+                f"scalar(shape={other.shape}) / IrrepsArray({self.irreps}, shape={self.shape}) is not equivariant."
             )
         if any(x is None for x in self.chunks):
             raise ValueError(
@@ -410,7 +415,9 @@ class IrrepsArray:
                 irreps = [(mul, "0e") for mul, ir in self.irreps]
             return IrrepsArray(irreps, array=self.array**exponent)
 
-        raise ValueError(f"IrrepsArray({self.irreps}) ** scalar is not equivariant.")
+        raise ValueError(
+            f"IrrepsArray({self.irreps}, shape={self.shape}) ** scalar is not equivariant."
+        )
 
     def __iter__(self):  # noqa: D105
         if self.ndim <= 1:
