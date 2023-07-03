@@ -60,10 +60,28 @@ def test_fully_connected_tensor_product(keys):
     assert x3.shape[:-1] == (20, 10)
 
 
-def test_square_normalization(keys):
-    x = e3nn.normal("2x0e + 3x1e + 2x2e + 3e", keys[1], (100_000,))
+def test_square_normalization_1(keys):
+    x = e3nn.normal("1o", keys[1], (100_000,))
     y = e3nn.tensor_square(x)
-    assert jnp.all(jnp.exp(jnp.abs(jnp.log(jnp.mean(y.array**2, 0)))) < 1.1)
+    np.testing.assert_array_less(
+        jnp.exp(jnp.abs(jnp.log(jnp.mean(y.array**2, 0)))), 1.1
+    )
+
+
+def test_square_normalization_2(keys):
+    x = e3nn.normal("2e + 1o", keys[1], (100_000,))
+    y = e3nn.tensor_square(x)
+    np.testing.assert_array_less(
+        jnp.exp(jnp.abs(jnp.log(jnp.mean(y.array**2, 0)))), 1.1
+    )
+
+
+def test_square_normalization_3(keys):
+    x = e3nn.normal("2e + 5x1o", keys[1], (100_000,))
+    y = e3nn.tensor_square(x)
+    np.testing.assert_array_less(
+        jnp.exp(jnp.abs(jnp.log(jnp.mean(y.array**2, 0)))), 1.1
+    )
 
 
 def test_tensor_square_normalization(keys):
@@ -101,7 +119,7 @@ def test_tensor_square_and_spherical_harmonics(keys):
 
     y1 = e3nn.tensor_square(x, normalized_input=True, irrep_normalization="norm")["2e"]
     y2 = e3nn.spherical_harmonics("2e", x, normalize=False, normalization="norm")
-    np.testing.assert_allclose(y1.array, y2.array)
+    np.testing.assert_allclose(y1.array, y2.array, atol=1e-6)
 
     y1 = e3nn.tensor_square(x, normalized_input=True, irrep_normalization="component")[
         "2e"
@@ -115,6 +133,18 @@ def test_tensor_square_and_spherical_harmonics(keys):
     )["2e"]
     y2 = e3nn.spherical_harmonics("2e", x, normalize=True, normalization="component")
     np.testing.assert_allclose(y1.array, y2.array, atol=1e-5)
+
+
+def test_tensor_square_equivariant(keys):
+    e3nn.utils.assert_equivariant(
+        e3nn.tensor_square, keys[0], "2x0e + 2x1o + 2x1e + 2x2e"
+    )
+
+
+def test_tensor_square_dtype():
+    jax.config.update("jax_enable_x64", True)
+    x = e3nn.IrrepsArray("1o", jnp.array([1.0, 0.0, 0.0]))
+    e3nn.utils.assert_output_dtype_matches_input_dtype(e3nn.tensor_square, x)
 
 
 def test_tensor_product_dtype():

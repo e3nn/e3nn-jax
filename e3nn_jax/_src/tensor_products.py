@@ -1,8 +1,7 @@
-from functools import partial
 from typing import List, Optional
-
+import itertools
 import jax.numpy as jnp
-
+import numpy as np
 import e3nn_jax as e3nn
 from e3nn_jax._src.basic import _align_two_irreps_arrays
 from e3nn_jax._src.utils.decorators import overload_for_irreps_without_array
@@ -218,8 +217,6 @@ def tensor_square(
     *,
     irrep_normalization: Optional[str] = None,
     normalized_input: bool = False,
-    custom_einsum_jvp: bool = None,
-    fused: bool = None,
     regroup_output: bool = True,
 ) -> e3nn.IrrepsArray:
     r"""Tensor product of a `IrrepsArray` with itself.
@@ -230,8 +227,7 @@ def tensor_square(
         normalized_input (bool, optional): If True, the input is assumed to be striclty normalized.
             Note that this is different from ``irrep_normalization="norm"`` for which the input is
             of norm 1 in average. Defaults to False.
-        custom_einsum_jvp (bool, optional): If True, use a custom implementation of the jvp of einsum.
-        fused (bool, optional): If True, use a fused implementation of the tensor product.
+        regroup_output (bool, optional): If True, the output irreps are regrouped. Defaults to True.
 
     Returns:
         IrrepsArray: Tensor product of the input with itself.
@@ -257,10 +253,10 @@ def tensor_square(
     assert irrep_normalization in ["component", "norm", "none"]
 
     irreps_out = []
+    chunks = []
 
-    instructions = []
-    for i_1, (mul_1, ir_1) in enumerate(input.irreps):
-        for i_2, (mul_2, ir_2) in enumerate(input.irreps):
+    for i_1, ((mul_1, ir_1), x1) in enumerate(zip(input.irreps, input.chunks)):
+        for i_2, ((mul_2, ir_2), x2) in enumerate(zip(input.irreps, input.chunks)):
             for ir_out in ir_1 * ir_2:
                 if normalized_input:
                     if irrep_normalization == "component":
@@ -282,17 +278,42 @@ def tensor_square(
                         raise ValueError(f"irrep_normalization={irrep_normalization}")
 
                 if i_1 < i_2:
-                    i_out = len(irreps_out)
                     irreps_out.append((mul_1 * mul_2, ir_out))
-                    instructions += [(i_1, i_2, i_out, "uvuv", False, alpha)]
+
+                    if x1 is None or x2 is None:
+                        chunks.append(None)
+                    else:
+                        cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
+                        cg = cg.astype(x1.dtype) * jnp.sqrt(alpha)
+                        chunk = jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, cg)
+                        chunk = jnp.reshape(
+                            chunk, chunk.shape[:-3] + (mul_1 * mul_2, ir_out.dim)
+                        )
+                        chunks.append(chunk)
+
                 elif i_1 == i_2:
-                    i = i_1
                     mul = mul_1
+                    ir = ir_1
+                    x = x1
 
                     if mul > 1:
-                        i_out = len(irreps_out)
                         irreps_out.append((mul * (mul - 1) // 2, ir_out))
-                        instructions += [(i, i, i_out, "uvu<v", False, alpha)]
+
+                        if x is None:
+                            chunks.append(None)
+                        else:
+                            cg = e3nn.clebsch_gordan(ir.l, ir.l, ir_out.l)
+                            cg = cg.astype(x.dtype) * jnp.sqrt(alpha)
+                            uvw = np.zeros(
+                                (mul, mul, mul * (mul - 1) // 2), dtype=x.dtype
+                            )
+                            i, j = zip(*itertools.combinations(range(mul), 2))
+                            uvw[i, j, np.arange(len(i))] = 1
+
+                            chunk = jnp.einsum(
+                                "...ui , ...vj , ijk , uvw -> ...wk", x, x, cg, uvw
+                            )
+                            chunks.append(chunk)
 
                     if ir_out.l % 2 == 0:
                         if normalized_input:
@@ -330,34 +351,20 @@ def tensor_square(
                                     f"irrep_normalization={irrep_normalization}"
                                 )
 
-                        i_out = len(irreps_out)
                         irreps_out.append((mul, ir_out))
-                        instructions += [(i, i, i_out, "uuu", False, alpha)]
+
+                        if x is None:
+                            chunks.append(None)
+                        else:
+                            cg = e3nn.clebsch_gordan(ir.l, ir.l, ir_out.l)
+                            cg = cg.astype(x.dtype) * jnp.sqrt(alpha)
+                            chunk = jnp.einsum("...ui , ...uj , ijk -> ...uk", x, x, cg)
+                            chunks.append(chunk)
 
     irreps_out = e3nn.Irreps(irreps_out)
-    irreps_out, p, _ = irreps_out.sort()
 
-    instructions = [
-        (i_1, i_2, p[i_out], mode, train, alpha)
-        for i_1, i_2, i_out, mode, train, alpha in instructions
-    ]
-
-    from e3nn_jax.legacy import FunctionalTensorProduct
-
-    tp = FunctionalTensorProduct(
-        input.irreps,
-        input.irreps,
-        irreps_out,
-        instructions,
-        irrep_normalization="none",
-    )
-
-    f = partial(tp.left_right, fused=fused, custom_einsum_jvp=custom_einsum_jvp)
-    for _ in range(input.ndim - 1):
-        f = e3nn.utils.vmap(f)
-
-    output = f(input, input)
-
+    output = e3nn.from_chunks(irreps_out, chunks, input.shape[:-1], input.dtype)
+    output = output.sort()
     if regroup_output:
         output = output.regroup()
     return output
