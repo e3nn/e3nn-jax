@@ -1,7 +1,9 @@
-from typing import List, Optional
 import itertools
+from typing import List, Optional
+
 import jax.numpy as jnp
 import numpy as np
+
 import e3nn_jax as e3nn
 from e3nn_jax._src.basic import _align_two_irreps_arrays
 from e3nn_jax._src.utils.decorators import overload_for_irreps_without_array

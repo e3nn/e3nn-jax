@@ -218,6 +218,7 @@ def linear_vanilla(
     linear: FunctionalLinear,
     get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
 ) -> IrrepsArray:
+    """Vanilla linear layer."""
     w = [
         get_parameter(
             f"b[{ins.i_out}] {linear.irreps_out[ins.i_out]}"
@@ -240,12 +241,16 @@ def linear_indexed(
     input: IrrepsArray,
     lin: FunctionalLinear,
     get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
-    weights: jnp.ndarray,
+    indices: jnp.ndarray,
     num_indexed_weights: int,
 ) -> IrrepsArray:
-    shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape)
+    """Linear layer with indexed weights.
+
+    Each input get an index, and the weights are indexed by these indices.
+    """
+    shape = jnp.broadcast_shapes(input.shape[:-1], indices.shape)
     input = input.broadcast_to(shape + (-1,))
-    weights = jnp.broadcast_to(weights, shape)
+    indices = jnp.broadcast_to(indices, shape)
 
     w = [
         get_parameter(
@@ -258,7 +263,7 @@ def linear_indexed(
         )
         for ins in lin.instructions
     ]  # List of shape (num_weights, *path_shape)
-    w = [wi[weights] for wi in w]  # List of shape (..., *path_shape)
+    w = [wi[indices] for wi in w]  # List of shape (..., *path_shape)
 
     f = lin
     for _ in range(input.ndim - 1):
@@ -273,6 +278,10 @@ def linear_mixed(
     weights: jnp.ndarray,
     gradient_normalization: float,
 ) -> IrrepsArray:
+    """Linear layer with mixed weights.
+
+    Each input get ``d`` weights. The weights (other ones) are mixed with the input weights.
+    """
     shape = jnp.broadcast_shapes(input.shape[:-1], weights.shape[:-1])
     input = input.broadcast_to(shape + (-1,))  # (..., irreps)
     weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])  # (..., d)
@@ -313,6 +322,7 @@ def linear_mixed_per_channel(
     weights: jnp.ndarray,
     gradient_normalization: float,
 ) -> IrrepsArray:
+    """Linear layer with mixed weights. But this time each channel has its own weights."""
     shape = jnp.broadcast_shapes(input.shape[:-2], weights.shape[:-1])
     input = input.broadcast_to(shape + input.shape[-2:])  # (..., num_channels, irreps)
     weights = jnp.broadcast_to(weights, shape + weights.shape[-1:])  # (..., d)
