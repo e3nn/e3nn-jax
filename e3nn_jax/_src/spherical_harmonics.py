@@ -363,8 +363,6 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
 
     en.wikipedia.org/wiki/Associated_Legendre_polynomials
 
-    code inspired by: https://github.com/SHTOOLS/SHTOOLS/blob/master/src/PlmBar.f95
-
     Args:
         lmax (int): maximum l value
         x (jnp.ndarray): input array of shape ``(...)``
@@ -377,6 +375,23 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
     """
     x = jnp.asarray(x)
 
+    # It happens that jax has an implementation of the legendre function:
+    # = e3nn.legendre(l, x, phase=phase)[l * (l + 1) // 2 + m]
+    # = (-phase)**m * jax.scipy.special.lpmn_values(l, l, x, False)[m][l]
+
+    p = jax.scipy.special.lpmn_values(lmax, lmax, x.flatten(), False)  # [m, l, x]
+    p = (-phase) ** jnp.arange(lmax + 1)[:, None, None] * p
+    p = jnp.transpose(p, (1, 0, 2))  # [l, m, x]
+    l, m = jnp.tril_indices(lmax + 1)
+    p = p[l, m]
+    p = jnp.reshape(p, (-1,) + x.shape)
+    return p
+
+    # This old implementation is
+    # - slower on GPU
+    # - does not support Reverse-mode differentiation because of the fori_loop
+
+    # following code inspired by: https://github.com/SHTOOLS/SHTOOLS/blob/master/src/PlmBar.f95
     p = jnp.zeros(((lmax + 1) * (lmax + 2) // 2,) + x.shape, x.dtype)
 
     scalef = {
