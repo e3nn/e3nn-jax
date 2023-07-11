@@ -153,7 +153,7 @@ class SphericalSignal:
         )
 
     def __repr__(self) -> str:
-        if self.ndim >= 2:
+        if hasattr(self.grid_values, "ndim") and self.ndim >= 2:
             return (
                 "SphericalSignal("
                 f"shape={self.shape}, "
