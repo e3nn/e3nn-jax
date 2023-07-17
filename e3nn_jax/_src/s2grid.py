@@ -934,6 +934,51 @@ def to_s2grid(
     return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
 
 
+def legendre_transform(
+    x: SphericalSignal,
+    irreps: e3nn.Irreps,
+    *,
+    normalization: str = "integral",
+    lmax_in: Optional[int] = None,
+    fft: bool = True,
+) -> e3nn.IrrepsArray:
+    r"""
+    Args:
+        x (`SphericalSignal`): signal on the sphere of shape ``(..., y/beta, alpha)``
+        irreps (`Irreps`): irreps of the coefficients
+        normalization ({'norm', 'component', 'integral'}): normalization of the spherical harmonics basis
+        lmax_in (int, optional): maximum degree of the input signal, only used for normalization purposes
+        fft (bool): True if we use FFT, False if we use the naive implementation
+
+    Returns:
+        `IrrepsArray`: coefficient array of shape ``(..., lmax+1)``
+    """
+    irreps = e3nn.Irreps(irreps)
+
+    if not all(mul == 1 for mul, _ in irreps.regroup()):
+        raise ValueError("multiplicities should be ones")
+
+    _check_parities(irreps, x.p_val, x.p_arg)
+
+    lmax = max(irreps.ls)
+
+    if lmax_in is None:
+        lmax_in = lmax
+
+    _, _, sh_y, _, qw = _spherical_harmonics_s2grid(
+        lmax, x.res_beta, x.res_alpha, quadrature=x.quadrature, dtype=x.dtype
+    )
+    n = _normalization(lmax, "integral", x.dtype, "from_s2", lmax)
+    sh_y = _rollout_sh(sh_y, lmax)
+
+    m0_indices = jnp.cumsum(jnp.arange(lmax + 1) * 2)
+    sh_y_m0 = sh_y[:, m0_indices]
+    sh_y_qw_m0 = jnp.einsum("bi,i,b->bi", sh_y_m0, n, qw)
+
+    int_a_m0 = x.grid_values.sum(axis=-1) / x.res_alpha
+    x_prime = jnp.einsum("bi,...b->...i", sh_y_qw_m0, int_a_m0)  # TODO should I be returning an IrrepsArray?
+
+
 def to_s2point(
     coeffs: e3nn.IrrepsArray,
     point: e3nn.IrrepsArray,
