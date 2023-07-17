@@ -44,7 +44,7 @@ def test_grid_vectors(quadrature):
     )
     r = e3nn.SphericalSignal(jnp.empty((4, 5)), quadrature).grid_vectors
 
-    sh_y = np.stack([sh_y[:, 2], sh_y[:, 1], sh_y[:, 2]], axis=1)  # for l=1
+    sh_y = np.stack([sh_y[:, 1, 1], sh_y[:, 1, 0], sh_y[:, 1, 1]], axis=1)  # for l=1
     sh = sh_y[:, None, :] * sh_alpha
     sh = sh / np.linalg.norm(sh, axis=2, keepdims=True)
 

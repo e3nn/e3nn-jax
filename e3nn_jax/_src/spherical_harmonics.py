@@ -370,8 +370,7 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
 
     Returns:
         jnp.ndarray: Associated Legendre polynomials ``P(l,m)``
-        In an array of shape ``((lmax + 1) * (lmax + 2) // 2, ...)``
-        ``(0,0), (1,0), (1,1), (2,0), (2,1), (2,2), ...``
+        In an array of shape ``(lmax + 1, lmax + 1, ...)``
     """
     x = jnp.asarray(x)
 
@@ -382,9 +381,9 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
     p = jax.scipy.special.lpmn_values(lmax, lmax, x.flatten(), False)  # [m, l, x]
     p = (-phase) ** jnp.arange(lmax + 1)[:, None, None] * p
     p = jnp.transpose(p, (1, 0, 2))  # [l, m, x]
-    l, m = jnp.tril_indices(lmax + 1)
-    p = p[l, m]
-    p = jnp.reshape(p, (-1,) + x.shape)
+    # l, m = jnp.tril_indices(lmax + 1)
+    # p = p[l, m]
+    p = jnp.reshape(p, (lmax + 1, lmax + 1) + x.shape)
     return p
 
     # This old implementation is
@@ -499,21 +498,24 @@ def _sh_beta(lmax: int, cos_betas: jnp.ndarray) -> jnp.ndarray:
         cos_betas: input array of shape ``(...)``
 
     Returns:
-        Array of shape ``(..., (lmax + 1) * (lmax + 2) // 2 + 1)``
+        Array of shape ``(..., l, m)``
     """
-    sh_y = legendre(lmax, cos_betas, 1.0)  # [(lmax + 1) * (lmax + 2) // 2, ...]
-    sh_y = jnp.moveaxis(sh_y, 0, -1)  # [..., (lmax + 1) * (lmax + 2) // 2]
+    sh_y = legendre(lmax, cos_betas, 1.0)  # [l, m, ...]
+    sh_y = jnp.moveaxis(sh_y, 0, -1)  # [m, ..., l]
+    sh_y = jnp.moveaxis(sh_y, 0, -1)  # [..., l, m]
 
     sh_y = sh_y * np.array(
         [
-            math.sqrt(
-                fractions.Fraction(
-                    (2 * l + 1) * math.factorial(l - m), 4 * math.factorial(l + m)
+            [
+                math.sqrt(
+                    fractions.Fraction(
+                        (2 * l + 1) * math.factorial(abs(l - m)), 4 * math.factorial(l + m)
+                    )
+                    / math.pi
                 )
-                / math.pi
-            )
+                for m in range(lmax + 1)
+            ]
             for l in range(lmax + 1)
-            for m in range(l + 1)
         ],
         sh_y.dtype,
     )
@@ -529,13 +531,13 @@ def _legendre_spherical_harmonics(
     n = jnp.linalg.norm(x, axis=-1, keepdims=True)
     x = x / jnp.where(n > 0, n, 1.0)
 
-    sh_y = _sh_beta(lmax, x[..., 1])  # [..., (lmax + 1) * (lmax + 2) // 2]
+    sh_y = _sh_beta(lmax, x[..., 1])  # [..., l, m]
 
     sh = jnp.zeros(x.shape[:-1] + ((lmax + 1) ** 2,), x.dtype)
 
     def f(l, sh):
         def g(m, sh):
-            y = sh_y[..., l * (l + 1) // 2 + jnp.abs(m)]
+            y = sh_y[..., l, jnp.abs(m)]
             if not normalize:
                 y = y * n[..., 0] ** l
             if normalization == "norm":

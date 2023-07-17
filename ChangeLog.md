@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - rewrite `e3nn.tensor_square` to be simpler (and faster?)
 - use `jax.scipy.special.lpmn_values` to implement `e3nn.legendre`. Faster on GPU and supports reverse-mode differentiation.
+- **[BREAKING]** Change the output format of `e3nn.legendre`
 
 ## [0.19.3] - 2023-06-24
 ### Fixed
