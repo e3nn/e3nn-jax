@@ -786,7 +786,7 @@ def from_s2grid(
     _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(
         lmax, res_beta, res_alpha, quadrature=x.quadrature, dtype=x.dtype
     )
-    # sh_y: (res_beta, (l+1)(l+2)/2)
+    # sh_y: (res_beta, l, |m|)
 
     n = _normalization(lmax, normalization, x.dtype, "from_s2", lmax_in)
 
@@ -1131,7 +1131,7 @@ def _spherical_harmonics_s2grid(
         (tuple): tuple containing:
             y (`jax.numpy.ndarray`): array of shape ``(res_beta)``
             alphas (`jax.numpy.ndarray`): array of shape ``(res_alpha)``
-            sh_y (`jax.numpy.ndarray`): array of shape ``(res_beta, (lmax + 1)(lmax + 2)/2)``
+            sh_y (`jax.numpy.ndarray`): array of shape ``(res_beta, lmax + 1, lmax + 1)``
             sh_alpha (`jax.numpy.ndarray`): array of shape ``(res_alpha, 2 * lmax + 1)``
             qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
     """
@@ -1140,7 +1140,7 @@ def _spherical_harmonics_s2grid(
         lambda x: jnp.asarray(x, dtype), (y, alphas, qw)
     )
     sh_alpha = _sh_alpha(lmax, alphas)  # [..., 2 * l + 1]
-    sh_y = _sh_beta(lmax, y)  # [..., (lmax + 1) * (lmax + 2) // 2]
+    sh_y = _sh_beta(lmax, y)  # [..., l, m]
     return y, alphas, sh_y, sh_alpha, qw
 
 
@@ -1296,19 +1296,20 @@ def _expand_matrix(ls: List[int]) -> np.ndarray:
     return m
 
 
-def _rollout_sh(m: jnp.ndarray, lmax: int) -> jnp.ndarray:
+def _rollout_sh(input: jnp.ndarray, lmax: int) -> jnp.ndarray:
     """
-    Expand spherical harmonic representation.
-    Args:
-        m (`jax.numpy.ndarray`): of shape (..., (lmax+1)*(lmax+2)/2)
-    Returns:
-        `jax.numpy.ndarray`: of shape (..., (lmax+1)**2)
+    Input:
+        [[(0,0)            ]       l=0
+         [(1,0) (1,1)      ]       l=1
+         [(2,0) (2,1) (2,2)]]      l=2
+    Output:
+        [(0,0) (1,1) (1,0) (1,1) (2,2) (2,1) (2,0) (2,1) (2,2)]
     """
-    assert m.shape[-1] == (lmax + 1) * (lmax + 2) // 2
-    m_full = jnp.zeros((*m.shape[:-1], (lmax + 1) ** 2), dtype=m.dtype)
+    assert input.shape[-2] == lmax + 1  # l
+    assert input.shape[-1] == lmax + 1  # abs(m)
+    outout = jnp.zeros((*input.shape[:-2], (lmax + 1) ** 2), dtype=input.dtype)
     for l in range(lmax + 1):
-        i_mid = l**2 + l
-        for i in range(l + 1):
-            m_full = m_full.at[..., i_mid + i].set(m[..., l * (l + 1) // 2 + i])
-            m_full = m_full.at[..., i_mid - i].set(m[..., l * (l + 1) // 2 + i])
-    return m_full
+        for m in range(l + 1):
+            outout = outout.at[..., l**2 + l + m].set(input[..., l, m])
+            outout = outout.at[..., l**2 + l - m].set(input[..., l, m])
+    return outout
