@@ -374,92 +374,10 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
     """
     x = jnp.asarray(x)
 
-    # It happens that jax has an implementation of the legendre function:
-    # = e3nn.legendre(l, x, phase=phase)[l * (l + 1) // 2 + m]
-    # = (-phase)**m * jax.scipy.special.lpmn_values(l, l, x, False)[m][l]
-
     p = jax.scipy.special.lpmn_values(lmax, lmax, x.flatten(), False)  # [m, l, x]
     p = (-phase) ** jnp.arange(lmax + 1)[:, None, None] * p
     p = jnp.transpose(p, (1, 0, 2))  # [l, m, x]
-    # l, m = jnp.tril_indices(lmax + 1)
-    # p = p[l, m]
     p = jnp.reshape(p, (lmax + 1, lmax + 1) + x.shape)
-    return p
-
-    # This old implementation is
-    # - slower on GPU
-    # - does not support Reverse-mode differentiation because of the fori_loop
-
-    # following code inspired by: https://github.com/SHTOOLS/SHTOOLS/blob/master/src/PlmBar.f95
-    p = jnp.zeros(((lmax + 1) * (lmax + 2) // 2,) + x.shape, x.dtype)
-
-    scalef = {
-        jnp.dtype("float32"): 1e-35,
-        jnp.dtype("float64"): 1e-280,
-    }[x.dtype]
-
-    def k(l, m):
-        return l * (l + 1) // 2 + m
-
-    def f1(l, m):
-        return (2 * l - 1) / (l - m)
-
-    def f2(l, m):
-        return (l + m - 1) / (l - m)
-
-    # Calculate P(l,0). These are not scaled.
-    u = jnp.sqrt((1.0 - x) * (1.0 + x))  # sin(theta)
-
-    p = p.at[k(0, 0)].set(1.0)
-    if lmax == 0:
-        return p
-
-    p = p.at[k(1, 0)].set(x)
-
-    p = jax.lax.fori_loop(
-        2,
-        lmax + 1,
-        lambda l, p: p.at[k(l, 0)].set(
-            f1(l, 0) * x * p[k(l - 1, 0)] - f2(l, 0) * p[k(l - 2, 0)]
-        ),
-        p,
-    )
-
-    # Calculate P(m,m), P(m+1,m), and P(l,m)
-    def g(m, vals):
-        p, pmm, rescalem = vals
-        rescalem = rescalem * u
-
-        # Calculate P(m,m)
-        pmm = phase * (2 * m - 1) * pmm
-        p = p.at[k(m, m)].set(pmm)
-
-        # Calculate P(m+1,m)
-        p = p.at[k(m + 1, m)].set(x * (2 * m + 1) * pmm)
-
-        # Calculate P(l,m)
-        def f(l, p):
-            p = p.at[k(l, m)].set(
-                f1(l, m) * x * p[k(l - 1, m)] - f2(l, m) * p[k(l - 2, m)]
-            )
-            p = p.at[k(l - 2, m)].multiply(rescalem)
-            return p
-
-        p = jax.lax.fori_loop(m + 2, lmax + 1, f, p)
-
-        p = p.at[k(lmax - 1, m)].multiply(rescalem)
-        p = p.at[k(lmax, m)].multiply(rescalem)
-
-        return p, pmm, rescalem
-
-    pmm = scalef  # P(0,0) * scalef
-    rescalem = jnp.ones_like(x) / scalef
-    p, pmm, rescalem = jax.lax.fori_loop(1, lmax, g, (p, pmm, rescalem))
-
-    # Calculate P(lmax,lmax)
-    rescalem = rescalem * u
-    p = p.at[k(lmax, lmax)].set(phase * (2 * lmax - 1) * pmm * rescalem)
-
     return p
 
 
@@ -509,7 +427,8 @@ def _sh_beta(lmax: int, cos_betas: jnp.ndarray) -> jnp.ndarray:
             [
                 math.sqrt(
                     fractions.Fraction(
-                        (2 * l + 1) * math.factorial(abs(l - m)), 4 * math.factorial(l + m)
+                        (2 * l + 1) * math.factorial(abs(l - m)),
+                        4 * math.factorial(l + m),
                     )
                     / math.pi
                 )
