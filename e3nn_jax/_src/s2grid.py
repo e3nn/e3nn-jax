@@ -969,10 +969,8 @@ def legendre_transform(
         lmax, x.res_beta, x.res_alpha, quadrature=x.quadrature, dtype=x.dtype
     )
     n = _normalization(lmax, "integral", x.dtype, "from_s2", lmax)
-    sh_y = _rollout_sh(sh_y, lmax)
 
-    m0_indices = jnp.cumsum(jnp.arange(lmax + 1) * 2)
-    sh_y_m0 = sh_y[:, m0_indices]
+    sh_y_m0 = sh_y[:, :, 0]
     sh_y_qw_m0 = jnp.einsum("bi,i,b->bi", sh_y_m0, n, qw)
 
     int_a_m0 = x.grid_values.sum(axis=-1) / x.res_alpha
