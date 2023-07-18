@@ -974,7 +974,10 @@ def legendre_transform(
     sh_y_qw_m0 = jnp.einsum("bi,i,b->bi", sh_y_m0, n, qw)
 
     int_a_m0 = x.grid_values.sum(axis=-1) / x.res_alpha
-    x_prime = jnp.einsum("bi,...b->...i", sh_y_qw_m0, int_a_m0)  # TODO should I be returning an IrrepsArray?
+    x_prime = jnp.einsum("bi,...b->...i", sh_y_qw_m0, int_a_m0)
+    x_prime_arr = jnp.zeros((lmax+1, lmax+1)).at[:,0].set(x_prime)
+
+    return e3nn.IrrepsArray(irreps, _rollout_sh(x_prime_arr, lmax))
 
 
 def to_s2point(
