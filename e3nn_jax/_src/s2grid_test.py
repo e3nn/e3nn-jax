@@ -32,14 +32,25 @@ def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
     assert a.irreps == b.irreps
     np.testing.assert_allclose(a.array, b.array, rtol=1e-5, atol=1e-5)
 
+
+@pytest.mark.parametrize(
+    "irreps", ["0e", "0e + 1o", "1o + 2e", "2e + 0e", e3nn.s2_irreps(4)]
+)
+@pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
+@pytest.mark.parametrize("fft_to", [False, True])
+def test_legendre_transforms(keys, irreps, quadrature, fft_to,):
+    res_beta, res_alpha = 30, 51
+    a = e3nn.normal(irreps, keys[0])
     a_grid = e3nn.to_s2grid(
-        a, 30, 51, quadrature=quadrature, fft=fft_to, p_val=1, p_arg=-1
+        a, res_beta, res_alpha, quadrature=quadrature, fft=fft_to, p_val=1, p_arg=-1
     )
-    res_m0 = e3nn.legendre_transform(
-        a_grid.grid_values.sum(axis=-1) / 51,
+    a_beta = a_grid.grid_values.sum(axis=-1) / res_alpha
+
+    res_m0 = e3nn.legendre_transform_from_s2grid(
+        a_beta,
         irreps,
-        30,
-        51,
+        res_beta,
+        res_alpha,
         quadrature=quadrature,
         normalization="integral",
     )
@@ -55,6 +66,15 @@ def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
     np.testing.assert_allclose(
         a.array[m0_indices,], irrepsarray_m0.array[m0_indices,], rtol=1e-5, atol=1e-5
     )
+
+    signal_beta = e3nn.legendre_transform_to_s2grid(
+        res_m0,
+        res_beta,
+        res_alpha,
+        quadrature=quadrature,
+        normalization="integral",
+    )
+    np.testing.assert_allclose(a_beta, signal_beta, rtol=1e-5, atol=1e-5)
 
 
 def test_fft(keys):

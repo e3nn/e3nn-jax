@@ -934,7 +934,42 @@ def to_s2grid(
     return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
 
 
-def legendre_transform(
+def legendre_transform_to_s2grid(
+    coeffs: jnp.ndarray,
+    res_beta: int,
+    res_alpha: int,
+    *,
+    quadrature: str,
+    normalization: str = "integral",
+) -> jnp.ndarray:
+    r"""Sample a signal along `beta` on the sphere given by the m=0 coefficients in the spherical harmonics basis.
+
+    The inverse transformation of :func:`legendre_transform_from_s2grid`
+
+    Args:
+        coeffs (`jnp.ndarray`): coefficient array of shape ``(lmax+1,)``
+        res_beta (int): number of points on the sphere in the :math:`\theta` direction
+        res_alpha (int): number of points on the sphere in the :math:`\phi` direction
+        normalization ({'norm', 'component', 'integral'}): normalization of the basis
+        quadrature (str): "soft" or "gausslegendre"
+
+    Returns:
+        `jnp.ndarray`: signal on the sphere of shape ``(y/beta,)``
+    """
+    lmax = coeffs.shape[0] - 1
+
+    _, _, sh_y, _, _ = _spherical_harmonics_s2grid(
+        lmax, res_beta, res_alpha, quadrature=quadrature, dtype=coeffs.dtype
+    )
+
+    n = _normalization(lmax, normalization, coeffs.dtype, "to_s2")
+    sh_y_m0 = sh_y[:, :, 0]
+    sh_y_qw_m0 = jnp.einsum("bi,i->bi", sh_y_m0, n)
+
+    return jnp.einsum("bi,...i->...b", sh_y_qw_m0, coeffs)
+
+
+def legendre_transform_from_s2grid(
     x_beta: jnp.ndarray,
     irreps: e3nn.Irreps,
     res_beta: int,
@@ -946,7 +981,7 @@ def legendre_transform(
     r"""
     Transform signal on the sphere, and return the m=0 spherical harmonic components.
     Args:
-        x_beta (`SphericalSignal`): signal on the sphere along beta; shape ``(y/beta,)``
+        x_beta (`jnp.ndarray`): signal on the sphere along beta; shape ``(y/beta,)``
         irreps (`Irreps`): irreps of the coefficients
         res_beta (int)
         res_alpha (int)
