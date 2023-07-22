@@ -4,7 +4,12 @@ import numpy as np
 import pytest
 
 import e3nn_jax as e3nn
-from e3nn_jax._src.s2grid import _irfft, _rfft, _spherical_harmonics_s2grid
+from e3nn_jax._src.s2grid import (
+    _irfft,
+    _rfft,
+    _spherical_harmonics_s2grid,
+    m0_values_to_irrepsarray,
+)
 from e3nn_jax.utils import assert_output_dtype_matches_input_dtype
 
 
@@ -26,6 +31,30 @@ def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
     b = f(a)
     assert a.irreps == b.irreps
     np.testing.assert_allclose(a.array, b.array, rtol=1e-5, atol=1e-5)
+
+    a_grid = e3nn.to_s2grid(
+        a, 30, 51, quadrature=quadrature, fft=fft_to, p_val=1, p_arg=-1
+    )
+    res_m0 = e3nn.legendre_transform(
+        a_grid.grid_values.sum(axis=-1) / 51,
+        irreps,
+        30,
+        51,
+        quadrature=quadrature,
+        normalization="integral",
+    )
+    irreps = e3nn.Irreps(irreps)
+    m0_indices = jnp.cumsum(jnp.repeat(jnp.asarray(irreps.ls), 2))[::2] + jnp.arange(
+        len(irreps.ls)
+    )
+    np.testing.assert_allclose(
+        a.array[m0_indices,], res_m0[irreps.ls,], rtol=1e-5, atol=1e-5
+    )
+    irrepsarray_m0 = m0_values_to_irrepsarray(res_m0, irreps)
+    assert a.irreps == irrepsarray_m0.irreps
+    np.testing.assert_allclose(
+        a.array[m0_indices,], irrepsarray_m0.array[m0_indices,], rtol=1e-5, atol=1e-5
+    )
 
 
 def test_fft(keys):

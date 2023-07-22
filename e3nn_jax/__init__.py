@@ -100,6 +100,7 @@ from e3nn_jax._src.s2grid import (
     to_s2grid,
     to_s2point,
     from_s2grid,
+    legendre_transform,
     s2_dirac,
     SphericalSignal,
 )
@@ -207,6 +208,7 @@ __all__ = [
     "to_s2grid",
     "to_s2point",
     "from_s2grid",
+    "legendre_transform",
     "s2_dirac",
     "SphericalSignal",
     "tensor_product_with_spherical_harmonics",
