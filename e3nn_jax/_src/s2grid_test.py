@@ -9,6 +9,7 @@ from e3nn_jax._src.s2grid import (
     _rfft,
     _spherical_harmonics_s2grid,
     m0_values_to_irrepsarray,
+    betas_to_spherical_signal,
 )
 from e3nn_jax.utils import assert_output_dtype_matches_input_dtype
 
@@ -64,7 +65,6 @@ def test_legendre_transforms(
         a_beta,
         lmax,
         res_beta,
-        res_alpha,
         quadrature=quadrature,
         normalization="integral",
     )
@@ -81,11 +81,20 @@ def test_legendre_transforms(
     signal_beta = e3nn.legendre_transform_to_s2grid(
         res_m0,
         res_beta,
-        res_alpha,
         quadrature=quadrature,
         normalization="integral",
     )
     np.testing.assert_allclose(a_beta, signal_beta, rtol=1e-5, atol=1e-5)
+
+
+@pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
+def test_betas_to_spherical_signal(quadrature, keys):
+    x_beta = jax.random.uniform(keys[0], shape=(30,))
+    x_beta_batch = jax.random.uniform(keys[0], shape=(3, 30))
+    signal1 = betas_to_spherical_signal(x_beta, 51, quadrature=quadrature)
+    signal2 = betas_to_spherical_signal(x_beta_batch, 51, quadrature=quadrature)
+    assert signal1.shape == (30, 51)
+    assert signal2.shape == (3, 30, 51)
 
 
 def test_fft(keys):
