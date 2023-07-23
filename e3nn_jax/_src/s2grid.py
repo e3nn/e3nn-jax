@@ -1000,7 +1000,7 @@ def legendre_transform_from_s2grid(
     return x_prime
 
 
-def betas_to_spherical_signal(x_beta, res_alpha, *, quadrature) -> e3nn.SphericalSignal:
+def betas_to_spherical_signal(x_beta, res_alpha, *, quadrature) -> SphericalSignal:
     """
     Convert signals along beta to a SphericalSignal symmetric about alpha.
 
@@ -1009,7 +1009,7 @@ def betas_to_spherical_signal(x_beta, res_alpha, *, quadrature) -> e3nn.Spherica
         res_alpha (int)
         quadrature (str): either "soft" or "gausslegendre"
     Returns:
-        `e3nn.SphericalSignal`: signal on the sphere of shape ``(y/beta, alpha)``
+        `SphericalSignal`: signal on the sphere of shape ``(y/beta, alpha)``
     """
     return SphericalSignal(
         jnp.repeat(jnp.expand_dims(x_beta, axis=-1), res_alpha, axis=-1), quadrature
