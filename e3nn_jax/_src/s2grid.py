@@ -971,7 +971,7 @@ def legendre_transform_to_s2grid(
 
 def legendre_transform_from_s2grid(
     x_beta: jnp.ndarray,
-    irreps: e3nn.Irreps,
+    lmax: int,
     res_beta: int,
     res_alpha: int,
     *,
@@ -982,7 +982,7 @@ def legendre_transform_from_s2grid(
     Transform signal on the sphere, and return the m=0 spherical harmonic components.
     Args:
         x_beta (`jnp.ndarray`): signal on the sphere along beta; shape ``(y/beta,)``
-        irreps (`Irreps`): irreps of the coefficients
+        lmax (int): maximum l of the resulting irreps
         res_beta (int)
         res_alpha (int)
         quadrature (str): "soft" or "gausslegendre"
@@ -991,13 +991,7 @@ def legendre_transform_from_s2grid(
     Returns:
         `jnp.ndarray`: coefficient array of shape ``(..., lmax+1)``
     """
-    irreps = e3nn.Irreps(irreps)
     assert res_beta == x_beta.shape[0]
-
-    if not all(mul == 1 for mul, _ in irreps.regroup()):
-        raise ValueError("multiplicities should be ones")
-
-    lmax = max(irreps.ls)
 
     _, _, sh_y, _, qw = _spherical_harmonics_s2grid(
         lmax, res_beta, res_alpha, quadrature=quadrature, dtype=x_beta.dtype
@@ -1028,21 +1022,24 @@ def betas_to_spherical_signal(x_beta, res_beta, res_alpha, *, quadrature):
     )
 
 
-def m0_values_to_irrepsarray(m0_values, irreps):
+def m0_values_to_irrepsarray(m0_values, lmax, p_val, p_arg):
     """
     Convert m=0 spherical harmonic components to an IrrepsArray.
 
     Args:
         m0_values (`jnp.ndarray`): values along m=0, shape (lmax+1,)
-        irreps (`e3nn.Irreps`): irreps to convert to
+        lmax (int): maximum l of the resulting irreps
+        p_val (int): parity of the value of the signal
+        p_arg (int): parity of the argument of the signal
     Returns:
         `e3nn.IrrepsArray`: IrrepsArray with `irreps` and values `m0_values`
     """
-    m0_indices = jnp.cumsum(jnp.repeat(jnp.asarray(irreps.ls), 2))[::2] + jnp.arange(
-        len(irreps.ls)
+    m0_indices = jnp.cumsum(jnp.repeat(jnp.arange(lmax + 1), 2))[::2] + jnp.arange(
+        lmax + 1
     )
+    irreps = s2_irreps(lmax, p_val, p_arg)
     return e3nn.IrrepsArray(
-        irreps, jnp.zeros(irreps.dim).at[m0_indices,].set(m0_values[irreps.ls,])
+        irreps, jnp.zeros((lmax + 1) ** 2).at[m0_indices,].set(m0_values)
     )
 
 

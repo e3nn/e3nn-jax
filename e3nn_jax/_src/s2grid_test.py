@@ -33,35 +33,46 @@ def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
     np.testing.assert_allclose(a.array, b.array, rtol=1e-5, atol=1e-5)
 
 
-@pytest.mark.parametrize(
-    "irreps", ["0e", "0e + 1o", "1o + 2e", "2e + 0e", e3nn.s2_irreps(4)]
-)
+@pytest.mark.parametrize("lmax", [0, 1, 2, 3])
+@pytest.mark.parametrize("p_val", [1, -1])
+@pytest.mark.parametrize("p_arg", [1, -1])
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
 @pytest.mark.parametrize("fft_to", [False, True])
-def test_legendre_transforms(keys, irreps, quadrature, fft_to,):
+def test_legendre_transforms(
+    keys,
+    lmax,
+    p_val,
+    p_arg,
+    quadrature,
+    fft_to,
+):
     res_beta, res_alpha = 30, 51
+    irreps = e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg)
     a = e3nn.normal(irreps, keys[0])
     a_grid = e3nn.to_s2grid(
-        a, res_beta, res_alpha, quadrature=quadrature, fft=fft_to, p_val=1, p_arg=-1
+        a,
+        res_beta,
+        res_alpha,
+        quadrature=quadrature,
+        fft=fft_to,
+        p_val=p_val,
+        p_arg=p_arg,
     )
     a_beta = a_grid.grid_values.sum(axis=-1) / res_alpha
 
     res_m0 = e3nn.legendre_transform_from_s2grid(
         a_beta,
-        irreps,
+        lmax,
         res_beta,
         res_alpha,
         quadrature=quadrature,
         normalization="integral",
     )
-    irreps = e3nn.Irreps(irreps)
-    m0_indices = jnp.cumsum(jnp.repeat(jnp.asarray(irreps.ls), 2))[::2] + jnp.arange(
-        len(irreps.ls)
+    m0_indices = jnp.cumsum(jnp.repeat(jnp.arange(lmax + 1), 2))[::2] + jnp.arange(
+        lmax + 1
     )
-    np.testing.assert_allclose(
-        a.array[m0_indices,], res_m0[irreps.ls,], rtol=1e-5, atol=1e-5
-    )
-    irrepsarray_m0 = m0_values_to_irrepsarray(res_m0, irreps)
+    np.testing.assert_allclose(a.array[m0_indices,], res_m0, rtol=1e-5, atol=1e-5)
+    irrepsarray_m0 = m0_values_to_irrepsarray(res_m0, lmax, p_val, p_arg)
     assert a.irreps == irrepsarray_m0.irreps
     np.testing.assert_allclose(
         a.array[m0_indices,], irrepsarray_m0.array[m0_indices,], rtol=1e-5, atol=1e-5
