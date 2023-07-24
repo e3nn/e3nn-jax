@@ -934,6 +934,109 @@ def to_s2grid(
     return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
 
 
+def legendre_transform_to_s2grid(
+    coeffs: jnp.ndarray,
+    res_beta: int,
+    *,
+    quadrature: str,
+    normalization: str = "integral",
+) -> jnp.ndarray:
+    r"""Sample a signal along `beta` on the sphere given by the m=0 coefficients in the spherical harmonics basis.
+
+    The inverse transformation of :func:`legendre_transform_from_s2grid`
+
+    Args:
+        coeffs (`jnp.ndarray`): coefficient array of shape ``(lmax+1,)``
+        res_beta (int): number of points on the sphere in the :math:`\theta` direction
+        normalization ({'norm', 'component', 'integral'}): normalization of the basis
+        quadrature (str): "soft" or "gausslegendre"
+
+    Returns:
+        `jnp.ndarray`: signal on the sphere of shape ``(y/beta,)``
+    """
+    lmax = coeffs.shape[0] - 1
+
+    y, _ = _quadrature_weights(res_beta, quadrature=quadrature)
+    sh_y = _sh_beta(lmax, y)
+
+    n = _normalization(lmax, normalization, coeffs.dtype, "to_s2")
+    sh_y_m0 = sh_y[:, :, 0]
+    sh_y_qw_m0 = jnp.einsum("bi,i->bi", sh_y_m0, n)
+
+    return jnp.einsum("bi,...i->...b", sh_y_qw_m0, coeffs)
+
+
+def legendre_transform_from_s2grid(
+    x_beta: jnp.ndarray,
+    lmax: int,
+    res_beta: int,
+    *,
+    quadrature: str,
+    normalization: str = "integral",
+) -> jnp.ndarray:
+    r"""
+    Transform signal on the sphere, and return the m=0 spherical harmonic components.
+    Args:
+        x_beta (`jnp.ndarray`): signal on the sphere along beta; shape ``(y/beta,)``
+        lmax (int): maximum l of the resulting irreps
+        res_beta (int): number of points on the sphere in the :math:`\theta` direction
+        quadrature (str): "soft" or "gausslegendre"
+        normalization ({'norm', 'component', 'integral'}): normalization of the spherical harmonics basis
+
+    Returns:
+        `jnp.ndarray`: coefficient array of shape ``(..., lmax+1)``
+    """
+    assert res_beta == x_beta.shape[0]
+
+    y, qw = _quadrature_weights(res_beta, quadrature=quadrature)
+    sh_y = _sh_beta(lmax, y)
+
+    n = _normalization(lmax, normalization, x_beta.dtype, "from_s2", lmax)
+
+    sh_y_m0 = sh_y[:, :, 0]
+    sh_y_qw_m0 = jnp.einsum("bi,i,b->bi", sh_y_m0, n, qw)
+
+    x_prime = jnp.einsum("bi,...b->...i", sh_y_qw_m0, x_beta)
+    return x_prime
+
+
+def betas_to_spherical_signal(x_beta, res_alpha, *, quadrature) -> SphericalSignal:
+    """
+    Convert signals along beta to a SphericalSignal symmetric about alpha.
+
+    Args:
+        x_beta (`jnp.ndarray`): signal on the sphere along beta; shape ``(...,y/beta)``
+        res_alpha (int)
+        quadrature (str): either "soft" or "gausslegendre"
+    Returns:
+        `SphericalSignal`: signal on the sphere of shape ``(y/beta, alpha)``
+    """
+    return SphericalSignal(
+        jnp.repeat(jnp.expand_dims(x_beta, axis=-1), res_alpha, axis=-1), quadrature
+    )
+
+
+def m0_values_to_irrepsarray(m0_values, lmax, p_val, p_arg) -> e3nn.IrrepsArray:
+    """
+    Convert m=0 spherical harmonic components to an IrrepsArray.
+
+    Args:
+        m0_values (`jnp.ndarray`): values along m=0, shape (lmax+1,)
+        lmax (int): maximum l of the resulting irreps
+        p_val (int): parity of the value of the signal
+        p_arg (int): parity of the argument of the signal
+    Returns:
+        `e3nn.IrrepsArray`: IrrepsArray with `irreps` and values `m0_values`
+    """
+    m0_indices = jnp.cumsum(jnp.repeat(jnp.arange(lmax + 1), 2))[::2] + jnp.arange(
+        lmax + 1
+    )
+    irreps = s2_irreps(lmax, p_val, p_arg)
+    return e3nn.IrrepsArray(
+        irreps, jnp.zeros((lmax + 1) ** 2).at[m0_indices,].set(m0_values)
+    )
+
+
 def to_s2point(
     coeffs: e3nn.IrrepsArray,
     point: e3nn.IrrepsArray,
@@ -1047,21 +1150,36 @@ def _s2grid(
             qw (`numpy.ndarray`): array of shape ``(res_beta)``, ``sum(qw) = 1``
     """
 
+    y, qw = _quadrature_weights(res_beta, quadrature=quadrature)
+
+    i = np.arange(res_alpha)
+    alpha = i / res_alpha * 2 * np.pi
+    return y, alpha, qw
+
+
+def _quadrature_weights(res_beta: int, *, quadrature: str):
+    r"""Returns quadrature weights for the grid on the sphere.
+
+    Args:
+        res_beta (int): :math:`N`
+        quadrature (str): "soft" or "gausslegendre"
+
+    Returns:
+        (tuple): tuple containing:
+            y (`numpy.ndarray`): array of shape ``(res_beta)``
+            qw (`numpy.ndarray`): array of shape ``(res_beta)``, ``sum(qw) = 1``
+    """
     if quadrature == "soft":
         i = np.arange(res_beta)
         betas = (i + 0.5) / res_beta * np.pi
         y = -np.cos(betas)  # minus sign is here to go from -1 to 1 in both quadratures
-
         qw = _quadrature_weights_soft(res_beta)
     elif quadrature == "gausslegendre":
         y, qw = np.polynomial.legendre.leggauss(res_beta)
     else:
         raise Exception("quadrature needs to be 'soft' or 'gausslegendre'")
-
     qw /= 2.0
-    i = np.arange(res_alpha)
-    alpha = i / res_alpha * 2 * np.pi
-    return y, alpha, qw
+    return y, qw
 
 
 def _spherical_harmonics_s2grid(
