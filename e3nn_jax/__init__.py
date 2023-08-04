@@ -225,5 +225,6 @@ __all__ = [
     "vmap",
     "flax",
     "haiku",
+    "equinox",
     "utils",
 ]
