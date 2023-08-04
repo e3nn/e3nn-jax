@@ -216,5 +216,6 @@ __all__ = [
     "tensor_product_with_spherical_harmonics",
     "flax",
     "haiku",
+    "equinox",
     "utils",
 ]
