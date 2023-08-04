@@ -114,7 +114,7 @@ from e3nn_jax._src.tensor_product_with_spherical_harmonics import (
 from e3nn_jax._src.utils.vmap import vmap
 
 # make submodules flax and haiku available
-from e3nn_jax import flax, haiku
+from e3nn_jax import flax, haiku, equinox
 from e3nn_jax import utils
 
 __all__ = [
