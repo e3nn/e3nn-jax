@@ -127,7 +127,6 @@ class Linear(eqx.Module):
         self.weights = {}
         for ins in self.linear.instructions:
             weight_key, key = jax.random.split(key)
-            print(ins)
             if ins.i_in == -1:
                 name = f"b[{ins.i_out}] {self.linear.irreps_out[ins.i_out]}"
             else:
