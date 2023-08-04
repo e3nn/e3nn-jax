@@ -76,7 +76,6 @@ class Linear(eqx.Module):
     force_irreps_out: bool
     linear: FunctionalLinear
     weights: Dict[str, jnp.ndarray]
-    
 
     def __init__(
         self,
@@ -114,9 +113,7 @@ class Linear(eqx.Module):
         if self.force_irreps_out:
             output_irreps = e3nn.Irreps(self.irreps_out).simplify()
         else:
-            output_irreps_unsimplified = e3nn.Irreps(self.irreps_out).filter(
-                irreps_in
-            )
+            output_irreps_unsimplified = e3nn.Irreps(self.irreps_out).filter(irreps_in)
             output_irreps = output_irreps_unsimplified.simplify()
 
         self.linear = FunctionalLinear(
@@ -140,7 +137,6 @@ class Linear(eqx.Module):
                 ins.path_shape,
                 input_dtype,
             )
-
 
     def __call__(self, weights_or_input, input_or_none=None) -> e3nn.IrrepsArray:
         """Apply the linear operator.

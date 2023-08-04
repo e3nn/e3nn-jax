@@ -1231,8 +1231,10 @@ def m0_values_to_irrepsarray(m0_values, lmax, p_val, p_arg) -> e3nn.IrrepsArray:
     irreps = s2_irreps(lmax, p_val, p_arg)
     return e3nn.IrrepsArray(
         irreps,
-        jnp.zeros((*m0_values.shape[:-1], (lmax + 1) ** 2))
-        .at[:, m0_indices]
+        jnp.zeros((lmax + 1) ** 2)
+        .at[
+            m0_indices,
+        ]
         .set(m0_values),
     )
 
