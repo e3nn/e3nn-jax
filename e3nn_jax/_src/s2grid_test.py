@@ -39,7 +39,7 @@ def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
 @pytest.mark.parametrize("p_arg", [1, -1])
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
 @pytest.mark.parametrize("fft_to", [False, True])
-@pytest.mark.parametrize("n_channels", [1, 2])
+@pytest.mark.parametrize("batch_size", [1, 2])
 def test_legendre_transforms(
     keys,
     lmax,
@@ -47,12 +47,11 @@ def test_legendre_transforms(
     p_arg,
     quadrature,
     fft_to,
-    n_channels
+    batch_size
 ):
     res_beta, res_alpha = 30, 51
     irreps = e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg)
-    # a = e3nn.normal(irreps, keys[0])
-    a = e3nn.IrrepsArray(irreps, jax.random.normal(keys[0], (n_channels, irreps.dim,)))
+    a = e3nn.IrrepsArray(irreps, jax.random.normal(keys[0], (batch_size, irreps.dim,)))
     a_grid = e3nn.to_s2grid(
         a,
         res_beta,
