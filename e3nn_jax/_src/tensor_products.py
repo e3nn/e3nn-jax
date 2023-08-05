@@ -36,6 +36,14 @@ def _validate_filter_ir_out(filter_ir_out):
         filter_ir_out = [e3nn.Irrep(ir) for ir in filter_ir_out]
     return filter_ir_out
 
+# Cache CG coefficients outside of function 
+cg_coeffs = {}
+
+def get_cg(l1, l2, l3):
+  key = (l1, l2, l3)
+  if key not in cg_coeffs:
+    cg_coeffs[key] = e3nn.clebsch_gordan(l1, l2, l3) 
+  return cg_coeffs[key]
 
 @overload_for_irreps_without_array((0, 1))
 def tensor_product(
@@ -105,7 +113,7 @@ def tensor_product(
                 irreps_out.append((mul_1 * mul_2, ir_out))
 
                 if x1 is not None and x2 is not None:
-                    cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
+                    cg = get_cg(ir_1.l, ir_2.l, ir_out.l)
 
                     if irrep_normalization == "component":
                         cg = cg * jnp.sqrt(ir_out.dim)
