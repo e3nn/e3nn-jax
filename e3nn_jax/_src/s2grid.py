@@ -954,7 +954,7 @@ def legendre_transform_to_s2grid(
     Returns:
         `jnp.ndarray`: signal on the sphere of shape ``(y/beta,)``
     """
-    lmax = coeffs.shape[0] - 1
+    lmax = coeffs.shape[-1] - 1
 
     y, _ = _quadrature_weights(res_beta, quadrature=quadrature)
     sh_y = _sh_beta(lmax, y)
@@ -986,7 +986,7 @@ def legendre_transform_from_s2grid(
     Returns:
         `jnp.ndarray`: coefficient array of shape ``(..., lmax+1)``
     """
-    assert res_beta == x_beta.shape[0]
+    assert res_beta == x_beta.shape[-1]
 
     y, qw = _quadrature_weights(res_beta, quadrature=quadrature)
     sh_y = _sh_beta(lmax, y)
@@ -1021,7 +1021,7 @@ def m0_values_to_irrepsarray(m0_values, lmax, p_val, p_arg) -> e3nn.IrrepsArray:
     Convert m=0 spherical harmonic components to an IrrepsArray.
 
     Args:
-        m0_values (`jnp.ndarray`): values along m=0, shape (lmax+1,)
+        m0_values (`jnp.ndarray`): values along m=0, shape (..., lmax+1)
         lmax (int): maximum l of the resulting irreps
         p_val (int): parity of the value of the signal
         p_arg (int): parity of the argument of the signal
@@ -1033,7 +1033,10 @@ def m0_values_to_irrepsarray(m0_values, lmax, p_val, p_arg) -> e3nn.IrrepsArray:
     )
     irreps = s2_irreps(lmax, p_val, p_arg)
     return e3nn.IrrepsArray(
-        irreps, jnp.zeros((lmax + 1) ** 2).at[m0_indices,].set(m0_values)
+        irreps,
+        jnp.zeros((*m0_values.shape[:-1], (lmax + 1) ** 2))
+        .at[:, m0_indices,]
+        .set(m0_values),
     )
 
 
