@@ -40,18 +40,10 @@ def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
 @pytest.mark.parametrize("quadrature", ["soft", "gausslegendre"])
 @pytest.mark.parametrize("fft_to", [False, True])
 @pytest.mark.parametrize("batch_size", [1, 2])
-def test_legendre_transforms(
-    keys,
-    lmax,
-    p_val,
-    p_arg,
-    quadrature,
-    fft_to,
-    batch_size
-):
+def test_legendre_transforms(keys, lmax, p_val, p_arg, quadrature, fft_to, batch_size):
     res_beta, res_alpha = 30, 51
     irreps = e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg)
-    a = e3nn.IrrepsArray(irreps, jax.random.normal(keys[0], (batch_size, irreps.dim,)))
+    a = e3nn.IrrepsArray(irreps, jax.random.normal(keys[0], (batch_size, irreps.dim)))
     a_grid = e3nn.to_s2grid(
         a,
         res_beta,
@@ -73,11 +65,14 @@ def test_legendre_transforms(
     m0_indices = jnp.cumsum(jnp.repeat(jnp.arange(lmax + 1), 2))[::2] + jnp.arange(
         lmax + 1
     )
-    np.testing.assert_allclose(a.array[:, m0_indices,], res_m0, rtol=1e-5, atol=1e-5)
+    np.testing.assert_allclose(a.array[:, m0_indices], res_m0, rtol=1e-5, atol=1e-5)
     irrepsarray_m0 = m0_values_to_irrepsarray(res_m0, lmax, p_val, p_arg)
     assert a.irreps == irrepsarray_m0.irreps
     np.testing.assert_allclose(
-        a.array[:, m0_indices,], irrepsarray_m0.array[:, m0_indices,], rtol=1e-5, atol=1e-5
+        a.array[:, m0_indices],
+        irrepsarray_m0.array[:, m0_indices],
+        rtol=1e-5,
+        atol=1e-5,
     )
 
     signal_beta = e3nn.legendre_transform_to_s2grid(
