@@ -1035,7 +1035,7 @@ def m0_values_to_irrepsarray(m0_values, lmax, p_val, p_arg) -> e3nn.IrrepsArray:
     return e3nn.IrrepsArray(
         irreps,
         jnp.zeros((*m0_values.shape[:-1], (lmax + 1) ** 2))
-        .at[:, m0_indices,]
+        .at[:, m0_indices]
         .set(m0_values),
     )
 
