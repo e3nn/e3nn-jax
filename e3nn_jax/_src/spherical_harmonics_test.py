@@ -64,7 +64,8 @@ def test_normalization_integral(keys, algorithm, l):
         ).array
         ** 2
     )
-    assert abs((4 * jnp.pi) * n - 1) < 7e-7 * max((l / 4) ** 8, 1)
+
+    np.testing.assert_allclose((4 * jnp.pi) * n, 1, atol=7e-7 * max((l / 4) ** 8, 1))
 
 
 @pytest.mark.parametrize("l", range(13 + 1))
