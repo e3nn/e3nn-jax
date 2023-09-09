@@ -70,5 +70,7 @@ class _VIA:
 jax.tree_util.register_pytree_node(
     _VIA,
     lambda x: ((x.a.array, x.a._chunks), (x.a.irreps, x.a.zero_flags)),
-    lambda attrs, data: _VIA(e3nn.IrrepsArray(attrs[0], data[0], zero_flags=attrs[1], chunks=data[1])),
+    lambda attrs, data: _VIA(
+        e3nn.IrrepsArray(attrs[0], data[0], zero_flags=attrs[1], chunks=data[1])
+    ),
 )
