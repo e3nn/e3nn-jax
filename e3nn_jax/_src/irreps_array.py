@@ -290,7 +290,16 @@ class IrrepsArray:
             )
 
         zero_flags = tuple(x and y for x, y in zip(self.zero_flags, other.zero_flags))
-        return IrrepsArray(self.irreps, self.array + other.array, zero_flags=zero_flags)
+        chunks = None
+        if self._chunks is not None and other._chunks is not None:
+            chunks = [
+                y if x is None else x if y is None else x + y
+                for x, y in zip(self._chunks, other._chunks)
+            ]
+
+        return IrrepsArray(
+            self.irreps, self.array + other.array, zero_flags=zero_flags, chunks=chunks
+        )
 
     def __radd__(
         self: "IrrepsArray", other: Union[jnp.ndarray, float, int]
@@ -319,7 +328,16 @@ class IrrepsArray:
             )
 
         zero_flags = tuple(x and y for x, y in zip(self.zero_flags, other.zero_flags))
-        return IrrepsArray(self.irreps, self.array - other.array, zero_flags=zero_flags)
+        chunks = None
+        if self._chunks is not None and other._chunks is not None:
+            chunks = [
+                x if y is None else -y if x is None else x - y
+                for x, y in zip(self._chunks, other._chunks)
+            ]
+
+        return IrrepsArray(
+            self.irreps, self.array - other.array, zero_flags=zero_flags, chunks=chunks
+        )
 
     def __rsub__(
         self: "IrrepsArray", other: Union[jnp.ndarray, float, int]
@@ -356,7 +374,15 @@ class IrrepsArray:
                 f"IrrepsArray({self.irreps}, shape={self.shape}) * scalar(shape={other.shape}) is not equivariant."
             )
 
-        return IrrepsArray(self.irreps, self.array * other, zero_flags=self.zero_flags)
+        chunks = None
+        if self._chunks is not None:
+            chunks = [
+                x * other[..., None] if x is not None else None for x in self._chunks
+            ]
+
+        return IrrepsArray(
+            self.irreps, self.array * other, zero_flags=self.zero_flags, chunks=chunks
+        )
 
     def __rmul__(
         self: "IrrepsArray", other: jnp.ndarray
@@ -395,7 +421,15 @@ class IrrepsArray:
                 f"IrrepsArray({self.irreps}, shape={self.shape}) / scalar(shape={other.shape}) is not equivariant."
             )
 
-        return IrrepsArray(self.irreps, self.array / other, zero_flags=self.zero_flags)
+        chunks = None
+        if self._chunks is not None:
+            chunks = [
+                x / other[..., None] if x is not None else None for x in self._chunks
+            ]
+
+        return IrrepsArray(
+            self.irreps, self.array / other, zero_flags=self.zero_flags, chunks=chunks
+        )
 
     def __rtruediv__(
         self: "IrrepsArray", other: jnp.ndarray
