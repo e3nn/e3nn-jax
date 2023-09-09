@@ -30,6 +30,10 @@ def vmap(
         >>> y.zero_flags
         (False, True)
     """
+    if in_axes == -1:
+        raise ValueError("in_axes=-1 is not supported by e3nn.vmap")
+    if out_axes == -1:
+        raise ValueError("out_axes=-1 is not supported by e3nn.vmap")
 
     def to_via(x):
         return _VIA(x) if isinstance(x, e3nn.IrrepsArray) else x
@@ -65,6 +69,6 @@ class _VIA:
 
 jax.tree_util.register_pytree_node(
     _VIA,
-    lambda x: ((x.a.array,), (x.a.irreps, x.a.zero_flags)),
-    lambda attrs, data: _VIA(e3nn.IrrepsArray(attrs[0], data[0], zero_flags=attrs[1])),
+    lambda x: ((x.a.array, x.a._chunks), (x.a.irreps, x.a.zero_flags)),
+    lambda attrs, data: _VIA(e3nn.IrrepsArray(attrs[0], data[0], zero_flags=attrs[1], chunks=data[1])),
 )
