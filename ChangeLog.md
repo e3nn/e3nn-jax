@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.0] - 2023-09-09
 ### Added
 - `e3nn.Irreps.mul_gcd`
 - `e3nn.IrrepsArray.extend_with_zeros` to extend an array with zeros, can be useful for residual connections
@@ -12,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - rewrite `e3nn.tensor_square` to be simpler (and faster?)
 - use `jax.scipy.special.lpmn_values` to implement `e3nn.legendre`. Faster on GPU and supports reverse-mode differentiation.
-- **[BREAKING]** Change the output format of `e3nn.legendre`
+- **[BREAKING]** Change the output format of `e3nn.legendre`!
 
 ### Fixed
 - Add back a lazy `._chunks` in `e3nn.IrrepsArray` to fix issue #38
