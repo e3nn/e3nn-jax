@@ -37,7 +37,7 @@ def _is_none_slice(x):
     return isinstance(x, slice) and x == slice(None)
 
 
-@attrs(frozen=True, repr=False)
+@attrs(frozen=False, repr=False)
 class IrrepsArray:
     r"""Array with a representation of rotations.
 
@@ -80,6 +80,7 @@ class IrrepsArray:
     _zero_flags: Optional[Tuple[bool, ...]] = attrib(
         default=None, kw_only=True, converter=lambda x: None if x is None else tuple(x)
     )
+    _chunks: Optional[List[Optional[jnp.ndarray]]] = attrib(default=None, init=False)
 
     def __post_init__(self):
         if hasattr(self.array, "shape"):
@@ -160,25 +161,29 @@ class IrrepsArray:
             >>> all(e.shape == x.shape[:-1] + (mul, ir.dim) for (mul, ir), e in zip(x.irreps, x.chunks))
             True
         """
-        jnp = _infer_backend(self.array)
-        leading_shape = self.array.shape[:-1]
-        if self.zero_flags is None:
-            zeros = [False] * len(self.irreps)
-        else:
-            zeros = self.zero_flags
+        if self._chunks is None:
+            jnp = _infer_backend(self.array)
+            leading_shape = self.array.shape[:-1]
+            if self.zero_flags is None:
+                zeros = [False] * len(self.irreps)
+            else:
+                zeros = self.zero_flags
 
-        if len(self.irreps) == 1:
-            mul, ir = self.irreps[0]
-            if zeros[0]:
-                return [None]
-            return [jnp.reshape(self.array, leading_shape + (mul, ir.dim))]
-        else:
-            return [
-                None
-                if zero
-                else jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
-                for zero, i, (mul, ir) in zip(zeros, self.irreps.slices(), self.irreps)
-            ]
+            if len(self.irreps) == 1:
+                mul, ir = self.irreps[0]
+                if zeros[0]:
+                    self._chunks = [None]
+                else:
+                    self._chunks = [jnp.reshape(self.array, leading_shape + (mul, ir.dim))]
+            else:
+                self._chunks = [
+                    None
+                    if zero
+                    else jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
+                    for zero, i, (mul, ir) in zip(zeros, self.irreps.slices(), self.irreps)
+                ]
+
+        return self._chunks
 
     @property
     def zero_flags(self):
