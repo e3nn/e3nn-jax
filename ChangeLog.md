@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - use `jax.scipy.special.lpmn_values` to implement `e3nn.legendre`. Faster on GPU and supports reverse-mode differentiation.
 - **[BREAKING]** Change the output format of `e3nn.legendre`
 
+### Fixed
+- Add back a lazy `._chunks` in `e3nn.IrrepsArray` to fix issue #38
+
 ## [0.19.3] - 2023-06-24
 ### Fixed
 - Fix missing support for zero flags in `e3nn.elementwise_tensor_product`
