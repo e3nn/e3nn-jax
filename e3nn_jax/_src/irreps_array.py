@@ -749,6 +749,48 @@ class IrrepsArray:
         )
         return self.filter(*args, **kwargs)
 
+    def extend_with_zeros(self, new_irreps: Irreps) -> "IrrepsArray":
+        r"""Extend the array with zeros.
+
+        Args:
+            new_irreps (Irreps): new irreps, must be a superset of the current irreps
+
+        Examples:
+            >>> IrrepsArray("0e + 1o", jnp.array([1, 3, 3, 3])).extend_with_zeros("0e + 0e + 1o + 2x0e")
+            1x0e+1x0e+1x1o+2x0e [1 0 3 3 3 0 0]
+        """
+        new_irreps = Irreps(new_irreps)
+        cur_irreps = self.irreps
+
+        new_chunks = []
+        cur_chunks = self.chunks
+
+        cur_index = 0
+        new_index = 0
+        while cur_index < len(cur_irreps) and new_index < len(new_irreps):
+            if cur_irreps[cur_index] == new_irreps[new_index]:
+                new_chunks.append(cur_chunks[cur_index])
+                cur_index += 1
+                new_index += 1
+            else:
+                new_chunks.append(None)
+                new_index += 1
+
+        new_chunks.extend([None] * (len(new_irreps) - len(new_chunks)))
+
+        if cur_index < len(cur_irreps):
+            raise ValueError(
+                f"Error in IrrepsArray.extand_with_zeros, new_irreps {new_irreps} is not a superset of {self.irreps}."
+            )
+
+        return e3nn.from_chunks(
+            new_irreps,
+            new_chunks,
+            self.shape[:-1],
+            self.dtype,
+            backend=_infer_backend(self.array),
+        )
+
     @property
     def slice_by_mul(self):
         r"""Return the slice with respect to the multiplicities.

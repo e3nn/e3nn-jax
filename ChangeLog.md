@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `e3nn.Irreps.mul_gcd`
+- `e3nn.IrrepsArray.extend_with_zeros` to extend an array with zeros, can be useful for residual connections
 
 ### Changed
 - rewrite `e3nn.tensor_square` to be simpler (and faster?)
