@@ -80,7 +80,7 @@ class IrrepsArray:
     _zero_flags: Optional[Tuple[bool, ...]] = attrib(
         default=None, kw_only=True, converter=lambda x: None if x is None else tuple(x)
     )
-    _chunks: Optional[List[Optional[jnp.ndarray]]] = attrib(default=None, init=False)
+    _chunks: Optional[List[Optional[jnp.ndarray]]] = attrib(default=None, kw_only=True)
 
     def __post_init__(self):
         if hasattr(self.array, "shape"):
@@ -174,13 +174,17 @@ class IrrepsArray:
                 if zeros[0]:
                     self._chunks = [None]
                 else:
-                    self._chunks = [jnp.reshape(self.array, leading_shape + (mul, ir.dim))]
+                    self._chunks = [
+                        jnp.reshape(self.array, leading_shape + (mul, ir.dim))
+                    ]
             else:
                 self._chunks = [
                     None
                     if zero
                     else jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
-                    for zero, i, (mul, ir) in zip(zeros, self.irreps.slices(), self.irreps)
+                    for zero, i, (mul, ir) in zip(
+                        zeros, self.irreps.slices(), self.irreps
+                    )
                 ]
 
         return self._chunks
@@ -572,6 +576,9 @@ class IrrepsArray:
             self.irreps,
             self.array.reshape(shape[:-1] + (self.irreps.dim,)),
             zero_flags=self.zero_flags,
+            chunks=jax.tree_util.tree_map(
+                lambda x: x.reshape(shape[:-1] + x.shape[-2:]), self._chunks
+            ),
         )
 
     def astype(self, dtype) -> "IrrepsArray":
@@ -587,6 +594,7 @@ class IrrepsArray:
             irreps=self.irreps,
             array=self.array.astype(dtype),
             zero_flags=self.zero_flags,
+            chunks=jax.tree_util.tree_map(lambda x: x.astype(dtype), self._chunks),
         )
 
     def remove_nones(self) -> "IrrepsArray":
@@ -990,6 +998,9 @@ class IrrepsArray:
         """
         irreps = Irreps(irreps)
         assert self.irreps.simplify() == irreps.simplify(), (self.irreps, irreps)
+
+        if self.irreps == irreps:
+            return self
 
         if len(self.irreps) == 0:
             zero_flags = []

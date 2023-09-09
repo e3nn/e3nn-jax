@@ -75,7 +75,7 @@ def from_chunks(
 
     zero_flags = tuple(x is None for x in chunks)
 
-    return e3nn.IrrepsArray(irreps, array, zero_flags=zero_flags)
+    return e3nn.IrrepsArray(irreps, array, zero_flags=zero_flags, chunks=chunks)
 
 
 def as_irreps_array(array: Union[jnp.ndarray, e3nn.IrrepsArray], *, backend=None):
