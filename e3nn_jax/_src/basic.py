@@ -168,6 +168,10 @@ def _reduce(
             array.irreps,
             op(array.array, axis=axis, keepdims=keepdims),
             zero_flags=array.zero_flags,
+            chunks=[
+                None if x is None else op(x, axis=axis, keepdims=keepdims)
+                for x in array.chunks
+            ],
         )
 
     array = _reduce(op, array, axis=axis[:-1], keepdims=keepdims)
@@ -277,15 +281,33 @@ def concatenate(arrays: List[e3nn.IrrepsArray], axis: int = -1) -> e3nn.IrrepsAr
             irreps=irreps,
             array=jnp.concatenate([x.array for x in arrays], axis=-1),
             zero_flags=sum([x.zero_flags for x in arrays], ()),
+            chunks=sum([x.chunks for x in arrays], []),
         )
 
-    if {x.irreps for x in arrays} != {arrays[0].irreps}:
+    irreps = arrays[0].irreps
+    if {x.irreps for x in arrays} != {irreps}:
         raise ValueError("Irreps must be the same for all arrays")
 
+    zero_flags = [all(x) for x in zip(*[x.zero_flags for x in arrays])]
+    chunks = [
+        None
+        if z
+        else jnp.concatenate(
+            [
+                jnp.zeros(x.shape[:-1] + (mul, ir.dim), dtype=x.dtype)
+                if x.chunks[i] is None
+                else x.chunks[i]
+                for x in arrays
+            ],
+            axis=axis,
+        )
+        for i, ((mul, ir), z) in enumerate(zip(irreps, zero_flags))
+    ]
     return e3nn.IrrepsArray(
-        irreps=arrays[0].irreps,
+        irreps=irreps,
         array=jnp.concatenate([x.array for x in arrays], axis=axis),
-        zero_flags=[all(x) for x in zip(*[x.zero_flags for x in arrays])],
+        zero_flags=zero_flags,
+        chunks=chunks,
     )
 
 
@@ -330,13 +352,30 @@ def stack(arrays: List[e3nn.IrrepsArray], axis=0) -> e3nn.IrrepsArray:
             "IrrepsArray cannot be stacked on the last axis because the last axis is reserved for the irreps dimension"
         )
 
-    if {x.irreps for x in arrays} != {arrays[0].irreps}:
+    irreps = arrays[0].irreps
+    if {x.irreps for x in arrays} != {irreps}:
         raise ValueError("Irreps must be the same for all arrays")
 
+    zero_flags = [all(x) for x in zip(*[x.zero_flags for x in arrays])]
+    chunks = [
+        None
+        if z
+        else jnp.stack(
+            [
+                jnp.zeros(x.shape[:-1] + (mul, ir.dim), dtype=x.dtype)
+                if x.chunks[i] is None
+                else x.chunks[i]
+                for x in arrays
+            ],
+            axis=axis,
+        )
+        for i, ((mul, ir), z) in enumerate(zip(irreps, zero_flags))
+    ]
     return e3nn.IrrepsArray(
-        irreps=arrays[0].irreps,
+        irreps=irreps,
         array=jnp.stack([x.array for x in arrays], axis=axis),
-        zero_flags=[all(x) for x in zip(*[x.zero_flags for x in arrays])],
+        zero_flags=zero_flags,
+        chunks=chunks,
     )
 
 
