@@ -512,6 +512,7 @@ class IrrepsArray:
                     ..., self.irreps[:i].dim : self.irreps[: i + len(irreps)].dim
                 ],
                 zero_flags=self.zero_flags[i : i + len(irreps)],
+                chunks=self.chunks[i : i + len(irreps)],
             )[index[:-1] + (slice(None),)]
 
         # Support of x[..., 3:32]
@@ -567,6 +568,7 @@ class IrrepsArray:
                 self.irreps[irreps_start:irreps_stop],
                 self.array[..., start:stop],
                 zero_flags=self.zero_flags[irreps_start:irreps_stop],
+                chunks=self.chunks[irreps_start:irreps_stop],
             )[index[:-1] + (slice(None),)]
 
         # Prevent None at last index  x[..., None] and x[:, :, None]
@@ -592,7 +594,12 @@ class IrrepsArray:
             )
 
         # Support of x[index, :]
-        return IrrepsArray(self.irreps, self.array[index], zero_flags=self.zero_flags)
+        return IrrepsArray(
+            self.irreps,
+            self.array[index],
+            zero_flags=self.zero_flags,
+            chunks=[None if x is None else x[index, :] for x in self.chunks],
+        )
 
     @property
     def at(self):
