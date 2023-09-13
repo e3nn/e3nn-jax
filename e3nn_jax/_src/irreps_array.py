@@ -37,7 +37,7 @@ def _is_none_slice(x):
     return isinstance(x, slice) and x == slice(None)
 
 
-@attrs(frozen=False, init=True, repr=False)
+@attrs(frozen=True, init=True, repr=False)
 class IrrepsArray:
     r"""Array with a representation of rotations.
 
@@ -185,13 +185,11 @@ class IrrepsArray:
             if len(self.irreps) == 1:
                 mul, ir = self.irreps[0]
                 if zeros[0]:
-                    self._chunks = [None]
+                    chunks = [None]
                 else:
-                    self._chunks = [
-                        jnp.reshape(self.array, leading_shape + (mul, ir.dim))
-                    ]
+                    chunks = [jnp.reshape(self.array, leading_shape + (mul, ir.dim))]
             else:
-                self._chunks = [
+                chunks = [
                     None
                     if zero
                     else jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
@@ -199,6 +197,7 @@ class IrrepsArray:
                         zeros, self.irreps.slices(), self.irreps
                     )
                 ]
+            object.__setattr__(self, "_chunks", chunks)
 
         return self._chunks
 
