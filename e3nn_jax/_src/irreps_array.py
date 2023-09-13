@@ -1118,6 +1118,7 @@ class IrrepsArray:
 
         new_chunks = None
         if self._chunks is not None:
+            jnp = _infer_backend(self.array)
             leading_shape = self.shape[:-1]
 
             new_chunks = []
