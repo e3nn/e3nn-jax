@@ -598,7 +598,7 @@ class IrrepsArray:
             self.irreps,
             self.array[index],
             zero_flags=self.zero_flags,
-            chunks=[None if x is None else x[index, :] for x in self.chunks],
+            chunks=tree_map(lambda x: x[index + (slice(None),)], self._chunks),
         )
 
     @property

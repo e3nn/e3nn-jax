@@ -87,6 +87,15 @@ def test_indexing():
     np.testing.assert_allclose(x[3:-3].array, jnp.array([1.1, 1.2, 1.3, 2.1, 2.2, 2.3]))
 
 
+def test_indexing2():
+    x = e3nn.IrrepsArray("2x0e + 1x0e", jnp.ones((2, 2, 3)))
+    x.chunks
+
+    y = x[0]
+    assert y.shape == (2, 3)
+    assert y._chunks[0].shape == (2, 2, 1)
+
+
 def test_reductions():
     x = e3nn.IrrepsArray(
         "2x0e + 1x1e", jnp.array([[1.0, 2, 3, 4, 5], [4.0, 5, 6, 6, 6]])
