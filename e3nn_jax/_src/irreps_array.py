@@ -3,12 +3,13 @@ import math
 import operator
 import warnings
 from typing import Any, Callable, List, Optional, Tuple, Union
-from attr import attrs, attrib
 
 import jax
 import jax.numpy as jnp
 import jax.scipy
 import numpy as np
+from attr import attrib, attrs
+from jax.tree_util import tree_map
 
 import e3nn_jax as e3nn
 from e3nn_jax import Irreps
@@ -278,7 +279,12 @@ class IrrepsArray:
         return IrrepsArray(self.irreps, self.array == other)
 
     def __neg__(self: "IrrepsArray") -> "IrrepsArray":
-        return IrrepsArray(self.irreps, -self.array, zero_flags=self.zero_flags)
+        return IrrepsArray(
+            self.irreps,
+            -self.array,
+            zero_flags=self.zero_flags,
+            chunks=tree_map(lambda x: -x, self._chunks),
+        )
 
     def __add__(
         self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray, float, int]
@@ -386,14 +392,11 @@ class IrrepsArray:
                 f"IrrepsArray({self.irreps}, shape={self.shape}) * scalar(shape={other.shape}) is not equivariant."
             )
 
-        chunks = None
-        if self._chunks is not None:
-            chunks = [
-                x * other[..., None] if x is not None else None for x in self._chunks
-            ]
-
         return IrrepsArray(
-            self.irreps, self.array * other, zero_flags=self.zero_flags, chunks=chunks
+            self.irreps,
+            self.array * other,
+            zero_flags=self.zero_flags,
+            chunks=tree_map(lambda x: x * other[..., None], self._chunks),
         )
 
     def __rmul__(
@@ -433,14 +436,11 @@ class IrrepsArray:
                 f"IrrepsArray({self.irreps}, shape={self.shape}) / scalar(shape={other.shape}) is not equivariant."
             )
 
-        chunks = None
-        if self._chunks is not None:
-            chunks = [
-                x / other[..., None] if x is not None else None for x in self._chunks
-            ]
-
         return IrrepsArray(
-            self.irreps, self.array / other, zero_flags=self.zero_flags, chunks=chunks
+            self.irreps,
+            self.array / other,
+            zero_flags=self.zero_flags,
+            chunks=tree_map(lambda x: x / other[..., None], self._chunks),
         )
 
     def __rtruediv__(
@@ -462,13 +462,21 @@ class IrrepsArray:
 
     def __pow__(self, exponent) -> "IrrepsArray":  # noqa: D105
         if all(ir == "0e" for _, ir in self.irreps):
-            return IrrepsArray(self.irreps, self.array**exponent)
+            return IrrepsArray(
+                self.irreps,
+                self.array**exponent,
+                chunks=tree_map(lambda x: x**exponent, self._chunks),
+            )
 
         if exponent % 1.0 == 0.0 and self.irreps.lmax == 0:
             irreps = self.irreps
             if exponent % 2.0 == 0.0:
                 irreps = [(mul, "0e") for mul, ir in self.irreps]
-            return IrrepsArray(irreps, array=self.array**exponent)
+            return IrrepsArray(
+                irreps,
+                array=self.array**exponent,
+                chunks=tree_map(lambda x: x**exponent, self._chunks),
+            )
 
         raise ValueError(
             f"IrrepsArray({self.irreps}, shape={self.shape}) ** scalar is not equivariant."
@@ -629,7 +637,7 @@ class IrrepsArray:
             self.irreps,
             self.array.reshape(shape[:-1] + (self.irreps.dim,)),
             zero_flags=self.zero_flags,
-            chunks=jax.tree_util.tree_map(
+            chunks=tree_map(
                 lambda x: x.reshape(shape[:-1] + x.shape[-2:]), self._chunks
             ),
         )
@@ -647,7 +655,7 @@ class IrrepsArray:
             irreps=self.irreps,
             array=self.array.astype(dtype),
             zero_flags=self.zero_flags,
-            chunks=jax.tree_util.tree_map(lambda x: x.astype(dtype), self._chunks),
+            chunks=tree_map(lambda x: x.astype(dtype), self._chunks),
         )
 
     def remove_nones(self) -> "IrrepsArray":
@@ -1018,7 +1026,7 @@ class IrrepsArray:
         }
         if inverse:
             D = {ir: jnp.swapaxes(D[ir], -2, -1) for ir in D}
-        new_list = [
+        new_chunks = [
             jnp.reshape(
                 jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)
             )
@@ -1026,7 +1034,7 @@ class IrrepsArray:
             else None
             for (mul, ir), x in zip(self.irreps, self.chunks)
         ]
-        return e3nn.from_chunks(self.irreps, new_list, self.shape[:-1], self.dtype)
+        return e3nn.from_chunks(self.irreps, new_chunks, self.shape[:-1], self.dtype)
 
     def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a quaternion.
