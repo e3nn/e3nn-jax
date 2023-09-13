@@ -35,7 +35,7 @@ def from_chunks(
             f"e3nn.from_chunks: len(irreps) != len(chunks), {len(irreps)} != {len(chunks)}"
         )
 
-    if not all(x is None or isinstance(x, jnp.ndarray) for x in chunks):
+    if not all(x is None or hasattr(x, "shape") for x in chunks):
         raise ValueError(
             f"e3nn.from_chunks: chunks contains non-array elements type={[type(x) for x in chunks]}"
         )
