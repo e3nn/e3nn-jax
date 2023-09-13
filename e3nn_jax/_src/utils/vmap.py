@@ -29,6 +29,7 @@ def vmap(
         >>> y = vmap(e3nn.scalar_activation)(x)
         >>> y.zero_flags
         (False, True)
+        >>> assert y.chunks[1] is None
     """
     if in_axes == -1:
         raise ValueError("in_axes=-1 is not supported by e3nn.vmap")
