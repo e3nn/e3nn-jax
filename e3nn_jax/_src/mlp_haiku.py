@@ -27,12 +27,14 @@ class MultiLayerPerceptron(hk.Module):
         *,
         gradient_normalization: Union[str, float] = None,
         output_activation: Union[Callable, bool] = True,
+        with_bias: bool = False,
         name: Optional[str] = None,
     ):
         super().__init__(name=name)
 
         self.list_neurons = list_neurons
         self.act = act
+        self.with_bias = with_bias
 
         if output_activation is True:
             self.output_activation = self.act
@@ -83,10 +85,11 @@ class MultiLayerPerceptron(hk.Module):
             alpha = 1 / x.shape[-1]
             d = hk.Linear(
                 h,
-                with_bias=False,
+                with_bias=self.with_bias,
                 w_init=hk.initializers.RandomNormal(
                     stddev=jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)
                 ),
+                b_init=hk.initializers.Constant(0.0),
                 name=f"linear_{i}",
             )
             x = jnp.sqrt(alpha) ** self.gradient_normalization * d(x)

@@ -23,6 +23,7 @@ class MultiLayerPerceptron(flax.linen.Module):
     act: Optional[Callable] = None
     gradient_normalization: Union[str, float] = None
     output_activation: Union[Callable, bool] = True
+    with_bias: bool = False
 
     @flax.linen.compact
     def __call__(
@@ -75,10 +76,11 @@ class MultiLayerPerceptron(flax.linen.Module):
             alpha = 1 / x.shape[-1]
             d = flax.linen.Dense(
                 features=h,
-                use_bias=False,
+                use_bias=self.with_bias,
                 kernel_init=flax.linen.initializers.normal(
                     stddev=jnp.sqrt(alpha) ** (1.0 - gradient_normalization)
                 ),
+                bias_init=flax.linen.initializers.zeros,
                 param_dtype=x.dtype,
             )
             x = jnp.sqrt(alpha) ** gradient_normalization * d(x)
