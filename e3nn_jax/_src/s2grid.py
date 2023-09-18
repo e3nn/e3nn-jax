@@ -783,18 +783,19 @@ def from_s2grid(
     if lmax_in is None:
         lmax_in = lmax
 
-    _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(
-        lmax, res_beta, res_alpha, quadrature=x.quadrature, dtype=x.dtype
-    )
-    # sh_y: (res_beta, l, |m|)
+    with jax.ensure_compile_time_eval():
+        _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(
+            lmax, res_beta, res_alpha, quadrature=x.quadrature, dtype=x.dtype
+        )
+        # sh_y: (res_beta, l, |m|)
 
-    n = _normalization(lmax, normalization, x.dtype, "from_s2", lmax_in)
+        n = _normalization(lmax, normalization, x.dtype, "from_s2", lmax_in)
 
-    # prepare beta integrand
-    m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), x.dtype)  # [l, m, j]
-    m_out = jnp.asarray(_expand_matrix(irreps.ls), x.dtype)  # [l, m, i]
-    sh_y = _rollout_sh(sh_y, lmax)
-    sh_y = jnp.einsum("lmj,bj,lmi,l,b->mbi", m_in, sh_y, m_out, n, qw)  # [m, b, i]
+        # prepare beta integrand
+        m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), x.dtype)  # [l, m, j]
+        m_out = jnp.asarray(_expand_matrix(irreps.ls), x.dtype)  # [l, m, i]
+        sh_y = _rollout_sh(sh_y, lmax)
+        sh_y = jnp.einsum("lmj,bj,lmi,l,b->mbi", m_in, sh_y, m_out, n, qw)  # [m, b, i]
 
     # integrate over alpha
     if fft:
@@ -906,17 +907,18 @@ def to_s2grid(
             f"p_val and p_arg cannot be determined from the irreps {coeffs.irreps}, please specify them."
         )
 
-    _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(
-        lmax, res_beta, res_alpha, quadrature=quadrature, dtype=coeffs.dtype
-    )
+    with jax.ensure_compile_time_eval():
+        _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(
+            lmax, res_beta, res_alpha, quadrature=quadrature, dtype=coeffs.dtype
+        )
 
-    n = _normalization(lmax, normalization, coeffs.dtype, "to_s2")
+        n = _normalization(lmax, normalization, coeffs.dtype, "to_s2")
 
-    m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), coeffs.dtype)  # [l, m, j]
-    m_out = jnp.asarray(_expand_matrix(coeffs.irreps.ls), coeffs.dtype)  # [l, m, i]
-    # put beta component in summable form
-    sh_y = _rollout_sh(sh_y, lmax)
-    sh_y = jnp.einsum("lmj,bj,lmi,l->mbi", m_in, sh_y, m_out, n)  # [m, b, i]
+        m_in = jnp.asarray(_expand_matrix(range(lmax + 1)), coeffs.dtype)  # [l, m, j]
+        m_out = jnp.asarray(_expand_matrix(coeffs.irreps.ls), coeffs.dtype)  # [l, m, i]
+        # put beta component in summable form
+        sh_y = _rollout_sh(sh_y, lmax)
+        sh_y = jnp.einsum("lmj,bj,lmi,l->mbi", m_in, sh_y, m_out, n)  # [m, b, i]
 
     # multiply spherical harmonics by their coefficients
     signal_b = jnp.einsum("mbi,...i->...bm", sh_y, coeffs.array)  # [batch, beta, m]
@@ -1160,7 +1162,9 @@ def _s2grid(
     return y, alpha, qw
 
 
-def _quadrature_weights(res_beta: int, *, quadrature: str):
+def _quadrature_weights(
+    res_beta: int, *, quadrature: str
+) -> Tuple[np.ndarray, np.ndarray]:
     r"""Returns quadrature weights for the grid on the sphere.
 
     Args:
@@ -1383,9 +1387,12 @@ def _rollout_sh(input: jnp.ndarray, lmax: int) -> jnp.ndarray:
     """
     assert input.shape[-2] == lmax + 1  # l
     assert input.shape[-1] == lmax + 1  # abs(m)
-    outout = jnp.zeros((*input.shape[:-2], (lmax + 1) ** 2), dtype=input.dtype)
+    ls = []
+    ms = []
     for l in range(lmax + 1):
-        for m in range(l + 1):
-            outout = outout.at[..., l**2 + l + m].set(input[..., l, m])
-            outout = outout.at[..., l**2 + l - m].set(input[..., l, m])
-    return outout
+        for m in range(-l, l + 1):
+            ls.append(l)
+            ms.append(abs(m))
+    ls = jnp.asarray(ls)
+    ms = jnp.asarray(ms)
+    return input[..., ls, ms]
