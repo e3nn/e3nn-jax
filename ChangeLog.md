@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `with_bias` argument to `e3nn.haiku.MultiLayerPerceptron` and `e3nn.flax.MultiLayerPerceptron`
 
+### Fixed
+- Improve compilation speed and stability of `s2grid` for large `lmax` (use `is_normalized=True` in `lpmn_values`)
+
 ## [0.20.1] - 2023-09-13
 ### Changed
 - Add back the optimizations with the lazy `._chunks` that was removed in 0.19.0

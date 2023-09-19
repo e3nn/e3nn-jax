@@ -357,8 +357,9 @@ def biggest_power_of_two(n):
     return 2 ** (n.bit_length() - 1)
 
 
-@partial(jax.jit, static_argnums=(0,))
-def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
+def legendre(
+    lmax: int, x: jnp.ndarray, phase: float, is_normalized: bool = False
+) -> jnp.ndarray:
     r"""Associated Legendre polynomials.
 
     en.wikipedia.org/wiki/Associated_Legendre_polynomials
@@ -367,14 +368,23 @@ def legendre(lmax: int, x: jnp.ndarray, phase: float) -> jnp.ndarray:
         lmax (int): maximum l value
         x (jnp.ndarray): input array of shape ``(...)``
         phase (float): -1 or 1, multiplies by :math:`(-1)^m`
+        is_normalized (bool): True if the associated Legendre functions are normalized.
 
     Returns:
         jnp.ndarray: Associated Legendre polynomials ``P(l,m)``
         In an array of shape ``(lmax + 1, lmax + 1, ...)``
     """
     x = jnp.asarray(x)
+    return _legendre(lmax, x, phase, is_normalized)
 
-    p = jax.scipy.special.lpmn_values(lmax, lmax, x.flatten(), False)  # [m, l, x]
+
+@partial(jax.jit, static_argnums=(0, 3))
+def _legendre(
+    lmax: int, x: jnp.ndarray, phase: float, is_normalized: bool
+) -> jnp.ndarray:
+    p = jax.scipy.special.lpmn_values(
+        lmax, lmax, x.flatten(), is_normalized
+    )  # [m, l, x]
     p = (-phase) ** jnp.arange(lmax + 1)[:, None, None] * p
     p = jnp.transpose(p, (1, 0, 2))  # [l, m, x]
     p = jnp.reshape(p, (lmax + 1, lmax + 1) + x.shape)
@@ -418,26 +428,9 @@ def _sh_beta(lmax: int, cos_betas: jnp.ndarray) -> jnp.ndarray:
     Returns:
         Array of shape ``(..., l, m)``
     """
-    sh_y = legendre(lmax, cos_betas, 1.0)  # [l, m, ...]
+    sh_y = legendre(lmax, cos_betas, phase=1.0, is_normalized=True)  # [l, m, ...]
     sh_y = jnp.moveaxis(sh_y, 0, -1)  # [m, ..., l]
     sh_y = jnp.moveaxis(sh_y, 0, -1)  # [..., l, m]
-
-    sh_y = sh_y * np.array(
-        [
-            [
-                math.sqrt(
-                    fractions.Fraction(
-                        (2 * l + 1) * math.factorial(abs(l - m)),
-                        4 * math.factorial(l + m),
-                    )
-                    / math.pi
-                )
-                for m in range(lmax + 1)
-            ]
-            for l in range(lmax + 1)
-        ],
-        sh_y.dtype,
-    )
     return sh_y
 
 
