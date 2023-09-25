@@ -1,3 +1,24 @@
+[build-system]
+requires = ["setuptools"]
+
+[project]
+name = "e3nn_jax"
+version = "0.20.1"
+dependencies = [
+  "jax",
+  "jaxlib",
+  "sympy",
+  "numpy",
+  "attrs",
+]
+description = "Equivariant convolutional neural networks for the group E(3) of 3 dimensional rotations, translations, and mirrors."
+
+[tool.setuptools]
+py-modules = ["e3nn_jax"]
+
+[tool.pydocstyle]
+select = ["D415", "D403"]
+
 [tool.black]
 target-version = ['py311']
 include = '\.pyi?$'
@@ -14,3 +35,10 @@ exclude = '''
   | dist
 )/
 '''
+
+[tool.flake8]
+ignore = ["E741", "E203", "W503", "E731", "E721"]
+max-line-length = 127
+max-complexity = 64
+select = ["B", "C", "E", "F", "W", "T4", "B9"]
+exclude = [".eggs", "*.egg", "build", "dist", "docs/_build", "notebook"]
