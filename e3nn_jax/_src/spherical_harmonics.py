@@ -1,11 +1,9 @@
-import fractions
 import math
 from functools import partial
 from typing import Dict, List, Sequence, Tuple, Union
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import sympy
 
 import e3nn_jax as e3nn
