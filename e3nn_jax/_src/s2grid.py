@@ -806,7 +806,7 @@ def from_s2grid(
         )  # [..., res_beta, 2*l+1]
 
     # integrate over beta
-    int_b = jnp.einsum("mbi,...bm->...i", sh_y, int_a)  # [..., irreps]
+    int_b = jnp.einsum("mbi,...bm->...i", sh_y.astype(x.dtype), int_a)  # [..., irreps]
 
     # convert to IrrepsArray
     return e3nn.IrrepsArray(irreps, int_b)
@@ -921,7 +921,9 @@ def to_s2grid(
         sh_y = jnp.einsum("lmj,bj,lmi,l->mbi", m_in, sh_y, m_out, n)  # [m, b, i]
 
     # multiply spherical harmonics by their coefficients
-    signal_b = jnp.einsum("mbi,...i->...bm", sh_y, coeffs.array)  # [batch, beta, m]
+    signal_b = jnp.einsum(
+        "mbi,...i->...bm", sh_y.astype(coeffs.dtype), coeffs.array
+    )  # [batch, beta, m]
 
     if fft:
         if res_alpha % 2 == 0:

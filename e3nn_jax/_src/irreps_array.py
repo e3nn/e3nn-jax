@@ -84,7 +84,7 @@ class IrrepsArray:
     _chunks: Optional[List[Optional[jnp.ndarray]]] = attrib(default=None, kw_only=True)
 
     def __attrs_post_init__(self):
-        if hasattr(self.array, "shape"):
+        if hasattr(self.array, "shape") and isinstance(self.array.shape, tuple) and len(self.array.shape) > 0:
             if self.array.shape[-1] != self.irreps.dim:
                 raise ValueError(
                     f"IrrepsArray: Array shape {self.array.shape} incompatible with irreps {self.irreps}. "
