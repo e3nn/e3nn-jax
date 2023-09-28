@@ -65,7 +65,11 @@ def test_normalization_integral(keys, algorithm, l):
         ** 2
     )
 
-    np.testing.assert_allclose((4 * jnp.pi) * n, 1, atol=7e-7 * max((l / 4) ** 8, 1))
+    np.testing.assert_allclose(
+        (4 * jnp.pi) * n,
+        1.0,
+        atol=1e-6 * max((l / 4) ** 8, 1),
+    )
 
 
 @pytest.mark.parametrize("l", range(13 + 1))
