@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath("../"))
 # -- Project information -----------------------------------------------------
 
 project = "e3nn-jax"
-copyright = "2022, e3nn Developers"
+copyright = "2023, e3nn Developers"
 author = "e3nn Developers"
 
 # The full version, including alpha/beta/rc tags
