@@ -35,8 +35,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install wheel
-        pip install -r requirements.txt
-        pip install plotly kaleido jraph flax dm-haiku optax tqdm
+        pip install ".[dev]"
     - name: Install pytest
       run: |
         pip install pytest pytest-cov
