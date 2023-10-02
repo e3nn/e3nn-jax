@@ -24,6 +24,12 @@ def test_clebsch_gordan_symmetry():
         clebsch_gordan(1, 2, 3),
         jnp.swapaxes(jnp.swapaxes(clebsch_gordan(2, 3, 1), 0, 2), 1, 2),
     )
+    assert jnp.allclose(
+        clebsch_gordan(3, 2, 4), -jnp.swapaxes(clebsch_gordan(3, 4, 2), 1, 2)
+    )
+    assert jnp.allclose(
+        clebsch_gordan(2, 3, 4), -jnp.swapaxes(clebsch_gordan(4, 3, 2), 0, 2)
+    )
 
 
 def unique_triplets(lmax):
