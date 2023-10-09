@@ -100,15 +100,15 @@ class BatchNorm(hk.Module):
 
         output, new_means, new_vars = batch_norm(
             input,
-            running_mean=running_mean,
-            running_var=running_var,
+            ra_mean=running_mean,
+            ra_var=running_var,
             weight=weight,
             bias=bias,
             normalization=self.normalization,
             reduce=self.reduce,
             is_training=is_training,
             is_instance=self.instance,
-            has_affine=self.affine,
+            use_affine=self.affine,
             momentum=self.momentum,
             epsilon=self.eps,
         )
