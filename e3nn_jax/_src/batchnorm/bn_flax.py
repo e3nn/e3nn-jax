@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple, Type
+from typing import Optional
 
 import flax.linen as nn
 import jax.numpy as jnp
@@ -6,6 +6,13 @@ import jax.numpy as jnp
 import e3nn_jax as e3nn
 
 from .bn import batch_norm
+
+
+def first_nonnone(*args):
+    for arg in args:
+        if arg is not None:
+            return arg
+    return None
 
 
 class BatchNorm(nn.Module):
@@ -60,11 +67,15 @@ class BatchNorm(nn.Module):
         Returns:
             Normalized inputs (the same shape and irreps as input).
         """
-        use_running_average = (
-            self.use_running_average
-            if use_running_average is None
-            else use_running_average
+        use_running_average = first_nonnone(
+            use_running_average, self.use_running_average, False
         )
+
+        if use_running_average and self.instance:
+            # If instance, we can't use running average because the mean and variance
+            # are different for each instance (i.e. they have a batch dimension)
+            raise ValueError("If instance is True, use_running_average must be False")
+
         dtype = input.dtype
 
         num_scalars = input.irreps.filter(keep="0e").num_irreps
@@ -85,16 +96,16 @@ class BatchNorm(nn.Module):
             ra_var = None
 
         if self.affine:
-            weights = self.param("weights", lambda s: jnp.ones(s, dtype), (num_irreps,))
-            biases = self.param("biases", lambda s: jnp.zeros(s, dtype), (num_irreps,))
+            weights = self.param("weights", lambda _: jnp.ones((num_irreps,), dtype))
+            biases = self.param("biases", lambda _: jnp.zeros((num_irreps,), dtype))
         else:
             weights = None
             biases = None
 
         output, new_means, new_vars = batch_norm(
             input,
-            ra_mean,
-            ra_var,
+            ra_mean.value if ra_mean else None,
+            ra_var.value if ra_var else None,
             weights,
             biases,
             self.normalization or e3nn.config("irrep_normalization"),

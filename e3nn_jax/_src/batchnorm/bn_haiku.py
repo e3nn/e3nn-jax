@@ -1,4 +1,3 @@
-from typing import Type
 import haiku as hk
 import jax.numpy as jnp
 

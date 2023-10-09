@@ -26,8 +26,9 @@ def batch_norm(
     batch, *size = input.shape[:-1]
     input = input.reshape((batch, prod(size), -1))
 
-    new_ra_means = []
-    new_ra_vars = []
+    if not is_instance:
+        new_ra_means = []
+        new_ra_vars = []
 
     new_chunks = []
 
