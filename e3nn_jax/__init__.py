@@ -89,7 +89,7 @@ from e3nn_jax._src.activation import (
 )
 from e3nn_jax._src.gate import gate
 from e3nn_jax._src.radius_graph import radius_graph
-from e3nn_jax._src.scatter import index_add, scatter_sum, scatter_max
+from e3nn_jax._src.scatter import index_add, scatter_sum, scatter_mean, scatter_max
 from e3nn_jax._src.reduced_tensor_product import (
     reduced_tensor_product_basis,
     reduced_symmetric_tensor_product_basis,
@@ -201,6 +201,7 @@ __all__ = [
     "radius_graph",
     "index_add",
     "scatter_sum",
+    "scatter_mean",
     "scatter_max",
     "poly_envelope",
     "soft_envelope",

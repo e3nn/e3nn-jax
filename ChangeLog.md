@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `e3nn.flax.BatchNorm`
+- `e3nn.scatter_mean`
 
 
 ## [0.20.2] - 2023-09-25

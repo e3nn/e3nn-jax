@@ -36,15 +36,19 @@ def scatter_sum(
 ) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
     r"""Scatter sum of data.
 
-    Performs either of the following two operations:
-    ``output[dst[i]] += data[i]`` or ``output[i] = sum(data[sum(nel[:i]):sum(nel[:i+1])])``
+    Performs either of the following two operations::
+        output[dst[i]] += data[i]
+
+    or::
+
+        output[i] = sum(data[sum(nel[:i]):sum(nel[:i+1])])
 
     Args:
-        data (`jax.numpy.ndarray` or `IrrepsArray`): array of shape ``(n, ...)``
-        dst (optional, `jax.numpy.ndarray`): array of shape ``(n,)``. If not specified, ``nel`` must be specified.
+        data (`jax.numpy.ndarray` or `IrrepsArray`): array of shape ``(n1,..nd, ...)``
+        dst (optional, `jax.numpy.ndarray`): array of shape ``(n1,..nd)``. If not specified, ``nel`` must be specified.
         nel (optional, `jax.numpy.ndarray`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
-        output_size (optional, int): size of output array. If not specified, ``nel`` must be specified
-            or ``map_back`` must be ``True``.
+        output_size (optional, int): size of output array.
+            If not specified, ``nel`` must be specified or ``map_back`` must be ``True``.
         map_back (bool): whether to map back to the input position
 
     Returns:
@@ -60,6 +64,73 @@ def scatter_sum(
         map_back=map_back,
         mode=mode,
     )
+
+
+def scatter_mean(
+    data: Union[jnp.ndarray, e3nn.IrrepsArray],
+    *,
+    dst: Optional[jnp.ndarray] = None,
+    nel: Optional[jnp.ndarray] = None,
+    output_size: Optional[int] = None,
+    map_back: bool = False,
+    mode: str = "promise_in_bounds",
+) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+    r"""Scatter mean of data.
+
+    Performs either of the following two operations::
+
+        n[dst[i]] += 1
+        output[dst[i]] += data[i] / n[i]
+
+    or::
+
+        output[i] = sum(data[sum(nel[:i]):sum(nel[:i+1])]) / nel[i]
+
+    Args:
+        data (`jax.numpy.ndarray` or `IrrepsArray`): array of shape ``(n1,..nd, ...)``
+        dst (optional, `jax.numpy.ndarray`): array of shape ``(n1,..nd)``. If not specified, ``nel`` must be specified.
+        nel (optional, `jax.numpy.ndarray`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
+        output_size (optional, int): size of output array.
+            If not specified, ``nel`` must be specified or ``map_back`` must be ``True``.
+        map_back (bool): whether to map back to the input position
+
+    Returns:
+        `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
+    """
+    total = _scatter_op(
+        "sum",
+        0.0,
+        data,
+        dst=dst,
+        nel=nel,
+        output_size=output_size,
+        map_back=map_back,
+        mode=mode,
+    )
+
+    if dst is not None or map_back:
+        if dst is not None:
+            ones = jnp.ones(data.shape[: dst.ndim], jnp.int32)
+        if nel is not None:
+            ones = jnp.ones(data.shape[:1], jnp.int32)
+
+        nel = _scatter_op(
+            "sum",
+            0.0,
+            ones,
+            dst=dst,
+            nel=nel,
+            output_size=output_size,
+            map_back=map_back,
+            mode=mode,
+        )
+
+    nel = jnp.maximum(1, nel)
+
+    for _ in range(total.ndim - nel.ndim):
+        nel = nel[..., None]
+
+    return total / nel.astype(total.dtype)
 
 
 def scatter_max(
