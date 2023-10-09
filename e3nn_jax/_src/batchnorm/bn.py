@@ -8,14 +8,14 @@ import e3nn_jax as e3nn
 
 def batch_norm(
     input: e3nn.IrrepsArray,
-    ra_mean,
-    ra_var,
-    weight,
-    bias,
+    ra_mean: jnp.ndarray,
+    ra_var: jnp.ndarray,
+    weight: jnp.ndarray,
+    bias: jnp.ndarray,
     normalization: str,
     reduce: str,
-    is_training: bool,
     is_instance: bool,
+    use_running_average: bool,
     use_affine: bool,
     momentum: float,
     epsilon: float,
@@ -24,8 +24,6 @@ def batch_norm(
         return (1 - momentum) * curr + momentum * jax.lax.stop_gradient(update)
 
     batch, *size = input.shape[:-1]
-    # TODO add test case for when prod(size) == 0
-
     input = input.reshape((batch, prod(size), -1))
 
     new_ra_means = []
@@ -41,14 +39,12 @@ def batch_norm(
         if chunk is None:
             # [batch, sample, mul, repr]
             if ir.is_scalar():  # scalars
-                if is_training or is_instance:
-                    if not is_instance:
-                        new_ra_means.append(jnp.zeros((mul,), dtype=input.dtype))
+                if not is_instance:
+                    new_ra_means.append(jnp.zeros((mul,), dtype=input.dtype))
                 i_rmu += mul
 
-            if is_training or is_instance:
-                if not is_instance:
-                    new_ra_vars.append(jnp.ones((mul,), input.dtype))
+            if not is_instance:
+                new_ra_vars.append(jnp.ones((mul,), input.dtype))
 
             if use_affine and ir.is_scalar():  # scalars
                 i_bia += mul
@@ -57,44 +53,42 @@ def batch_norm(
         else:
             # [batch, sample, mul, repr]
             if ir.is_scalar():  # scalars
-                if is_training or is_instance:
-                    if is_instance:
-                        field_mean = chunk.mean(1).reshape(batch, mul)  # [batch, mul]
-                    else:
-                        field_mean = chunk.mean([0, 1]).reshape(mul)  # [mul]
-                        new_ra_means.append(
-                            _roll_avg(ra_mean[i_rmu : i_rmu + mul], field_mean)
-                        )
+                if is_instance:
+                    field_mean = chunk.mean(1).reshape(batch, mul)  # [batch, mul]
                 else:
+                    field_mean = chunk.mean([0, 1]).reshape(mul)  # [mul]
+                    new_ra_means.append(
+                        _roll_avg(ra_mean[i_rmu : i_rmu + mul], field_mean)
+                    )
+
+                if use_running_average:
                     field_mean = ra_mean[i_rmu : i_rmu + mul]
                 i_rmu += mul
 
                 # [batch, sample, mul, repr]
                 chunk = chunk - field_mean.reshape(-1, 1, mul, 1)
 
-            if is_training or is_instance:
-                if normalization == "norm":
-                    field_norm = jnp.square(chunk).sum(3)  # [batch, sample, mul]
-                elif normalization == "component":
-                    field_norm = jnp.square(chunk).mean(3)  # [batch, sample, mul]
-                else:
-                    raise ValueError(
-                        "Invalid normalization option {}".format(normalization)
-                    )
-
-                if reduce == "mean":
-                    field_norm = field_norm.mean(1)  # [batch, mul]
-                elif reduce == "max":
-                    field_norm = field_norm.max(1)  # [batch, mul]
-                else:
-                    raise ValueError("Invalid reduce option {}".format(reduce))
-
-                if not is_instance:
-                    field_norm = field_norm.mean(0)  # [mul]
-                    new_ra_vars.append(
-                        _roll_avg(ra_var[i_wei : i_wei + mul], field_norm)
-                    )
+            if normalization == "norm":
+                field_norm = jnp.square(chunk).sum(3)  # [batch, sample, mul]
+            elif normalization == "component":
+                field_norm = jnp.square(chunk).mean(3)  # [batch, sample, mul]
             else:
+                raise ValueError(
+                    "Invalid normalization option {}".format(normalization)
+                )
+
+            if reduce == "mean":
+                field_norm = field_norm.mean(1)  # [batch, mul]
+            elif reduce == "max":
+                field_norm = field_norm.max(1)  # [batch, mul]
+            else:
+                raise ValueError("Invalid reduce option {}".format(reduce))
+
+            if not is_instance:
+                field_norm = field_norm.mean(0)  # [mul]
+                new_ra_vars.append(_roll_avg(ra_var[i_wei : i_wei + mul], field_norm))
+
+            if use_running_average:
                 field_norm = ra_var[i_wei : i_wei + mul]
 
             field_norm = jax.lax.rsqrt(
