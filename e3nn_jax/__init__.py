@@ -110,6 +110,7 @@ from e3nn_jax._src.s2grid import (
 from e3nn_jax._src.tensor_product_with_spherical_harmonics import (
     tensor_product_with_spherical_harmonics,
 )
+from e3nn_jax._src.utils.vmap import vmap
 
 # make submodules flax and haiku available
 from e3nn_jax import flax, haiku
@@ -219,6 +220,7 @@ __all__ = [
     "s2_dirac",
     "SphericalSignal",
     "tensor_product_with_spherical_harmonics",
+    "vmap",
     "flax",
     "haiku",
     "utils",

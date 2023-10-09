@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `e3nn.flax.BatchNorm`
 - `e3nn.scatter_mean`
+- Add `e3nn.utils.vmap` also directly to `e3nn` module: `e3nn.vmap`
 
 
 ## [0.20.2] - 2023-09-25
