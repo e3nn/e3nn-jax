@@ -115,8 +115,8 @@ class BatchNorm(hk.Module):
 
         if is_training and not self.instance:
             if len(new_means):
-                hk.set_state("running_mean", jnp.concatenate(new_means))
+                hk.set_state("running_mean", new_means)
             if len(new_vars):
-                hk.set_state("running_var", jnp.concatenate(new_vars))
+                hk.set_state("running_var", new_vars)
 
         return output

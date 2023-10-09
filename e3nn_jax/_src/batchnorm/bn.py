@@ -115,4 +115,12 @@ def batch_norm(
         input.irreps, new_chunks, (batch, prod(size)), input.dtype
     )
     output = output.reshape((batch,) + tuple(size) + (-1,))
+
+    if not is_instance:
+        new_ra_means = jnp.concatenate(new_ra_means)
+        new_ra_vars = jnp.concatenate(new_ra_vars)
+    else:
+        new_ra_means = None
+        new_ra_vars = None
+
     return output, new_ra_means, new_ra_vars
