@@ -1053,24 +1053,19 @@ def _wigner_D_from_angles(
             return M
 
         R = []
-        if l < len(Jd):
-            if a is not None:
-                R += [rot_y(a)]
-            if b is not None:
+        if a is not None:
+            R += [rot_y(a)]
+
+        if b is not None:
+            if l < len(Jd):
                 J = Jd[l]
                 R += [J @ rot_y(b) @ J]
-            if c is not None:
-                R += [rot_y(c)]
-        else:
-            X = generators(l)
-            exp = jax.scipy.linalg.expm
+            else:
+                X = generators(l)
+                R += [jax.scipy.linalg.expm(b * X[0])]
 
-            if a is not None:
-                R += [exp(a * X[1])]
-            if b is not None:
-                R += [exp(b * X[0])]
-            if c is not None:
-                R += [exp(c * X[1])]
+        if c is not None:
+            R += [rot_y(c)]
 
         if len(R) == 0:
             return jnp.eye(2 * l + 1)
