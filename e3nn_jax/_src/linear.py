@@ -212,6 +212,12 @@ class FunctionalLinear:
             )
         return output
 
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}({self.irreps_in} -> {self.irreps_out}, "
+            f"{len(self.instructions)} instructions, {self.num_weights} weights)"
+        )
+
 
 def linear_vanilla(
     input: IrrepsArray,
