@@ -10,29 +10,29 @@ Functions:
     get_factorial(N: int, nan: bool = False) -> jnp.array:
         Calculate and cache factorial values up to N, with an option to extend the array with NaN values.
 
-    get_A(max_degree: int) -> jnp.array:
+    get_A(degree: int) -> jnp.array:
         Calculate and cache the 'A' coefficients used in the associated Legendre polynomials.
 
     calc_Plm_jit(x: jnp.array, A: jnp.array, m: jnp.array, power: jnp.array) -> jnp.array:
         JIT-compiled function to calculate the associated Legendre polynomials using pre-computed 'A' coefficients.
 
-    calc_Plm(max_degree: int, x: jnp.array) -> jnp.array:
+    calc_Plm(degree: int, x: jnp.array) -> jnp.array:
         Calculate the associated Legendre polynomials for a given degree and 'x' values.
 
-    get_B(max_degree: int) -> jnp.array:
+    get_B(degree: int) -> jnp.array:
         Calculate and cache the 'B' coefficients used in the spherical harmonics.
 
     calc_Ylm_jit(x: jnp.array, B: jnp.array, m: jnp.array, power: jnp.array, mask: jnp.array) -> jnp.array:
         JIT-compiled function to calculate spherical harmonics using pre-computed 'B' coefficients.
 
-    calc_Ylm(max_degree: int, x: jnp.array) -> jnp.array:
+    calc_Ylm(degree: int, x: jnp.array) -> jnp.array:
         Calculate the spherical harmonics for a given degree and set of 3D points.
 
 Typical usage example:
-    # Calculate associated Legendre polynomials P(l,m) for max_degree=3 and x values
+    # Calculate associated Legendre polynomials P(l,m) for degree=3 and x values
     plm_values = calc_Plm(3, x_array)
 
-    # Calculate spherical harmonics Y(l,m) for max_degree=3 and 3D points
+    # Calculate spherical harmonics Y(l,m) for degree=3 and 3D points
     ylm_values = calc_Ylm(3, xyz_array)
 """
 from functools import lru_cache
@@ -43,7 +43,7 @@ import jax
 import jax.numpy as jnp
 
 @lru_cache(maxsize=None)
-def get_klm(max_deg: int) -> Tuple[jnp.array, jnp.array, jnp.array, jnp.array, jnp.array]:
+def get_klm(degree: int) -> Tuple[jnp.array, jnp.array, jnp.array, jnp.array, jnp.array]:
     """
     Compute and cache the spherical harmonics parameters 'k', 'l', 'm', 'power', and 'mask'.
 
@@ -55,8 +55,8 @@ def get_klm(max_deg: int) -> Tuple[jnp.array, jnp.array, jnp.array, jnp.array, j
         'k', 'l', 'm' indices, the 'power' values for each term, and the 'mask' array that
         determines the sign based on 'm' values.
     """
-    k = jnp.arange(max_deg + 1).reshape(1, -1)
-    lm_list = [[d, m] for d in range(max_deg + 1) for m in range(-d, d + 1)]
+    k = jnp.arange(degree).reshape(1, -1)
+    lm_list = [[d, m] for d in range(degree) for m in range(-d, d + 1)]
     l, m = jnp.array(lm_list).T.reshape(2, -1, 1)
     mask = m >= 0
     m = jnp.abs(m)
@@ -76,7 +76,7 @@ def get_factorial(N, nan=False):
     Returns:
         jnp.array: An array of factorial values from 0 to N, optionally extended with NaN values.
     """
-    ints = jnp.arange(N + 1, dtype=jnp.float32)
+    ints = jnp.arange(N, dtype=jnp.float32)
     ints = ints.at[0].set(1)  # factorial(0) = 1
     factorial = jnp.cumprod(ints, axis=0)
     if not nan:
@@ -85,18 +85,18 @@ def get_factorial(N, nan=False):
     return jnp.concatenate((factorial, nan_tensor))
 
 @lru_cache(maxsize=None)
-def get_A(max_degree: int) -> jnp.array:
+def get_A(degree: int) -> jnp.array:
     """
     Compute and cache the 'A' coefficients used in the associated Legendre polynomials calculation.
 
     Args:
-        max_degree (int): The maximum degree of the associated Legendre polynomial.
+        degree (int): The maximum degree of the associated Legendre polynomial.
 
     Returns:
         jnp.array: An array representing the 'A' coefficients.
     """
-    k, l, m, _, _ = get_klm(max_degree)  # Use abs_m
-    factorial = get_factorial(2 * max_degree, nan=True)  # Use float for nan=True
+    k, l, m, _, _ = get_klm(degree)  # Use abs_m
+    factorial = get_factorial(2 * degree, nan=True)  # Use float for nan=True
 
     A = (-1) ** (m + l - k) / (2 ** l) * factorial[2 * k] / factorial[k] / factorial[l - k] / factorial[2 * k - l - m]
     A = jnp.where(jnp.isnan(A), 0.0, A)
@@ -123,36 +123,36 @@ def calc_Plm_jit(x: jnp.array, A: jnp.array, m: jnp.array, power: jnp.array) -> 
     Plm = pre_Plm * (1 - x**2) ** (m.T / 2)
     return Plm
 
-def calc_Plm(max_degree: int, x: jnp.array) -> jnp.array:
+def calc_Plm(degree: int, x: jnp.array) -> jnp.array:
     """
     Calculate the associated Legendre polynomials P(l,m) for a given degree and set of 'x' values.
 
     Args:
-        max_degree (int): The maximum degree of the associated Legendre polynomial.
+        degree (int): The maximum degree of the associated Legendre polynomial.
         x (jnp.array): The input values for cos(theta), where theta is the polar angle.
 
     Returns:
         jnp.array: An array of the associated Legendre polynomial values P(l,m).
     """
-    B = get_A(max_degree)
-    _, _, m, power, _ = get_klm(max_degree)
+    B = get_A(degree)
+    _, _, m, power, _ = get_klm(degree)
     Plm = calc_Plm_jit(x, B, m, power)
     return Plm
 
 @lru_cache(maxsize=None)
-def get_B(max_degree):
+def get_B(degree):
     """
     Compute and cache the 'B' coefficients used in the spherical harmonics calculation.
 
     Args:
-        max_degree (int): The maximum degree of the spherical harmonics.
+        degree (int): The maximum degree of the spherical harmonics.
 
     Returns:
         jnp.array: An array representing the 'B' coefficients.
     """
-    _, l, m, _, _ = get_klm(max_degree)
-    factorial = get_factorial(2 * max_degree)
-    A = get_A(max_degree)
+    _, l, m, _, _ = get_klm(degree)
+    factorial = get_factorial(2 * degree)
+    A = get_A(degree)
 
     B = A * (-1) ** m * 2 ** (m != 0) / 2 * jnp.sqrt((2 * l + 1) / (4 * math.pi) * factorial[l - m] / factorial[l + m])
     return B
@@ -187,19 +187,19 @@ def calc_Ylm_jit(x: jnp.array, B: jnp.array, m: jnp.array, power: jnp.array, mas
     cases = jnp.where(mask.T, cos_values, sin_values)
     return Plm * cases
 
-def calc_Ylm(max_degree: int, x: jnp.array) -> jnp.array:
+def calc_Ylm(degree: int, x: jnp.array) -> jnp.array:
     """
     Calculate the spherical harmonics Y(l,m) for a given degree and set of 3D points.
 
     Args:
-        max_degree (int): The maximum degree of the spherical harmonics.
+        degree (int): The maximum degree of the spherical harmonics.
         x (jnp.array): The input 3D points on which to evaluate the spherical harmonics.
 
     Returns:
         jnp.array: An array of the spherical harmonics Y(l,m) values for the given points.
     """
-    B = get_B(max_degree)
-    _, _, m, power, mask = get_klm(max_degree)
+    B = get_B(degree)
+    _, _, m, power, mask = get_klm(degree)
 
     Ylm = calc_Ylm_jit(x, B, m, power, mask)
     return Ylm
