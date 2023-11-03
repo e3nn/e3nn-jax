@@ -4,7 +4,7 @@ spherical harmonics for a given set of points and degree, using JAX for automati
 and JIT (Just-In-Time) compilation to GPU/TPU for increased performance.
 
 Functions:
-    get_klm(max_deg: int) -> Tuple[jnp.array, jnp.array, jnp.array, jnp.array, jnp.array]:
+    get_klm(degree: int) -> Tuple[jnp.array, jnp.array, jnp.array, jnp.array, jnp.array]:
         Calculate and cache the k, l, m values, along with powers and a sign mask for spherical harmonics.
 
     get_factorial(N: int, nan: bool = False) -> jnp.array:
@@ -48,7 +48,7 @@ def get_klm(degree: int) -> Tuple[jnp.array, jnp.array, jnp.array, jnp.array, jn
     Compute and cache the spherical harmonics parameters 'k', 'l', 'm', 'power', and 'mask'.
 
     Args:
-        max_deg (int): The maximum degree for the spherical harmonics.
+        degree (int): The maximum degree -1 for the spherical harmonics.
 
     Returns:
         Tuple[jnp.array, jnp.array, jnp.array, jnp.array, jnp.array]: A tuple containing the
@@ -90,7 +90,7 @@ def get_A(degree: int) -> jnp.array:
     Compute and cache the 'A' coefficients used in the associated Legendre polynomials calculation.
 
     Args:
-        degree (int): The maximum degree of the associated Legendre polynomial.
+        degree (int): The maximum degree -1 of the associated Legendre polynomial.
 
     Returns:
         jnp.array: An array representing the 'A' coefficients.
@@ -128,7 +128,7 @@ def calc_Plm(degree: int, x: jnp.array) -> jnp.array:
     Calculate the associated Legendre polynomials P(l,m) for a given degree and set of 'x' values.
 
     Args:
-        degree (int): The maximum degree of the associated Legendre polynomial.
+        degree (int): The maximum degree -1 of the associated Legendre polynomial.
         x (jnp.array): The input values for cos(theta), where theta is the polar angle.
 
     Returns:
@@ -145,7 +145,7 @@ def get_B(degree):
     Compute and cache the 'B' coefficients used in the spherical harmonics calculation.
 
     Args:
-        degree (int): The maximum degree of the spherical harmonics.
+        degree (int): The maximum degree -1 of the spherical harmonics.
 
     Returns:
         jnp.array: An array representing the 'B' coefficients.
@@ -192,7 +192,7 @@ def calc_Ylm(degree: int, x: jnp.array) -> jnp.array:
     Calculate the spherical harmonics Y(l,m) for a given degree and set of 3D points.
 
     Args:
-        degree (int): The maximum degree of the spherical harmonics.
+        degree (int): The maximum degree -1 of the spherical harmonics.
         x (jnp.array): The input 3D points on which to evaluate the spherical harmonics.
 
     Returns:
