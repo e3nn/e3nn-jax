@@ -10,7 +10,7 @@ import scipy.spatial
 import e3nn_jax as e3nn
 
 from .activation import parity_function
-from .spherical_harmonics import _sh_alpha, _sh_beta
+from .spherical_harmonics.legendre import _sh_alpha, _sh_beta
 
 
 class SphericalSignal:
