@@ -15,8 +15,6 @@ def recursive_spherical_harmonics(
     normalization: str,
     algorithm: Tuple[str],
 ) -> sympy.Array:
-    context.update(dict(jnp=jnp, clebsch_gordan=e3nn.clebsch_gordan))
-
     if l == 0:
         if 0 not in context:
             if normalization == "integral":
@@ -37,7 +35,7 @@ def recursive_spherical_harmonics(
             elif normalization == "component":
                 context[1] = math.sqrt(3) * input
             else:
-                context[1] = input
+                context[1] = 1 * input
 
         return sympy.Array([1, 0, 0])
 

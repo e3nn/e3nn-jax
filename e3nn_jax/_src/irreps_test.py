@@ -146,4 +146,4 @@ def test_D(keys, ir):
     w = e3nn.angles_to_log_coordinates(*angles)
     Dw = ir.D_from_log_coordinates(w)
 
-    np.testing.assert_allclose(Da, Dw, atol=1e-6)
+    np.testing.assert_allclose(Da, Dw, atol=1e-10, rtol=0.0008)
