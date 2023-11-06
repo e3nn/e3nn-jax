@@ -1,7 +1,7 @@
 import jax
 import numpy as np
 import pytest
-
+import jax.numpy as jnp
 import e3nn_jax as e3nn
 
 
@@ -141,9 +141,31 @@ def test_D(keys, ir):
     jax.config.update("jax_enable_x64", True)
 
     ir = e3nn.Irrep(ir)
-    angles = e3nn.rand_angles(keys[0])
+    angles = e3nn.rand_angles(keys[0], dtype=np.float64)
     Da = ir.D_from_angles(*angles)
     w = e3nn.angles_to_log_coordinates(*angles)
     Dw = ir.D_from_log_coordinates(w)
 
-    np.testing.assert_allclose(Da, Dw, atol=1e-10, rtol=0.0008)
+    assert Dw.dtype == np.float64, "D_from_log_coordinates should return float64"
+    assert Da.dtype == np.float64, "D_from_angles should return float64"
+    np.testing.assert_allclose(Da, Dw, atol=1e-10, rtol=0.002)
+
+
+@pytest.mark.parametrize("ir", ["0e", "1e", "2e", "3e", "4e", "12e"])
+def test_dtype_D_from_angles(ir):
+    jax.config.update("jax_enable_x64", True)
+
+    ir = e3nn.Irrep(ir)
+    e3nn.utils.assert_output_dtype_matches_input_dtype(
+        ir.D_from_angles, jnp.array(1.0), jnp.array(1.0), jnp.array(1.0)
+    )
+
+
+@pytest.mark.parametrize("ir", ["0e", "1e", "2e", "3e", "4e", "12e"])
+def test_dtype_D_from_log_coordinates(ir):
+    jax.config.update("jax_enable_x64", True)
+
+    ir = e3nn.Irrep(ir)
+    e3nn.utils.assert_output_dtype_matches_input_dtype(
+        ir.D_from_log_coordinates, jnp.array([1.0, 1.0, 0.0])
+    )

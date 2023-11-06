@@ -1058,11 +1058,11 @@ def _wigner_D_from_angles(
 
         if b is not None:
             if l < len(Jd):
-                J = Jd[l]
+                J = Jd[l].astype(b.dtype)
                 R += [J @ rot_y(b) @ J]
             else:
                 X = generators(l)
-                R += [jax.scipy.linalg.expm(b * X[0])]
+                R += [jax.scipy.linalg.expm(b.astype(X.dtype) * X[0]).astype(b.dtype)]
 
         if c is not None:
             R += [rot_y(c)]
@@ -1094,11 +1094,12 @@ def _wigner_D_from_log_coordinates(l: int, log_coordinates: jnp.ndarray) -> jnp.
     """
     X = generators(l)
 
-    def func(log_coordinates):
-        return jax.scipy.linalg.expm(jnp.einsum("a,aij->ij", log_coordinates, X))
+    def func(log):
+        log = log.astype(X.dtype)
+        return jax.scipy.linalg.expm(jnp.einsum("a,aij->ij", log, X))
 
     f = func
     for _ in range(log_coordinates.ndim - 1):
         f = jax.vmap(f)
 
-    return f(log_coordinates)
+    return f(log_coordinates).astype(log_coordinates.dtype)
