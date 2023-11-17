@@ -7,7 +7,7 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="e3nn-jax",
-    version="0.20.2",
+    version="0.20.3",
     description="Equivariant convolutional neural networks for the group E(3).",
     long_description=_long_description,
     long_description_content_type="text/markdown",
