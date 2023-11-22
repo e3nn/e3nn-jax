@@ -26,7 +26,7 @@ def sh(
         irreps_out (`Irreps` or int or Sequence[int]): the output irreps
         input (`jax.numpy.ndarray`): cartesian coordinates, shape (..., 3)
         normalize (bool): if True, the polynomials are restricted to the sphere
-        normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'integral'
+        normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'component'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_jvp])
 
     Returns:
