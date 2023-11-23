@@ -742,6 +742,8 @@ class Irreps(tuple):
                 keep = Irreps(keep)
             if isinstance(keep, Irrep):
                 keep = [keep]
+            if isinstance(keep, MulIrrep):
+                keep = [keep.ir]
             if callable(keep):
                 return Irreps([mul_ir for mul_ir in self if keep(mul_ir)])
             keep = {Irrep(ir) for ir in keep}
@@ -752,6 +754,8 @@ class Irreps(tuple):
                 drop = Irreps(drop)
             if isinstance(drop, Irrep):
                 drop = [drop]
+            if isinstance(drop, MulIrrep):
+                drop = [drop.ir]
             if callable(drop):
                 return Irreps([mul_ir for mul_ir in self if not drop(mul_ir)])
             drop = {Irrep(ir) for ir in drop}

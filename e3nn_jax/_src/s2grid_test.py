@@ -21,6 +21,8 @@ from e3nn_jax.utils import assert_output_dtype_matches_input_dtype
 @pytest.mark.parametrize("fft_to", [False, True])
 @pytest.mark.parametrize("fft_from", [False, True])
 def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
+    jax.config.update("jax_enable_x64", True)
+
     @jax.jit
     def f(c):
         res = e3nn.to_s2grid(
@@ -41,6 +43,8 @@ def test_s2grid_transforms(keys, irreps, quadrature, fft_to, fft_from):
 @pytest.mark.parametrize("fft_to", [False, True])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_legendre_transforms(keys, lmax, p_val, p_arg, quadrature, fft_to, batch_size):
+    jax.config.update("jax_enable_x64", True)
+
     res_beta, res_alpha = 30, 51
     irreps = e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg)
     a = e3nn.IrrepsArray(irreps, jax.random.normal(keys[0], (batch_size, irreps.dim)))
