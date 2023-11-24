@@ -22,19 +22,6 @@ setup(
         "numpy",
         "attrs",
     ],
-    extras_require={
-        "dev": [
-            "plotly",
-            "kaleido",
-            "jraph",
-            "flax",
-            "dm-haiku",
-            "optax",
-            "tqdm",
-            "pytest",
-            "nox",
-        ],
-    },
     url="https://e3nn-jax.readthedocs.io",
     license="Apache-2.0",
     classifiers=[

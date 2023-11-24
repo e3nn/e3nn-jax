@@ -1,0 +1,9 @@
+plotly
+kaleido
+jraph
+flax
+dm-haiku
+optax
+tqdm
+pytest
+nox
