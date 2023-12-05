@@ -97,6 +97,30 @@ def scatter_mean(
     Returns:
         `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
     """
+    if map_back and nel is not None:
+        assert dst is None
+        assert output_size is None
+
+        total = _scatter_op(
+            "sum",
+            0.0,
+            data,
+            nel=nel,
+            map_back=False,
+            mode=mode,
+        )
+        den = jnp.maximum(1, nel)
+
+        for _ in range(total.ndim - nel.ndim):
+            den = den[..., None]
+
+        output = total / den.astype(total.dtype)
+        output = jax.tree_map(
+            lambda x: jnp.repeat(x, nel, axis=0, total_repeat_length=data.shape[0]),
+            output,
+        )
+        return output
+
     total = _scatter_op(
         "sum",
         0.0,

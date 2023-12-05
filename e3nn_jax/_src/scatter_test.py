@@ -71,6 +71,34 @@ def test_scatter_mean():
     )
 
 
+def test_scatter_mean_irreps_array():
+    x = e3nn.IrrepsArray(
+        "0e", jnp.array([[[2.0], [3.0]], [[0.0], [3.0]], [[-10.0], [42.0]]])
+    )
+    dst = jnp.array([[0, 2], [2, 2], [0, 1]])
+
+    np.testing.assert_allclose(  # dst
+        e3nn.scatter_mean(x, dst=dst, output_size=3).array,
+        jnp.array([-4.0, 42.0, 2.0])[..., None],
+    )
+
+    np.testing.assert_allclose(  # map_back
+        e3nn.scatter_mean(x, dst=dst, map_back=True).array,
+        jnp.array([[-4.0, 2.0], [2.0, 2.0], [-4.0, 42.0]])[..., None],
+    )
+
+    x = e3nn.IrrepsArray("0e", jnp.array([[10.0], [1.0], [2.0], [3.0]]))
+    nel = jnp.array([1, 0, 3])
+    np.testing.assert_allclose(  # nel
+        e3nn.scatter_mean(x, nel=nel).array, jnp.array([10.0, 0.0, 2.0])[..., None]
+    )
+
+    np.testing.assert_allclose(  # nel + map_back
+        e3nn.scatter_mean(x, nel=nel, map_back=True).array,
+        jnp.array([10.0, 2.0, 2.0, 2.0])[..., None],
+    )
+
+
 def test_scatter_max():
     jax.config.update("jax_debug_infs", False)
 
