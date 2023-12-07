@@ -3,6 +3,13 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+try:
+    import s2fft
+
+    S2FFT_AVAILABLE = True
+except ImportError:
+    S2FFT_AVAILABLE = False
+
 import e3nn_jax as e3nn
 from e3nn_jax._src.s2grid import (
     _irfft,
@@ -10,6 +17,8 @@ from e3nn_jax._src.s2grid import (
     _spherical_harmonics_s2grid,
     m0_values_to_irrepsarray,
     betas_to_spherical_signal,
+    _to_s2grid_s2fft,
+    _from_s2grid_s2fft,
 )
 from e3nn_jax.utils import assert_output_dtype_matches_input_dtype
 
@@ -326,7 +335,7 @@ def test_integrate_scalar(lmax, quadrature):
 def test_integrate_polynomials(degree):
     def f(coords):
         x, y, z = coords
-        return y ** degree
+        return y**degree
 
     sig = e3nn.SphericalSignal.from_function(f, 100, 99, quadrature="gausslegendre")
     integral = sig.integrate().array.squeeze()
@@ -354,6 +363,70 @@ def test_sample(keys):
 
     err = (p - f).apply(jnp.square).integrate().array[0]
     assert err < 2e-3
+
+
+@pytest.mark.parametrize("seed", range(2))
+@pytest.mark.parametrize("lmax", range(11))
+@pytest.mark.parametrize("normalization", ["component", "integral", "norm"])
+@pytest.mark.parametrize("p_val", [-1, 1])
+@pytest.mark.parametrize("p_arg", [-1, 1])
+def test_to_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg):
+    if not S2FFT_AVAILABLE:
+        pytest.skip("s2fft not available")
+
+    rng = jax.random.PRNGKey(seed)
+    res_beta, res_alpha = s2fft.transforms.spherical.samples.f_shape(
+        sampling="dh", L=lmax + 1
+    )
+    coeffs = e3nn.normal(e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg), key=rng)
+
+    # Get e3nn's result
+    sig_e3nn = e3nn.to_s2grid(
+        coeffs,
+        res_beta,
+        res_alpha,
+        quadrature="soft",
+        normalization=normalization,
+        p_val=p_val,
+        p_arg=p_arg,
+    )
+
+    # Get my result
+    sig = _to_s2grid_s2fft(
+        coeffs,
+        res_beta,
+        res_alpha,
+        quadrature="soft",
+        normalization=normalization,
+        p_val=p_val,
+        p_arg=p_arg,
+    )
+
+    np.testing.assert_allclose(sig_e3nn.grid_values, sig.grid_values)
+
+
+@pytest.mark.parametrize("seed", range(2))
+@pytest.mark.parametrize("lmax", range(11))
+@pytest.mark.parametrize("normalization", ["component", "integral", "norm"])
+@pytest.mark.parametrize("p_val", [-1, 1])
+@pytest.mark.parametrize("p_arg", [-1, 1])
+def test_from_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg):
+    rng = jax.random.PRNGKey(seed)
+    sig_shape = s2fft.transforms.spherical.samples.f_shape(sampling="dh", L=lmax + 1)
+    sig = jax.random.normal(rng, sig_shape)
+    sig = e3nn.SphericalSignal(sig, quadrature="soft", p_val=p_val, p_arg=p_arg)
+
+    # Get e3nn's result
+    coeffs_e3nn = e3nn.from_s2grid(
+        sig, e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg), normalization=normalization
+    )
+
+    # Get my result
+    coeffs = _from_s2grid_s2fft(
+        sig, e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg), normalization=normalization
+    )
+
+    np.testing.assert_allclose(coeffs_e3nn.array, coeffs.array)
 
 
 @pytest.mark.parametrize("lmax", [2, 4, 10])
