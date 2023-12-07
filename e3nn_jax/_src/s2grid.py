@@ -32,7 +32,17 @@ class SphericalSignal:
             import jax.numpy as jnp
             jnp.set_printoptions(precision=3, suppress=True)
 
-        Create a null signal:
+        Create a signal from a function defined on the sphere:
+        .. jupyter-execute::
+
+            def f(coords):
+                x, y, z = coords
+                return x**2 - y**2
+
+            signal = e3nn.SphericalSignal.from_function(f, 50, 49, quadrature="soft")
+            signal
+    
+        Create a signal of zeros:
 
         .. jupyter-execute::
 
@@ -133,6 +143,39 @@ class SphericalSignal:
         self.quadrature = quadrature
         self.p_val = p_val
         self.p_arg = p_arg
+
+    @staticmethod
+    def from_function(
+        func: Callable[[jnp.ndarray], float],
+        res_beta: int,
+        res_alpha: int,
+        quadrature: str,
+        *,
+        p_val: int = 1,
+        p_arg: int = -1,
+        dtype: jnp.dtype = jnp.float32,
+    ) -> "SphericalSignal":
+        """Create a signal on the sphere from a function of the coordinates.
+
+        Args:
+            func (`Callable`): function on the sphere that maps a 3-dimensional array (x, y, z) to a number
+            res_beta: resolution for beta
+            res_alpha: resolution for alpha
+            quadrature: quadrature to use
+            p_val: parity of the signal, either +1 or -1
+            p_arg: parity of the argument of the signal, either +1 or -1
+            dtype: dtype of the signal
+
+        Returns:
+            `SphericalSignal`: signal on the sphere
+        """
+        y, alpha, _ = _s2grid(res_beta, res_alpha, quadrature)
+        grid_vectors = _s2grid_vectors(y, alpha)
+        grid_values = jax.vmap(jax.vmap(func))(grid_vectors)
+        grid_values = jnp.asarray(grid_values, dtype)
+        return SphericalSignal(
+            grid_values, quadrature, p_val=p_val, p_arg=p_arg
+        )
 
     @staticmethod
     def zeros(
@@ -367,15 +410,19 @@ class SphericalSignal:
         """Rotate the signal by the given quaternion."""
         return self._transform_by("quaternion", transform_kwargs=dict(q=q), lmax=lmax)
 
-    def apply(self, func: Callable[[jnp.ndarray], jnp.ndarray]):
+    def apply(self, func: Callable[[jnp.ndarray], jnp.ndarray]) -> "SphericalSignal":
         """Applies a function pointwise on the grid."""
         new_p_val = parity_function(func) if self.p_val == -1 else self.p_val
         if new_p_val == 0:
             raise ValueError(
                 "Activation: the parity is violated! The input scalar is odd but the activation is neither even nor odd."
             )
+        return self.replace_values(grid_values=func(self.grid_values))
+
+    def replace_values(self, grid_values: jnp.ndarray) -> "SphericalSignal":
+        """Replace the grid values of the signal."""
         return SphericalSignal(
-            func(self.grid_values), self.quadrature, p_val=new_p_val, p_arg=self.p_arg
+            grid_values, self.quadrature, p_val=self.p_val, p_arg=self.p_arg
         )
 
     @staticmethod
@@ -637,7 +684,11 @@ jax.tree_util.register_pytree_node(
 
 
 def s2_dirac(
-    position: Union[jnp.ndarray, e3nn.IrrepsArray], lmax: int, *, p_val: int, p_arg: int
+    position: Union[jnp.ndarray, e3nn.IrrepsArray],
+    lmax: int,
+    *,
+    p_val: int = 1,
+    p_arg: int = -1,
 ) -> e3nn.IrrepsArray:
     r"""Spherical harmonics expansion of a Dirac delta on the sphere.
 

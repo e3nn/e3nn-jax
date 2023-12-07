@@ -324,8 +324,11 @@ def test_integrate_scalar(lmax, quadrature):
 
 @pytest.mark.parametrize("degree", range(10))
 def test_integrate_polynomials(degree):
-    sig = e3nn.SphericalSignal(np.empty((26, 17)), "gausslegendre")
-    sig.grid_values = (sig.grid_y**degree)[:, None] * jnp.ones_like(sig.grid_values)
+    def f(coords):
+        x, y, z = coords
+        return y ** degree
+
+    sig = e3nn.SphericalSignal.from_function(f, 100, 99, quadrature="gausslegendre")
     integral = sig.integrate().array.squeeze()
 
     expected_integral = 4 * jnp.pi / (degree + 1) if degree % 2 == 0 else 0
