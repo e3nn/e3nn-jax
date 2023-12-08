@@ -474,7 +474,7 @@ def test_grid_tensor_product(seed, lmax, normalization, p_val, p_arg, dtype):
     rng = jax.random.PRNGKey(seed)
     irreps = e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg)
     tp_irreps = e3nn.s2_irreps(lmax, p_val=p_val * p_val, p_arg=p_arg)
-    coeffs = e3nn.normal(irreps, key=rng, leading_shape=(5,), dtype=dtype)
+    coeffs = e3nn.normal(irreps, key=rng, leading_shape=(2, 5,), dtype=dtype)
     res_beta, res_alpha = s2fft.transforms.spherical.samples.f_shape(
         sampling="dh", L=lmax + 1
     )
