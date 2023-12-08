@@ -214,6 +214,7 @@ __all__ = [
     "to_s2grid",
     "to_s2point",
     "from_s2grid",
+    "get_s2fft_grid_resolution",
     "legendre_transform_from_s2grid",
     "legendre_transform_to_s2grid",
     "betas_to_spherical_signal",
