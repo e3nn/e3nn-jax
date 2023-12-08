@@ -471,7 +471,6 @@ def test_from_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg, dtype):
 @pytest.mark.parametrize("p_arg", [-1, 1])
 @pytest.mark.parametrize("dtype", [jnp.float32, jnp.float64])
 def test_grid_tensor_product(seed, lmax, normalization, p_val, p_arg, dtype):
-
     rng = jax.random.PRNGKey(seed)
     irreps = e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg)
     tp_irreps = e3nn.s2_irreps(lmax, p_val=p_val * p_val, p_arg=p_arg)
