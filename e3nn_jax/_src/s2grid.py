@@ -921,24 +921,30 @@ def _from_s2grid_s2fft(
             L=lmax + 1, forward=True, sampling="dh"
         )
 
-    flm = s2fft.transforms.spherical.forward_jax(
-        sig.grid_values, L=lmax + 1, sampling="dh", reality=True, precomps=precomps
-    )
+    def _from_s2grid_s2fft_single_dim(sig: SphericalSignal) -> e3nn.IrrepsArray:
+        flm = s2fft.transforms.spherical.forward_jax(
+            sig.grid_values, L=lmax + 1, sampling="dh", reality=True, precomps=precomps
+        )
 
-    coeffs = jnp.zeros((lmax + 1) ** 2, dtype=sig.dtype)
-    normalization_factors = _normalization(lmax, normalization, sig.dtype, "to_s2")
+        coeffs = jnp.zeros((lmax + 1) ** 2, dtype=sig.dtype)
+        normalization_factors = _normalization(lmax, normalization, sig.dtype, "to_s2")
 
-    for l in range(lmax + 1):
-        c = flm[l][lmax - l : lmax + l + 1]
-        A = change_basis_real_to_complex(l)
-        r = 1j**l * A.T.conj() @ c
-        r = jnp.real(r)
-        m = jnp.arange(-l, l + 1)
-        r = r * (-1) ** jnp.where(m < 0, m + 1, m)
-        r /= normalization_factors[l]
-        coeffs = coeffs.at[l**2 : (l + 1) ** 2].set(r)
+        for l in range(lmax + 1):
+            c = flm[l][lmax - l : lmax + l + 1]
+            A = change_basis_real_to_complex(l)
+            r = 1j**l * A.T.conj() @ c
+            r = jnp.real(r)
+            m = jnp.arange(-l, l + 1)
+            r = r * (-1) ** jnp.where(m < 0, m + 1, m)
+            r /= normalization_factors[l]
+            coeffs = coeffs.at[l**2 : (l + 1) ** 2].set(r)
 
-    return e3nn.IrrepsArray(e3nn.s2_irreps(lmax), coeffs)
+        return e3nn.IrrepsArray(e3nn.s2_irreps(lmax), coeffs)
+
+    _from_s2grid_s2fft_func = _from_s2grid_s2fft_single_dim
+    for _ in range(sig.ndim - 2):
+        _from_s2grid_s2fft_func = jax.vmap(_from_s2grid_s2fft_func)
+    return _from_s2grid_s2fft_func(sig)
 
 
 def to_s2grid(
@@ -1099,27 +1105,36 @@ def _to_s2grid_s2fft(
             f"res_alpha={expected_signal_shape[1]}."
         )
 
-    coeffs_reshaped = jnp.zeros((lmax + 1, 2 * lmax + 1), dtype=complex)
-    normalization_factors = _normalization(lmax, normalization, coeffs.dtype, "to_s2")
-
-    for l in range(lmax + 1):
-        r = coeffs.array[l**2 : (l + 1) ** 2]
-        r = r * normalization_factors[l]
-        m = jnp.arange(-l, l + 1)
-        r = r * (-1) ** jnp.where(m < 0, m + 1, m)
-        A = change_basis_real_to_complex(l)
-        c = 1j ** (-l) * A @ r
-        coeffs_reshaped = coeffs_reshaped.at[l, lmax - l : lmax + l + 1].set(c)
-
-    with jax.ensure_compile_time_eval():
-        precomps = s2fft.generate_precomputes_jax(
-            L=lmax + 1, forward=False, sampling="dh"
+    def _to_s2grid_s2fft_single_dim(coeffs: e3nn.IrrepsArray) -> SphericalSignal:
+        """An S2FFT powered version of e3nn_jax.to_s2grid for a single signal."""
+        coeffs_reshaped = jnp.zeros((lmax + 1, 2 * lmax + 1), dtype=complex)
+        normalization_factors = _normalization(
+            lmax, normalization, coeffs.dtype, "to_s2"
         )
 
-    f = s2fft.transforms.spherical.inverse_jax(
-        coeffs_reshaped, L=lmax + 1, sampling="dh", reality=True, precomps=precomps
-    )
-    return e3nn.SphericalSignal(f, quadrature="soft", p_val=p_val, p_arg=p_arg)
+        for l in range(lmax + 1):
+            r = coeffs.array[l**2 : (l + 1) ** 2]
+            r = r * normalization_factors[l]
+            m = jnp.arange(-l, l + 1)
+            r = r * (-1) ** jnp.where(m < 0, m + 1, m)
+            A = change_basis_real_to_complex(l)
+            c = 1j ** (-l) * A @ r
+            coeffs_reshaped = coeffs_reshaped.at[l, lmax - l : lmax + l + 1].set(c)
+
+        with jax.ensure_compile_time_eval():
+            precomps = s2fft.generate_precomputes_jax(
+                L=lmax + 1, forward=False, sampling="dh"
+            )
+
+        f = s2fft.transforms.spherical.inverse_jax(
+            coeffs_reshaped, L=lmax + 1, sampling="dh", reality=True, precomps=precomps
+        )
+        return e3nn.SphericalSignal(f, quadrature="soft", p_val=p_val, p_arg=p_arg)
+
+    _to_s2grid_s2fft_single_dim = _to_s2grid_s2fft_single_dim
+    for _ in range(coeffs.ndim - 1):
+        _to_s2grid_s2fft_single_dim = jax.vmap(_to_s2grid_s2fft_single_dim)
+    return _to_s2grid_s2fft_single_dim(coeffs)
 
 
 def legendre_transform_to_s2grid(

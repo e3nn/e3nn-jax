@@ -464,6 +464,63 @@ def test_from_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg, dtype):
         raise ValueError(f"Unknown dtype: {dtype}")
 
 
+@pytest.mark.parametrize("seed", range(2))
+@pytest.mark.parametrize("lmax", range(11))
+@pytest.mark.parametrize("normalization", ["component", "integral", "norm"])
+@pytest.mark.parametrize("p_val", [-1, 1])
+@pytest.mark.parametrize("p_arg", [-1, 1])
+@pytest.mark.parametrize("dtype", [jnp.float32, jnp.float64])
+def test_grid_tensor_product(seed, lmax, normalization, p_val, p_arg, dtype):
+
+    rng = jax.random.PRNGKey(seed)
+    irreps = e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg)
+    tp_irreps = e3nn.s2_irreps(lmax, p_val=p_val * p_val, p_arg=p_arg)
+    coeffs = e3nn.normal(irreps, key=rng, leading_shape=(5,), dtype=dtype)
+    res_beta, res_alpha = s2fft.transforms.spherical.samples.f_shape(
+        sampling="dh", L=lmax + 1
+    )
+
+    # Get e3nn's result
+    sig = e3nn.to_s2grid(
+        coeffs,
+        res_beta,
+        res_alpha,
+        quadrature="soft",
+        normalization=normalization,
+        p_val=p_val,
+        p_arg=p_arg,
+        use_s2fft=False,
+    )
+    assert sig.p_val == p_val
+    assert sig.p_arg == p_arg
+    tp_coeffs = e3nn.from_s2grid(
+        sig * sig,
+        tp_irreps,
+        normalization=normalization,
+    )
+
+    # Get S2FFT's result
+    s2fft_sig = e3nn.to_s2grid(
+        coeffs,
+        res_beta,
+        res_alpha,
+        quadrature="soft",
+        normalization=normalization,
+        p_val=p_val,
+        p_arg=p_arg,
+        use_s2fft=True,
+    )
+    s2fft_tp_coeffs = e3nn.from_s2grid(
+        s2fft_sig * s2fft_sig,
+        tp_irreps,
+        normalization=normalization,
+    )
+
+    np.testing.assert_allclose(
+        s2fft_tp_coeffs.array, tp_coeffs.array, atol=1e-5, rtol=1e-3
+    )
+
+
 @pytest.mark.parametrize("lmax", [2, 4, 10])
 def test_find_peaks(lmax):
     pytest.skip(
