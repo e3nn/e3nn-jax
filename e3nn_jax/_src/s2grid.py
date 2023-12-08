@@ -7,8 +7,16 @@ import numpy as np
 import scipy.signal
 import scipy.spatial
 
+try:
+    import s2fft
+
+    _E3NN_S2FFT_AVAILABLE = True
+except ImportError:
+    _E3NN_S2FFT_AVAILABLE = False
+
 import e3nn_jax as e3nn
 
+from .so3 import change_basis_real_to_complex
 from .activation import parity_function
 from .spherical_harmonics.legendre import _sh_alpha, _sh_beta
 
@@ -32,7 +40,17 @@ class SphericalSignal:
             import jax.numpy as jnp
             jnp.set_printoptions(precision=3, suppress=True)
 
-        Create a null signal:
+        Create a signal from a function defined on the sphere:
+        .. jupyter-execute::
+
+            def f(coords):
+                x, y, z = coords
+                return x**2 - y**2
+
+            signal = e3nn.SphericalSignal.from_function(f, 50, 49, quadrature="soft")
+            signal
+
+        Create a signal of zeros:
 
         .. jupyter-execute::
 
@@ -133,6 +151,37 @@ class SphericalSignal:
         self.quadrature = quadrature
         self.p_val = p_val
         self.p_arg = p_arg
+
+    @staticmethod
+    def from_function(
+        func: Callable[[jnp.ndarray], float],
+        res_beta: int,
+        res_alpha: int,
+        quadrature: str,
+        *,
+        p_val: int = 1,
+        p_arg: int = -1,
+        dtype: jnp.dtype = jnp.float32,
+    ) -> "SphericalSignal":
+        """Create a signal on the sphere from a function of the coordinates.
+
+        Args:
+            func (`Callable`): function on the sphere that maps a 3-dimensional array (x, y, z) to a number
+            res_beta: resolution for beta
+            res_alpha: resolution for alpha
+            quadrature: quadrature to use
+            p_val: parity of the signal, either +1 or -1
+            p_arg: parity of the argument of the signal, either +1 or -1
+            dtype: dtype of the signal
+
+        Returns:
+            `SphericalSignal`: signal on the sphere
+        """
+        y, alpha, _ = _s2grid(res_beta, res_alpha, quadrature)
+        grid_vectors = _s2grid_vectors(y, alpha)
+        grid_values = jax.vmap(jax.vmap(func))(grid_vectors)
+        grid_values = jnp.asarray(grid_values, dtype)
+        return SphericalSignal(grid_values, quadrature, p_val=p_val, p_arg=p_arg)
 
     @staticmethod
     def zeros(
@@ -367,15 +416,19 @@ class SphericalSignal:
         """Rotate the signal by the given quaternion."""
         return self._transform_by("quaternion", transform_kwargs=dict(q=q), lmax=lmax)
 
-    def apply(self, func: Callable[[jnp.ndarray], jnp.ndarray]):
+    def apply(self, func: Callable[[jnp.ndarray], jnp.ndarray]) -> "SphericalSignal":
         """Applies a function pointwise on the grid."""
         new_p_val = parity_function(func) if self.p_val == -1 else self.p_val
         if new_p_val == 0:
             raise ValueError(
                 "Activation: the parity is violated! The input scalar is odd but the activation is neither even nor odd."
             )
+        return self.replace_values(grid_values=func(self.grid_values))
+
+    def replace_values(self, grid_values: jnp.ndarray) -> "SphericalSignal":
+        """Replace the grid values of the signal."""
         return SphericalSignal(
-            func(self.grid_values), self.quadrature, p_val=new_p_val, p_arg=self.p_arg
+            grid_values, self.quadrature, p_val=self.p_val, p_arg=self.p_arg
         )
 
     @staticmethod
@@ -637,7 +690,11 @@ jax.tree_util.register_pytree_node(
 
 
 def s2_dirac(
-    position: Union[jnp.ndarray, e3nn.IrrepsArray], lmax: int, *, p_val: int, p_arg: int
+    position: Union[jnp.ndarray, e3nn.IrrepsArray],
+    lmax: int,
+    *,
+    p_val: int = 1,
+    p_arg: int = -1,
 ) -> e3nn.IrrepsArray:
     r"""Spherical harmonics expansion of a Dirac delta on the sphere.
 
@@ -745,6 +802,33 @@ def s2_irreps(lmax: int, p_val: int = 1, p_arg: int = -1) -> e3nn.Irreps:
     return e3nn.Irreps([(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)])
 
 
+def get_s2fft_grid_resolution(lmax: int) -> Tuple[int, int]:
+    """Returns the grid resolution for S2FFT."""
+    return (2 * lmax + 2, 2 * lmax + 1)
+
+
+def _check_compatibility_with_s2fft(
+    lmax: int, res_beta: int, res_alpha: int, quadrature: str, fft: bool
+) -> None:
+    """Check if the inputs are compatible with S2FFT."""
+    if not _E3NN_S2FFT_AVAILABLE:
+        raise ValueError("Could not import S2FFT.")
+
+    if quadrature != "soft":
+        raise ValueError("Please supply quadrature='soft' to use S2FFT.")
+
+    expected_grid_resolution = get_s2fft_grid_resolution(lmax)
+    if (res_beta, res_alpha) != expected_grid_resolution:
+        raise ValueError(
+            f"Invalid shape {(res_beta, res_alpha)} for the signal. Expected shape: {expected_grid_resolution}."
+        )
+
+    if not fft:
+        raise ValueError("Please supply fft=True to use S2FFT.")
+
+    return True
+
+
 def from_s2grid(
     x: SphericalSignal,
     irreps: e3nn.Irreps,
@@ -752,6 +836,7 @@ def from_s2grid(
     normalization: str = "integral",
     lmax_in: Optional[int] = None,
     fft: bool = True,
+    use_s2fft: bool = False,
 ) -> e3nn.IrrepsArray:
     r"""Transform signal on the sphere into spherical harmonics coefficients.
 
@@ -774,7 +859,7 @@ def from_s2grid(
     irreps = e3nn.Irreps(irreps)
 
     if not all(mul == 1 for mul, _ in irreps.regroup()):
-        raise ValueError("multiplicities should be ones")
+        raise ValueError("Multiplicities of all irreps should be ones.")
 
     _check_parities(irreps, x.p_val, x.p_arg)
 
@@ -782,6 +867,12 @@ def from_s2grid(
 
     if lmax_in is None:
         lmax_in = lmax
+
+    if use_s2fft:
+        _check_compatibility_with_s2fft(
+            lmax, x.res_beta, x.res_alpha, x.quadrature, fft
+        )
+        return _from_s2grid_s2fft(x, irreps, normalization=normalization)
 
     with jax.ensure_compile_time_eval():
         _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(
@@ -812,6 +903,51 @@ def from_s2grid(
     return e3nn.IrrepsArray(irreps, int_b)
 
 
+def _from_s2grid_s2fft(
+    sig: SphericalSignal,
+    irreps: e3nn.Irreps,
+    *,
+    normalization: str = "integral",
+) -> e3nn.IrrepsArray:
+    """An S2FFT powered version of e3nn_jax.from_s2grid."""
+    lmax = irreps.lmax
+    expected_grid_resolution = get_s2fft_grid_resolution(lmax)
+    if sig.shape != expected_grid_resolution:
+        raise ValueError(
+            f"Input signal shape {sig.shape} does not match the required shape {expected_grid_resolution}"
+        )
+
+    with jax.ensure_compile_time_eval():
+        precomps = s2fft.generate_precomputes_jax(
+            L=lmax + 1, forward=True, sampling="dh"
+        )
+
+    def _from_s2grid_s2fft_single_dim(sig: SphericalSignal) -> e3nn.IrrepsArray:
+        flm = s2fft.transforms.spherical.forward_jax(
+            sig.grid_values, L=lmax + 1, sampling="dh", reality=True, precomps=precomps
+        )
+
+        coeffs = jnp.zeros((lmax + 1) ** 2, dtype=sig.dtype)
+        normalization_factors = _normalization(lmax, normalization, sig.dtype, "to_s2")
+
+        for l in range(lmax + 1):
+            c = flm[l][lmax - l : lmax + l + 1]
+            A = change_basis_real_to_complex(l)
+            r = 1j**l * A.T.conj() @ c
+            r = jnp.real(r)
+            m = jnp.arange(-l, l + 1)
+            r = r * (-1) ** jnp.where(m < 0, m + 1, m)
+            r /= normalization_factors[l]
+            coeffs = coeffs.at[l**2 : (l + 1) ** 2].set(r)
+
+        return e3nn.IrrepsArray(e3nn.s2_irreps(lmax), coeffs)
+
+    _from_s2grid_s2fft_func = _from_s2grid_s2fft_single_dim
+    for _ in range(sig.ndim - 2):
+        _from_s2grid_s2fft_func = jax.vmap(_from_s2grid_s2fft_func)
+    return _from_s2grid_s2fft_func(sig)
+
+
 def to_s2grid(
     coeffs: e3nn.IrrepsArray,
     res_beta: int,
@@ -822,6 +958,7 @@ def to_s2grid(
     fft: bool = True,
     p_val: Optional[int] = None,
     p_arg: Optional[int] = None,
+    use_s2fft: bool = False,
 ) -> SphericalSignal:
     r"""Sample a signal on the sphere given by the coefficient in the spherical harmonics basis.
 
@@ -907,6 +1044,17 @@ def to_s2grid(
             f"p_val and p_arg cannot be determined from the irreps {coeffs.irreps}, please specify them."
         )
 
+    if use_s2fft:
+        _check_compatibility_with_s2fft(lmax, res_beta, res_alpha, quadrature, fft)
+        return _to_s2grid_s2fft(
+            coeffs,
+            res_beta,
+            res_alpha,
+            normalization=normalization,
+            p_val=p_val,
+            p_arg=p_arg,
+        )
+
     with jax.ensure_compile_time_eval():
         _, _, sh_y, sha, _ = _spherical_harmonics_s2grid(
             lmax, res_beta, res_alpha, quadrature=quadrature, dtype=coeffs.dtype
@@ -936,6 +1084,56 @@ def to_s2grid(
         )  # [..., res_beta, res_alpha]
 
     return SphericalSignal(signal, quadrature=quadrature, p_val=p_val, p_arg=p_arg)
+
+
+def _to_s2grid_s2fft(
+    coeffs: e3nn.IrrepsArray,
+    res_beta: int,
+    res_alpha: int,
+    *,
+    normalization: str = "integral",
+    p_val: int | None = None,
+    p_arg: int | None = None,
+) -> SphericalSignal:
+    """An S2FFT powered version of e3nn_jax.to_s2grid."""
+    lmax = coeffs.irreps.lmax
+    expected_grid_resolution = get_s2fft_grid_resolution(lmax)
+    if (res_beta, res_alpha) != expected_grid_resolution:
+        raise ValueError(
+            f"To use S2FFT, the input grid must have res_beta={expected_grid_resolution[0]}, "
+            f"res_alpha={expected_grid_resolution[1]}."
+        )
+
+    def _to_s2grid_s2fft_single_dim(coeffs: e3nn.IrrepsArray) -> SphericalSignal:
+        """An S2FFT powered version of e3nn_jax.to_s2grid for a single signal."""
+        coeffs_reshaped = jnp.zeros((lmax + 1, 2 * lmax + 1), dtype=complex)
+        normalization_factors = _normalization(
+            lmax, normalization, coeffs.dtype, "to_s2"
+        )
+
+        for l in range(lmax + 1):
+            r = coeffs.array[l**2 : (l + 1) ** 2]
+            r = r * normalization_factors[l]
+            m = jnp.arange(-l, l + 1)
+            r = r * (-1) ** jnp.where(m < 0, m + 1, m)
+            A = change_basis_real_to_complex(l)
+            c = 1j ** (-l) * A @ r
+            coeffs_reshaped = coeffs_reshaped.at[l, lmax - l : lmax + l + 1].set(c)
+
+        with jax.ensure_compile_time_eval():
+            precomps = s2fft.generate_precomputes_jax(
+                L=lmax + 1, forward=False, sampling="dh"
+            )
+
+        f = s2fft.transforms.spherical.inverse_jax(
+            coeffs_reshaped, L=lmax + 1, sampling="dh", reality=True, precomps=precomps
+        )
+        return e3nn.SphericalSignal(f, quadrature="soft", p_val=p_val, p_arg=p_arg)
+
+    _to_s2grid_s2fft_single_dim = _to_s2grid_s2fft_single_dim
+    for _ in range(coeffs.ndim - 1):
+        _to_s2grid_s2fft_single_dim = jax.vmap(_to_s2grid_s2fft_single_dim)
+    return _to_s2grid_s2fft_single_dim(coeffs)
 
 
 def legendre_transform_to_s2grid(
@@ -1281,16 +1479,14 @@ def _normalization(
         # normalize such that all l has the same variance on the sphere
         # given that all component has mean 0 and variance 1
         if direction == "to_s2":
-            return (
-                jnp.sqrt(4 * jnp.pi)
-                * jnp.asarray([1 / jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], dtype)
-                / jnp.sqrt(lmax + 1)
+            return jnp.sqrt(4 * jnp.pi) / (
+                (jnp.sqrt(2 * jnp.arange(lmax + 1) + 1)).astype(dtype)
+                * jnp.sqrt(lmax + 1)
             )
         else:
-            return (
-                jnp.sqrt(4 * jnp.pi)
-                * jnp.asarray([jnp.sqrt(2 * l + 1) for l in range(lmax + 1)], dtype)
-                * jnp.sqrt(lmax_in + 1)
+            return jnp.sqrt(4 * jnp.pi) * (
+                (jnp.sqrt(2 * jnp.arange(lmax + 1) + 1)).astype(dtype)
+                * jnp.sqrt(lmax + 1)
             )
     if normalization == "norm":
         # normalize such that all l has the same variance on the sphere

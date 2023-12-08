@@ -106,6 +106,7 @@ from e3nn_jax._src.s2grid import (
     m0_values_to_irrepsarray,
     s2_dirac,
     SphericalSignal,
+    get_s2fft_grid_resolution,
 )
 from e3nn_jax._src.tensor_product_with_spherical_harmonics import (
     tensor_product_with_spherical_harmonics,
@@ -213,6 +214,7 @@ __all__ = [
     "to_s2grid",
     "to_s2point",
     "from_s2grid",
+    "get_s2fft_grid_resolution",
     "legendre_transform_from_s2grid",
     "legendre_transform_to_s2grid",
     "betas_to_spherical_signal",
