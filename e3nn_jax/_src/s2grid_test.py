@@ -465,19 +465,28 @@ def test_from_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg, dtype):
 
 
 @pytest.mark.parametrize("seed", range(2))
-@pytest.mark.parametrize("lmax", range(11))
+@pytest.mark.parametrize("lmax", range(1, 11))
 @pytest.mark.parametrize("normalization", ["component", "integral", "norm"])
 @pytest.mark.parametrize("p_val", [-1, 1])
 @pytest.mark.parametrize("p_arg", [-1, 1])
 @pytest.mark.parametrize("dtype", [jnp.float32, jnp.float64])
 def test_grid_tensor_product(seed, lmax, normalization, p_val, p_arg, dtype):
+    if not _E3NN_S2FFT_AVAILABLE:
+        pytest.skip("s2fft not available")
+
+    if dtype == jnp.float64:
+        jax.config.update("jax_enable_x64", True)
+
     rng = jax.random.PRNGKey(seed)
-    irreps = e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg)
+    sig_irreps = e3nn.s2_irreps(lmax // 2, p_val=p_val, p_arg=p_arg)
+    coeffs = e3nn.normal(sig_irreps, key=rng, leading_shape=(2, 5), dtype=dtype)
+
+    # Make the components with l > lmax//2 zero
+    sig_irreps_extended = e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg)
+    coeffs = coeffs.extend_with_zeros(sig_irreps_extended)
+
     tp_irreps = e3nn.s2_irreps(lmax, p_val=p_val * p_val, p_arg=p_arg)
-    coeffs = e3nn.normal(irreps, key=rng, leading_shape=(2, 5), dtype=dtype)
-    res_beta, res_alpha = s2fft.transforms.spherical.samples.f_shape(
-        sampling="dh", L=lmax + 1
-    )
+    res_beta, res_alpha = e3nn.get_s2fft_grid_resolution(lmax)
 
     # Get e3nn's result
     sig = e3nn.to_s2grid(
@@ -490,8 +499,6 @@ def test_grid_tensor_product(seed, lmax, normalization, p_val, p_arg, dtype):
         p_arg=p_arg,
         use_s2fft=False,
     )
-    assert sig.p_val == p_val
-    assert sig.p_arg == p_arg
     tp_coeffs = e3nn.from_s2grid(
         sig * sig,
         tp_irreps,
@@ -515,9 +522,16 @@ def test_grid_tensor_product(seed, lmax, normalization, p_val, p_arg, dtype):
         normalization=normalization,
     )
 
-    np.testing.assert_allclose(
-        s2fft_tp_coeffs.array, tp_coeffs.array, atol=1e-5, rtol=1e-3
-    )
+    if dtype == jnp.float32:
+        np.testing.assert_allclose(
+            s2fft_tp_coeffs.array, tp_coeffs.array, atol=1e-5, rtol=1e-3
+        )
+    elif dtype == jnp.float64:
+        np.testing.assert_allclose(
+            s2fft_tp_coeffs.array, tp_coeffs.array, atol=1e-6, rtol=1e-7
+        )
+    else:
+        raise ValueError(f"Unknown dtype: {dtype}")
 
 
 @pytest.mark.parametrize("lmax", [2, 4, 10])

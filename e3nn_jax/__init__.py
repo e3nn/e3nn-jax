@@ -106,6 +106,7 @@ from e3nn_jax._src.s2grid import (
     m0_values_to_irrepsarray,
     s2_dirac,
     SphericalSignal,
+    get_s2fft_grid_resolution,
 )
 from e3nn_jax._src.tensor_product_with_spherical_harmonics import (
     tensor_product_with_spherical_harmonics,

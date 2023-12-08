@@ -802,6 +802,11 @@ def s2_irreps(lmax: int, p_val: int = 1, p_arg: int = -1) -> e3nn.Irreps:
     return e3nn.Irreps([(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)])
 
 
+def get_s2fft_grid_resolution(lmax: int) -> Tuple[int, int]:
+    """Returns the grid resolution for S2FFT."""
+    return (2 * lmax + 2, 2 * lmax + 1)
+
+
 def _check_compatibility_with_s2fft(
     lmax: int, res_beta: int, res_alpha: int, quadrature: str, fft: bool
 ) -> None:
@@ -812,12 +817,10 @@ def _check_compatibility_with_s2fft(
     if quadrature != "soft":
         raise ValueError("Please supply quadrature='soft' to use S2FFT.")
 
-    expected_signal_shape = s2fft.transforms.spherical.samples.f_shape(
-        sampling="dh", L=lmax + 1
-    )
-    if (res_beta, res_alpha) != expected_signal_shape:
+    expected_grid_resolution = get_s2fft_grid_resolution(lmax)
+    if (res_beta, res_alpha) != expected_grid_resolution:
         raise ValueError(
-            f"Invalid shape {(res_beta, res_alpha)} for the signal. Expected shape: {expected_signal_shape}."
+            f"Invalid shape {(res_beta, res_alpha)} for the signal. Expected shape: {expected_grid_resolution}."
         )
 
     if not fft:
@@ -908,12 +911,10 @@ def _from_s2grid_s2fft(
 ) -> e3nn.IrrepsArray:
     """An S2FFT powered version of e3nn_jax.from_s2grid."""
     lmax = irreps.lmax
-    expected_signal_shape = s2fft.transforms.spherical.samples.f_shape(
-        sampling="dh", L=lmax + 1
-    )
-    if sig.shape != expected_signal_shape:
+    expected_grid_resolution = get_s2fft_grid_resolution(lmax)
+    if sig.shape != expected_grid_resolution:
         raise ValueError(
-            f"Input signal shape {sig.shape} does not match the required shape {expected_signal_shape}"
+            f"Input signal shape {sig.shape} does not match the required shape {expected_grid_resolution}"
         )
 
     with jax.ensure_compile_time_eval():
@@ -1096,13 +1097,11 @@ def _to_s2grid_s2fft(
 ) -> SphericalSignal:
     """An S2FFT powered version of e3nn_jax.to_s2grid."""
     lmax = coeffs.irreps.lmax
-    expected_signal_shape = s2fft.transforms.spherical.samples.f_shape(
-        sampling="dh", L=lmax + 1
-    )
-    if (res_beta, res_alpha) != expected_signal_shape:
+    expected_grid_resolution = get_s2fft_grid_resolution(lmax)
+    if (res_beta, res_alpha) != expected_grid_resolution:
         raise ValueError(
-            f"To use S2FFT, the input grid must have res_beta={expected_signal_shape[0]}, "
-            f"res_alpha={expected_signal_shape[1]}."
+            f"To use S2FFT, the input grid must have res_beta={expected_grid_resolution[0]}, "
+            f"res_alpha={expected_grid_resolution[1]}."
         )
 
     def _to_s2grid_s2fft_single_dim(coeffs: e3nn.IrrepsArray) -> SphericalSignal:
