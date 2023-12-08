@@ -6,9 +6,9 @@ import pytest
 try:
     import s2fft
 
-    S2FFT_AVAILABLE = True
+    _E3NN_S2FFT_AVAILABLE = True
 except ImportError:
-    S2FFT_AVAILABLE = False
+    _E3NN_S2FFT_AVAILABLE = False
 
 import e3nn_jax as e3nn
 from e3nn_jax._src.s2grid import (
@@ -17,8 +17,6 @@ from e3nn_jax._src.s2grid import (
     _spherical_harmonics_s2grid,
     m0_values_to_irrepsarray,
     betas_to_spherical_signal,
-    _to_s2grid_s2fft,
-    _from_s2grid_s2fft,
 )
 from e3nn_jax.utils import assert_output_dtype_matches_input_dtype
 
@@ -370,9 +368,13 @@ def test_sample(keys):
 @pytest.mark.parametrize("normalization", ["component", "integral", "norm"])
 @pytest.mark.parametrize("p_val", [-1, 1])
 @pytest.mark.parametrize("p_arg", [-1, 1])
-def test_to_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg):
-    if not S2FFT_AVAILABLE:
+@pytest.mark.parametrize("dtype", [jnp.float32, jnp.float64])
+def test_to_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg, dtype):
+    if not _E3NN_S2FFT_AVAILABLE:
         pytest.skip("s2fft not available")
+
+    if dtype == jnp.float64:
+        jax.config.update("jax_enable_x64", True)
 
     rng = jax.random.PRNGKey(seed)
     res_beta, res_alpha = s2fft.transforms.spherical.samples.f_shape(
@@ -380,7 +382,7 @@ def test_to_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg):
     )
     coeffs = e3nn.normal(e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg), key=rng)
 
-    # Get e3nn's result
+    # Get e3nn's FFT result
     sig_e3nn = e3nn.to_s2grid(
         coeffs,
         res_beta,
@@ -389,10 +391,11 @@ def test_to_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg):
         normalization=normalization,
         p_val=p_val,
         p_arg=p_arg,
+        use_s2fft=False,
     )
 
-    # Get my result
-    sig = _to_s2grid_s2fft(
+    # Get S2FFT's result
+    sig_s2fft = e3nn.to_s2grid(
         coeffs,
         res_beta,
         res_alpha,
@@ -400,9 +403,19 @@ def test_to_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg):
         normalization=normalization,
         p_val=p_val,
         p_arg=p_arg,
+        use_s2fft=True,
     )
 
-    np.testing.assert_allclose(sig_e3nn.grid_values, sig.grid_values)
+    if dtype == jnp.float32:
+        np.testing.assert_allclose(
+            sig_e3nn.grid_values, sig_s2fft.grid_values, atol=1e-4, rtol=1e-3
+        )
+    elif dtype == jnp.float64:
+        np.testing.assert_allclose(
+            sig_e3nn.grid_values, sig_s2fft.grid_values, atol=0.0, rtol=1e-7
+        )
+    else:
+        raise ValueError(f"Unknown dtype: {dtype}")
 
 
 @pytest.mark.parametrize("seed", range(2))
@@ -410,23 +423,45 @@ def test_to_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg):
 @pytest.mark.parametrize("normalization", ["component", "integral", "norm"])
 @pytest.mark.parametrize("p_val", [-1, 1])
 @pytest.mark.parametrize("p_arg", [-1, 1])
-def test_from_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg):
+@pytest.mark.parametrize("dtype", [jnp.float32, jnp.float64])
+def test_from_s2grid_s2fft(seed, lmax, normalization, p_val, p_arg, dtype):
+    if not _E3NN_S2FFT_AVAILABLE:
+        pytest.skip("s2fft not available")
+
+    if dtype == jnp.float64:
+        jax.config.update("jax_enable_x64", True)
+
     rng = jax.random.PRNGKey(seed)
     sig_shape = s2fft.transforms.spherical.samples.f_shape(sampling="dh", L=lmax + 1)
-    sig = jax.random.normal(rng, sig_shape)
+    sig = jax.random.normal(rng, sig_shape, dtype=dtype)
     sig = e3nn.SphericalSignal(sig, quadrature="soft", p_val=p_val, p_arg=p_arg)
 
-    # Get e3nn's result
+    # Get e3nn's FFT result
     coeffs_e3nn = e3nn.from_s2grid(
-        sig, e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg), normalization=normalization
+        sig,
+        e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg),
+        normalization=normalization,
+        use_s2fft=False,
     )
 
-    # Get my result
-    coeffs = _from_s2grid_s2fft(
-        sig, e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg), normalization=normalization
+    # Get S2FFT's result
+    coeffs_s2fft = e3nn.from_s2grid(
+        sig,
+        e3nn.s2_irreps(lmax, p_val=p_val, p_arg=p_arg),
+        normalization=normalization,
+        use_s2fft=True,
     )
 
-    np.testing.assert_allclose(coeffs_e3nn.array, coeffs.array)
+    if dtype == jnp.float32:
+        np.testing.assert_allclose(
+            coeffs_e3nn.array, coeffs_s2fft.array, atol=1e-4, rtol=1e-3
+        )
+    elif dtype == jnp.float64:
+        np.testing.assert_allclose(
+            coeffs_e3nn.array, coeffs_s2fft.array, atol=0.0, rtol=1e-7
+        )
+    else:
+        raise ValueError(f"Unknown dtype: {dtype}")
 
 
 @pytest.mark.parametrize("lmax", [2, 4, 10])

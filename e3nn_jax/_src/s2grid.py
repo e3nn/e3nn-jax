@@ -10,9 +10,9 @@ import scipy.spatial
 try:
     import s2fft
 
-    E3NN_S2FFT_AVAILABLE = True
+    _E3NN_S2FFT_AVAILABLE = True
 except ImportError:
-    E3NN_S2FFT_AVAILABLE = False
+    _E3NN_S2FFT_AVAILABLE = False
 
 import e3nn_jax as e3nn
 
@@ -802,21 +802,26 @@ def s2_irreps(lmax: int, p_val: int = 1, p_arg: int = -1) -> e3nn.Irreps:
     return e3nn.Irreps([(1, (l, p_val * p_arg**l)) for l in range(lmax + 1)])
 
 
-def _is_compatible_with_s2fft(
-    lmax: int, res_beta: int, res_alpha: int, quadrature: str
-) -> bool:
+def _check_compatibility_with_s2fft(
+    lmax: int, res_beta: int, res_alpha: int, quadrature: str, fft: bool
+) -> None:
     """Check if the inputs are compatible with S2FFT."""
-    if not E3NN_S2FFT_AVAILABLE:
-        return False
+    if not _E3NN_S2FFT_AVAILABLE:
+        raise ValueError("Could not import S2FFT.")
 
     if quadrature != "soft":
-        return False
+        raise ValueError("Please supply quadrature='soft' to use S2FFT.")
 
     expected_signal_shape = s2fft.transforms.spherical.samples.f_shape(
         sampling="dh", L=lmax + 1
     )
     if (res_beta, res_alpha) != expected_signal_shape:
-        return False
+        raise ValueError(
+            f"Invalid shape {(res_beta, res_alpha)} for the signal. Expected shape: {expected_signal_shape}."
+        )
+
+    if not fft:
+        raise ValueError("Please supply fft=True to use S2FFT.")
 
     return True
 
@@ -828,6 +833,7 @@ def from_s2grid(
     normalization: str = "integral",
     lmax_in: Optional[int] = None,
     fft: bool = True,
+    use_s2fft: bool = False,
 ) -> e3nn.IrrepsArray:
     r"""Transform signal on the sphere into spherical harmonics coefficients.
 
@@ -855,11 +861,15 @@ def from_s2grid(
     _check_parities(irreps, x.p_val, x.p_arg)
 
     lmax = max(irreps.ls)
-    if fft and _is_compatible_with_s2fft(lmax, x.res_beta, x.res_alpha, x.quadrature):
-        return _from_s2grid_s2fft(x, irreps, normalization=normalization)
 
     if lmax_in is None:
         lmax_in = lmax
+
+    if use_s2fft:
+        _check_compatibility_with_s2fft(
+            lmax, x.res_beta, x.res_alpha, x.quadrature, fft
+        )
+        return _from_s2grid_s2fft(x, irreps, normalization=normalization)
 
     with jax.ensure_compile_time_eval():
         _, _, sh_y, sha, qw = _spherical_harmonics_s2grid(
@@ -907,16 +917,16 @@ def _from_s2grid_s2fft(
         )
 
     with jax.ensure_compile_time_eval():
-        precomps = s2fft.generate_precomputes_jax(L=lmax + 1, forward=True)
+        precomps = s2fft.generate_precomputes_jax(
+            L=lmax + 1, forward=True, sampling="dh"
+        )
 
     flm = s2fft.transforms.spherical.forward_jax(
         sig.grid_values, L=lmax + 1, sampling="dh", reality=True, precomps=precomps
     )
 
-    coeffs = jnp.zeros((lmax + 1) ** 2, dtype=jnp.float32)
-    normalization_factors = _normalization(
-        lmax, normalization, sig.grid_values.dtype, "to_s2"
-    )
+    coeffs = jnp.zeros((lmax + 1) ** 2, dtype=sig.dtype)
+    normalization_factors = _normalization(lmax, normalization, sig.dtype, "to_s2")
 
     for l in range(lmax + 1):
         c = flm[l][lmax - l : lmax + l + 1]
@@ -1027,7 +1037,8 @@ def to_s2grid(
             f"p_val and p_arg cannot be determined from the irreps {coeffs.irreps}, please specify them."
         )
 
-    if fft and _is_compatible_with_s2fft(lmax, res_beta, res_alpha, quadrature):
+    if use_s2fft:
+        _check_compatibility_with_s2fft(lmax, res_beta, res_alpha, quadrature, fft)
         return _to_s2grid_s2fft(
             coeffs,
             res_beta,
@@ -1100,7 +1111,9 @@ def _to_s2grid_s2fft(
         coeffs_reshaped = coeffs_reshaped.at[l, lmax - l : lmax + l + 1].set(c)
 
     with jax.ensure_compile_time_eval():
-        precomps = s2fft.generate_precomputes_jax(L=lmax + 1, forward=False)
+        precomps = s2fft.generate_precomputes_jax(
+            L=lmax + 1, forward=False, sampling="dh"
+        )
 
     f = s2fft.transforms.spherical.inverse_jax(
         coeffs_reshaped, L=lmax + 1, sampling="dh", reality=True, precomps=precomps
