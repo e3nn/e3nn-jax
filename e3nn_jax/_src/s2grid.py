@@ -1095,7 +1095,8 @@ def _to_s2grid_s2fft(
     )
     if (res_beta, res_alpha) != expected_signal_shape:
         raise ValueError(
-            f"To use S2FFT, the input grid must have res_beta={expected_signal_shape[0]}, res_alpha={expected_signal_shape[1]}."
+            f"To use S2FFT, the input grid must have res_beta={expected_signal_shape[0]}, "
+            f"res_alpha={expected_signal_shape[1]}."
         )
 
     coeffs_reshaped = jnp.zeros((lmax + 1, 2 * lmax + 1), dtype=complex)
