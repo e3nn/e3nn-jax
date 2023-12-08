@@ -7,3 +7,4 @@ optax
 tqdm
 pytest
 nox
+s2fft
