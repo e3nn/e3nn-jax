@@ -118,7 +118,11 @@ def batch_norm(
     output = output.reshape((batch,) + tuple(size) + (-1,))
 
     if not is_instance:
-        new_ra_means = jnp.concatenate(new_ra_means)
+        new_ra_means = (
+            jnp.concatenate(new_ra_means)
+            if new_ra_means
+            else jnp.zeros_like(output, shape=(0,))
+        )
         new_ra_vars = jnp.concatenate(new_ra_vars)
     else:
         new_ra_means = None
