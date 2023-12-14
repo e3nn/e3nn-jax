@@ -1,4 +1,5 @@
 import math
+import sys
 from typing import Callable, List, Optional, Tuple, Union
 
 import jax
@@ -7,18 +8,13 @@ import numpy as np
 import scipy.signal
 import scipy.spatial
 
-try:
-    import s2fft
-
-    _E3NN_S2FFT_AVAILABLE = True
-except ImportError:
-    _E3NN_S2FFT_AVAILABLE = False
-
 import e3nn_jax as e3nn
 
-from .so3 import change_basis_real_to_complex
 from .activation import parity_function
+from .so3 import change_basis_real_to_complex
 from .spherical_harmonics.legendre import _sh_alpha, _sh_beta
+
+_E3NN_S2FFT_AVAILABLE = "s2fft" in sys.modules
 
 
 class SphericalSignal:
@@ -910,6 +906,8 @@ def _from_s2grid_s2fft(
     normalization: str = "integral",
 ) -> e3nn.IrrepsArray:
     """An S2FFT powered version of e3nn_jax.from_s2grid."""
+    import s2fft
+
     lmax = irreps.lmax
     expected_grid_resolution = get_s2fft_grid_resolution(lmax)
     if sig.grid_resolution != expected_grid_resolution:
@@ -1096,6 +1094,8 @@ def _to_s2grid_s2fft(
     p_arg: int | None = None,
 ) -> SphericalSignal:
     """An S2FFT powered version of e3nn_jax.to_s2grid."""
+    import s2fft
+
     lmax = coeffs.irreps.lmax
     expected_grid_resolution = get_s2fft_grid_resolution(lmax)
     if (res_beta, res_alpha) != expected_grid_resolution:
