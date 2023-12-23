@@ -1,9 +1,17 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "e3nn_jax"
+name = "e3nn-jax"
 version = "0.20.3"
+description = "Equivariant convolutional neural networks for the group E(3) of 3 dimensional rotations, translations, and mirrors."
+authors=[
+    {name="e3nn team", email="geiger.mario@gmail.com"},
+]
+readme="README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.9"
 dependencies = [
   "jax",
   "jaxlib",
@@ -11,10 +19,41 @@ dependencies = [
   "numpy",
   "attrs",
 ]
-description = "Equivariant convolutional neural networks for the group E(3) of 3 dimensional rotations, translations, and mirrors."
+classifiers = [
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+]
+
+[project.urls]
+homepage="https://e3nn-jax.readthedocs.io"
+documentation="https://e3nn-jax.readthedocs.io"
+repository="https://github.com/e3nn/e3nn-jax"
+changelog="https://github.com/e3nn/e3nn-jax/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = [
+  "plotly",
+  "kaleido",
+  "jraph",
+  "flax",
+  "dm-haiku",
+  "optax",
+  "tqdm",
+  "pytest",
+  "nox",
+  "s2fft"
+]
 
 [tool.setuptools]
 py-modules = ["e3nn_jax"]
+
+[tool.setuptools.packages.find]
+exclude = [
+  "misc*",
+  "docs*",
+  "examples*",
+]
 
 [tool.pydocstyle]
 select = ["D415", "D403"]
