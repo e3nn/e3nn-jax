@@ -1,5 +1,4 @@
 import math
-import sys
 from typing import Callable, List, Optional, Tuple, Union
 
 import jax
@@ -13,8 +12,6 @@ import e3nn_jax as e3nn
 from .activation import parity_function
 from .so3 import change_basis_real_to_complex
 from .spherical_harmonics.legendre import _sh_alpha, _sh_beta
-
-_E3NN_S2FFT_AVAILABLE = "s2fft" in sys.modules
 
 
 class SphericalSignal:
@@ -807,8 +804,6 @@ def _check_compatibility_with_s2fft(
     lmax: int, res_beta: int, res_alpha: int, quadrature: str, fft: bool
 ) -> None:
     """Check if the inputs are compatible with S2FFT."""
-    if not _E3NN_S2FFT_AVAILABLE:
-        raise ValueError("Could not import S2FFT.")
 
     if quadrature != "soft":
         raise ValueError("Please supply quadrature='soft' to use S2FFT.")
