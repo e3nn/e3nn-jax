@@ -392,5 +392,6 @@ Content
 
     api/index
     tuto/index
+    BENCHMARK
 
 .. _jax: https://github.com/google/jax
