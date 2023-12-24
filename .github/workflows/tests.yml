@@ -36,14 +36,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install wheel
         pip install .
-        pip install -r requirements-dev.txt
     - name: Install pytest
       run: |
         pip install pytest pytest-cov
         pip install coveralls
     - name: Test with pytest
       run: |
-        coverage run --source=e3nn_jax -m pytest --doctest-modules --ignore=docs/ --ignore=noxfile.py e3nn_jax examples
+        coverage run --source=e3nn_jax -m pytest --doctest-modules --ignore=docs/ --ignore=tests/noxfile.py tests examples
     - name: Upload to coveralls
       if: github.event_name == 'push'
       run: |
