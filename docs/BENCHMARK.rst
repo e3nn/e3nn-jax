@@ -1,5 +1,8 @@
+Benchmarks
+==========
+
 TP Task
-=======
+-------
 
 ::
 
@@ -120,7 +123,7 @@ On Pytorch it takes 140 ms.
    12 ms
 
 QM9
-===
+---
 
 Record on V100
 --------------
