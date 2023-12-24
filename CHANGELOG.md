@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.4] - 2023-12-24
+### Fixed
+- Fix `pyproject.toml`, the documenation build was broken. Thanks to @SauravMaheshkar!
+
+### Added
+- Support for [`s2fft`](https://github.com/astro-informatics/s2fft) in `e3nn.to_s2grid` and `e3nn.from_s2grid`, thanks to @ameya98!
+- Add a special case implementation for `e3nn.scatter_mean` when `map_back and nel is not None`.
+
 ## [0.20.3] - 2023-11-17
 ### Added
 - `e3nn.flax.BatchNorm`

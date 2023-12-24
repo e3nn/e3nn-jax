@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "e3nn-jax"
-version = "0.20.3"
+version = "0.20.4"
 description = "Equivariant convolutional neural networks for the group E(3) of 3 dimensional rotations, translations, and mirrors."
 authors=[
     {name="e3nn team", email="geiger.mario@gmail.com"},
