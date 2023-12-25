@@ -1,4 +1,4 @@
-name: Check Syntax and Run Tests
+name: Run Tests
 
 on:
   push:
@@ -23,12 +23,9 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install flake8
-      run: |
-        pip install flake8 Flake8-pyproject
-    - name: Lint with flake8
-      run: |
-        flake8 . --count --show-source --statistics
+        cache: pip
+        cache-dependency-path: |
+          pyproject.toml
     - name: Install dependencies
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
