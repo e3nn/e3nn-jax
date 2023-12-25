@@ -32,7 +32,7 @@ print(tp)
 
 *Speed comparison done with a full model (MACE) during training (revMD-17) on a GPU (NVIDIA RTX A5000)
 
-Please always check the [ChangeLog](ChangeLog.md) for breaking changes.
+Please always check the [CHANGELOG](CHANGELOG.md) for breaking changes.
 
 ## Installation
 
