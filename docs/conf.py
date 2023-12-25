@@ -11,7 +11,8 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 import os
 import sys
-from e3nn_jax import __version__, __file__
+
+from e3nn_jax import __file__, __version__
 
 sys.path.insert(0, os.path.abspath("../"))
 
@@ -72,6 +73,7 @@ default_role = "any"
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+html_favicon = "favicon.ico"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
