@@ -1085,8 +1085,8 @@ def _to_s2grid_s2fft(
     res_alpha: int,
     *,
     normalization: str = "integral",
-    p_val: int | None = None,
-    p_arg: int | None = None,
+    p_val: Optional[int] = None,
+    p_arg: Optional[int] = None,
 ) -> SphericalSignal:
     """An S2FFT powered version of e3nn_jax.to_s2grid."""
     import s2fft
