@@ -30,7 +30,8 @@ def _legendre(
     lmax: int, x: jnp.ndarray, phase: float, is_normalized: bool
 ) -> jnp.ndarray:
     # Handle lmax = 0 case separately.
-    # This is because jax.scipy.special.lpmn_values(0, 0, x) creates a NaN internally.
+    # This is because jax.scipy.special.lpmn_values
+    # creates a NaN internally.
     if lmax == 0:
         p = jnp.ones(x.size)
         if is_normalized:
