@@ -29,9 +29,17 @@ def legendre(
 def _legendre(
     lmax: int, x: jnp.ndarray, phase: float, is_normalized: bool
 ) -> jnp.ndarray:
-    p = jax.scipy.special.lpmn_values(
-        lmax, lmax, x.flatten(), is_normalized
-    )  # [m, l, x]
+    # Handle lmax = 0 case separately.
+    # This is because jax.scipy.special.lpmn_values(0, 0, x) creates a NaN internally.
+    if lmax == 0:
+        p = jnp.ones(x.size)
+        if is_normalized:
+            p /= jnp.sqrt(4 * jnp.pi)
+        p = jnp.reshape(p, (1, 1, -1))
+    else:
+        p = jax.scipy.special.lpmn_values(
+            lmax, lmax, x.flatten(), is_normalized
+        )  # [m, l, x]
     p = (-phase) ** jnp.arange(lmax + 1)[:, None, None] * p
     p = jnp.transpose(p, (1, 0, 2))  # [l, m, x]
     p = jnp.reshape(p, (lmax + 1, lmax + 1) + x.shape)
