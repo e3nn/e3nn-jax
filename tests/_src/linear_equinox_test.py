@@ -13,10 +13,11 @@ from e3nn_jax.utils import assert_output_dtype_matches_input_dtype
     "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
 )
 def test_linear_vanilla(keys, irreps_in, irreps_out):
-    linear = e3nn.flax.Linear(irreps_in=irreps_in, irreps_out=irreps_out)
+    linear = e3nn.equinox.Linear(
+        irreps_in=irreps_in, irreps_out=irreps_out, key=next(keys)
+    )
     x = e3nn.normal(irreps_in, next(keys), (128,))
-    w = linear.init(next(keys), x)
-    y = linear.apply(w, x)
+    y = linear(x)
     assert jnp.all(y.array != 0.0)  # unaccessible irreps are discarded
     assert y.shape == (128, y.irreps.dim)
 
@@ -28,10 +29,12 @@ def test_linear_vanilla(keys, irreps_in, irreps_out):
     "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
 )
 def test_linear_vanilla_with_forced_irreps_out(keys, irreps_in, irreps_out):
-    linear = e3nn.flax.Linear(irreps_in=irreps_in, irreps_out=irreps_out, force_irreps_out=True)
+    linear = e3nn.equinox.Linear(
+        irreps_in=irreps_in, irreps_out=irreps_out, key=next(keys),
+        force_irreps_out=True
+    )
     x = e3nn.normal(irreps_in, next(keys), (128,))
-    w = linear.init(next(keys), x)
-    y = linear.apply(w, x)
+    y = linear(x)
     assert y.irreps == irreps_out
     assert y.shape == (128, e3nn.Irreps(irreps_out).dim)
 
@@ -43,13 +46,16 @@ def test_linear_vanilla_with_forced_irreps_out(keys, irreps_in, irreps_out):
     "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
 )
 def test_linear_indexed(keys, irreps_in, irreps_out):
-    linear = e3nn.flax.Linear(
-        irreps_in=irreps_in, irreps_out=irreps_out, num_indexed_weights=10
+    linear = e3nn.equinox.Linear(
+        irreps_in=irreps_in,
+        irreps_out=irreps_out,
+        num_indexed_weights=10,
+        key=next(keys),
+        linear_type="indexed",
     )
     x = e3nn.normal(irreps_in, next(keys), (128,))
     i = jnp.arange(128) % 10
-    w = linear.init(next(keys), i, x)
-    y = linear.apply(w, i, x)
+    y = linear(i, x)
     assert jnp.all(y.array != 0.0)  # unaccessible irreps are discarded
     assert y.shape == (128, y.irreps.dim)
 
@@ -61,11 +67,13 @@ def test_linear_indexed(keys, irreps_in, irreps_out):
     "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
 )
 def test_linear_mixed(keys, irreps_in, irreps_out):
-    linear = e3nn.flax.Linear(irreps_in=irreps_in, irreps_out=irreps_out)
+    linear = e3nn.equinox.Linear(
+        irreps_in=irreps_in, irreps_out=irreps_out, key=next(keys),
+        linear_type="mixed", weights_dim=10,
+    )
     x = e3nn.normal(irreps_in, next(keys), (128,))
     e = jax.random.normal(next(keys), (128, 10))
-    w = linear.init(next(keys), e, x)
-    y = linear.apply(w, e, x)
+    y = linear(e, x)
     assert jnp.all(y.array != 0.0)  # unaccessible irreps are discarded
     assert y.shape == (128, y.irreps.dim)
 
@@ -77,13 +85,18 @@ def test_linear_mixed(keys, irreps_in, irreps_out):
     "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
 )
 def test_linear_mixed_per_channel(keys, irreps_in, irreps_out):
-    linear = e3nn.flax.Linear(
-        irreps_in=irreps_in, irreps_out=irreps_out, weights_per_channel=True
+    linear = e3nn.equinox.Linear(
+        irreps_in=irreps_in,
+        irreps_out=irreps_out,
+        weights_per_channel=True,
+        weights_dim=10,
+        channel_in=128,
+        key=next(keys),
+        linear_type="mixed_per_channel",
     )
     x = e3nn.normal(irreps_in, next(keys), (128,))
     e = jax.random.normal(next(keys), (10,))
-    w = jax.jit(linear.init)(next(keys), e, x)
-    y = linear.apply(w, e, x)
+    y = linear(e, x)
     assert jnp.all(y.array != 0.0)  # unaccessible irreps are discarded
     assert y.shape == (128, y.irreps.dim)
 
@@ -97,8 +110,9 @@ def test_linear_mixed_per_channel(keys, irreps_in, irreps_out):
 def test_linear_dtype(keys, irreps_in, irreps_out):
     jax.config.update("jax_enable_x64", True)
 
-    linear = e3nn.flax.Linear(irreps_out)
+    linear = e3nn.equinox.Linear(
+        irreps_in=irreps_in, irreps_out=irreps_out, key=next(keys)
+    )
     x = e3nn.normal(irreps_in, next(keys), (128,))
-    w = linear.init(next(keys), x)
 
-    assert_output_dtype_matches_input_dtype(linear.apply, w, x)
+    assert_output_dtype_matches_input_dtype(linear, x)
