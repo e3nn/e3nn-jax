@@ -38,6 +38,7 @@ dev = [
   "jraph",
   "flax",
   "dm-haiku",
+  "equinox",
   "optax",
   "tqdm",
   "pytest",
