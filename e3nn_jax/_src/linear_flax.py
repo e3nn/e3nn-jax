@@ -113,10 +113,9 @@ class Linear(flax.linen.Module):
             output_irreps = e3nn.Irreps(self.irreps_out).simplify()
         else:
             output_irreps_unsimplified = e3nn.Irreps(self.irreps_out).filter(
-                input.irreps
+                keep=input.irreps
             )
             output_irreps = output_irreps_unsimplified.simplify()
-
         if self.channel_out is not None:
             assert not self.weights_per_channel
             input = input.axis_to_mul()
