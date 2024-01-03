@@ -30,8 +30,10 @@ def test_linear_vanilla(keys, irreps_in, irreps_out):
 )
 def test_linear_vanilla_with_forced_irreps_out(keys, irreps_in, irreps_out):
     linear = e3nn.equinox.Linear(
-        irreps_in=irreps_in, irreps_out=irreps_out, key=next(keys),
-        force_irreps_out=True
+        irreps_in=irreps_in,
+        irreps_out=irreps_out,
+        key=next(keys),
+        force_irreps_out=True,
     )
     x = e3nn.normal(irreps_in, next(keys), (128,))
     y = linear(x)
@@ -68,8 +70,11 @@ def test_linear_indexed(keys, irreps_in, irreps_out):
 )
 def test_linear_mixed(keys, irreps_in, irreps_out):
     linear = e3nn.equinox.Linear(
-        irreps_in=irreps_in, irreps_out=irreps_out, key=next(keys),
-        linear_type="mixed", weights_dim=10,
+        irreps_in=irreps_in,
+        irreps_out=irreps_out,
+        key=next(keys),
+        linear_type="mixed",
+        weights_dim=10,
     )
     x = e3nn.normal(irreps_in, next(keys), (128,))
     e = jax.random.normal(next(keys), (128, 10))

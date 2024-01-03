@@ -28,7 +28,9 @@ def test_linear_vanilla(keys, irreps_in, irreps_out):
     "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
 )
 def test_linear_vanilla_with_forced_irreps_out(keys, irreps_in, irreps_out):
-    linear = e3nn.flax.Linear(irreps_in=irreps_in, irreps_out=irreps_out, force_irreps_out=True)
+    linear = e3nn.flax.Linear(
+        irreps_in=irreps_in, irreps_out=irreps_out, force_irreps_out=True
+    )
     x = e3nn.normal(irreps_in, next(keys), (128,))
     w = linear.init(next(keys), x)
     y = linear.apply(w, x)
