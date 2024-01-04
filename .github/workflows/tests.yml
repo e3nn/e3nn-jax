@@ -35,11 +35,11 @@ jobs:
         pip install ".[dev]"
     - name: Install pytest
       run: |
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov pytest-xdist
         pip install coveralls
     - name: Test with pytest
       run: |
-        coverage run --source=e3nn_jax -m pytest --doctest-modules --ignore=docs/ --ignore=tests/noxfile.py tests examples
+        coverage run --source=e3nn_jax -m pytest -n auto --doctest-modules --ignore=docs/ --ignore=tests/noxfile.py tests examples
     - name: Upload to coveralls
       if: github.event_name == 'push'
       run: |
