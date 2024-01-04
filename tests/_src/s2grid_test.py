@@ -76,17 +76,12 @@ def test_legendre_transforms(keys, lmax, p_val, p_arg, quadrature, fft_to, batch
     m0_indices = jnp.cumsum(jnp.repeat(jnp.arange(lmax + 1), 2))[::2] + jnp.arange(
         lmax + 1
     )
-    np.testing.assert_allclose(
-        a.array[m0_indices],
-        res_m0,
-        rtol=1e-5,
-        atol=1e-5,
-    )
+    np.testing.assert_allclose(a.array[:, m0_indices], res_m0, rtol=1e-5, atol=1e-5)
     irrepsarray_m0 = m0_values_to_irrepsarray(res_m0, lmax, p_val, p_arg)
     assert a.irreps == irrepsarray_m0.irreps
     np.testing.assert_allclose(
-        a.array[m0_indices],
-        irrepsarray_m0.array[m0_indices],
+        a.array[:, m0_indices],
+        irrepsarray_m0.array[:, m0_indices],
         rtol=1e-5,
         atol=1e-5,
     )
