@@ -28,6 +28,26 @@ def test_linear_vanilla(keys, irreps_in, irreps_out):
 @pytest.mark.parametrize(
     "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
 )
+@pytest.mark.parametrize("num_channels", [1, 2, 8])
+def test_linear_vanilla_with_channels(keys, irreps_in, irreps_out, num_channels):
+    linear = e3nn.equinox.Linear(
+        irreps_in=irreps_in,
+        irreps_out=irreps_out,
+        key=next(keys),
+        channel_out=num_channels,
+    )
+    x = e3nn.normal(irreps_in, next(keys), (128,))
+    y = linear(x)
+    assert jnp.all(y.array != 0.0)  # unaccessible irreps are discarded
+    assert y.shape == (128, num_channels, y.irreps.dim)
+
+
+@pytest.mark.parametrize(
+    "irreps_in", ["5x0e", "1e + 2e + 4x1e + 3x3o", "2x1o + 0x3e", "0x0e"]
+)
+@pytest.mark.parametrize(
+    "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
+)
 def test_linear_vanilla_with_forced_irreps_out(keys, irreps_in, irreps_out):
     linear = e3nn.equinox.Linear(
         irreps_in=irreps_in,

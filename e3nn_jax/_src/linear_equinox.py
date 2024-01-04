@@ -118,8 +118,6 @@ class Linear(eqx.Module):
     # These are used internally.
     _linear: FunctionalLinear
     _weights: Dict[str, jnp.ndarray]
-    _output_irreps_unsimplified: e3nn.Irreps
-    _output_irreps: e3nn.Irreps
     _input_dtype: jnp.dtype
 
     def __init__(
@@ -146,7 +144,6 @@ class Linear(eqx.Module):
         self.irreps_in = irreps_in_regrouped
         self.channel_in = channel_in
         self.channel_out = channel_out
-        self.irreps_out = irreps_out
         self.biases = biases
         self.path_normalization = path_normalization
         self.num_indexed_weights = num_indexed_weights
@@ -160,20 +157,19 @@ class Linear(eqx.Module):
             gradient_normalization
         )
 
+        channel_irrep_multiplier = 1
         if self.channel_out is not None:
             assert not self.weights_per_channel
-            irreps_out = self.channel_out * irreps_out
+            channel_irrep_multiplier = self.channel_out
 
-        self._output_irreps_unsimplified = irreps_out
         if not self.force_irreps_out:
-            self._output_irreps_unsimplified = self._output_irreps_unsimplified.filter(
-                keep=irreps_in_regrouped
-            )
-        self._output_irreps = self._output_irreps_unsimplified.simplify()
+            irreps_out = irreps_out.filter(keep=irreps_in_regrouped)
+            irreps_out = irreps_out.simplify()
+        self.irreps_out = irreps_out
 
         self._linear = FunctionalLinear(
             irreps_in_regrouped,
-            self._output_irreps,
+            channel_irrep_multiplier * irreps_out,
             biases=self.biases,
             path_normalization=self.path_normalization,
             gradient_normalization=self.gradient_normalization,
@@ -256,20 +252,18 @@ class Linear(eqx.Module):
         del weights_or_input, input_or_none
 
         input = e3nn.as_irreps_array(input)
-        if self.channel_out is not None:
-            input = input.axis_to_mul()
 
         dtype = get_pytree_dtype(weights, input)
         if dtype.kind == "i":
             dtype = jnp.float32
         input = input.astype(dtype)
 
-        if self.irreps_in is not None:
-            if self.irreps_in != input.irreps.regroup():
-                raise ValueError(
-                    f"e3nn.equinox.Linear: The input irreps ({input.irreps}) "
-                    f"do not match the expected irreps ({self.irreps_in})."
-                )
+        if self.irreps_in != input.irreps.regroup():
+            raise ValueError(
+                f"e3nn.equinox.Linear: The input irreps ({input.irreps}) "
+                f"do not match the expected irreps ({self.irreps_in})."
+            )
+
         if self.channel_in is not None:
             if self.channel_in != input.shape[-2]:
                 raise ValueError(
@@ -278,11 +272,6 @@ class Linear(eqx.Module):
                 )
 
         input = input.remove_zero_chunks().regroup()
-
-        if self.channel_out is not None:
-            assert not self.weights_per_channel
-            input = input.axis_to_mul()
-            output_irreps = self.channel_out * output_irreps
 
         def get_parameter(
             name: str,
@@ -350,7 +339,4 @@ class Linear(eqx.Module):
         if self.channel_out is not None:
             output = output.mul_to_axis(self.channel_out)
 
-        if self.force_irreps_out:
-            return output.rechunk(self.irreps_out)
-        else:
-            return output.rechunk(self._output_irreps_unsimplified)
+        return output.rechunk(self.irreps_out)
