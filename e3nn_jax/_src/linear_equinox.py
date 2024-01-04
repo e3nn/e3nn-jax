@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple, Dict, Sequence
+from typing import Optional, Union, Tuple, Dict
 
 import equinox as eqx
 import chex
