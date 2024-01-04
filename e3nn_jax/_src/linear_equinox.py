@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple, Any, Dict, Sequence
+from typing import Optional, Union, Tuple, Dict, Sequence
 
 import equinox as eqx
 import chex
@@ -160,6 +160,10 @@ class Linear(eqx.Module):
             gradient_normalization
         )
 
+        if self.channel_out is not None:
+            assert not self.weights_per_channel
+            irreps_out = self.channel_out * irreps_out
+
         self._output_irreps_unsimplified = irreps_out
         if not self.force_irreps_out:
             self._output_irreps_unsimplified = self._output_irreps_unsimplified.filter(
@@ -252,6 +256,8 @@ class Linear(eqx.Module):
         del weights_or_input, input_or_none
 
         input = e3nn.as_irreps_array(input)
+        if self.channel_out is not None:
+            input = input.axis_to_mul()
 
         dtype = get_pytree_dtype(weights, input)
         if dtype.kind == "i":
@@ -261,12 +267,14 @@ class Linear(eqx.Module):
         if self.irreps_in is not None:
             if self.irreps_in != input.irreps.regroup():
                 raise ValueError(
-                    f"e3nn.equinox.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({self.irreps_in})"
+                    f"e3nn.equinox.Linear: The input irreps ({input.irreps}) "
+                    f"do not match the expected irreps ({self.irreps_in})."
                 )
         if self.channel_in is not None:
             if self.channel_in != input.shape[-2]:
                 raise ValueError(
-                    f"e3nn.equinox.Linear: The input channel ({input.shape[-2]}) does not match the expected channel ({self.channel_in})"
+                    f"e3nn.equinox.Linear: The input channel ({input.shape[-2]}) "
+                    f"does not match the expected channel ({self.channel_in})."
                 )
 
         input = input.remove_zero_chunks().regroup()
@@ -288,8 +296,9 @@ class Linear(eqx.Module):
         assertion_message = (
             "Weights cannot be provided when 'linear_type' is 'vanilla'."
             "Otherwise, weights must be provided."
-            "If weights are provided, they must be either integers and num_indexed_weights must be provided, "
-            "or floats and num_indexed_weights must not be provided. "
+            "If weights are provided, they must be either: \n"
+            "* integers and num_indexed_weights must be provided, or \n"
+            "* floats and num_indexed_weights must not be provided.\n"
             f"weights.dtype={weights.dtype if weights is not None else None}, "
             f"num_indexed_weights={self.num_indexed_weights}"
         )
