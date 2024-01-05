@@ -122,11 +122,11 @@ class Linear(eqx.Module):
 
     def __init__(
         self,
+        *,
         irreps_out: e3nn.Irreps,
         irreps_in: e3nn.Irreps,
         channel_out: Optional[int] = None,
         channel_in: Optional[int] = None,
-        *,
         biases: bool = False,
         path_normalization: Optional[Union[str, float]] = None,
         gradient_normalization: Optional[Union[str, float]] = None,
