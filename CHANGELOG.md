@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.5] - 2024-01-05
+### Added
+- `e3nn.ones` and `e3nn.ones_like` functions
+- `e3nn.equinox` submodule
+
+### Fixed
+- python 3.9 compatibility
+
 ## [0.20.4] - 2023-12-24
 ### Fixed
 - Fix `pyproject.toml`, the documenation build was broken. Thanks to @SauravMaheshkar!
