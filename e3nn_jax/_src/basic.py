@@ -101,7 +101,9 @@ def as_irreps_array(array: Union[jnp.ndarray, e3nn.IrrepsArray], *, backend=None
     return e3nn.IrrepsArray(f"{array.shape[-1]}x0e", array)
 
 
-def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> e3nn.IrrepsArray:
+def zeros(
+    irreps: IntoIrreps, leading_shape: Tuple = (), dtype: jnp.dtype = None
+) -> e3nn.IrrepsArray:
     r"""Create an IrrepsArray of zeros."""
     irreps = e3nn.Irreps(irreps)
     array = jnp.zeros(leading_shape + (irreps.dim,), dtype=dtype)
@@ -111,6 +113,20 @@ def zeros(irreps: IntoIrreps, leading_shape, dtype=None) -> e3nn.IrrepsArray:
 def zeros_like(irreps_array: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
     r"""Create an IrrepsArray of zeros with the same shape as another IrrepsArray."""
     return e3nn.zeros(irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype)
+
+
+def ones(
+    irreps: IntoIrreps, leading_shape: Tuple = (), dtype: jnp.dtype = None
+) -> e3nn.IrrepsArray:
+    r"""Create an IrrepsArray of ones."""
+    irreps = e3nn.Irreps(irreps)
+    array = jnp.ones(leading_shape + (irreps.dim,), dtype=dtype)
+    return e3nn.IrrepsArray(irreps, array, zero_flags=(False,) * len(irreps))
+
+
+def ones_like(irreps_array: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+    r"""Create an IrrepsArray of ones with the same shape as another IrrepsArray."""
+    return e3nn.ones(irreps_array.irreps, irreps_array.shape[:-1], irreps_array.dtype)
 
 
 def _align_two_irreps(
