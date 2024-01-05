@@ -5,8 +5,40 @@ import e3nn_jax as e3nn
 
 
 def assert_array_equals_chunks(x: e3nn.IrrepsArray):
-    y = e3nn.from_chunks(x.irreps, x.chunks, x.shape[:-1])
+    y = e3nn.from_chunks(x.irreps, x.chunks, x.shape[:-1], x.dtype)
     np.testing.assert_array_equal(x.array, y.array)
+
+
+def test_zeros():
+    x = e3nn.zeros("0e + 1e", leading_shape=(3, 5))
+    assert jnp.all(x.array == 0)
+    assert x.shape == (3, 5, 4)
+    assert x.irreps == "0e + 1e"
+    assert_array_equals_chunks(x)
+
+
+def test_zeros_like():
+    x = e3nn.ones("0e + 1e", leading_shape=(3, 5))
+    y = e3nn.zeros_like(x)
+    assert jnp.all(y.array == 0)
+    assert y.shape == x.shape
+    assert y.irreps == x.irreps
+
+
+def test_ones():
+    x = e3nn.ones("0e + 1e", leading_shape=(3, 5))
+    assert jnp.all(x.array == 1)
+    assert x.shape == (3, 5, 4)
+    assert x.irreps == "0e + 1e"
+    assert_array_equals_chunks(x)
+
+
+def test_ones_like():
+    x = e3nn.zeros("0e + 1e", leading_shape=(3, 5))
+    y = e3nn.ones_like(x)
+    assert jnp.all(y.array == 1)
+    assert y.shape == x.shape
+    assert y.irreps == x.irreps
 
 
 def test_concatenate1(keys):
