@@ -7,10 +7,10 @@ import e3nn_jax as e3nn
 
 
 def radius_graph(
-    pos: Union[e3nn.IrrepsArray, jnp.ndarray],
+    pos: Union[e3nn.IrrepsArray, jax.Array],
     r_max: float,
     *,
-    batch: jnp.ndarray = None,
+    batch: jax.Array = None,
     size: int = None,
     loop: bool = False,
     fill_src: int = -1,

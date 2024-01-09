@@ -8,10 +8,10 @@ import e3nn_jax as e3nn
 
 def batch_norm(
     input: e3nn.IrrepsArray,
-    ra_mean: jnp.ndarray,
-    ra_var: jnp.ndarray,
-    weight: jnp.ndarray,
-    bias: jnp.ndarray,
+    ra_mean: jax.Array,
+    ra_var: jax.Array,
+    weight: jax.Array,
+    bias: jax.Array,
     normalization: str,
     reduce: str,
     is_instance: bool,

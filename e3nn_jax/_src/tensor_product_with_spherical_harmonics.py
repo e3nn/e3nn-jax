@@ -149,7 +149,7 @@ def sl(lout: int, lin: int) -> slice:
     return slice(lout - lin, lout + lin + 1)
 
 
-def is_diag(x: jnp.ndarray) -> bool:
+def is_diag(x: jax.Array) -> bool:
     return jnp.allclose(jnp.diag(jnp.diag(x)), x)
 
 

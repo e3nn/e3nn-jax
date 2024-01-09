@@ -11,12 +11,12 @@ _docstring_class = r"""Message passing convolution
 
 Args:
     target_irreps (e3nn.Irreps): irreps of the output
-    radial_basis (Callable[[jnp.ndarray], jnp.ndarray]): radial basis functions
+    radial_basis (Callable[[jax.Array], jax.Array]): radial basis functions
     avg_num_neighbors (float): average number of neighbors
     sh_lmax (int): maximum spherical harmonics degree
     num_radial_basis (int): number of radial basis functions
     mlp_neurons (List[int]): number of neurons in each layer of the MLP
-    mlp_activation (Callable[[jnp.ndarray], jnp.ndarray]): activation function of the MLP
+    mlp_activation (Callable[[jax.Array], jax.Array]): activation function of the MLP
 """
 
 _docstring_call = r"""Compute the message passing convolution
@@ -24,8 +24,8 @@ _docstring_call = r"""Compute the message passing convolution
 Args:
     positions (e3nn.IrrepsArray): positions of the nodes
     node_feats (e3nn.IrrepsArray): features of the nodes
-    senders (jnp.ndarray): indices of the sender nodes
-    receivers (jnp.ndarray): indices of the receiver nodes
+    senders (jax.Array): indices of the sender nodes
+    receivers (jax.Array): indices of the receiver nodes
 
 Returns:
     e3nn.IrrepsArray: features of the nodes
@@ -40,12 +40,12 @@ def radial_basis(r, cutoff, num_radial_basis):
         lambda r: radial_basis(r, 6.0, 8)
 
     Args:
-        r (jnp.ndarray): distances
+        r (jax.Array): distances
         cutoff (float): cutoff radius
         num_radial_basis (int): number of radial basis functions
 
     Returns:
-        jnp.ndarray: radial basis functions
+        jax.Array: radial basis functions
     """
     # TODO: determine if we need a normalization factor
     r = r / cutoff
@@ -115,13 +115,13 @@ class MessagePassingConvolutionHaiku(hk.Module):
     def __init__(
         self,
         target_irreps: e3nn.Irreps,
-        radial_basis: Callable[[jnp.ndarray], jnp.ndarray],
+        radial_basis: Callable[[jax.Array], jax.Array],
         *,
         avg_num_neighbors: float,
         sh_lmax: int = 3,
         num_radial_basis: int = 8,
         mlp_neurons: Sequence[int] = (64,),
-        mlp_activation: Callable[[jnp.ndarray], jnp.ndarray] = jax.nn.gelu,
+        mlp_activation: Callable[[jax.Array], jax.Array] = jax.nn.gelu,
         name: str = None,
     ):
         super().__init__(name=name)
@@ -137,8 +137,8 @@ class MessagePassingConvolutionHaiku(hk.Module):
         self,
         positions: e3nn.IrrepsArray,  # [n_edges, 1o or 1e]
         node_feats: e3nn.IrrepsArray,  # [n_nodes, irreps]
-        senders: jnp.ndarray,  # [n_edges, ]
-        receivers: jnp.ndarray,  # [n_edges, ]
+        senders: jax.Array,  # [n_edges, ]
+        receivers: jax.Array,  # [n_edges, ]
     ) -> e3nn.IrrepsArray:  # [n_nodes, irreps]
         return _call(
             self,
@@ -157,20 +157,20 @@ MessagePassingConvolutionHaiku.__call__.__doc__ = _docstring_call
 
 class MessagePassingConvolutionFlax(flax.linen.Module):
     target_irreps: e3nn.Irreps
-    radial_basis: Callable[[jnp.ndarray], jnp.ndarray]
+    radial_basis: Callable[[jax.Array], jax.Array]
     avg_num_neighbors: float
     sh_lmax: int = 3
     num_radial_basis: int = 8
     mlp_neurons: Tuple[int, ...] = (64,)
-    mlp_activation: Callable[[jnp.ndarray], jnp.ndarray] = jax.nn.gelu
+    mlp_activation: Callable[[jax.Array], jax.Array] = jax.nn.gelu
 
     @flax.linen.compact
     def __call__(
         self,
         positions: e3nn.IrrepsArray,  # [n_edges, 1o or 1e]
         node_feats: e3nn.IrrepsArray,  # [n_nodes, irreps]
-        senders: jnp.ndarray,  # [n_edges, ]
-        receivers: jnp.ndarray,  # [n_edges, ]
+        senders: jax.Array,  # [n_edges, ]
+        receivers: jax.Array,  # [n_edges, ]
     ) -> e3nn.IrrepsArray:  # [n_nodes, irreps]
         return _call(
             self,

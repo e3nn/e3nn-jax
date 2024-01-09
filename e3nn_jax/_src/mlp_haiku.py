@@ -1,7 +1,9 @@
 from typing import Callable, Optional, Sequence, Union
 
 import haiku as hk
+import jax
 import jax.numpy as jnp
+
 import e3nn_jax as e3nn
 
 
@@ -53,8 +55,8 @@ class MultiLayerPerceptron(hk.Module):
         self.gradient_normalization = gradient_normalization
 
     def __call__(
-        self, x: Union[jnp.ndarray, e3nn.IrrepsArray]
-    ) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+        self, x: Union[jax.Array, e3nn.IrrepsArray]
+    ) -> Union[jax.Array, e3nn.IrrepsArray]:
         """Evaluate the MLP
 
         Input and output are either `jax.numpy.ndarray` or `IrrepsArray`.

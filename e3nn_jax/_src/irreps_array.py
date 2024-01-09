@@ -20,7 +20,7 @@ def _infer_backend(pytree):
     any_numpy = any(
         isinstance(x, np.ndarray) for x in jax.tree_util.tree_leaves(pytree)
     )
-    any_jax = any(isinstance(x, jnp.ndarray) for x in jax.tree_util.tree_leaves(pytree))
+    any_jax = any(isinstance(x, jax.Array) for x in jax.tree_util.tree_leaves(pytree))
     if any_numpy and any_jax:
         raise ValueError("Cannot mix numpy and jax arrays")
     if any_numpy:
@@ -77,11 +77,11 @@ class IrrepsArray:
     """
 
     irreps: Irreps = attrib(converter=Irreps)
-    array: jnp.ndarray = attrib()
+    array: jax.Array = attrib()
     _zero_flags: Optional[Tuple[bool, ...]] = attrib(
         default=None, kw_only=True, converter=lambda x: None if x is None else tuple(x)
     )
-    _chunks: Optional[List[Optional[jnp.ndarray]]] = attrib(default=None, kw_only=True)
+    _chunks: Optional[List[Optional[jax.Array]]] = attrib(default=None, kw_only=True)
 
     def __attrs_post_init__(self):
         if (
@@ -116,7 +116,7 @@ class IrrepsArray:
     @staticmethod
     def from_list(
         irreps: IntoIrreps,
-        chunks: List[Optional[jnp.ndarray]],
+        chunks: List[Optional[jax.Array]],
         leading_shape: Tuple[int, ...],
         dtype=None,
         *,
@@ -129,7 +129,7 @@ class IrrepsArray:
         return e3nn.from_chunks(irreps, chunks, leading_shape, dtype, backend=backend)
 
     @staticmethod
-    def as_irreps_array(array: Union[jnp.ndarray, "IrrepsArray"], *, backend=None):
+    def as_irreps_array(array: Union[jax.Array, "IrrepsArray"], *, backend=None):
         warnings.warn(
             "IrrepsArray.as_irreps_array is deprecated, use e3nn.as_irreps_array instead.",
             DeprecationWarning,
@@ -153,7 +153,7 @@ class IrrepsArray:
         return e3nn.zeros_like(irreps_array)
 
     @property
-    def list(self) -> List[Optional[jnp.ndarray]]:
+    def list(self) -> List[Optional[jax.Array]]:
         warnings.warn(
             "IrrepsArray.list is deprecated, use IrrepsArray.chunks instead.",
             DeprecationWarning,
@@ -161,7 +161,7 @@ class IrrepsArray:
         return self.chunks
 
     @property
-    def chunks(self) -> List[Optional[jnp.ndarray]]:
+    def chunks(self) -> List[Optional[jax.Array]]:
         r"""List of arrays matching each item of the ``.irreps``.
 
         Examples:
@@ -245,7 +245,7 @@ class IrrepsArray:
         return len(self.array)
 
     def __eq__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]
+        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array]
     ) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
@@ -257,7 +257,7 @@ class IrrepsArray:
 
             leading_shape = jnp.broadcast_shapes(self.shape[:-1], other.shape[:-1])
 
-            def eq(mul: int, x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
+            def eq(mul: int, x: jax.Array, y: jax.Array) -> jax.Array:
                 if x is None and y is None:
                     return jnp.ones(leading_shape + (mul,), bool)
                 if x is None:
@@ -291,7 +291,7 @@ class IrrepsArray:
         )
 
     def __add__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray, float, int]
+        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array, float, int]
     ) -> "IrrepsArray":  # noqa: D105
         if isinstance(other, (float, int)) and other == 0:
             return self
@@ -324,12 +324,12 @@ class IrrepsArray:
         )
 
     def __radd__(
-        self: "IrrepsArray", other: Union[jnp.ndarray, float, int]
+        self: "IrrepsArray", other: Union[jax.Array, float, int]
     ) -> "IrrepsArray":
         return self + other
 
     def __sub__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray, float, int]
+        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array, float, int]
     ) -> "IrrepsArray":  # noqa: D105
         if isinstance(other, (float, int)) and other == 0:
             return self
@@ -362,12 +362,12 @@ class IrrepsArray:
         )
 
     def __rsub__(
-        self: "IrrepsArray", other: Union[jnp.ndarray, float, int]
+        self: "IrrepsArray", other: Union[jax.Array, float, int]
     ) -> "IrrepsArray":
         return -self + other
 
     def __mul__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]
+        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array]
     ) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
@@ -403,13 +403,11 @@ class IrrepsArray:
             chunks=tree_map(lambda x: x * other[..., None], self._chunks),
         )
 
-    def __rmul__(
-        self: "IrrepsArray", other: jnp.ndarray
-    ) -> "IrrepsArray":  # noqa: D105
+    def __rmul__(self: "IrrepsArray", other: jax.Array) -> "IrrepsArray":  # noqa: D105
         return self * other
 
     def __truediv__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jnp.ndarray]
+        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array]
     ) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
@@ -448,7 +446,7 @@ class IrrepsArray:
         )
 
     def __rtruediv__(
-        self: "IrrepsArray", other: jnp.ndarray
+        self: "IrrepsArray", other: jax.Array
     ) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend((self.array, other))
 
@@ -962,7 +960,7 @@ class IrrepsArray:
         return self.axis_to_mul(axis=axis)
 
     def transform_by_log_coordinates(
-        self, log_coordinates: jnp.ndarray, k: int = 0
+        self, log_coordinates: jax.Array, k: int = 0
     ) -> "IrrepsArray":
         r"""Rotate data by a rotation given by log coordinates.
 
@@ -1040,7 +1038,7 @@ class IrrepsArray:
         ]
         return e3nn.from_chunks(self.irreps, new_chunks, self.shape[:-1], self.dtype)
 
-    def transform_by_quaternion(self, q: jnp.ndarray, k: int = 0) -> "IrrepsArray":
+    def transform_by_quaternion(self, q: jax.Array, k: int = 0) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a quaternion.
 
         Args:
@@ -1055,7 +1053,7 @@ class IrrepsArray:
         )
 
     def transform_by_axis_angle(
-        self, axis: jnp.ndarray, angle: float, k: int = 0
+        self, axis: jax.Array, angle: float, k: int = 0
     ) -> "IrrepsArray":
         r"""Rotate data by a rotation given by an axis and an angle.
 
@@ -1071,7 +1069,7 @@ class IrrepsArray:
             e3nn.axis_angle_to_log_coordinates(axis, angle), k
         )
 
-    def transform_by_matrix(self, R: jnp.ndarray) -> "IrrepsArray":
+    def transform_by_matrix(self, R: jax.Array) -> "IrrepsArray":
         r"""Rotate data by a rotation given by a matrix.
 
         Args:

@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import e3nn_jax as e3nn
 
 
-def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
+def _distinct_but_small(x: jax.Array) -> jax.Array:
     """Maps the input to the integers 0, 1, 2, ..., n-1, where n is the number of distinct elements in x.
 
     Args:
@@ -26,14 +26,14 @@ def _distinct_but_small(x: jnp.ndarray) -> jnp.ndarray:
 
 
 def scatter_sum(
-    data: Union[jnp.ndarray, e3nn.IrrepsArray],
+    data: Union[jax.Array, e3nn.IrrepsArray],
     *,
-    dst: Optional[jnp.ndarray] = None,
-    nel: Optional[jnp.ndarray] = None,
+    dst: Optional[jax.Array] = None,
+    nel: Optional[jax.Array] = None,
     output_size: Optional[int] = None,
     map_back: bool = False,
     mode: str = "promise_in_bounds",
-) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+) -> Union[jax.Array, e3nn.IrrepsArray]:
     r"""Scatter sum of data.
 
     Performs either of the following two operations::
@@ -67,14 +67,14 @@ def scatter_sum(
 
 
 def scatter_mean(
-    data: Union[jnp.ndarray, e3nn.IrrepsArray],
+    data: Union[jax.Array, e3nn.IrrepsArray],
     *,
-    dst: Optional[jnp.ndarray] = None,
-    nel: Optional[jnp.ndarray] = None,
+    dst: Optional[jax.Array] = None,
+    nel: Optional[jax.Array] = None,
     output_size: Optional[int] = None,
     map_back: bool = False,
     mode: str = "promise_in_bounds",
-) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+) -> Union[jax.Array, e3nn.IrrepsArray]:
     r"""Scatter mean of data.
 
     Performs either of the following two operations::
@@ -158,15 +158,15 @@ def scatter_mean(
 
 
 def scatter_max(
-    data: Union[jnp.ndarray, e3nn.IrrepsArray],
+    data: Union[jax.Array, e3nn.IrrepsArray],
     *,
-    dst: Optional[jnp.ndarray] = None,
-    nel: Optional[jnp.ndarray] = None,
+    dst: Optional[jax.Array] = None,
+    nel: Optional[jax.Array] = None,
     initial: float = -jnp.inf,
     output_size: Optional[int] = None,
     map_back: bool = False,
     mode: str = "promise_in_bounds",
-) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+) -> Union[jax.Array, e3nn.IrrepsArray]:
     r"""Scatter max of data.
 
     Performs either of the following two operations::
@@ -208,14 +208,14 @@ def scatter_max(
 def _scatter_op(
     op: str,
     initial: float,
-    data: Union[jnp.ndarray, e3nn.IrrepsArray],
+    data: Union[jax.Array, e3nn.IrrepsArray],
     *,
-    dst: Optional[jnp.ndarray] = None,
-    nel: Optional[jnp.ndarray] = None,
+    dst: Optional[jax.Array] = None,
+    nel: Optional[jax.Array] = None,
     output_size: Optional[int] = None,
     map_back: bool = False,
     mode: str = "promise_in_bounds",
-) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+) -> Union[jax.Array, e3nn.IrrepsArray]:
     if dst is None and nel is None:
         raise ValueError("Either dst or nel must be specified")
     if dst is not None and nel is not None:
@@ -266,13 +266,13 @@ def _scatter_op(
 
 
 def index_add(
-    indices: jnp.ndarray = None,
-    input: Union[jnp.ndarray, e3nn.IrrepsArray] = None,
+    indices: jax.Array = None,
+    input: Union[jax.Array, e3nn.IrrepsArray] = None,
     *,
-    n_elements: jnp.ndarray = None,
+    n_elements: jax.Array = None,
     out_dim: int = None,
     map_back: bool = False,
-) -> Union[jnp.ndarray, e3nn.IrrepsArray]:
+) -> Union[jax.Array, e3nn.IrrepsArray]:
     warnings.warn(
         "e3nn.index_add is deprecated, use e3nn.scatter_sum instead", DeprecationWarning
     )

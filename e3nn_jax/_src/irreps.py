@@ -933,7 +933,7 @@ class Irreps(tuple):
             axis_angle_to_log_coordinates(axis, angle), k
         )
 
-    def generators(self) -> jnp.ndarray:
+    def generators(self) -> jax.Array:
         r"""Generators of the representation.
 
         Returns:
@@ -1020,20 +1020,20 @@ class _ChunkIndexSliceHelper:
 
 def _wigner_D_from_angles(
     l: int,
-    alpha: Optional[jnp.ndarray],
-    beta: Optional[jnp.ndarray],
-    gamma: Optional[jnp.ndarray],
-) -> jnp.ndarray:
+    alpha: Optional[jax.Array],
+    beta: Optional[jax.Array],
+    gamma: Optional[jax.Array],
+) -> jax.Array:
     r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
 
     Args:
         l (int): the representation order of the irrep
-        alpha (jnp.ndarray): the first Euler angle
-        beta (jnp.ndarray): the second Euler angle
-        gamma (jnp.ndarray): the third Euler angle
+        alpha (jax.Array): the first Euler angle
+        beta (jax.Array): the second Euler angle
+        gamma (jax.Array): the third Euler angle
 
     Returns:
-        jnp.ndarray: the Wigner-D matrix
+        jax.Array: the Wigner-D matrix
     """
     shape = ()
     if alpha is not None:
@@ -1086,15 +1086,15 @@ def _wigner_D_from_angles(
     return f_vec(alpha, beta, gamma)
 
 
-def _wigner_D_from_log_coordinates(l: int, log_coordinates: jnp.ndarray) -> jnp.ndarray:
+def _wigner_D_from_log_coordinates(l: int, log_coordinates: jax.Array) -> jax.Array:
     r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
 
     Args:
         l (int): the representation order of the irrep
-        log_coordinates (jnp.ndarray): the log coordinates
+        log_coordinates (jax.Array): the log coordinates
 
     Returns:
-        jnp.ndarray: the Wigner-D matrix
+        jax.Array: the Wigner-D matrix
     """
     X = generators(l)
 

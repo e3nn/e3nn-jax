@@ -10,7 +10,7 @@ from e3nn_jax._src.utils.dtype import get_pytree_dtype
 
 def equivariance_test(
     fun: Callable[[e3nn.IrrepsArray], e3nn.IrrepsArray],
-    rng_key: jnp.ndarray,
+    rng_key: jax.Array,
     *args,
 ):
     r"""Test equivariance of a function.
@@ -33,8 +33,7 @@ def equivariance_test(
     """
     args = [e3nn.Irreps(arg) if isinstance(arg, str) else arg for arg in args]
     args = [
-        e3nn.as_irreps_array(arg) if isinstance(arg, jnp.ndarray) else arg
-        for arg in args
+        e3nn.as_irreps_array(arg) if isinstance(arg, jax.Array) else arg for arg in args
     ]
 
     assert all(isinstance(arg, (e3nn.Irreps, e3nn.IrrepsArray)) for arg in args)
@@ -60,7 +59,7 @@ def equivariance_test(
 
 def assert_equivariant(
     fun: Callable[[e3nn.IrrepsArray], e3nn.IrrepsArray],
-    rng_key: jnp.ndarray,
+    rng_key: jax.Array,
     *args,
     atol: float = 1e-6,
     rtol: float = 1e-6,

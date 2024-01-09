@@ -11,7 +11,7 @@ from e3nn_jax._src.irreps_array import _infer_backend, _standardize_axis
 
 def from_chunks(
     irreps: IntoIrreps,
-    chunks: List[Optional[jnp.ndarray]],
+    chunks: List[Optional[jax.Array]],
     leading_shape: Tuple[int, ...],
     dtype=None,
     *,
@@ -78,7 +78,7 @@ def from_chunks(
     return e3nn.IrrepsArray(irreps, array, zero_flags=zero_flags, chunks=chunks)
 
 
-def as_irreps_array(array: Union[jnp.ndarray, e3nn.IrrepsArray], *, backend=None):
+def as_irreps_array(array: Union[jax.Array, e3nn.IrrepsArray], *, backend=None):
     """Convert an array to an IrrepsArray.
 
     Args:
@@ -551,7 +551,7 @@ def cross(a: e3nn.IrrepsArray, b: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
 
 def normal(
     irreps: IntoIrreps,
-    key: jnp.ndarray = None,
+    key: jax.Array = None,
     leading_shape: Tuple[int, ...] = (),
     *,
     normalize: bool = False,
@@ -562,7 +562,7 @@ def normal(
 
     Args:
         irreps (Irreps): irreps of the output array
-        key (jnp.ndarray): random key (if not provided, use the hash of the irreps as seed, usefull for debugging)
+        key (jax.Array): random key (if not provided, use the hash of the irreps as seed, usefull for debugging)
         leading_shape (tuple of int): shape of the leading dimensions
         normalize (bool): if True, normalize the output array
         normalization (str): normalization of the output array, ``"component"`` or ``"norm"``

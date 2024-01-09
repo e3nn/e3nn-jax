@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- replace `jnp.ndarray` by `jax.Array`
+
 
 ## [0.20.5] - 2024-01-05
 ### Added
@@ -14,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - python 3.9 compatibility
 
+
 ## [0.20.4] - 2023-12-24
 ### Fixed
 - Fix `pyproject.toml`, the documenation build was broken. Thanks to @SauravMaheshkar!
@@ -21,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Support for [`s2fft`](https://github.com/astro-informatics/s2fft) in `e3nn.to_s2grid` and `e3nn.from_s2grid`, thanks to @ameya98!
 - Add a special case implementation for `e3nn.scatter_mean` when `map_back and nel is not None`.
+
 
 ## [0.20.3] - 2023-11-17
 ### Added

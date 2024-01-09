@@ -23,11 +23,11 @@ def sus(x):
 
 
 def soft_envelope(
-    x: jnp.ndarray,
+    x: jax.Array,
     x_max: float = 1.0,
     arg_multiplicator: float = 2.0,
     value_at_origin: float = 1.2,
-) -> jnp.ndarray:
+) -> jax.Array:
     r"""Smooth envelope function.
 
     .. jupyter-execute::
@@ -43,11 +43,11 @@ def soft_envelope(
         plt.plot(x, e3nn.soft_envelope(x))
 
     Args:
-        x (jnp.ndarray): input of shape ``[...]``
+        x (jax.Array): input of shape ``[...]``
         x_max (float): cutoff value
 
     Returns:
-        jnp.ndarray: smooth (:math:`C^\infty`) envelope function of shape ``[...]``
+        jax.Array: smooth (:math:`C^\infty`) envelope function of shape ``[...]``
     """
     with jax.ensure_compile_time_eval():
         cste = value_at_origin / sus(arg_multiplicator)
@@ -55,7 +55,7 @@ def soft_envelope(
 
 
 def soft_one_hot_linspace(
-    input: jnp.ndarray,
+    input: jax.Array,
     *,
     start: float,
     end: float,
@@ -83,7 +83,7 @@ def soft_one_hot_linspace(
     See the last plot below.
 
     Args:
-        input (jnp.ndarray): input of shape ``[...]``
+        input (jax.Array): input of shape ``[...]``
         start (float): minimum value span by the basis
         end (float): maximum value span by the basis
         number (int): number of basis functions :math:`N`
@@ -93,7 +93,7 @@ def soft_one_hot_linspace(
         end_zero (bool): if ``True``, the last basis function is zero at the end of the interval
 
     Returns:
-        jnp.ndarray: basis functions of shape ``[..., number]``
+        jax.Array: basis functions of shape ``[..., number]``
 
     Examples:
 
@@ -208,7 +208,7 @@ def soft_one_hot_linspace(
     raise ValueError(f'basis="{basis}" is not a valid entry')
 
 
-def bessel(x: jnp.ndarray, n: int, x_max: float = 1.0) -> jnp.ndarray:
+def bessel(x: jax.Array, n: int, x_max: float = 1.0) -> jax.Array:
     r"""Bessel basis functions.
 
     They obey the following normalization:
@@ -218,12 +218,12 @@ def bessel(x: jnp.ndarray, n: int, x_max: float = 1.0) -> jnp.ndarray:
         \int_0^c r^2 B_n(r, c) B_m(r, c) dr = \delta_{nm}
 
     Args:
-        x (jnp.ndarray): input of shape ``[...]``
+        x (jax.Array): input of shape ``[...]``
         n (int): number of basis functions
         x_max (float): maximum value of the input
 
     Returns:
-        jnp.ndarray: basis functions of shape ``[..., n]``
+        jax.Array: basis functions of shape ``[..., n]``
 
     Klicpera, J.; Groß, J.; Günnemann, S. Directional Message Passing for Molecular Graphs; ICLR 2020.
     Equation (7)
@@ -241,7 +241,7 @@ def bessel(x: jnp.ndarray, n: int, x_max: float = 1.0) -> jnp.ndarray:
     )
 
 
-def u(p: int, x: jnp.ndarray) -> jnp.ndarray:
+def u(p: int, x: jax.Array) -> jax.Array:
     r"""Equivalent to :func:`poly_envelope` with ``n0 = p-1`` and ``n1 = 2``."""
     return (
         1
@@ -261,7 +261,7 @@ def _constraint(x: float, derivative: int, degree: int):
 
 
 @lru_cache(maxsize=None)
-def solve_polynomial(constraints) -> jnp.ndarray:
+def solve_polynomial(constraints) -> jax.Array:
     with jax.ensure_compile_time_eval():
         degree = len(constraints)
         A = np.array(

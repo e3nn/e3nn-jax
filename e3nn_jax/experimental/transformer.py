@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import e3nn_jax as e3nn
 
 
-def _index_max(i: jnp.ndarray, x: jnp.ndarray, out_dim: int) -> jnp.ndarray:
+def _index_max(i: jax.Array, x: jax.Array, out_dim: int) -> jax.Array:
     return jnp.zeros((out_dim,) + x.shape[1:], x.dtype).at[i].max(x)
 
 
@@ -16,7 +16,7 @@ class Transformer(hk.Module):
         self,
         irreps_node_output: e3nn.Irreps,
         list_neurons: List[int],
-        act: Callable[[jnp.ndarray], jnp.ndarray],
+        act: Callable[[jax.Array], jax.Array],
         num_heads: int = 1,
     ):
         super().__init__()
@@ -28,9 +28,9 @@ class Transformer(hk.Module):
 
     def __call__(
         self,
-        edge_src: jnp.ndarray,  # [E] dtype=int32
-        edge_dst: jnp.ndarray,  # [E] dtype=int32
-        edge_weight_cutoff: jnp.ndarray,  # [E] dtype=float
+        edge_src: jax.Array,  # [E] dtype=int32
+        edge_dst: jax.Array,  # [E] dtype=int32
+        edge_weight_cutoff: jax.Array,  # [E] dtype=float
         edge_attr: e3nn.IrrepsArray,  # [E, D] dtype=float
         node_feat: e3nn.IrrepsArray,  # [N, D] dtype=float
     ) -> e3nn.IrrepsArray:

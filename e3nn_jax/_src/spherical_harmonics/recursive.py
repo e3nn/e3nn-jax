@@ -1,5 +1,6 @@
 from typing import Dict, Tuple
 
+import jax
 import jax.numpy as jnp
 import sympy
 
@@ -9,8 +10,8 @@ from e3nn_jax._src.utils.sympy import sqrtQarray_to_sympy
 
 def recursive_spherical_harmonics(
     l: int,
-    context: Dict[int, jnp.ndarray],
-    input: jnp.ndarray,
+    context: Dict[int, jax.Array],
+    input: jax.Array,
     normalization: str,
     algorithm: Tuple[str],
 ) -> sympy.Array:

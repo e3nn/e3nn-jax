@@ -1,6 +1,7 @@
 from typing import Any, Callable, Optional, Tuple, Union
 
 import haiku as hk
+import jax
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
@@ -90,7 +91,7 @@ class Linear(hk.Module):
         path_normalization: Union[str, float] = None,
         gradient_normalization: Union[str, float] = None,
         get_parameter: Optional[
-            Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray]
+            Callable[[str, Tuple[int, ...], float, Any], jax.Array]
         ] = None,
         num_indexed_weights: Optional[int] = None,
         weights_per_channel: bool = False,
@@ -137,7 +138,7 @@ class Linear(hk.Module):
         """Apply the linear operator.
 
         Args:
-            weights (optional IrrepsArray or jnp.ndarray): scalar weights that are contracted with free parameters.
+            weights (optional IrrepsArray or jax.Array): scalar weights that are contracted with free parameters.
                 An array of shape ``(..., contracted_axis)``. Broadcasting with `input` is supported.
             input (IrrepsArray): input irreps-array of shape ``(..., [channel_in,] irreps_in.dim)``.
                 Broadcasting with `weights` is supported.
@@ -150,7 +151,7 @@ class Linear(hk.Module):
             weights = None
             input: e3nn.IrrepsArray = weights_or_input
         else:
-            weights: jnp.ndarray = weights_or_input
+            weights: jax.Array = weights_or_input
             input: e3nn.IrrepsArray = input_or_none
         del weights_or_input, input_or_none
 

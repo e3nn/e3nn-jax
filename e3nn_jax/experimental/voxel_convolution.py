@@ -3,6 +3,7 @@ from typing import Dict, Optional, Tuple, Union
 
 import flax
 import haiku as hk
+import jax
 import jax.numpy as jnp
 from jax import lax
 
@@ -48,9 +49,9 @@ class ConvolutionHaiku(hk.Module):
         self,
         irreps_in: e3nn.Irreps,
         irreps_out: e3nn.Irreps,
-        steps: Optional[jnp.ndarray] = None,
+        steps: Optional[jax.Array] = None,
         dtype: jnp.dtype = jnp.float32,
-    ) -> jnp.ndarray:
+    ) -> jax.Array:
         r"""Compute the convolution kernel.
 
         Args:
@@ -71,7 +72,7 @@ class ConvolutionHaiku(hk.Module):
         return _kernel(self, irreps_in, irreps_out, steps, _get_params, dtype)
 
     def __call__(
-        self, input: e3nn.IrrepsArray, steps: Optional[jnp.ndarray] = None
+        self, input: e3nn.IrrepsArray, steps: Optional[jax.Array] = None
     ) -> e3nn.IrrepsArray:
         r"""Evaluate the convolution.
 
@@ -98,9 +99,9 @@ class ConvolutionFlax(flax.linen.Module):
         self,
         irreps_in: e3nn.Irreps,
         irreps_out: e3nn.Irreps,
-        steps: Optional[jnp.ndarray] = None,
+        steps: Optional[jax.Array] = None,
         dtype: jnp.dtype = jnp.float32,
-    ) -> jnp.ndarray:
+    ) -> jax.Array:
         def _get_params(name: str, shape: Tuple[int, ...], weight_std: float):
             return self.param(
                 name, flax.linen.initializers.normal(stddev=weight_std), shape, dtype
@@ -110,7 +111,7 @@ class ConvolutionFlax(flax.linen.Module):
 
     @flax.linen.compact
     def __call__(
-        self, input: e3nn.IrrepsArray, steps: Optional[jnp.ndarray] = None
+        self, input: e3nn.IrrepsArray, steps: Optional[jax.Array] = None
     ) -> e3nn.IrrepsArray:
         return _call(self, input, steps)
 
@@ -122,7 +123,7 @@ ConvolutionFlax.__call__.__doc__ = ConvolutionHaiku.__call__.__doc__
 
 def _tp_weight(
     self: Union[ConvolutionHaiku, ConvolutionFlax],
-    lattice: jnp.ndarray,
+    lattice: jax.Array,
     i_in: int,
     i_sh: int,
     i_out: int,
@@ -132,7 +133,7 @@ def _tp_weight(
     path_shape: Tuple[int, ...],
     weight_std: float,
     get_parameter,
-) -> jnp.ndarray:
+) -> jax.Array:
     number = (
         self.num_radial_basis
         if isinstance(self.num_radial_basis, int)
@@ -169,10 +170,10 @@ def _kernel(
     self: Union[ConvolutionHaiku, ConvolutionFlax],
     irreps_in: e3nn.Irreps,
     irreps_out: e3nn.Irreps,
-    steps: Optional[jnp.ndarray],
+    steps: Optional[jax.Array],
     get_parameter,
     dtype,
-) -> jnp.ndarray:
+) -> jax.Array:
     if steps is None:
         steps = self.steps
 
@@ -237,7 +238,7 @@ def _kernel(
 def _call(
     self: Union[ConvolutionHaiku, ConvolutionFlax],
     input: e3nn.IrrepsArray,
-    steps: Optional[jnp.ndarray] = None,
+    steps: Optional[jax.Array] = None,
 ) -> e3nn.IrrepsArray:
     if not isinstance(input, e3nn.IrrepsArray):
         raise ValueError("Convolution: input should be of type IrrepsArray")

@@ -137,7 +137,7 @@ class FunctionalTensorProduct:
     irreps_in2: e3nn.Irreps
     irreps_out: e3nn.Irreps
     instructions: List[Instruction]
-    output_mask: jnp.ndarray
+    output_mask: jax.Array
 
     def __init__(
         self,
@@ -231,7 +231,7 @@ class FunctionalTensorProduct:
 
     def left_right(
         self,
-        weights: Union[List[jnp.ndarray], jnp.ndarray],
+        weights: Union[List[jax.Array], jax.Array],
         input1: e3nn.IrrepsArray,
         input2: e3nn.IrrepsArray = None,
         *,
@@ -273,11 +273,11 @@ class FunctionalTensorProduct:
 
     def right(
         self,
-        weights: List[jnp.ndarray],
+        weights: List[jax.Array],
         input2: e3nn.IrrepsArray = None,
         *,
         custom_einsum_jvp=None,
-    ) -> jnp.ndarray:
+    ) -> jax.Array:
         r"""Compute the right contraction of the tensor product.
 
         Args:
@@ -398,7 +398,7 @@ def _normalize_instruction_path_weights(
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
 def _left_right(
     self: FunctionalTensorProduct,
-    weights: Union[List[jnp.ndarray], jnp.ndarray],
+    weights: Union[List[jax.Array], jax.Array],
     input1: e3nn.IrrepsArray,
     input2: e3nn.IrrepsArray,
     *,
@@ -470,7 +470,7 @@ def _left_right(
 
 def _block_left_right(
     self: FunctionalTensorProduct,
-    weights_list: List[jnp.ndarray],
+    weights_list: List[jax.Array],
     input1: e3nn.IrrepsArray,
     input2: e3nn.IrrepsArray,
     einsum: Callable,
@@ -584,7 +584,7 @@ def _block_left_right(
 
 def _fused_left_right(
     self: FunctionalTensorProduct,
-    weights_flat: jnp.ndarray,
+    weights_flat: jax.Array,
     input1: e3nn.IrrepsArray,
     input2: e3nn.IrrepsArray,
     einsum: Callable,
@@ -692,11 +692,11 @@ def _fused_left_right(
 @partial(jax.profiler.annotate_function, name="TensorProduct.right")
 def _right(
     self: FunctionalTensorProduct,
-    weights: List[jnp.ndarray],
+    weights: List[jax.Array],
     input2: e3nn.IrrepsArray,
     *,
     custom_einsum_jvp: bool = False,
-) -> jnp.ndarray:
+) -> jax.Array:
     dtype = get_pytree_dtype(weights, input2)
     if dtype.kind == "i":
         dtype = jnp.float32

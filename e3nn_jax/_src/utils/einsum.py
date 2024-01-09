@@ -11,9 +11,7 @@ def einsum(eq, *xs):
 
 
 @einsum.defjvp
-def einsum_jvp(
-    eq: str, xs: Tuple[jnp.ndarray], x_dots: Tuple[jnp.ndarray]
-) -> jnp.ndarray:
+def einsum_jvp(eq: str, xs: Tuple[jax.Array], x_dots: Tuple[jax.Array]) -> jax.Array:
     return einsum(eq, *xs), sum(
         einsum(eq, *(xs[:i] + (x_dot,) + xs[i + 1 :])) for i, x_dot in enumerate(x_dots)
     )

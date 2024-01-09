@@ -44,7 +44,7 @@ def grad(
         x = e3nn.IrrepsArray(x.irreps, x.array)  # drop zero_flags
         args[argnums] = x.chunks
 
-        def naked_fun(*args, **kwargs) -> List[jnp.ndarray]:
+        def naked_fun(*args, **kwargs) -> List[jax.Array]:
             args = list(args)
             args[argnums] = e3nn.from_chunks(
                 irreps_in, args[argnums], leading_shape_in, x.dtype

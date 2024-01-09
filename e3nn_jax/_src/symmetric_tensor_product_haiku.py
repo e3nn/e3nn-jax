@@ -5,6 +5,7 @@ Ilyes Batatia, Dávid Péter Kovács, Gregor N. C. Simm, Christoph Ortner and G�
 from typing import Any, Callable, Optional, Set, Tuple
 
 import haiku as hk
+import jax
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
@@ -39,7 +40,7 @@ class SymmetricTensorProduct(hk.Module):
         orders: Tuple[int, ...],
         keep_irrep_out: Optional[Set[e3nn.Irrep]] = None,
         get_parameter: Optional[
-            Callable[[str, Tuple[int, ...], Any], jnp.ndarray]
+            Callable[[str, Tuple[int, ...], Any], jax.Array]
         ] = None,
     ):
         super().__init__()

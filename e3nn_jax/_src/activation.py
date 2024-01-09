@@ -24,7 +24,7 @@ def soft_odd(x):
     return (1 - jnp.exp(-(x**2))) * x
 
 
-def normalspace(n: int) -> jnp.ndarray:
+def normalspace(n: int) -> jax.Array:
     r"""Sequence of normally distributed numbers :math:`x_i` for :math:`i=1, \ldots, n` such that
 
     .. math::
@@ -37,7 +37,7 @@ def normalspace(n: int) -> jnp.ndarray:
         n (int): Number of points
 
     Returns:
-        jnp.ndarray: Sequence of normally distributed numbers
+        jax.Array: Sequence of normally distributed numbers
 
     Examples:
         >>> normalspace(5)

@@ -643,7 +643,7 @@ def axis_angle_to_angles(axis, angle):
     return matrix_to_angles(axis_angle_to_matrix(axis, angle))
 
 
-def log_coordinates_to_matrix(log_coordinates: jnp.ndarray) -> jnp.ndarray:
+def log_coordinates_to_matrix(log_coordinates: jax.Array) -> jax.Array:
     r"""Conversion from log coordinates to matrix.
 
     Args:

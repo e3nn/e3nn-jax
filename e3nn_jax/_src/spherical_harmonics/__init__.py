@@ -12,12 +12,12 @@ from .recursive import recursive_spherical_harmonics
 
 def sh(
     irreps_out: Union[e3nn.Irreps, int, Sequence[int]],
-    input: jnp.ndarray,
+    input: jax.Array,
     normalize: bool,
     normalization: str = None,
     *,
     algorithm: Tuple[str, ...] = None,
-) -> jnp.ndarray:
+) -> jax.Array:
     r"""Spherical harmonics.
 
     Same function as :func:`e3nn_jax.spherical_harmonics` but with a simple interface.
@@ -49,7 +49,7 @@ def _check_is_vector(irreps: e3nn.Irreps):
 
 def spherical_harmonics(
     irreps_out: Union[e3nn.Irreps, int, Sequence[int]],
-    input: Union[e3nn.IrrepsArray, jnp.ndarray],
+    input: Union[e3nn.IrrepsArray, jax.Array],
     normalize: bool,
     normalization: str = None,
     *,
@@ -177,8 +177,8 @@ def spherical_harmonics(
 
 @partial(jax.jit, static_argnums=(0, 2, 3), inline=True)
 def _jited_spherical_harmonics(
-    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
-) -> List[jnp.ndarray]:
+    ls: Tuple[int, ...], x: jax.Array, normalization: str, algorithm: Tuple[str]
+) -> List[jax.Array]:
     if "custom_jvp" in algorithm:
         return _custom_jvp_spherical_harmonics(ls, x, normalization, algorithm)
     else:
@@ -186,8 +186,8 @@ def _jited_spherical_harmonics(
 
 
 def _spherical_harmonics(
-    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
-) -> List[jnp.ndarray]:
+    ls: Tuple[int, ...], x: jax.Array, normalization: str, algorithm: Tuple[str]
+) -> List[jax.Array]:
     if "legendre" in algorithm:
         out = legendre_spherical_harmonics(max(ls), x, False, normalization)
         return [out[..., l**2 : (l + 1) ** 2] for l in ls]
@@ -201,8 +201,8 @@ def _spherical_harmonics(
 
 @partial(jax.custom_jvp, nondiff_argnums=(0, 2, 3))
 def _custom_jvp_spherical_harmonics(
-    ls: Tuple[int, ...], x: jnp.ndarray, normalization: str, algorithm: Tuple[str]
-) -> List[jnp.ndarray]:
+    ls: Tuple[int, ...], x: jax.Array, normalization: str, algorithm: Tuple[str]
+) -> List[jax.Array]:
     return _spherical_harmonics(ls, x, normalization, algorithm)
 
 
@@ -211,9 +211,9 @@ def _jvp(
     ls: Tuple[int, ...],
     normalization: str,
     algorithm: Tuple[str],
-    primals: Tuple[jnp.ndarray],
-    tangents: Tuple[jnp.ndarray],
-) -> List[jnp.ndarray]:
+    primals: Tuple[jax.Array],
+    tangents: Tuple[jax.Array],
+) -> List[jax.Array]:
     (x,) = primals
     (x_dot,) = tangents
 
@@ -221,7 +221,7 @@ def _jvp(
     output = _custom_jvp_spherical_harmonics(ls + js, x, normalization, algorithm)
     primal, res = output[: len(ls)], output[len(ls) :]
 
-    def h(l: int, r: jnp.ndarray) -> jnp.ndarray:
+    def h(l: int, r: jax.Array) -> jax.Array:
         w = e3nn.clebsch_gordan(l - 1, l, 1)
         if normalization == "norm":
             w *= ((2 * l + 1) * l * (2 * l - 1)) ** 0.5

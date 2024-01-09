@@ -117,7 +117,7 @@ class Linear(eqx.Module):
 
     # These are used internally.
     _linear: FunctionalLinear
-    _weights: Dict[str, jnp.ndarray]
+    _weights: Dict[str, jax.Array]
     _input_dtype: jnp.dtype
 
     def __init__(
@@ -234,7 +234,7 @@ class Linear(eqx.Module):
         """Apply the linear operator.
 
         Args:
-            weights (optional IrrepsArray or jnp.ndarray): scalar weights that are contracted with free parameters.
+            weights (optional IrrepsArray or jax.Array): scalar weights that are contracted with free parameters.
                 An array of shape ``(..., contracted_axis)``. Broadcasting with `input` is supported.
             input (IrrepsArray): input irreps-array of shape ``(..., [channel_in,] irreps_in.dim)``.
                 Broadcasting with `weights` is supported.
@@ -247,7 +247,7 @@ class Linear(eqx.Module):
             weights = None
             input: e3nn.IrrepsArray = weights_or_input
         else:
-            weights: jnp.ndarray = weights_or_input
+            weights: jax.Array = weights_or_input
             input: e3nn.IrrepsArray = input_or_none
         del weights_or_input, input_or_none
 

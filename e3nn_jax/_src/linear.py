@@ -23,7 +23,7 @@ class FunctionalLinear:
     irreps_in: Irreps
     irreps_out: Irreps
     instructions: List[Instruction]
-    output_mask: jnp.ndarray
+    output_mask: jax.Array
 
     def __init__(
         self,
@@ -152,7 +152,7 @@ class FunctionalLinear:
         ]
         return e3nn.from_chunks(self.irreps_out, output, output_shape, output_dtype)
 
-    def split_weights(self, weights: jnp.ndarray) -> List[jnp.ndarray]:
+    def split_weights(self, weights: jax.Array) -> List[jax.Array]:
         ws = []
         cursor = 0
         for i in self.instructions:
@@ -163,7 +163,7 @@ class FunctionalLinear:
         return ws
 
     def __call__(
-        self, ws: Union[List[jnp.ndarray], jnp.ndarray], input: IrrepsArray
+        self, ws: Union[List[jax.Array], jax.Array], input: IrrepsArray
     ) -> IrrepsArray:
         input = input.rechunk(self.irreps_in)
         if input.ndim != 1:
@@ -187,7 +187,7 @@ class FunctionalLinear:
         ]
         return self.aggregate_paths(paths, input.shape[:-1], input.dtype)
 
-    def matrix(self, ws: List[jnp.ndarray]) -> jnp.ndarray:
+    def matrix(self, ws: List[jax.Array]) -> jax.Array:
         r"""Compute the matrix representation of the linear operator.
 
         Args:
@@ -222,7 +222,7 @@ class FunctionalLinear:
 def linear_vanilla(
     input: IrrepsArray,
     linear: FunctionalLinear,
-    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
+    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jax.Array],
 ) -> IrrepsArray:
     """Vanilla linear layer."""
     w = [
@@ -246,8 +246,8 @@ def linear_vanilla(
 def linear_indexed(
     input: IrrepsArray,
     lin: FunctionalLinear,
-    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
-    indices: jnp.ndarray,
+    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jax.Array],
+    indices: jax.Array,
     num_indexed_weights: int,
 ) -> IrrepsArray:
     """Linear layer with indexed weights.
@@ -280,8 +280,8 @@ def linear_indexed(
 def linear_mixed(
     input: IrrepsArray,
     lin: FunctionalLinear,
-    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
-    weights: jnp.ndarray,
+    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jax.Array],
+    weights: jax.Array,
     gradient_normalization: float,
 ) -> IrrepsArray:
     """Linear layer with mixed weights.
@@ -324,8 +324,8 @@ def linear_mixed(
 def linear_mixed_per_channel(
     input: IrrepsArray,
     lin: FunctionalLinear,
-    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jnp.ndarray],
-    weights: jnp.ndarray,
+    get_parameter: Callable[[str, Tuple[int, ...], float, Any], jax.Array],
+    weights: jax.Array,
     gradient_normalization: float,
 ) -> IrrepsArray:
     """Linear layer with mixed weights. But this time each channel has its own weights."""

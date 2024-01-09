@@ -5,9 +5,7 @@ import jax
 import jax.numpy as jnp
 
 
-def interpolate_trilinear(
-    input: jnp.ndarray, x: float, y: float, z: float
-) -> jnp.ndarray:
+def interpolate_trilinear(input: jax.Array, x: float, y: float, z: float) -> jax.Array:
     r"""Interpolate voxels in coordinate (x, y, z).
 
     Args:
@@ -56,9 +54,7 @@ def interpolate_trilinear(
     return wa * Ia + wb * Ib + wc * Ic + wd * Id + we * Ie + wf * If + wg * Ig + wh * Ih
 
 
-def interpolate_nearest(
-    input: jnp.ndarray, x: float, y: float, z: float
-) -> jnp.ndarray:
+def interpolate_nearest(input: jax.Array, x: float, y: float, z: float) -> jax.Array:
     r"""Interpolate voxels in coordinate (x, y, z).
 
     Args:
@@ -87,10 +83,10 @@ def interpolate_nearest(
 
 @partial(jax.jit, static_argnums=(1, 2))
 def _zoom(
-    input: jnp.ndarray,
+    input: jax.Array,
     output_size: Tuple[int, int, int],
     interpolation="linear",
-) -> jnp.ndarray:
+) -> jax.Array:
     nx, ny, nz = input.shape[-3:]
 
     def f(n_src, n_dst):
@@ -118,12 +114,12 @@ def _zoom(
 
 
 def zoom(
-    input: jnp.ndarray,
+    input: jax.Array,
     *,
     resize_rate: Optional[Tuple[float, float, float]] = None,
     output_size: Optional[Tuple[int, int, int]] = None,
     interpolation: str = "linear",
-) -> jnp.ndarray:
+) -> jax.Array:
     r"""Rescale a 3D image by bilinear interpolation.
 
     Args:

@@ -5,20 +5,20 @@ import jax.numpy as jnp
 
 
 def legendre(
-    lmax: int, x: jnp.ndarray, phase: float, is_normalized: bool = False
-) -> jnp.ndarray:
+    lmax: int, x: jax.Array, phase: float, is_normalized: bool = False
+) -> jax.Array:
     r"""Associated Legendre polynomials.
 
     en.wikipedia.org/wiki/Associated_Legendre_polynomials
 
     Args:
         lmax (int): maximum l value
-        x (jnp.ndarray): input array of shape ``(...)``
+        x (jax.Array): input array of shape ``(...)``
         phase (float): -1 or 1, multiplies by :math:`(-1)^m`
         is_normalized (bool): True if the associated Legendre functions are normalized.
 
     Returns:
-        jnp.ndarray: Associated Legendre polynomials ``P(l,m)``
+        jax.Array: Associated Legendre polynomials ``P(l,m)``
         In an array of shape ``(lmax + 1, lmax + 1, ...)``
     """
     x = jnp.asarray(x)
@@ -26,9 +26,7 @@ def legendre(
 
 
 @partial(jax.jit, static_argnums=(0, 3))
-def _legendre(
-    lmax: int, x: jnp.ndarray, phase: float, is_normalized: bool
-) -> jnp.ndarray:
+def _legendre(lmax: int, x: jax.Array, phase: float, is_normalized: bool) -> jax.Array:
     p = jax.scipy.special.lpmn_values(
         lmax, lmax, x.flatten(), is_normalized
     )  # [m, l, x]
@@ -38,7 +36,7 @@ def _legendre(
     return p
 
 
-def _sh_alpha(l: int, alpha: jnp.ndarray) -> jnp.ndarray:
+def _sh_alpha(l: int, alpha: jax.Array) -> jax.Array:
     r"""Alpha dependence of spherical harmonics.
 
     Args:
@@ -65,7 +63,7 @@ def _sh_alpha(l: int, alpha: jnp.ndarray) -> jnp.ndarray:
     )
 
 
-def _sh_beta(lmax: int, cos_betas: jnp.ndarray) -> jnp.ndarray:
+def _sh_beta(lmax: int, cos_betas: jax.Array) -> jax.Array:
     r"""Beta dependence of spherical harmonics.
 
     Args:
@@ -82,8 +80,8 @@ def _sh_beta(lmax: int, cos_betas: jnp.ndarray) -> jnp.ndarray:
 
 
 def legendre_spherical_harmonics(
-    lmax: int, x: jnp.ndarray, normalize: bool, normalization: str
-) -> jnp.ndarray:
+    lmax: int, x: jax.Array, normalize: bool, normalization: str
+) -> jax.Array:
     alpha = jnp.arctan2(x[..., 0], x[..., 2])
     sh_alpha = _sh_alpha(lmax, alpha)  # [..., 2 * l + 1]
 

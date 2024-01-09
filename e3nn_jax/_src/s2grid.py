@@ -105,14 +105,14 @@ class SphericalSignal:
             import plotly.graph_objects as go
             go.Figure([go.Surface(signal.plotly_surface())])
     """
-    grid_values: jnp.ndarray
+    grid_values: jax.Array
     quadrature: str
     p_val: int
     p_arg: int
 
     def __init__(
         self,
-        grid_values: jnp.ndarray,
+        grid_values: jax.Array,
         quadrature: str,
         *,
         p_val: int = 1,
@@ -147,7 +147,7 @@ class SphericalSignal:
 
     @staticmethod
     def from_function(
-        func: Callable[[jnp.ndarray], float],
+        func: Callable[[jax.Array], float],
         res_beta: int,
         res_alpha: int,
         quadrature: str,
@@ -296,25 +296,25 @@ class SphericalSignal:
         return self.grid_values.ndim
 
     @property
-    def grid_y(self) -> jnp.ndarray:
+    def grid_y(self) -> jax.Array:
         """Returns y-values on the grid for this signal."""
         y, _, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return y
 
     @property
-    def grid_alpha(self) -> jnp.ndarray:
+    def grid_alpha(self) -> jax.Array:
         """Returns alpha values on the grid for this signal."""
         _, alpha, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return alpha
 
     @property
-    def grid_vectors(self) -> jnp.ndarray:
+    def grid_vectors(self) -> jax.Array:
         """Returns the coordinates of the points on the sphere. Shape: ``(res_beta, res_alpha, 3)``."""
         y, alpha, _ = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return _s2grid_vectors(y, alpha)
 
     @property
-    def quadrature_weights(self) -> jnp.ndarray:
+    def quadrature_weights(self) -> jax.Array:
         """Returns quadrature weights along the y-coordinates."""
         _, _, qw = _s2grid(self.res_beta, self.res_alpha, self.quadrature)
         return qw
@@ -393,23 +393,23 @@ class SphericalSignal:
             lmax=lmax,
         )
 
-    def transform_by_matrix(self, R: jnp.ndarray, lmax: int) -> "SphericalSignal":
+    def transform_by_matrix(self, R: jax.Array, lmax: int) -> "SphericalSignal":
         """Rotate the signal by the given rotation matrix."""
         return self._transform_by("matrix", transform_kwargs=dict(R=R), lmax=lmax)
 
     def transform_by_axis_angle(
-        self, axis: jnp.ndarray, angle: float, lmax: int
+        self, axis: jax.Array, angle: float, lmax: int
     ) -> "SphericalSignal":
         """Rotate the signal by the given angle around an axis."""
         return self._transform_by(
             "axis_angle", transform_kwargs=dict(axis=axis, angle=angle), lmax=lmax
         )
 
-    def transform_by_quaternion(self, q: jnp.ndarray, lmax: int) -> "SphericalSignal":
+    def transform_by_quaternion(self, q: jax.Array, lmax: int) -> "SphericalSignal":
         """Rotate the signal by the given quaternion."""
         return self._transform_by("quaternion", transform_kwargs=dict(q=q), lmax=lmax)
 
-    def apply(self, func: Callable[[jnp.ndarray], jnp.ndarray]) -> "SphericalSignal":
+    def apply(self, func: Callable[[jax.Array], jax.Array]) -> "SphericalSignal":
         """Applies a function pointwise on the grid."""
         new_p_val = parity_function(func) if self.p_val == -1 else self.p_val
         if new_p_val == 0:
@@ -418,7 +418,7 @@ class SphericalSignal:
             )
         return self.replace_values(grid_values=func(self.grid_values))
 
-    def replace_values(self, grid_values: jnp.ndarray) -> "SphericalSignal":
+    def replace_values(self, grid_values: jax.Array) -> "SphericalSignal":
         """Replace the grid values of the signal."""
         return SphericalSignal(
             grid_values, self.quadrature, p_val=self.p_val, p_arg=self.p_arg
@@ -476,11 +476,11 @@ class SphericalSignal:
     def pad_to_plot(
         self,
         *,
-        translation: Optional[jnp.ndarray] = None,
+        translation: Optional[jax.Array] = None,
         radius: float = 1.0,
         scale_radius_by_amplitude: bool = False,
         normalize_radius_by_max_amplitude: bool = False,
-    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    ) -> Tuple[jax.Array, jax.Array]:
         r"""Postprocess the borders of a given signal to allow to plot with plotly.
 
         Args:
@@ -532,7 +532,7 @@ class SphericalSignal:
 
     def plotly_surface(
         self,
-        translation: Optional[jnp.ndarray] = None,
+        translation: Optional[jax.Array] = None,
         radius: float = 1.0,
         scale_radius_by_amplitude: bool = False,
         normalize_radius_by_max_amplitude: bool = False,
@@ -596,7 +596,7 @@ class SphericalSignal:
         integral_irreps = {1: "0e", -1: "0o"}[self.p_val]
         return e3nn.IrrepsArray(integral_irreps, values)
 
-    def sample(self, key: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def sample(self, key: jax.Array) -> Tuple[jax.Array, jax.Array]:
         """Sample a point on the sphere using the signal as a probability distribution.
 
         The probability distribution does not need to be normalized.
@@ -683,7 +683,7 @@ jax.tree_util.register_pytree_node(
 
 
 def s2_dirac(
-    position: Union[jnp.ndarray, e3nn.IrrepsArray],
+    position: Union[jax.Array, e3nn.IrrepsArray],
     lmax: int,
     *,
     p_val: int = 1,
@@ -1132,24 +1132,24 @@ def _to_s2grid_s2fft(
 
 
 def legendre_transform_to_s2grid(
-    coeffs: jnp.ndarray,
+    coeffs: jax.Array,
     res_beta: int,
     *,
     quadrature: str,
     normalization: str = "integral",
-) -> jnp.ndarray:
+) -> jax.Array:
     r"""Sample a signal along `beta` on the sphere given by the m=0 coefficients in the spherical harmonics basis.
 
     The inverse transformation of :func:`legendre_transform_from_s2grid`
 
     Args:
-        coeffs (`jnp.ndarray`): coefficient array of shape ``(lmax+1,)``
+        coeffs (`jax.Array`): coefficient array of shape ``(lmax+1,)``
         res_beta (int): number of points on the sphere in the :math:`\theta` direction
         normalization ({'norm', 'component', 'integral'}): normalization of the basis
         quadrature (str): "soft" or "gausslegendre"
 
     Returns:
-        `jnp.ndarray`: signal on the sphere of shape ``(y/beta,)``
+        `jax.Array`: signal on the sphere of shape ``(y/beta,)``
     """
     lmax = coeffs.shape[-1] - 1
 
@@ -1164,24 +1164,24 @@ def legendre_transform_to_s2grid(
 
 
 def legendre_transform_from_s2grid(
-    x_beta: jnp.ndarray,
+    x_beta: jax.Array,
     lmax: int,
     res_beta: int,
     *,
     quadrature: str,
     normalization: str = "integral",
-) -> jnp.ndarray:
+) -> jax.Array:
     r"""
     Transform signal on the sphere, and return the m=0 spherical harmonic components.
     Args:
-        x_beta (`jnp.ndarray`): signal on the sphere along beta; shape ``(y/beta,)``
+        x_beta (`jax.Array`): signal on the sphere along beta; shape ``(y/beta,)``
         lmax (int): maximum l of the resulting irreps
         res_beta (int): number of points on the sphere in the :math:`\theta` direction
         quadrature (str): "soft" or "gausslegendre"
         normalization ({'norm', 'component', 'integral'}): normalization of the spherical harmonics basis
 
     Returns:
-        `jnp.ndarray`: coefficient array of shape ``(..., lmax+1)``
+        `jax.Array`: coefficient array of shape ``(..., lmax+1)``
     """
     assert res_beta == x_beta.shape[-1]
 
@@ -1202,7 +1202,7 @@ def betas_to_spherical_signal(x_beta, res_alpha, *, quadrature) -> SphericalSign
     Convert signals along beta to a SphericalSignal symmetric about alpha.
 
     Args:
-        x_beta (`jnp.ndarray`): signal on the sphere along beta; shape ``(...,y/beta)``
+        x_beta (`jax.Array`): signal on the sphere along beta; shape ``(...,y/beta)``
         res_alpha (int)
         quadrature (str): either "soft" or "gausslegendre"
     Returns:
@@ -1218,7 +1218,7 @@ def m0_values_to_irrepsarray(m0_values, lmax, p_val, p_arg) -> e3nn.IrrepsArray:
     Convert m=0 spherical harmonic components to an IrrepsArray.
 
     Args:
-        m0_values (`jnp.ndarray`): values along m=0, shape (..., lmax+1)
+        m0_values (`jax.Array`): values along m=0, shape (..., lmax+1)
         lmax (int): maximum l of the resulting irreps
         p_val (int): parity of the value of the signal
         p_arg (int): parity of the argument of the signal
@@ -1286,7 +1286,7 @@ def to_s2point(
     )
 
 
-def _s2grid_vectors(y: jnp.ndarray, alpha: jnp.ndarray) -> jnp.ndarray:
+def _s2grid_vectors(y: jax.Array, alpha: jax.Array) -> jax.Array:
     r"""Calculate the coordinates of the points on the sphere.
 
     Args:
@@ -1463,7 +1463,7 @@ def _check_parities(
 
 def _normalization(
     lmax: int, normalization: str, dtype, direction: str, lmax_in: Optional[int] = None
-) -> jnp.ndarray:
+) -> jax.Array:
     """Handles normalization of different components of IrrepsArrays."""
     assert direction in ["to_s2", "from_s2"]
 
@@ -1497,7 +1497,7 @@ def _normalization(
     raise Exception("normalization needs to be 'norm', 'component' or 'integral'")
 
 
-def _rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
+def _rfft(x: jax.Array, l: int) -> jax.Array:
     r"""Real fourier transform
     Args:
         x (`jax.numpy.ndarray`): input array of shape ``(..., res_beta, res_alpha)``
@@ -1518,7 +1518,7 @@ def _rfft(x: jnp.ndarray, l: int) -> jnp.ndarray:
     return x_transformed.reshape((*x.shape[:-1], 2 * l + 1))
 
 
-def _irfft(x: jnp.ndarray, res: int) -> jnp.ndarray:
+def _irfft(x: jax.Array, res: int) -> jax.Array:
     r"""Inverse of the real fourier transform
     Args:
         x (`jax.numpy.ndarray`): array of shape ``(..., 2*l + 1)``
@@ -1566,7 +1566,7 @@ def _expand_matrix(ls: List[int]) -> np.ndarray:
     return m
 
 
-def _rollout_sh(input: jnp.ndarray, lmax: int) -> jnp.ndarray:
+def _rollout_sh(input: jax.Array, lmax: int) -> jax.Array:
     """
     Input:
         [[(0,0)            ]       l=0
