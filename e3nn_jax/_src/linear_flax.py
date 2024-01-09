@@ -1,6 +1,7 @@
 from typing import Optional, Union
 
 import flax
+import jax
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
