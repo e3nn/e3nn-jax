@@ -144,6 +144,8 @@ def soft_one_hot_linspace(
             plt.ylim(0, 2)
             plt.tight_layout()
     """
+    input = jnp.asarray(input)
+
     if cutoff is not None:
         assert start_zero is None
         assert end_zero is None
