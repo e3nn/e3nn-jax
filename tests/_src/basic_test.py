@@ -96,3 +96,15 @@ def test_stack2():
     assert y.irreps == "0e + 1e"
     assert_array_equals_chunks(y)
     assert y.zero_flags == (True, False)
+
+
+def test_where():
+    mask = jnp.array([True, False])
+    x = e3nn.IrrepsArray("0e", jnp.array([[1.0], [2.0]]))
+    y = e3nn.zeros_like(x)
+
+    A = e3nn.IrrepsArray("0e", jnp.where(mask[..., None], x.array, y.array))
+    B = e3nn.where(mask, x, y)
+
+    assert A.irreps == B.irreps
+    np.testing.assert_allclose(A.array, B.array)

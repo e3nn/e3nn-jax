@@ -36,3 +36,6 @@ IrrepsArray
 
 
 .. autofunction:: e3nn_jax.sum
+
+
+.. autofunction:: e3nn_jax.where
