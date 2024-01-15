@@ -88,6 +88,7 @@ from e3nn_jax._src.activation import (
     scalar_activation,
     normalize_function,
     norm_activation,
+    soft_normalization,  # not in docs
 )
 from e3nn_jax._src.gate import gate
 from e3nn_jax._src.radius_graph import radius_graph
@@ -203,6 +204,7 @@ __all__ = [
     "scalar_activation",
     "normalize_function",
     "norm_activation",
+    "soft_normalization",
     "gate",
     "radius_graph",
     "index_add",

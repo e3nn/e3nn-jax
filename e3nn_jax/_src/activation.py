@@ -229,6 +229,16 @@ def norm_activation(
     return e3nn.from_chunks(input.irreps, list, input.shape[:-1], input.dtype)
 
 
+def soft_normalization(
+    input: e3nn.IrrepsArray, max_component: float
+) -> e3nn.IrrepsArray:
+    def phi(n):
+        n = n / max_component
+        return 1.0 / (1.0 + n * e3nn.sus(n))
+
+    return e3nn.norm_activation(input, [phi] * len(input.irreps))
+
+
 def key_value_activation(phi, key, value):
     assert key.ndim == 1
     assert value.ndim == 1
