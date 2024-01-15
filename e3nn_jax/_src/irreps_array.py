@@ -182,10 +182,7 @@ class IrrepsArray:
         if self._chunks is None:
             jnp = _infer_backend(self.array)
             leading_shape = self.array.shape[:-1]
-            if self.zero_flags is None:
-                zeros = [False] * len(self.irreps)
-            else:
-                zeros = self.zero_flags
+            zeros = self.zero_flags
 
             if len(self.irreps) == 1:
                 mul, ir = self.irreps[0]

@@ -636,3 +636,46 @@ def normal(
             return e3nn.from_chunks(irreps, list, leading_shape, dtype)
         else:
             raise ValueError("Normalization needs to be 'norm' or 'component'")
+
+
+def where(mask: jax.Array, x: e3nn.IrrepsArray, y: e3nn.IrrepsArray):
+    """Selects elements from `x` or `y`, depending on `mask`.
+
+    Equivalent to:
+        >>> mask = jnp.array([True, False])
+        >>> x = e3nn.IrrepsArray("0e", jnp.array([[1.0], [2.0]]))
+        >>> y = e3nn.zeros_like(x)
+        >>> e3nn.IrrepsArray("0e", jnp.where(mask[..., None], x.array, y.array))
+
+    Args:
+        mask: Boolean array of shape `(...)`.
+        x: IrrepsArray of shape `(..., irreps.dim)`.
+        y: IrrepsArray of shape `(..., irreps.dim)`.
+
+    Returns:
+        IrrepsArray of shape `(..., irreps.dim)`.
+    """
+    mask = jnp.asarray(mask)
+    x = e3nn.as_irreps_array(x)
+    y = e3nn.as_irreps_array(y)
+
+    if x.irreps != y.irreps:
+        raise ValueError(f"e3nn.where: x.irreps ({x.irreps}) != y.irreps ({y.irreps})")
+
+    array = jnp.where(mask[..., None], x.array, y.array)
+
+    def f(x: Optional[jax.Array], y: Optional[jax.Array]) -> Optional[jax.Array]:
+        if x is None and y is None:
+            return None
+        elif x is None:
+            return jnp.where(mask[..., None, None], 0.0, y)
+        elif y is None:
+            return jnp.where(mask[..., None, None], x, 0.0)
+        else:
+            return jnp.where(mask[..., None, None], x, y)
+
+    chunks = [f(x, y) for x, y in zip(x.chunks, y.chunks)]
+
+    zero_flags = [x and y for x, y in zip(x.zero_flags, y.zero_flags)]
+
+    return e3nn.IrrepsArray(x.irreps, array, zero_flags=zero_flags, chunks=chunks)
