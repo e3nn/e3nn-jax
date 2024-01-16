@@ -1,7 +1,6 @@
 from typing import Optional, Union, Tuple, Dict
 
 import equinox as eqx
-import chex
 import jax
 import jax.numpy as jnp
 
@@ -136,7 +135,7 @@ class Linear(eqx.Module):
         weights_dim: Optional[int] = None,
         input_dtype: jnp.dtype = jnp.float32,
         linear_type: str = "vanilla",
-        key: chex.PRNGKey,
+        key: jax.Array,
     ):
         irreps_in_regrouped = e3nn.Irreps(irreps_in).regroup()
         irreps_out = e3nn.Irreps(irreps_out)
@@ -176,7 +175,7 @@ class Linear(eqx.Module):
         )
         self._weights = self._get_weights(key)
 
-    def _get_weights(self, key: chex.PRNGKey):
+    def _get_weights(self, key: jax.Array):
         """Constructs the weights for the linear module."""
         irreps_in = self._linear.irreps_in
         irreps_out = self._linear.irreps_out
