@@ -104,7 +104,7 @@ def test_where():
     y = e3nn.zeros_like(x)
 
     A = e3nn.IrrepsArray("0e", jnp.where(mask[..., None], x.array, y.array))
-    B = e3nn.where(mask, x, y)
+    B = e3nn.where(mask[..., None], x, y)
 
     assert A.irreps == B.irreps
     np.testing.assert_allclose(A.array, B.array)
