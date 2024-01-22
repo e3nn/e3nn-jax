@@ -24,13 +24,13 @@ def sh(
 
     Args:
         irreps_out (`Irreps` or int or Sequence[int]): the output irreps
-        input (`jax.numpy.ndarray`): cartesian coordinates, shape (..., 3)
+        input (`jax.Array`): cartesian coordinates, shape (..., 3)
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'component'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_jvp])
 
     Returns:
-        `jax.numpy.ndarray`: polynomials of the spherical harmonics
+        `jax.Array`: polynomials of the spherical harmonics
     """
     input = e3nn.IrrepsArray("1e", input)
     return spherical_harmonics(
@@ -89,7 +89,7 @@ def spherical_harmonics(
 
     Args:
         irreps_out (`Irreps` or list of int or int): output irreps
-        input (`IrrepsArray` or `jax.numpy.ndarray`): cartesian coordinates
+        input (`IrrepsArray` or `jax.Array`): cartesian coordinates
         normalize (bool): if True, the polynomials are restricted to the sphere
         normalization (str): normalization of the constant :math:`\text{cste}`. Default is 'component'
         algorithm (Tuple[str]): algorithm to use for the computation. (legendre|recursive, dense|sparse, [custom_jvp])

@@ -11,10 +11,10 @@ def _distinct_but_small(x: jax.Array) -> jax.Array:
     """Maps the input to the integers 0, 1, 2, ..., n-1, where n is the number of distinct elements in x.
 
     Args:
-        x (`jax.numpy.ndarray`): array of integers
+        x (`jax.Array`): array of integers
 
     Returns:
-        `jax.numpy.ndarray`: array of integers of same size
+        `jax.Array`: array of integers of same size
     """
     shape = x.shape
     x = jnp.ravel(x)
@@ -44,15 +44,15 @@ def scatter_sum(
         output[i] = sum(data[sum(nel[:i]):sum(nel[:i+1])])
 
     Args:
-        data (`jax.numpy.ndarray` or `IrrepsArray`): array of shape ``(n1,..nd, ...)``
-        dst (optional, `jax.numpy.ndarray`): array of shape ``(n1,..nd)``. If not specified, ``nel`` must be specified.
-        nel (optional, `jax.numpy.ndarray`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
+        data (`jax.Array` or `IrrepsArray`): array of shape ``(n1,..nd, ...)``
+        dst (optional, `jax.Array`): array of shape ``(n1,..nd)``. If not specified, ``nel`` must be specified.
+        nel (optional, `jax.Array`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
         output_size (optional, int): size of output array.
             If not specified, ``nel`` must be specified or ``map_back`` must be ``True``.
         map_back (bool): whether to map back to the input position
 
     Returns:
-        `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
+        `jax.Array` or `IrrepsArray`: output array of shape ``(output_size, ...)``
     """
     return _scatter_op(
         "sum",
@@ -87,15 +87,15 @@ def scatter_mean(
         output[i] = sum(data[sum(nel[:i]):sum(nel[:i+1])]) / nel[i]
 
     Args:
-        data (`jax.numpy.ndarray` or `IrrepsArray`): array of shape ``(n1,..nd, ...)``
-        dst (optional, `jax.numpy.ndarray`): array of shape ``(n1,..nd)``. If not specified, ``nel`` must be specified.
-        nel (optional, `jax.numpy.ndarray`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
+        data (`jax.Array` or `IrrepsArray`): array of shape ``(n1,..nd, ...)``
+        dst (optional, `jax.Array`): array of shape ``(n1,..nd)``. If not specified, ``nel`` must be specified.
+        nel (optional, `jax.Array`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
         output_size (optional, int): size of output array.
             If not specified, ``nel`` must be specified or ``map_back`` must be ``True``.
         map_back (bool): whether to map back to the input position
 
     Returns:
-        `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
+        `jax.Array` or `IrrepsArray`: output array of shape ``(output_size, ...)``
     """
     if map_back and nel is not None:
         assert dst is None
@@ -178,16 +178,16 @@ def scatter_max(
         output[i] = max(initial, *data[sum(nel[:i]):sum(nel[:i+1])])
 
     Args:
-        data (`jax.numpy.ndarray` or `IrrepsArray`): array of shape ``(n, ...)``
-        dst (optional, `jax.numpy.ndarray`): array of shape ``(n,)``. If not specified, ``nel`` must be specified.
-        nel (optional, `jax.numpy.ndarray`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
+        data (`jax.Array` or `IrrepsArray`): array of shape ``(n, ...)``
+        dst (optional, `jax.Array`): array of shape ``(n,)``. If not specified, ``nel`` must be specified.
+        nel (optional, `jax.Array`): array of shape ``(output_size,)``. If not specified, ``dst`` must be specified.
         initial (float): initial value to compare to
         output_size (optional, int): size of output array. If not specified, ``nel`` must be specified
             or ``map_back`` must be ``True``.
         map_back (bool): whether to map back to the input position
 
     Returns:
-        `jax.numpy.ndarray` or `IrrepsArray`: output array of shape ``(output_size, ...)``
+        `jax.Array` or `IrrepsArray`: output array of shape ``(output_size, ...)``
     """
     if isinstance(data, e3nn.IrrepsArray):
         if not data.irreps.is_scalar():

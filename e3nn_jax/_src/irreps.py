@@ -119,12 +119,12 @@ class Irrep:
         (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`.
 
         Args:
-            log_coordinates (`jax.numpy.ndarray`): of shape :math:`(..., 3)`
-            k (optional `jax.numpy.ndarray`): of shape :math:`(...)`
+            log_coordinates (`jax.Array`): of shape :math:`(..., 3)`
+            k (optional `jax.Array`): of shape :math:`(...)`
                 How many times the parity is applied.
 
         Returns:
-            `jax.numpy.ndarray`: of shape :math:`(..., 2l+1, 2l+1)`
+            `jax.Array`: of shape :math:`(..., 2l+1, 2l+1)`
 
         See Also:
             Irreps.D_from_log_coordinates
@@ -144,17 +144,17 @@ class Irrep:
         (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`.
 
         Args:
-            alpha (`jax.numpy.ndarray`): of shape :math:`(...)`
+            alpha (`jax.Array`): of shape :math:`(...)`
                 Rotation :math:`\alpha` around Y axis, applied third.
-            beta (`jax.numpy.ndarray`): of shape :math:`(...)`
+            beta (`jax.Array`): of shape :math:`(...)`
                 Rotation :math:`\beta` around X axis, applied second.
-            gamma (`jax.numpy.ndarray`): of shape :math:`(...)`
+            gamma (`jax.Array`): of shape :math:`(...)`
                 Rotation :math:`\gamma` around Y axis, applied first.
-            k (optional `jax.numpy.ndarray`): of shape :math:`(...)`
+            k (optional `jax.Array`): of shape :math:`(...)`
                 How many times the parity is applied.
 
         Returns:
-            `jax.numpy.ndarray`: of shape :math:`(..., 2l+1, 2l+1)`
+            `jax.Array`: of shape :math:`(..., 2l+1, 2l+1)`
 
         See Also:
             Irreps.D_from_angles
@@ -196,11 +196,11 @@ class Irrep:
         r"""Matrix of the representation, see `Irrep.D_from_angles`.
 
         Args:
-            q (`jax.numpy.ndarray`): shape :math:`(..., 4)`
-            k (optional `jax.numpy.ndarray`): shape :math:`(...)`
+            q (`jax.Array`): shape :math:`(..., 4)`
+            k (optional `jax.Array`): shape :math:`(...)`
 
         Returns:
-            `jax.numpy.ndarray`: shape :math:`(..., 2l+1, 2l+1)`
+            `jax.Array`: shape :math:`(..., 2l+1, 2l+1)`
         """
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
@@ -208,11 +208,11 @@ class Irrep:
         r"""Matrix of the representation.
 
         Args:
-            R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
-            k (`jax.numpy.ndarray`, optional): array of shape :math:`(...)`
+            R (`jax.Array`): array of shape :math:`(..., 3, 3)`
+            k (`jax.Array`, optional): array of shape :math:`(...)`
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(..., 2l+1, 2l+1)`
+            `jax.Array`: array of shape :math:`(..., 2l+1, 2l+1)`
 
         Examples:
             >>> m = Irrep(1, -1).D_from_matrix(-jnp.eye(3))
@@ -238,7 +238,7 @@ class Irrep:
         r"""Generators of the representation of :math:`SO(3)`.
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(3, 2l+1, 2l+1)`
+            `jax.Array`: array of shape :math:`(3, 2l+1, 2l+1)`
 
         See Also:
             `generators`
@@ -868,11 +868,11 @@ class Irreps(tuple):
         r"""Matrix of the representation.
 
         Args:
-            log_coordinates (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
-            k (`jax.numpy.ndarray`, optional): array of shape :math:`(...)`
+            log_coordinates (`jax.Array`): array of shape :math:`(..., 3)`
+            k (`jax.Array`, optional): array of shape :math:`(...)`
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            `jax.Array`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return jax.scipy.linalg.block_diag(
             *[
@@ -892,7 +892,7 @@ class Irreps(tuple):
             k (int): parity operation
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            `jax.Array`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return jax.scipy.linalg.block_diag(
             *[
@@ -906,11 +906,11 @@ class Irreps(tuple):
         r"""Matrix of the representation.
 
         Args:
-            q (`jax.numpy.ndarray`): array of shape :math:`(..., 4)`
-            k (`jax.numpy.ndarray`, optional): array of shape :math:`(...)`
+            q (`jax.Array`): array of shape :math:`(..., 4)`
+            k (`jax.Array`, optional): array of shape :math:`(...)`
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            `jax.Array`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         return self.D_from_angles(*quaternion_to_angles(q), k)
 
@@ -918,10 +918,10 @@ class Irreps(tuple):
         r"""Matrix of the representation.
 
         Args:
-            R (`jax.numpy.ndarray`): array of shape :math:`(..., 3, 3)`
+            R (`jax.Array`): array of shape :math:`(..., 3, 3)`
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
+            `jax.Array`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
         """
         d = jnp.sign(jnp.linalg.det(R))
         R = d[..., None, None] * R
@@ -937,7 +937,7 @@ class Irreps(tuple):
         r"""Generators of the representation.
 
         Returns:
-            `jax.numpy.ndarray`: array of shape :math:`(3, \mathrm{dim}, \mathrm{dim})`
+            `jax.Array`: array of shape :math:`(3, \mathrm{dim}, \mathrm{dim})`
         """
         return jax.vmap(jax.scipy.linalg.block_diag)(
             *[ir.generators() for mul, ir in self for _ in range(mul)]

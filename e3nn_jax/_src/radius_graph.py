@@ -19,17 +19,17 @@ def radius_graph(
     r"""Try to use ``matscipy.neighbours.neighbour_list`` instead.
 
     Args:
-        pos (`jax.numpy.ndarray`): array of shape ``(n, 3)``
+        pos (`jax.Array`): array of shape ``(n, 3)``
         r_max (float):
-        batch (`jax.numpy.ndarray`): indices
+        batch (`jax.Array`): indices
         size (int): size of the output
         loop (bool): whether to include self-loops
 
     Returns:
         (tuple): tuple containing:
 
-            jax.numpy.ndarray: source indices
-            jax.numpy.ndarray: destination indices
+            jax.Array: source indices
+            jax.Array: destination indices
 
     Examples:
         >>> key = jax.random.PRNGKey(0)

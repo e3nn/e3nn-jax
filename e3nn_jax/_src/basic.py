@@ -21,7 +21,7 @@ def from_chunks(
 
     Args:
         irreps (Irreps): irreps
-        chunks (list of optional `jax.numpy.ndarray`): list of arrays
+        chunks (list of optional `jax.Array`): list of arrays
         leading_shape (tuple of int): leading shape of the arrays (without the irreps)
 
     Returns:
@@ -82,7 +82,7 @@ def as_irreps_array(array: Union[jax.Array, e3nn.IrrepsArray], *, backend=None):
     """Convert an array to an IrrepsArray.
 
     Args:
-        array (jax.numpy.ndarray or IrrepsArray): array to convert
+        array (jax.Array or IrrepsArray): array to convert
 
     Returns:
         IrrepsArray

@@ -51,7 +51,7 @@ class IrrepsArray:
 
     Args:
         irreps (Irreps): representation of the data
-        array (`jax.numpy.ndarray`): the data, an array of shape ``(..., irreps.dim)``
+        array (`jax.Array`): the data, an array of shape ``(..., irreps.dim)``
         zero_flags (tuple of bool, optional): whether each chunk of the data is zero
 
     Examples:
@@ -962,7 +962,7 @@ class IrrepsArray:
         r"""Rotate data by a rotation given by log coordinates.
 
         Args:
-            log_coordinates (`jax.numpy.ndarray`): log coordinates
+            log_coordinates (`jax.Array`): log coordinates
             k (int): parity operation
 
         Returns:
@@ -1039,7 +1039,7 @@ class IrrepsArray:
         r"""Rotate data by a rotation given by a quaternion.
 
         Args:
-            q (`jax.numpy.ndarray`): quaternion
+            q (`jax.Array`): quaternion
             k (int): parity operation
 
         Returns:
@@ -1055,7 +1055,7 @@ class IrrepsArray:
         r"""Rotate data by a rotation given by an axis and an angle.
 
         Args:
-            axis (`jax.numpy.ndarray`): axis
+            axis (`jax.Array`): axis
             angle (float): angle (in radians)
             k (int): parity operation
 
@@ -1070,7 +1070,7 @@ class IrrepsArray:
         r"""Rotate data by a rotation given by a matrix.
 
         Args:
-            R (`jax.numpy.ndarray`): rotation matrix
+            R (`jax.Array`): rotation matrix
 
         Returns:
             `IrrepsArray`: rotated data

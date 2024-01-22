@@ -31,7 +31,7 @@ class SymmetricTensorProduct(hk.Module):
         orders (tuple of int): orders of the tensor product
         keep_irrep_out (optional, set of Irrep): irreps to keep in the output
         get_parameter (optional, callable): function to get the parameters, by default it uses ``hk.get_parameter``
-            it should have the signature ``get_parameter(name, shape) -> ndarray`` and return a normal distribution
+            it should have the signature ``get_parameter(name, shape) -> Array`` and return a normal distribution
             with variance 1
     """
 
@@ -95,7 +95,7 @@ class SymmetricTensorProduct(hk.Module):
 
                 if order in self.orders:
                     for (mul, ir_out), u in zip(U.irreps, U.chunks):
-                        # u: ndarray [(irreps_x.dim)^order, multiplicity, ir_out.dim]
+                        # u: Array [(irreps_x.dim)^order, multiplicity, ir_out.dim]
                         u = (
                             u / u.shape[-2]
                         )  # normalize both U and the contraction with w

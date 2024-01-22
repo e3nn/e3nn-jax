@@ -491,8 +491,8 @@ class SphericalSignal:
                 rescales the surface so that the maximum amplitude is equal to the radius
 
         Returns:
-            r (`jax.numpy.ndarray`): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
-            f (`jax.numpy.ndarray`): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
+            r (`jax.Array`): vectors on the sphere, shape ``(res_beta + 2, res_alpha + 1, 3)``
+            f (`jax.Array`): padded signal, shape ``(res_beta + 2, res_alpha + 1)``
         """
         f, y, alpha = self.grid_values, self.grid_y, self.grid_alpha
         assert f.ndim == 2 and f.shape == (
@@ -602,13 +602,13 @@ class SphericalSignal:
         The probability distribution does not need to be normalized.
 
         Args:
-            key (`jax.numpy.ndarray`): random key
+            key (`jax.Array`): random key
 
         Returns:
             (tuple): tuple containing:
 
-                beta_index (`jax.numpy.ndarray`): index of the sampled beta
-                alpha_index (`jax.numpy.ndarray`): index of the sampled alpha
+                beta_index (`jax.Array`): index of the sampled beta
+                alpha_index (`jax.Array`): index of the sampled alpha
 
         Examples:
 
@@ -694,7 +694,7 @@ def s2_dirac(
     The integral of the Dirac delta is 1.
 
     Args:
-        position (`jax.numpy.ndarray` or `IrrepsArray`): position of the delta, shape ``(3,)``.
+        position (`jax.Array` or `IrrepsArray`): position of the delta, shape ``(3,)``.
             It will be normalized to have a norm of 1.
 
         lmax (int): maximum degree of the spherical harmonics expansion
@@ -1246,7 +1246,7 @@ def to_s2point(
 
     Args:
         coeffs (`IrrepsArray`): coefficient array of shape ``(*shape1, irreps)``
-        point (`jax.numpy.ndarray`): point on the sphere of shape ``(*shape2, 3)``
+        point (`jax.Array`): point on the sphere of shape ``(*shape2, 3)``
         normalization ({'norm', 'component', 'integral'}): normalization of the basis
 
     Returns:
@@ -1401,11 +1401,11 @@ def _spherical_harmonics_s2grid(
 
     Returns:
         (tuple): tuple containing:
-            y (`jax.numpy.ndarray`): array of shape ``(res_beta)``
-            alphas (`jax.numpy.ndarray`): array of shape ``(res_alpha)``
-            sh_y (`jax.numpy.ndarray`): array of shape ``(res_beta, lmax + 1, lmax + 1)``
-            sh_alpha (`jax.numpy.ndarray`): array of shape ``(res_alpha, 2 * lmax + 1)``
-            qw (`jax.numpy.ndarray`): array of shape ``(res_beta)``
+            y (`jax.Array`): array of shape ``(res_beta)``
+            alphas (`jax.Array`): array of shape ``(res_alpha)``
+            sh_y (`jax.Array`): array of shape ``(res_beta, lmax + 1, lmax + 1)``
+            sh_alpha (`jax.Array`): array of shape ``(res_alpha, 2 * lmax + 1)``
+            qw (`jax.Array`): array of shape ``(res_beta)``
     """
     y, alphas, qw = _s2grid(res_beta, res_alpha, quadrature)
     y, alphas, qw = jax.tree_util.tree_map(
@@ -1500,10 +1500,10 @@ def _normalization(
 def _rfft(x: jax.Array, l: int) -> jax.Array:
     r"""Real fourier transform
     Args:
-        x (`jax.numpy.ndarray`): input array of shape ``(..., res_beta, res_alpha)``
+        x (`jax.Array`): input array of shape ``(..., res_beta, res_alpha)``
         l (int): value of `l` for which the transform is being run
     Returns:
-        `jax.numpy.ndarray`: transformed values - array of shape ``(..., res_beta, 2*l+1)``
+        `jax.Array`: transformed values - array of shape ``(..., res_beta, 2*l+1)``
     """
     x_reshaped = x.reshape((-1, x.shape[-1]))
     x_transformed_c = jnp.fft.rfft(x_reshaped)  # (..., 2*l+1)
@@ -1521,10 +1521,10 @@ def _rfft(x: jax.Array, l: int) -> jax.Array:
 def _irfft(x: jax.Array, res: int) -> jax.Array:
     r"""Inverse of the real fourier transform
     Args:
-        x (`jax.numpy.ndarray`): array of shape ``(..., 2*l + 1)``
+        x (`jax.Array`): array of shape ``(..., 2*l + 1)``
         res (int): output resolution, has to be an odd number
     Returns:
-        `jax.numpy.ndarray`: positions on the sphere, array of shape ``(..., res)``
+        `jax.Array`: positions on the sphere, array of shape ``(..., res)``
     """
     assert res % 2 == 1
 

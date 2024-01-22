@@ -59,7 +59,7 @@ class MultiLayerPerceptron(hk.Module):
     ) -> Union[jax.Array, e3nn.IrrepsArray]:
         """Evaluate the MLP
 
-        Input and output are either `jax.numpy.ndarray` or `IrrepsArray`.
+        Input and output are either `jax.Array` or `IrrepsArray`.
         If the input is a `IrrepsArray`, it must contain only scalars.
 
         Args:
