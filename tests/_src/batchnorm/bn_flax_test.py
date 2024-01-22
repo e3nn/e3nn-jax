@@ -1,5 +1,7 @@
 import jax
+import jax.numpy as jnp
 import pytest
+import numpy as np
 
 import e3nn_jax as e3nn
 
@@ -108,3 +110,31 @@ def test_modes_for_instancenorm(keys, affine, reduce, normalization):
     )
 
     b.apply(params, e3nn.normal(irreps, next(keys), (20, 20)))
+
+
+def test_mask(keys):
+    irreps = e3nn.Irreps("0e")
+    x = e3nn.normal(irreps, next(keys), (5,))
+    m = jnp.array([True, True, True, False, False])
+
+    b = e3nn.flax.BatchNorm(instance=False, momentum=1.0)
+    variables = b.init(next(keys), x)
+
+    y, updates = b.apply(
+        variables, x, mask=m, use_running_average=False, mutable=["batch_stats"]
+    )
+    print(f"x = {x}")
+    print(f"y = {y}")
+
+    np.testing.assert_allclose(jnp.mean(y.array[:3]), 0.0, atol=1e-5, rtol=0.0)
+
+    assert "batch_stats" in updates
+    assert "mean" in updates["batch_stats"]
+    assert "var" in updates["batch_stats"]
+
+    np.testing.assert_allclose(
+        updates["batch_stats"]["mean"], jnp.mean(x.array[:3]), atol=1e-5, rtol=0.0
+    )
+    np.testing.assert_allclose(
+        updates["batch_stats"]["var"], jnp.var(x.array[:3]), atol=1e-5, rtol=0.0
+    )

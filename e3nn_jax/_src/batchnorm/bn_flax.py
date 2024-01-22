@@ -1,6 +1,7 @@
 from typing import Optional
 
 import flax.linen as nn
+import jax
 import jax.numpy as jnp
 
 import e3nn_jax as e3nn
@@ -48,7 +49,10 @@ class BatchNorm(nn.Module):
 
     @nn.compact
     def __call__(
-        self, input: e3nn.IrrepsArray, use_running_average: Optional[bool] = None
+        self,
+        input: e3nn.IrrepsArray,
+        use_running_average: Optional[bool] = None,
+        mask: Optional[jax.Array] = None,
     ) -> e3nn.IrrepsArray:
         """Normalizes the input using batch statistics.
 
@@ -63,10 +67,18 @@ class BatchNorm(nn.Module):
             input: the input to be normalized.
             use_running_average: if true, the statistics stored in batch_stats will be
             used instead of computing the batch statistics on the input.
+            mask: a boolean mask of shape (batch,) to indicate which inputs are valid.
 
         Returns:
             Normalized inputs (the same shape and irreps as input).
         """
+        input = e3nn.as_irreps_array(input)
+
+        if mask is not None and mask.shape != (input.shape[0],):
+            raise ValueError(
+                f"mask must have shape (batch,) but got {mask.shape} instead."
+            )
+
         use_running_average = first_nonnone(
             use_running_average, self.use_running_average, False
         )
@@ -97,7 +109,7 @@ class BatchNorm(nn.Module):
 
         if self.affine:
             weights = self.param("weights", lambda _: jnp.ones((num_irreps,), dtype))
-            biases = self.param("biases", lambda _: jnp.zeros((num_irreps,), dtype))
+            biases = self.param("biases", lambda _: jnp.zeros((num_scalars,), dtype))
         else:
             weights = None
             biases = None
@@ -115,6 +127,7 @@ class BatchNorm(nn.Module):
             self.affine,
             self.momentum,
             self.eps,
+            mask,
         )
 
         if not self.is_initializing() and not self.instance:

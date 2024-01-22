@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `e3nn.where` function
+- Add optional `mask` argument in `e3nn.flax.BatchNorm`
 
 ### Changed
 - replace `jnp.ndarray` by `jax.Array`

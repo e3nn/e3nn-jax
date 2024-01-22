@@ -1,4 +1,5 @@
 from math import prod
+from typing import Optional
 
 import jax
 import jax.numpy as jnp
@@ -8,10 +9,10 @@ import e3nn_jax as e3nn
 
 def batch_norm(
     input: e3nn.IrrepsArray,
-    ra_mean: jax.Array,
-    ra_var: jax.Array,
-    weight: jax.Array,
-    bias: jax.Array,
+    ra_mean: Optional[jax.Array],
+    ra_var: Optional[jax.Array],
+    weight: Optional[jax.Array],
+    bias: Optional[jax.Array],
     normalization: str,
     reduce: str,
     is_instance: bool,
@@ -19,6 +20,7 @@ def batch_norm(
     use_affine: bool,
     momentum: float,
     epsilon: float,
+    mask: Optional[jax.Array] = None,
 ):
     def _roll_avg(curr, update):
         return (1 - momentum) * curr + momentum * jax.lax.stop_gradient(update)
@@ -57,7 +59,12 @@ def batch_norm(
                 if is_instance:
                     field_mean = chunk.mean(1).reshape(batch, mul)  # [batch, mul]
                 else:
-                    field_mean = chunk.mean([0, 1]).reshape(mul)  # [mul]
+                    if mask is None:
+                        field_mean = chunk.mean([0, 1]).reshape(mul)  # [mul]
+                    else:
+                        field_mean = (chunk.mean(1).squeeze(2) * mask[:, None]).sum(
+                            0
+                        ) / mask.sum()  # [mul]
                     new_ra_means.append(
                         _roll_avg(ra_mean[i_rmu : i_rmu + mul], field_mean)
                     )
@@ -86,7 +93,10 @@ def batch_norm(
                 raise ValueError("Invalid reduce option {}".format(reduce))
 
             if not is_instance:
-                field_norm = field_norm.mean(0)  # [mul]
+                if mask is None:
+                    field_norm = field_norm.mean(0)  # [mul]
+                else:
+                    field_norm = (field_norm * mask[:, None]).sum(0) / mask.sum()
                 new_ra_vars.append(_roll_avg(ra_var[i_wei : i_wei + mul], field_norm))
 
             if use_running_average:
@@ -111,6 +121,11 @@ def batch_norm(
 
             new_chunks.append(chunk)  # [batch, sample, mul, repr]
         i_wei += mul
+
+    assert weight is None or i_wei == len(weight)
+    assert ra_var is None or i_wei == len(ra_var)
+    assert bias is None or i_bia == len(bias)
+    assert ra_mean is None or i_rmu == len(ra_mean)
 
     output = e3nn.from_chunks(
         input.irreps, new_chunks, (batch, prod(size)), input.dtype
