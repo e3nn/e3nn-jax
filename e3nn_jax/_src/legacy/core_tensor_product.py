@@ -133,6 +133,7 @@ class FunctionalTensorProduct:
         gradient_normalization (str or float): Normalization of the gradients, ``element`` or ``path``.
             0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
     """
+
     irreps_in1: e3nn.Irreps
     irreps_in2: e3nn.Irreps
     irreps_out: e3nn.Irreps
@@ -215,14 +216,16 @@ class FunctionalTensorProduct:
             if self.irreps_out.dim > 0:
                 self.output_mask = jnp.concatenate(
                     [
-                        jnp.ones(mul_ir.dim, dtype=bool)
-                        if any(
-                            (ins.i_out == i_out)
-                            and (ins.path_weight != 0)
-                            and (0 not in ins.path_shape)
-                            for ins in self.instructions
+                        (
+                            jnp.ones(mul_ir.dim, dtype=bool)
+                            if any(
+                                (ins.i_out == i_out)
+                                and (ins.path_weight != 0)
+                                and (0 not in ins.path_shape)
+                                for ins in self.instructions
+                            )
+                            else jnp.zeros(mul_ir.dim, dtype=bool)
                         )
-                        else jnp.zeros(mul_ir.dim, dtype=bool)
                         for i_out, mul_ir in enumerate(self.irreps_out)
                     ]
                 )

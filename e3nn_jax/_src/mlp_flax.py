@@ -21,6 +21,7 @@ class MultiLayerPerceptron(flax.linen.Module):
             - "path" (default): normalization done explicitly in the forward pass,
                 gives the same importance to every layer independently of the number of neurons
     """
+
     list_neurons: Tuple[int, ...]
     act: Optional[Callable] = None
     gradient_normalization: Union[str, float] = None

@@ -2,6 +2,7 @@
 Implementation from MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields
 Ilyes Batatia, Dávid Péter Kovács, Gregor N. C. Simm, Christoph Ortner and Gábor Csányi
 """
+
 from typing import Any, Callable, Optional, Set, Tuple
 
 import haiku as hk

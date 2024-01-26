@@ -255,9 +255,11 @@ def u(p: int, x: jax.Array) -> jax.Array:
 
 def _constraint(x: float, derivative: int, degree: int):
     return [
-        0
-        if derivative > N
-        else factorial(N) // factorial(N - derivative) * x ** (N - derivative)
+        (
+            0
+            if derivative > N
+            else factorial(N) // factorial(N - derivative) * x ** (N - derivative)
+        )
         for N in range(degree)
     ]
 

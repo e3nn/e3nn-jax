@@ -192,9 +192,13 @@ class IrrepsArray:
                     chunks = [jnp.reshape(self.array, leading_shape + (mul, ir.dim))]
             else:
                 chunks = [
-                    None
-                    if zero
-                    else jnp.reshape(self.array[..., i], leading_shape + (mul, ir.dim))
+                    (
+                        None
+                        if zero
+                        else jnp.reshape(
+                            self.array[..., i], leading_shape + (mul, ir.dim)
+                        )
+                    )
                     for zero, i, (mul, ir) in zip(
                         zeros, self.irreps.slices(), self.irreps
                     )
@@ -974,11 +978,14 @@ class IrrepsArray:
             for ir in {ir for _, ir in self.irreps}
         }
         new_list = [
-            jnp.reshape(
-                jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)
+            (
+                jnp.reshape(
+                    jnp.einsum("ij,...uj->...ui", D[ir], x),
+                    self.shape[:-1] + (mul, ir.dim),
+                )
+                if x is not None
+                else None
             )
-            if x is not None
-            else None
             for (mul, ir), x in zip(self.irreps, self.chunks)
         ]
         return e3nn.from_chunks(self.irreps, new_list, self.shape[:-1], self.dtype)
@@ -1026,11 +1033,14 @@ class IrrepsArray:
         if inverse:
             D = {ir: jnp.swapaxes(D[ir], -2, -1) for ir in D}
         new_chunks = [
-            jnp.reshape(
-                jnp.einsum("ij,...uj->...ui", D[ir], x), self.shape[:-1] + (mul, ir.dim)
+            (
+                jnp.reshape(
+                    jnp.einsum("ij,...uj->...ui", D[ir], x),
+                    self.shape[:-1] + (mul, ir.dim),
+                )
+                if x is not None
+                else None
             )
-            if x is not None
-            else None
             for (mul, ir), x in zip(self.irreps, self.chunks)
         ]
         return e3nn.from_chunks(self.irreps, new_chunks, self.shape[:-1], self.dtype)

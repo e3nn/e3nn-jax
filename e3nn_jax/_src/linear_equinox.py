@@ -101,6 +101,7 @@ class Linear(eqx.Module):
             >>> linear(i, x).shape
             (5,)
     """
+
     irreps_out: e3nn.Irreps
     irreps_in: e3nn.Irreps
     channel_out: int

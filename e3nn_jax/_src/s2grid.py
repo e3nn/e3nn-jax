@@ -105,6 +105,7 @@ class SphericalSignal:
             import plotly.graph_objects as go
             go.Figure([go.Surface(signal.plotly_surface())])
     """
+
     grid_values: jax.Array
     quadrature: str
     p_val: int

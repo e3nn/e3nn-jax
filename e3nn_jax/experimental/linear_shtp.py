@@ -4,6 +4,7 @@ Motivated by the paper: https://arxiv.org/pdf/2302.03655.pdf
 
 - Added the support of inversion symmetry. (Mario Geiger)
 """
+
 from typing import Sequence
 
 import flax

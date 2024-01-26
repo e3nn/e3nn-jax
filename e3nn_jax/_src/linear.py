@@ -112,12 +112,14 @@ class FunctionalLinear:
             if irreps_out.dim > 0:
                 output_mask = jnp.concatenate(
                     [
-                        jnp.ones(mul_ir.dim, bool)
-                        if any(
-                            (ins.i_out == i_out) and (0 not in ins.path_shape)
-                            for ins in instructions
+                        (
+                            jnp.ones(mul_ir.dim, bool)
+                            if any(
+                                (ins.i_out == i_out) and (0 not in ins.path_shape)
+                                for ins in instructions
+                            )
+                            else jnp.zeros(mul_ir.dim, bool)
                         )
-                        else jnp.zeros(mul_ir.dim, bool)
                         for i_out, mul_ir in enumerate(irreps_out)
                     ]
                 )
@@ -175,13 +177,15 @@ class FunctionalLinear:
             ws = self.split_weights(ws)
 
         paths = [
-            ins.path_weight * w
-            if ins.i_in == -1
-            else (
-                None
-                if input.chunks[ins.i_in] is None
-                else ins.path_weight
-                * jnp.einsum("uw,ui->wi", w, input.chunks[ins.i_in])
+            (
+                ins.path_weight * w
+                if ins.i_in == -1
+                else (
+                    None
+                    if input.chunks[ins.i_in] is None
+                    else ins.path_weight
+                    * jnp.einsum("uw,ui->wi", w, input.chunks[ins.i_in])
+                )
             )
             for ins, w in zip(self.instructions, ws)
         ]
@@ -227,9 +231,11 @@ def linear_vanilla(
     """Vanilla linear layer."""
     w = [
         get_parameter(
-            f"b[{ins.i_out}] {linear.irreps_out[ins.i_out]}"
-            if ins.i_in == -1
-            else f"w[{ins.i_in},{ins.i_out}] {linear.irreps_in[ins.i_in]},{linear.irreps_out[ins.i_out]}",
+            (
+                f"b[{ins.i_out}] {linear.irreps_out[ins.i_out]}"
+                if ins.i_in == -1
+                else f"w[{ins.i_in},{ins.i_out}] {linear.irreps_in[ins.i_in]},{linear.irreps_out[ins.i_out]}"
+            ),
             ins.path_shape,
             ins.weight_std,
             input.dtype,
@@ -260,9 +266,11 @@ def linear_indexed(
 
     w = [
         get_parameter(
-            f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}"
-            if ins.i_in == -1
-            else f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+            (
+                f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}"
+                if ins.i_in == -1
+                else f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}"
+            ),
             (num_indexed_weights,) + ins.path_shape,
             ins.weight_std,
             input.dtype,
@@ -299,9 +307,11 @@ def linear_mixed(
 
     w = [
         get_parameter(
-            f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}"
-            if ins.i_in == -1
-            else f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+            (
+                f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}"
+                if ins.i_in == -1
+                else f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}"
+            ),
             (d,) + ins.path_shape,
             stddev * ins.weight_std,
             input.dtype,
@@ -341,9 +351,11 @@ def linear_mixed_per_channel(
 
     w = [
         get_parameter(
-            f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}"
-            if ins.i_in == -1
-            else f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}",
+            (
+                f"b[{ins.i_out}] {lin.irreps_out[ins.i_out]}"
+                if ins.i_in == -1
+                else f"w[{ins.i_in},{ins.i_out}] {lin.irreps_in[ins.i_in]},{lin.irreps_out[ins.i_out]}"
+            ),
             (d, nc) + ins.path_shape,
             stddev * ins.weight_std,
             input.dtype,

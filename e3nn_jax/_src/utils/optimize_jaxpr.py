@@ -174,9 +174,11 @@ def remove_duplicate_equations(
         eqns=[
             eqn.replace(
                 params={
-                    k: v.replace(jaxpr=remove_duplicate_equations(v.jaxpr))
-                    if type(v) is ClosedJaxpr
-                    else v
+                    k: (
+                        v.replace(jaxpr=remove_duplicate_equations(v.jaxpr))
+                        if type(v) is ClosedJaxpr
+                        else v
+                    )
                     for k, v in eqn.params.items()
                 }
             )

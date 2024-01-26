@@ -63,9 +63,11 @@ def from_chunks(
     if irreps.dim > 0:
         array = jnp.concatenate(
             [
-                jnp.zeros(leading_shape + (mul_ir.dim,), dtype)
-                if x is None
-                else x.reshape(leading_shape + (mul_ir.dim,))
+                (
+                    jnp.zeros(leading_shape + (mul_ir.dim,), dtype)
+                    if x is None
+                    else x.reshape(leading_shape + (mul_ir.dim,))
+                )
                 for mul_ir, x in zip(irreps, chunks)
             ],
             axis=-1,
@@ -306,16 +308,20 @@ def concatenate(arrays: List[e3nn.IrrepsArray], axis: int = -1) -> e3nn.IrrepsAr
 
     zero_flags = [all(x) for x in zip(*[x.zero_flags for x in arrays])]
     chunks = [
-        None
-        if z
-        else jnp.concatenate(
-            [
-                jnp.zeros(x.shape[:-1] + (mul, ir.dim), dtype=x.dtype)
-                if x.chunks[i] is None
-                else x.chunks[i]
-                for x in arrays
-            ],
-            axis=axis,
+        (
+            None
+            if z
+            else jnp.concatenate(
+                [
+                    (
+                        jnp.zeros(x.shape[:-1] + (mul, ir.dim), dtype=x.dtype)
+                        if x.chunks[i] is None
+                        else x.chunks[i]
+                    )
+                    for x in arrays
+                ],
+                axis=axis,
+            )
         )
         for i, ((mul, ir), z) in enumerate(zip(irreps, zero_flags))
     ]
@@ -374,16 +380,20 @@ def stack(arrays: List[e3nn.IrrepsArray], axis=0) -> e3nn.IrrepsArray:
 
     zero_flags = [all(x) for x in zip(*[x.zero_flags for x in arrays])]
     chunks = [
-        None
-        if z
-        else jnp.stack(
-            [
-                jnp.zeros(x.shape[:-1] + (mul, ir.dim), dtype=x.dtype)
-                if x.chunks[i] is None
-                else x.chunks[i]
-                for x in arrays
-            ],
-            axis=axis,
+        (
+            None
+            if z
+            else jnp.stack(
+                [
+                    (
+                        jnp.zeros(x.shape[:-1] + (mul, ir.dim), dtype=x.dtype)
+                        if x.chunks[i] is None
+                        else x.chunks[i]
+                    )
+                    for x in arrays
+                ],
+                axis=axis,
+            )
         )
         for i, ((mul, ir), z) in enumerate(zip(irreps, zero_flags))
     ]

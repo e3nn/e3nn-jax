@@ -64,6 +64,7 @@ class Linear(flax.linen.Module):
             >>> linear.apply(w, i, x).shape
             (5,)
     """
+
     irreps_out: e3nn.Irreps
     irreps_in: Optional[e3nn.Irreps] = None
     channel_out: Optional[int] = None

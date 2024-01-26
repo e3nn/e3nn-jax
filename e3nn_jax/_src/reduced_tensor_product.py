@@ -5,6 +5,7 @@ History of the different versions of the code:
 - Ported in `e3nn-jax` by Mario Geiger
 - Optimized the symmetric case by Ameya Daigavane and Mario Geiger
 """
+
 import functools
 import itertools
 from math import prod

@@ -58,6 +58,7 @@ class Irrep:
         >>> Irrep("1o") + Irrep("2o")
         1x1o+1x2o
     """
+
     l: int
     p: int
 
@@ -308,6 +309,7 @@ jax.tree_util.register_pytree_node(Irrep, lambda ir: ((), ir), lambda ir, _: ir)
 @dataclasses.dataclass(init=False, frozen=True)
 class MulIrrep:
     r"""An Irrep with a multiplicity."""
+
     mul: int
     ir: Irrep
 
