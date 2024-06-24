@@ -1,4 +1,5 @@
 import numpy as np
+import functools
 
 from e3nn_jax._src.su2 import su2_clebsch_gordan, su2_generators
 
@@ -19,6 +20,11 @@ def change_basis_real_to_complex(l: int) -> np.ndarray:
 
 
 def clebsch_gordan(l1: int, l2: int, l3: int) -> np.ndarray:
+    return _clebsch_gordan(l1, l2, l3).copy()
+
+
+@functools.cache
+def _clebsch_gordan(l1: int, l2: int, l3: int) -> np.ndarray:
     r"""The Clebsch-Gordan coefficients of the real irreducible representations of :math:`SO(3)`.
 
     Args:
