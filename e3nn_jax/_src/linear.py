@@ -68,6 +68,7 @@ class FunctionalLinear:
             )
             for i_in, i_out in instructions
         ]
+
         def alpha(this):
             x = irreps_in[this.i_in].mul ** path_normalization * sum(
                 irreps_in[other.i_in].mul ** (1.0 - path_normalization)
@@ -392,7 +393,9 @@ def validate_inputs_for_instructions(
         return
 
     if simplify_irreps_internally:
-        raise ValueError("instructions are not supported when simplify_irreps_internally is True")
+        raise ValueError(
+            "instructions are not supported when simplify_irreps_internally is True"
+        )
     if channel_out is not None:
         raise ValueError("instructions are not supported when channel_out is specified")
 
@@ -405,13 +408,12 @@ def validate_inputs_for_instructions(
         raise ValueError(
             f"e3nn.flax.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({irreps_in})"
         )
-    
+
+
 def parse_gradient_normalization(gradient_normalization: Optional[str]) -> float:
     """Parses the gradient normalization string."""
     if gradient_normalization is None:
         gradient_normalization = e3nn.config("gradient_normalization")
     if isinstance(gradient_normalization, str):
-        gradient_normalization = {"element": 0.0, "path": 1.0}[
-            gradient_normalization
-        ]
+        gradient_normalization = {"element": 0.0, "path": 1.0}[gradient_normalization]
     return gradient_normalization

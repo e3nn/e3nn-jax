@@ -93,7 +93,9 @@ class Linear(hk.Module):
         biases: bool = False,
         path_normalization: Union[str, float] = None,
         gradient_normalization: Union[str, float] = None,
-        parameter_initializer: Optional[Callable[[], hk.initializers.Initializer]] = None,
+        parameter_initializer: Optional[
+            Callable[[], hk.initializers.Initializer]
+        ] = None,
         instructions: Optional[List[Tuple[int, int]]] = None,
         num_indexed_weights: Optional[int] = None,
         weights_per_channel: bool = False,
@@ -117,17 +119,23 @@ class Linear(hk.Module):
         self.force_irreps_out = force_irreps_out
         self.instructions = instructions
         self.simplify_irreps_internally = simplify_irreps_internally
-        self.gradient_normalization = parse_gradient_normalization(gradient_normalization)
+        self.gradient_normalization = parse_gradient_normalization(
+            gradient_normalization
+        )
 
         def _get_parameter(
             name: str,
             path_shape: Tuple[int, ...],
             weight_std: float,
             dtype: jnp.dtype = jnp.float32,
-            parameter_initializer: Optional[Callable[[], jax.nn.initializers.Initializer]] = None,
+            parameter_initializer: Optional[
+                Callable[[], jax.nn.initializers.Initializer]
+            ] = None,
         ):
             if parameter_initializer is None:
-                parameter_initializer = lambda: hk.initializers.RandomNormal(stddev=weight_std)
+                parameter_initializer = lambda: hk.initializers.RandomNormal(
+                    stddev=weight_std
+                )
 
             return hk.get_parameter(
                 name,
@@ -136,7 +144,9 @@ class Linear(hk.Module):
                 init=parameter_initializer(),
             )
 
-        self.get_parameter = functools.partial(_get_parameter, parameter_initializer=parameter_initializer)
+        self.get_parameter = functools.partial(
+            _get_parameter, parameter_initializer=parameter_initializer
+        )
 
     def __call__(self, weights_or_input, input_or_none=None) -> e3nn.IrrepsArray:
         """Apply the linear operator.
@@ -171,18 +181,19 @@ class Linear(hk.Module):
             irreps_out = irreps_out.simplify()
 
         if not self.force_irreps_out:
-            irreps_out = irreps_out.filter(
-                keep=input.irreps
-            )
+            irreps_out = irreps_out.filter(keep=input.irreps)
 
         if self.channel_out is not None:
             assert not self.weights_per_channel
             input = input.axis_to_mul()
             irreps_out = self.channel_out * irreps_out
-        
+
         validate_inputs_for_instructions(
-            input, self.instructions, self.simplify_irreps_internally, 
-            self.channel_out, self.irreps_in
+            input,
+            self.instructions,
+            self.simplify_irreps_internally,
+            self.channel_out,
+            self.irreps_in,
         )
 
         lin = FunctionalLinear(

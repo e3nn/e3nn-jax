@@ -28,21 +28,26 @@ def test_linear_vanilla(keys, irreps_in, irreps_out):
 @pytest.mark.parametrize(
     "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
 )
-@pytest.mark.parametrize(
-    "initializer", ["uniform", "custom"]
-)
+@pytest.mark.parametrize("initializer", ["uniform", "custom"])
 def test_linear_vanilla_custom_initializer(keys, irreps_in, irreps_out, initializer):
     if initializer == "uniform":
+
         def parameter_initializer() -> jax.nn.initializers.Initializer:
             return flax.linen.initializers.uniform(0.1)
-    
+
     elif initializer == "custom":
+
         def parameter_initializer() -> jax.nn.initializers.Initializer:
             def custom_initializer(rng, shape, dtype):
                 return 5 + jax.random.normal(rng, shape, dtype=jnp.float32) * 0.1
+
             return custom_initializer
 
-    linear = e3nn.flax.Linear(irreps_in=irreps_in, irreps_out=irreps_out, parameter_initializer=parameter_initializer)
+    linear = e3nn.flax.Linear(
+        irreps_in=irreps_in,
+        irreps_out=irreps_out,
+        parameter_initializer=parameter_initializer,
+    )
     x = e3nn.normal(irreps_in, next(keys), (128,))
     w = linear.init(next(keys), x)
     y = linear.apply(w, x)
@@ -59,7 +64,7 @@ def test_linear_vanilla_custom_initializer(keys, irreps_in, irreps_out, initiali
 def test_linear_vanilla_custom_instructions(keys, irreps_in, irreps_out):
     irreps_in = e3nn.Irreps(irreps_in).simplify()
     irreps_out = e3nn.Irreps(irreps_out).simplify()
-    
+
     # Keep random instructions.
     instructions = [
         (i_in, i_out)
@@ -71,7 +76,7 @@ def test_linear_vanilla_custom_instructions(keys, irreps_in, irreps_out):
         irreps_in=irreps_in,
         irreps_out=irreps_out,
         instructions=instructions,
-        simplify_irreps_internally=False
+        simplify_irreps_internally=False,
     )
     x = e3nn.normal(irreps_in, next(keys), (128,))
     w = linear.init(next(keys), x)

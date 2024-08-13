@@ -112,15 +112,13 @@ class Linear(flax.linen.Module):
         if dtype.kind == "i":
             dtype = jnp.float32
         input = input.astype(dtype)
- 
+
         if self.simplify_irreps_internally:
             input = input.remove_zero_chunks().regroup()
             irreps_out = irreps_out.simplify()
 
         if not self.force_irreps_out:
-            irreps_out = irreps_out.filter(
-                keep=input.irreps
-            )
+            irreps_out = irreps_out.filter(keep=input.irreps)
 
         if self.channel_out is not None:
             assert not self.weights_per_channel
@@ -128,8 +126,11 @@ class Linear(flax.linen.Module):
             irreps_out = self.channel_out * irreps_out
 
         validate_inputs_for_instructions(
-            input, self.instructions, self.simplify_irreps_internally, 
-            self.channel_out, self.irreps_in
+            input,
+            self.instructions,
+            self.simplify_irreps_internally,
+            self.channel_out,
+            self.irreps_in,
         )
 
         lin = FunctionalLinear(
@@ -152,12 +153,15 @@ class Linear(flax.linen.Module):
         ):
             # Default is to initialize the weights with a normal distribution.
             if parameter_initializer is None:
-                parameter_initializer = lambda: flax.linen.initializers.normal(stddev=weight_std)
+                parameter_initializer = lambda: flax.linen.initializers.normal(
+                    stddev=weight_std
+                )
 
-            return self.param(
-                name, parameter_initializer(), path_shape, dtype
-            )
-        get_parameter = functools.partial(_get_parameter, parameter_initializer=self.parameter_initializer)
+            return self.param(name, parameter_initializer(), path_shape, dtype)
+
+        get_parameter = functools.partial(
+            _get_parameter, parameter_initializer=self.parameter_initializer
+        )
 
         if weights is None:
             assert not self.weights_per_channel  # Not implemented yet
@@ -175,7 +179,9 @@ class Linear(flax.linen.Module):
                 )
 
             elif weights.dtype.kind in "fc" and self.num_indexed_weights is None:
-                gradient_normalization = parse_gradient_normalization(self.gradient_normalization)
+                gradient_normalization = parse_gradient_normalization(
+                    self.gradient_normalization
+                )
                 if self.weights_per_channel:
                     output = linear_mixed_per_channel(
                         input, lin, get_parameter, weights, gradient_normalization

@@ -134,25 +134,28 @@ def test_normalization_3(keys):
 @pytest.mark.parametrize(
     "irreps_out", ["5x0e", "1e + 2e + 3x3o + 3x1e", "2x1o + 0x3e", "0x0e"]
 )
-@pytest.mark.parametrize(
-    "initializer", ["uniform", "custom"]
-)
+@pytest.mark.parametrize("initializer", ["uniform", "custom"])
 def test_linear_vanilla_custom_initializer(keys, irreps_in, irreps_out, initializer):
     if initializer == "uniform":
+
         def parameter_initializer() -> hk.initializers.Initializer:
             return hk.initializers.UniformScaling(0.1)
-    
+
     elif initializer == "custom":
+
         def parameter_initializer() -> hk.initializers.Initializer:
             def custom_initializer(shape, dtype):
                 rng = hk.next_rng_key()
                 return 5 + jax.random.normal(rng, shape, dtype=jnp.float32) * 0.1
+
             return custom_initializer
 
     @hk.without_apply_rng
     @hk.transform
     def linear(x):
-        return e3nn.haiku.Linear(irreps_out, parameter_initializer=parameter_initializer)(x)
+        return e3nn.haiku.Linear(
+            irreps_out, parameter_initializer=parameter_initializer
+        )(x)
 
     x = e3nn.normal(irreps_in, next(keys), (128,))
     w = linear.init(next(keys), x)
@@ -170,7 +173,7 @@ def test_linear_vanilla_custom_initializer(keys, irreps_in, irreps_out, initiali
 def test_linear_vanilla_custom_instructions(keys, irreps_in, irreps_out):
     irreps_in = e3nn.Irreps(irreps_in).simplify()
     irreps_out = e3nn.Irreps(irreps_out).simplify()
-    
+
     # Keep random instructions.
     instructions = [
         (i_in, i_out)
@@ -178,6 +181,7 @@ def test_linear_vanilla_custom_instructions(keys, irreps_in, irreps_out):
         for i_out, (_, ir_out) in enumerate(irreps_out)
         if ir_in == ir_out and jax.random.bernoulli(next(keys))
     ]
+
     @hk.without_apply_rng
     @hk.transform
     def linear(x):
@@ -185,7 +189,7 @@ def test_linear_vanilla_custom_instructions(keys, irreps_in, irreps_out):
             irreps_in=irreps_in,
             irreps_out=irreps_out,
             instructions=instructions,
-            simplify_irreps_internally=False
+            simplify_irreps_internally=False,
         )(x)
 
     x = e3nn.normal(irreps_in, next(keys), (128,))
@@ -202,5 +206,3 @@ def test_linear_vanilla_custom_instructions(keys, irreps_in, irreps_out):
             assert jnp.all(y.array[..., irreps_slice] == 0.0)
 
     assert y.shape == (128, y.irreps.dim)
-
-
