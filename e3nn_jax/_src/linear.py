@@ -68,7 +68,6 @@ class FunctionalLinear:
             )
             for i_in, i_out in instructions
         ]
-
         def alpha(this):
             x = irreps_in[this.i_in].mul ** path_normalization * sum(
                 irreps_in[other.i_in].mul ** (1.0 - path_normalization)
@@ -373,3 +372,46 @@ def linear_mixed_per_channel(
     for _ in range(input.ndim - 1):
         f = e3nn.utils.vmap(f)
     return f(w, input)  # (..., num_channels, irreps)
+
+
+def validate_inputs_for_instructions(
+    input: IrrepsArray,
+    instructions: Optional[List[Tuple[int, int]]],
+    simplify_irreps_internally: bool,
+    channel_out: Optional[int],
+    irreps_in: Optional[Irreps],
+) -> None:
+    """Validate the inputs for the instructions."""
+    if instructions is None:
+        # When instructions are not provided, the input irreps must be equivalent to the expected irreps.
+        if irreps_in is not None:
+            if input.irreps.regroup() != e3nn.Irreps(irreps_in).regroup():
+                raise ValueError(
+                    f"e3nn.flax.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({self.irreps_in})"
+                )
+        return
+
+    if simplify_irreps_internally:
+        raise ValueError("instructions are not supported when simplify_irreps_internally is True")
+    if channel_out is not None:
+        raise ValueError("instructions are not supported when channel_out is specified")
+
+    # When instructions are provided, the input irreps must be specified.
+    if irreps_in is None:
+        raise ValueError("instructions are provided, but irreps_in is not specified")
+
+    # When instructions are provided, the input irreps must be exactly equal to the expected irreps.
+    if input.irreps != irreps_in:
+        raise ValueError(
+            f"e3nn.flax.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({irreps_in})"
+        )
+    
+def parse_gradient_normalization(gradient_normalization: Optional[str]) -> float:
+    """Parses the gradient normalization string."""
+    if gradient_normalization is None:
+        gradient_normalization = e3nn.config("gradient_normalization")
+    if isinstance(gradient_normalization, str):
+        gradient_normalization = {"element": 0.0, "path": 1.0}[
+            gradient_normalization
+        ]
+    return gradient_normalization
