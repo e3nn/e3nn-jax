@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional, Tuple, Union, List
+from typing import Callable, Optional, Tuple, Union, List
 
 import functools
 import haiku as hk

@@ -388,7 +388,7 @@ def validate_inputs_for_instructions(
         if irreps_in is not None:
             if input.irreps.regroup() != e3nn.Irreps(irreps_in).regroup():
                 raise ValueError(
-                    f"e3nn.flax.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({self.irreps_in})"
+                    f"e3nn.flax.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({irreps_in})"
                 )
         return
 
