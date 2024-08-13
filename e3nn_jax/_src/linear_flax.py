@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Tuple, Any, Callable
 
 import flax
 import jax
@@ -71,6 +71,9 @@ class Linear(flax.linen.Module):
     gradient_normalization: Optional[Union[float, str]] = None
     path_normalization: Optional[Union[float, str]] = None
     biases: bool = False
+    parameter_initializer: Optional[
+        Callable[[float], jax.nn.initializers.Initializer]
+    ] = None
     num_indexed_weights: Optional[int] = None
     weights_per_channel: bool = False
     force_irreps_out: bool = False
@@ -131,14 +134,25 @@ class Linear(flax.linen.Module):
             gradient_normalization=self.gradient_normalization,
         )
 
-        def param(name, shape, std, dtype):
+
+        parameter_initializer = self.parameter_initializer
+        if parameter_initializer is None:
+            # Default is to initialize the weights with a normal distribution.
+            parameter_initializer = lambda weight_std: flax.linen.initializers.normal(stddev=weight_std)
+
+        def get_parameter(
+            name: str,
+            path_shape: Tuple[int, ...],
+            weight_std: float,
+            dtype: jnp.dtype = jnp.float32,
+        ):
             return self.param(
-                name, flax.linen.initializers.normal(stddev=std), shape, dtype
+                name, parameter_initializer(weight_std), path_shape, dtype
             )
 
         if weights is None:
             assert not self.weights_per_channel  # Not implemented yet
-            output = linear_vanilla(input, lin, param)
+            output = linear_vanilla(input, lin, get_parameter)
         else:
             if isinstance(weights, e3nn.IrrepsArray):
                 if not weights.irreps.is_scalar():
@@ -148,7 +162,7 @@ class Linear(flax.linen.Module):
             if weights.dtype.kind == "i" and self.num_indexed_weights is not None:
                 assert not self.weights_per_channel  # Not implemented yet
                 output = linear_indexed(
-                    input, lin, param, weights, self.num_indexed_weights
+                    input, lin, get_parameter, weights, self.num_indexed_weights
                 )
 
             elif weights.dtype.kind in "fc" and self.num_indexed_weights is None:
@@ -162,11 +176,11 @@ class Linear(flax.linen.Module):
 
                 if self.weights_per_channel:
                     output = linear_mixed_per_channel(
-                        input, lin, param, weights, gradient_normalization
+                        input, lin, get_parameter, weights, gradient_normalization
                     )
                 else:
                     output = linear_mixed(
-                        input, lin, param, weights, gradient_normalization
+                        input, lin, get_parameter, weights, gradient_normalization
                     )
 
             else:
