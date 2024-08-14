@@ -25,7 +25,7 @@ class BatchNorm(nn.Module):
 
     Args:
         use_running_average: if True, the statistics stored in batch_stats will be
-      used instead of computing the batch statistics on the input.
+            used instead of computing the batch statistics on the input.
         eps (float): epsilon for numerical stability, has to be between 0 and 1.
             the field norm is transformed to ``(1 - eps) * norm + eps``
             leading to a slower convergence toward norm 1.
