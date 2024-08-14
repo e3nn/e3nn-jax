@@ -1,4 +1,5 @@
-from typing import Optional, Union
+from typing import Optional, Union, Tuple, List, Callable
+import functools
 
 import flax
 import jax
@@ -13,6 +14,8 @@ from .linear import (
     linear_mixed,
     linear_mixed_per_channel,
     linear_vanilla,
+    validate_inputs_for_instructions,
+    parse_gradient_normalization,
 )
 
 
@@ -71,9 +74,14 @@ class Linear(flax.linen.Module):
     gradient_normalization: Optional[Union[float, str]] = None
     path_normalization: Optional[Union[float, str]] = None
     biases: bool = False
+    parameter_initializer: Optional[Callable[[], jax.nn.initializers.Initializer]] = (
+        None
+    )
+    instructions: Optional[List[Tuple[int, int]]] = None
     num_indexed_weights: Optional[int] = None
     weights_per_channel: bool = False
     force_irreps_out: bool = False
+    simplify_irreps_internally: bool = True
 
     @flax.linen.compact
     def __call__(self, weights_or_input, input_or_none=None) -> e3nn.IrrepsArray:
@@ -98,47 +106,66 @@ class Linear(flax.linen.Module):
         del weights_or_input, input_or_none
 
         input = e3nn.as_irreps_array(input)
+        irreps_out = e3nn.Irreps(self.irreps_out)
 
         dtype = get_pytree_dtype(weights, input)
         if dtype.kind == "i":
             dtype = jnp.float32
         input = input.astype(dtype)
 
-        if self.irreps_in is not None:
-            if e3nn.Irreps(self.irreps_in).regroup() != input.irreps.regroup():
-                raise ValueError(
-                    f"e3nn.flax.Linear: The input irreps ({input.irreps}) do not match the expected irreps ({self.irreps_in})"
-                )
+        if self.simplify_irreps_internally:
+            input = input.remove_zero_chunks().regroup()
+            irreps_out = irreps_out.simplify()
 
-        input = input.remove_zero_chunks().regroup()
-        if self.force_irreps_out:
-            output_irreps = e3nn.Irreps(self.irreps_out).simplify()
-        else:
-            output_irreps_unsimplified = e3nn.Irreps(self.irreps_out).filter(
-                keep=input.irreps
-            )
-            output_irreps = output_irreps_unsimplified.simplify()
+        if not self.force_irreps_out:
+            irreps_out = irreps_out.filter(keep=input.irreps)
+
         if self.channel_out is not None:
             assert not self.weights_per_channel
             input = input.axis_to_mul()
-            output_irreps = self.channel_out * output_irreps
+            irreps_out = self.channel_out * irreps_out
+
+        validate_inputs_for_instructions(
+            input,
+            self.instructions,
+            self.simplify_irreps_internally,
+            self.channel_out,
+            self.irreps_in,
+        )
 
         lin = FunctionalLinear(
             input.irreps,
-            output_irreps,
+            irreps_out,
             biases=self.biases,
+            instructions=self.instructions,
             path_normalization=self.path_normalization,
             gradient_normalization=self.gradient_normalization,
         )
 
-        def param(name, shape, std, dtype):
-            return self.param(
-                name, flax.linen.initializers.normal(stddev=std), shape, dtype
-            )
+        def _get_parameter(
+            name: str,
+            path_shape: Tuple[int, ...],
+            weight_std: float,
+            dtype: jnp.dtype = jnp.float32,
+            parameter_initializer: Optional[
+                Callable[[], jax.nn.initializers.Initializer]
+            ] = None,
+        ):
+            # Default is to initialize the weights with a normal distribution.
+            if parameter_initializer is None:
+                parameter_initializer = lambda: flax.linen.initializers.normal(
+                    stddev=weight_std
+                )
+
+            return self.param(name, parameter_initializer(), path_shape, dtype)
+
+        get_parameter = functools.partial(
+            _get_parameter, parameter_initializer=self.parameter_initializer
+        )
 
         if weights is None:
             assert not self.weights_per_channel  # Not implemented yet
-            output = linear_vanilla(input, lin, param)
+            output = linear_vanilla(input, lin, get_parameter)
         else:
             if isinstance(weights, e3nn.IrrepsArray):
                 if not weights.irreps.is_scalar():
@@ -148,25 +175,20 @@ class Linear(flax.linen.Module):
             if weights.dtype.kind == "i" and self.num_indexed_weights is not None:
                 assert not self.weights_per_channel  # Not implemented yet
                 output = linear_indexed(
-                    input, lin, param, weights, self.num_indexed_weights
+                    input, lin, get_parameter, weights, self.num_indexed_weights
                 )
 
             elif weights.dtype.kind in "fc" and self.num_indexed_weights is None:
-                gradient_normalization = self.gradient_normalization
-                if gradient_normalization is None:
-                    gradient_normalization = e3nn.config("gradient_normalization")
-                if isinstance(gradient_normalization, str):
-                    gradient_normalization = {"element": 0.0, "path": 1.0}[
-                        gradient_normalization
-                    ]
-
+                gradient_normalization = parse_gradient_normalization(
+                    self.gradient_normalization
+                )
                 if self.weights_per_channel:
                     output = linear_mixed_per_channel(
-                        input, lin, param, weights, gradient_normalization
+                        input, lin, get_parameter, weights, gradient_normalization
                     )
                 else:
                     output = linear_mixed(
-                        input, lin, param, weights, gradient_normalization
+                        input, lin, get_parameter, weights, gradient_normalization
                     )
 
             else:
@@ -181,5 +203,4 @@ class Linear(flax.linen.Module):
 
         if self.force_irreps_out:
             return output.rechunk(self.irreps_out)
-        else:
-            return output.rechunk(output_irreps_unsimplified)
+        return output
