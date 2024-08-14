@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Add support for custom instructions and initializers in e3nn.flax.Linear and e3nn.haiku.Linear.
+- Fix documentation build errors.
 
 ## [0.20.6] - 2024-01-26
 ### Added
@@ -26,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.20.4] - 2023-12-24
 ### Fixed
-- Fix `pyproject.toml`, the documenation build was broken. Thanks to @SauravMaheshkar!
+- Fix `pyproject.toml`, the documentation build was broken. Thanks to @SauravMaheshkar!
 
 ### Added
 - Support for [`s2fft`](https://github.com/astro-informatics/s2fft) in `e3nn.to_s2grid` and `e3nn.from_s2grid`, thanks to @ameya98!
