@@ -38,7 +38,7 @@ def _is_none_slice(x):
     return isinstance(x, slice) and x == slice(None)
 
 
-@attrs(frozen=True, init=True, repr=False)
+@attrs(frozen=True, init=True, repr=False, cmp=False)
 class IrrepsArray:
     r"""Array with a representation of rotations.
 
