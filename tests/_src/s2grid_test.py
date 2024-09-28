@@ -330,16 +330,71 @@ def test_integrate_scalar(lmax, quadrature):
 
 
 @pytest.mark.parametrize("degree", range(10))
-def test_integrate_polynomials(degree):
-    def f(coords):
-        x, y, z = coords
-        return y**degree
+@pytest.mark.parametrize("key", range(3))
+def test_integrate_spherical_harmonics(key: int, degree: int):
+    """Tests that the gausslegendre quadrature scheme integrates spherical harmonics correctly."""
 
-    sig = e3nn.SphericalSignal.from_function(f, 100, 99, quadrature="gausslegendre")
+    rng = jax.random.PRNGKey(key)
+    coeffs = jax.random.normal(rng, (2 * degree + 1,))
+    coeffs /= jnp.linalg.norm(coeffs)
+    coeffs = jnp.abs(coeffs)
+    coeffs = e3nn.IrrepsArray(e3nn.s2_irreps(degree)[-1], coeffs)
+
+    sig = e3nn.to_s2grid(
+        coeffs=coeffs,
+        res_beta=((degree + 3) // 2),
+        res_alpha=(degree + 1),
+        quadrature="gausslegendre",
+        p_val=1,
+        p_arg=-1,
+        fft=False,
+    )
     integral = sig.integrate().array.squeeze()
 
-    expected_integral = 4 * jnp.pi / (degree + 1) if degree % 2 == 0 else 0
-    np.testing.assert_allclose(integral, expected_integral, atol=1e-5, rtol=1e-5)
+    if degree == 0:
+        expected_integral = 4 * jnp.pi
+    else:
+        expected_integral = 0.0
+
+    assert jnp.isclose(integral, expected_integral, atol=1e-5, rtol=1e-5), (
+        integral, expected_integral
+    )
+
+@pytest.mark.parametrize("degree", range(10))
+@pytest.mark.parametrize("key", range(3))
+def test_integrate_polynomials(key: int, degree: int):
+    """Tests that the gausslegendre quadrature scheme integrates polynomials correctly."""
+    rng = jax.random.PRNGKey(key)
+    x_key, y_key = jax.random.split(rng)
+    x_degree = 2 * jax.random.randint(x_key, (), 0, (degree + 1) // 2)
+    y_degree = 2 * jax.random.randint(y_key, (), 0, (degree + 1 - x_degree) // 2)
+    z_degree = degree - x_degree - y_degree
+
+    def f(coords):
+        x, y, z = coords
+        return x**x_degree * y**y_degree * z**z_degree
+
+    sig = e3nn.SphericalSignal.from_function(
+        f,
+        res_beta=((degree + 3) // 2),
+        res_alpha=(degree + 1),
+        quadrature="gausslegendre",
+        p_val=1,
+        p_arg=-1,
+    )
+    integral = sig.integrate().array.squeeze()
+
+    if any(d % 2 == 1 for d in (x_degree, y_degree, z_degree)):
+        expected_integral = 0.0
+    else:
+        alphas = jnp.asarray([x_degree, y_degree, z_degree])
+        alphas = (alphas + 1) / 2
+        log_dirichlet = jnp.sum(jax.scipy.special.gammaln(alphas)) - jax.scipy.special.gammaln(jnp.sum(alphas))
+        expected_integral = 2 * jnp.exp(log_dirichlet)
+
+    assert jnp.isclose(integral, expected_integral, atol=1e-5, rtol=1e-5), (
+        integral, expected_integral
+    )
 
 
 def test_sample(keys):

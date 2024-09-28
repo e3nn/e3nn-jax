@@ -978,9 +978,13 @@ def to_s2grid(
 
         * The `soft <https://link.springer.com/article/10.1007/s00041-008-9013-5>`_
           quadrature is a uniform sampling of the beta angle.
-        * The `gauss-legendre <https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature>`_
+        * The `gausslegendre <https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature>`_
           quadrature is a quadrature rule that is exact for polynomials of degree ``2 res_beta - 1``.
-          On the sphere it is exact only for polynomials of :math:`y`.
+
+        The gausslegendre quadrature allows exact integration of spherical harmonics upto a degree l,
+        if res_beta is atleast (l + 3)/2 and res_alpha is atleast l + 1.
+        See https://cbeentjes.github.io/files/Ramblings/QuadratureSphere.pdf for more information on
+        quadrature rules for the sphere. In their notation, alpha is theta and beta is phi.
 
         .. jupyter-execute::
             :hide-code:
