@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.8] - 2024-09-28
+### Added
+- Tests for GaussLegendre quadrature in `e3nn.SphericalSignal`.
+
+### Changed
+- Docstring for GaussLegendre quadrature in `e3nn SphericalSignal`.
+
 ## [0.20.7] - 2024-08-14
 ### Added
 - Support for custom instructions and initializers in e3nn.flax.Linear and e3nn.haiku.Linear.
