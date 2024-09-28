@@ -74,9 +74,9 @@ class Linear(flax.linen.Module):
     gradient_normalization: Optional[Union[float, str]] = None
     path_normalization: Optional[Union[float, str]] = None
     biases: bool = False
-    parameter_initializer: Optional[Callable[[], jax.nn.initializers.Initializer]] = (
-        None
-    )
+    parameter_initializer: Optional[
+        Callable[[], jax.nn.initializers.Initializer]
+    ] = None
     instructions: Optional[List[Tuple[int, int]]] = None
     num_indexed_weights: Optional[int] = None
     weights_per_channel: bool = False

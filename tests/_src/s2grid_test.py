@@ -357,8 +357,10 @@ def test_integrate_spherical_harmonics(key: int, degree: int):
         expected_integral = 0.0
 
     assert jnp.isclose(integral, expected_integral, atol=1e-5, rtol=1e-5), (
-        integral, expected_integral
+        integral,
+        expected_integral,
     )
+
 
 @pytest.mark.parametrize("degree", range(10))
 @pytest.mark.parametrize("key", range(3))
@@ -389,11 +391,14 @@ def test_integrate_polynomials(key: int, degree: int):
     else:
         alphas = jnp.asarray([x_degree, y_degree, z_degree])
         alphas = (alphas + 1) / 2
-        log_dirichlet = jnp.sum(jax.scipy.special.gammaln(alphas)) - jax.scipy.special.gammaln(jnp.sum(alphas))
+        log_dirichlet = jnp.sum(
+            jax.scipy.special.gammaln(alphas)
+        ) - jax.scipy.special.gammaln(jnp.sum(alphas))
         expected_integral = 2 * jnp.exp(log_dirichlet)
 
     assert jnp.isclose(integral, expected_integral, atol=1e-5, rtol=1e-5), (
-        integral, expected_integral
+        integral,
+        expected_integral,
     )
 
 
