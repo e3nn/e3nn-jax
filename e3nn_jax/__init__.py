@@ -115,6 +115,7 @@ from e3nn_jax._src.s2grid import (
 from e3nn_jax._src.tensor_product_with_spherical_harmonics import (
     tensor_product_with_spherical_harmonics,
 )
+from e3nn_jax._src.so3grid import SO3Signal
 from e3nn_jax._src.utils.vmap import vmap
 
 
@@ -230,6 +231,7 @@ __all__ = [
     "m0_values_to_irrepsarray",
     "s2_dirac",
     "SphericalSignal",
+    "SO3Signal",
     "tensor_product_with_spherical_harmonics",
     "vmap",
     "flax",
