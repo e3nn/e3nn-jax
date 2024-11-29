@@ -1,8 +1,6 @@
-import math
-
-import jax
 import jax.numpy as jnp
 import pytest
+
 from e3nn_jax import SO3Signal
 
 
