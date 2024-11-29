@@ -20,7 +20,7 @@ class SO3Signal:
         if _perform_checks:
             if len(s2_signals.shape) < 3:
                 raise ValueError(
-                    f"Grid values should have atleast 3 axes. Got grid_values of shape {grid_values.shape}."
+                    f"s2_signals should have atleast 3 axes. Got {s2_signals.shape}."
                 )
 
         self.s2_signals = s2_signals
