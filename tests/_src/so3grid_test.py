@@ -96,4 +96,3 @@ def test_division_scalar():
     sig2 = sig1 / 2.7
     integral2 = sig2.integrate()
     assert jnp.isclose(integral2, integral1 / 2.7)
-

@@ -127,7 +127,10 @@ class SO3Signal:
     def integrate_over_angles(self) -> SphericalSignal:
         """Integrate the signal over the angles in the axis-angle parametrization."""
         # Account for angle-dependency in Haar measure.
-        grid_values = self.s2_signals.grid_values * (1 - jnp.cos(self.grid_theta))[..., None, None]
+        grid_values = (
+            self.s2_signals.grid_values
+            * (1 - jnp.cos(self.grid_theta))[..., None, None]
+        )
 
         # Trapezoidal rule for integration.
         delta_theta = self.grid_theta[1] - self.grid_theta[0]
