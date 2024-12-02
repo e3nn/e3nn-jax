@@ -150,7 +150,7 @@ class SO3Signal:
         # Sample the axis from the S2 signal (integrated over angles).
         axis_rng, rng = jax.random.split(rng)
         beta_idx, alpha_idx = s2_signal_integrated.sample(axis_rng)
-        axis = s2_signal_integrated.grid_vectors[..., beta_idx, alpha_idx]
+        axis = s2_signal_integrated.grid_vectors[..., beta_idx, alpha_idx, :]
         assert axis.shape == (*self.batch_dims, 3)
 
         # Choose the angle from the distribution conditioned on the axis.
@@ -158,7 +158,11 @@ class SO3Signal:
         theta_probs = self.s2_signals.grid_values[..., beta_idx, alpha_idx]
         assert theta_probs.shape == (*self.batch_dims, self.res_theta)
 
-        theta_idx = jax.random.categorical(angle_rng, jnp.log(theta_probs))
+        # Avoid log(0) by replacing 0 with a small value.
+        theta_logits = jnp.where(theta_probs == 0, 1e-20, theta_probs)
+        theta_logits = jnp.log(theta_logits)
+
+        theta_idx = jax.random.categorical(angle_rng, theta_logits)
         angle = jnp.linspace(0, 2 * jnp.pi, self.res_theta)[theta_idx]
         assert angle.shape == (*self.batch_dims,)
 
