@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 import pytest
 
@@ -28,3 +29,20 @@ def test_integrate_vector(x):
     )
     integral = sig.integrate()
     assert jnp.allclose(integral, 0.0, atol=1e-6)
+
+
+def test_sampling(num_seeds: int = 10):
+    sig = SO3Signal.from_function(
+        lambda R: 1.0,
+        res_beta=40,
+        res_alpha=39,
+        res_theta=40,
+        quadrature="gausslegendre",
+    )
+    seeds = jax.random.split(jax.random.PRNGKey(0), num_seeds)
+    Rs = jax.vmap(sig.sample)(seeds)
+    assert Rs.shape == (num_seeds, 3, 3)
+
+    # Check that the samples are orthogonal.
+    for R in Rs:
+        assert jnp.allclose(R @ R.T, jnp.eye(3), atol=1e-6)
