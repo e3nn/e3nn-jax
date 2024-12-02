@@ -127,7 +127,10 @@ class SO3Signal:
     def integrate_over_angles(self) -> SphericalSignal:
         """Integrate the signal over the angles in the axis-angle parametrization."""
         # Account for angle-dependency in Haar measure.
-        grid_values = self.s2_signals.grid_values * (1 - jnp.cos(self.grid_theta))[..., None, None]
+        grid_values = (
+            self.s2_signals.grid_values
+            * (1 - jnp.cos(self.grid_theta))[..., None, None]
+        )
 
         # Trapezoidal rule for integration.
         delta_theta = self.grid_theta[1] - self.grid_theta[0]
@@ -135,7 +138,7 @@ class SO3Signal:
             grid_values=jnp.sum(grid_values, axis=-3) * delta_theta
         )
 
-    def integrate(self) -> SphericalSignal:
+    def integrate(self) -> float:
         """Numerically integrate the signal over SO(3)."""
         # Integrate over angles.
         s2_signal_integrated = self.integrate_over_angles()
@@ -153,7 +156,7 @@ class SO3Signal:
         integral = integral / (8 * jnp.pi**2)
         return integral
 
-    def sample(self, rng: jax.random.PRNGKey):
+    def sample(self, rng: jax.random.PRNGKey) -> jnp.ndarray:
         """Sample a random rotation from SO(3) using the given probability distribution."""
         # Integrate over angles.
         s2_signal_integrated = self.integrate_over_angles()
