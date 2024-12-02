@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -107,16 +107,32 @@ class SO3Signal:
         batch_dims = fs.shape[:-3]
         assert fs.shape == (*batch_dims, res_theta, res_beta, res_alpha)
 
-        # Account for angle-dependency in Haar measure.
-        fs = fs * (1 - jnp.cos(angles))[..., None, None]
         s2_signals = s2_signals.replace_values(fs)
         assert s2_signals.shape == (*batch_dims, res_theta, res_beta, res_alpha)
         return SO3Signal(s2_signals)
 
+    def __mul__(self, other: Union[float, "SO3Signal"]) -> "SO3Signal":
+        if isinstance(other, float):
+            return SO3Signal(self.s2_signals * other)
+
+        if self.shape != other.shape:
+            raise ValueError(
+                f"Shapes of the two signals do not match: {self.shape} != {other.shape}"
+            )
+        return SO3Signal(self.s2_signals * other.s2_signals)
+
+    def __truediv__(self, other: float) -> "SO3Signal":
+        return self * (1 / other)
+
     def integrate_over_angles(self) -> SphericalSignal:
+        """Integrate the signal over the angles in the axis-angle parametrization."""
+        # Account for angle-dependency in Haar measure.
+        grid_values = self.s2_signals.grid_values * (1 - jnp.cos(self.grid_theta))[..., None, None]
+
+        # Trapezoidal rule for integration.
         delta_theta = self.grid_theta[1] - self.grid_theta[0]
         return self.s2_signals.replace_values(
-            grid_values=jnp.sum(self.s2_signals.grid_values, axis=-3) * delta_theta
+            grid_values=jnp.sum(grid_values, axis=-3) * delta_theta
         )
 
     def integrate(self) -> SphericalSignal:
