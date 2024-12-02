@@ -7,7 +7,7 @@ def jit_code(f, *args, **kwargs):
     import jaxlib.xla_extension as xla_ext
 
     f_jax = jax.jit(f)
-    jax_comp = f_jax.lower(*args, **kwargs).compiler_ir(dialect="mhlo")
+    jax_comp = f_jax.lower(*args, **kwargs).compiler_ir(dialect="stablehlo")
     jax_hlo = str(jax_comp)
     backend = xla_bridge.get_backend()
     jax_optimized_hlo = backend.compile(jax_hlo)
