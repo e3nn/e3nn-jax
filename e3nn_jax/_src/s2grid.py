@@ -207,10 +207,9 @@ class SphericalSignal:
         else:
             return f"SphericalSignal({self.grid_values})"
 
-    def __mul__(self, scalar: Union[float, "SphericalSignal"]) -> "SphericalSignal":
+    def __mul__(self, other: Union[float, "SphericalSignal"]) -> "SphericalSignal":
         """Multiply SphericalSignal by a scalar."""
-        if isinstance(scalar, SphericalSignal):
-            other = scalar
+        if isinstance(other, SphericalSignal):
             if self.quadrature != other.quadrature:
                 raise ValueError(
                     "Multiplication of SphericalSignals with different quadrature is not supported."
@@ -231,22 +230,22 @@ class SphericalSignal:
                 p_arg=self.p_arg,
             )
 
-        if isinstance(scalar, e3nn.IrrepsArray):
-            if scalar.irreps != e3nn.Irreps("0e"):
+        if isinstance(other, e3nn.IrrepsArray):
+            if other.irreps != e3nn.Irreps("0e"):
                 raise ValueError("Scalar must be a 0e IrrepsArray.")
-            scalar = scalar.array[..., 0]
+            other = other.array[..., 0]
 
-        scalar = jnp.asarray(scalar)[..., None, None]
+        other = jnp.asarray(other)[..., None, None]
         return SphericalSignal(
-            self.grid_values * scalar,
+            self.grid_values * other,
             self.quadrature,
             p_val=self.p_val,
             p_arg=self.p_arg,
         )
 
-    def __rmul__(self, scalar: float) -> "SphericalSignal":
-        """Multiply SphericalSignal by a scalar."""
-        return self * scalar
+    def __rmul__(self, other: Union[float, "SphericalSignal"]) -> "SphericalSignal":
+        """Multiply SphericalSignal by a compatible SphericalSignal or scalar."""
+        return self * other
 
     def __truediv__(self, scalar: float) -> "SphericalSignal":
         """Divide SphericalSignal by a scalar."""
