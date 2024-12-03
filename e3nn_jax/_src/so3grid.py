@@ -136,7 +136,9 @@ class SO3Signal:
             func = jax.vmap(func)
         return func
 
-    def argmax(self) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]]:
+    def argmax(
+        self,
+    ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]]:
         """Find the rotation (and corresponding grid indices) with the maximum value of the signal."""
         # Get flattened argmax
         flat_index = jnp.argmax(self.grid_values.reshape(*self.shape[:-3], -1), axis=-1)
