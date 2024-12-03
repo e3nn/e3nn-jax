@@ -112,14 +112,14 @@ class SO3Signal:
         return SO3Signal(s2_signals)
 
     def __mul__(self, other: Union[float, "SO3Signal"]) -> "SO3Signal":
-        if isinstance(other, float):
-            return SO3Signal(self.s2_signals * other)
+        if isinstance(other, SO3Signal):
+            if self.shape != other.shape:
+                raise ValueError(
+                    f"Shapes of the two signals do not match: {self.shape} != {other.shape}"
+                )
+            return SO3Signal(self.s2_signals * other.s2_signals)
 
-        if self.shape != other.shape:
-            raise ValueError(
-                f"Shapes of the two signals do not match: {self.shape} != {other.shape}"
-            )
-        return SO3Signal(self.s2_signals * other.s2_signals)
+        return SO3Signal(self.s2_signals * other)
 
     def __truediv__(self, other: float) -> "SO3Signal":
         return self * (1 / other)
