@@ -96,3 +96,26 @@ def test_division_scalar():
     sig2 = sig1 / 2.7
     integral2 = sig2.integrate()
     assert jnp.isclose(integral2, integral1 / 2.7)
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_argmax(seed: int):
+    rng = jax.random.PRNGKey(seed)
+    F = jax.random.normal(rng, (3, 3))
+
+    func = lambda R: jnp.exp(jnp.trace(F.T @ R))
+    sig = SO3Signal.from_function(
+        func,
+        res_beta=50,
+        res_alpha=50,
+        res_theta=50,
+        quadrature="gausslegendre",
+    )
+
+    U, S, VT = jnp.linalg.svd(F)
+    R_argmax_expected = (
+        U @ jnp.diag(jnp.asarray([1.0, 1.0, jnp.linalg.det(U @ VT)])) @ VT
+    )
+    R_argmax, _ = sig.argmax()
+
+    assert jnp.allclose(func(R_argmax), func(R_argmax_expected), rtol=1e-2)
