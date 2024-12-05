@@ -128,6 +128,10 @@ class SO3Signal:
     def __truediv__(self, other: float) -> "SO3Signal":
         return self * (1 / other)
 
+    def apply(self, func: Callable[..., jnp.ndarray]) -> "SO3Signal":
+        """Apply a pointwise function to the signal."""
+        return SO3Signal(self.s2_signals.apply(func))
+
     def vmap_over_batch_dims(
         self, func: Callable[..., jnp.ndarray]
     ) -> Callable[..., jnp.ndarray]:

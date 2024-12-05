@@ -119,3 +119,22 @@ def test_argmax(seed: int):
     R_argmax, _ = sig.argmax()
 
     assert jnp.allclose(func(R_argmax), func(R_argmax_expected), rtol=1e-2)
+
+
+def test_apply():
+    sig = SO3Signal.from_function(
+        lambda R: jnp.trace(R @ R),
+        res_beta=40,
+        res_alpha=39,
+        res_theta=40,
+        quadrature="gausslegendre",
+    )
+    sig_applied = sig.apply(jnp.exp)
+    sig_expected = SO3Signal.from_function(
+        lambda R: jnp.exp(jnp.trace(R @ R)),
+        res_beta=40,
+        res_alpha=39,
+        res_theta=40,
+        quadrature="gausslegendre",
+    )
+    assert jnp.allclose(sig_applied.grid_values, sig_expected.grid_values)
