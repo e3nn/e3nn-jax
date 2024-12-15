@@ -138,9 +138,7 @@ class SO3Signal:
                     f"Shapes of the two signals do not match: {self.shape} != {other.shape}"
                 )
 
-            return self.replace_values(
-                self.grid_values / other.grid_values
-            )
+            return self.replace_values(self.grid_values / other.grid_values)
 
         return self * (1 / other)
 
