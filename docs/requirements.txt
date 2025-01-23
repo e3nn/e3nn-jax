@@ -13,3 +13,4 @@ jraph
 nequip_jax @ git+https://github.com/mariogeiger/nequip-jax@1.1.0
 flax
 dm-haiku
+equinox
