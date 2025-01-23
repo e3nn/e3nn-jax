@@ -102,23 +102,23 @@ class Linear(eqx.Module):
             (5,)
     """
 
-    irreps_out: e3nn.Irreps
-    irreps_in: e3nn.Irreps
-    channel_out: int
-    channel_in: int
-    gradient_normalization: Optional[Union[float, str]]
-    path_normalization: Optional[Union[float, str]]
-    biases: bool
-    num_indexed_weights: Optional[int]
-    weights_per_channel: bool
-    force_irreps_out: bool
-    weights_dim: Optional[int]
-    linear_type: str
+    irreps_out: e3nn.Irreps = eqx.field(static=True)
+    irreps_in: e3nn.Irreps = eqx.field(static=True)
+    channel_out: int = eqx.field(static=True)
+    channel_in: int = eqx.field(static=True)
+    gradient_normalization: Optional[Union[float, str]] = eqx.field(static=True)
+    path_normalization: Optional[Union[float, str]] = eqx.field(static=True)
+    biases: bool = eqx.field(static=True)
+    num_indexed_weights: Optional[int] = eqx.field(static=True)
+    weights_per_channel: bool = eqx.field(static=True)
+    force_irreps_out: bool = eqx.field(static=True)
+    weights_dim: Optional[int] = eqx.field(static=True)
+    linear_type: str = eqx.field(static=True)
 
     # These are used internally.
-    _linear: FunctionalLinear
+    _linear: FunctionalLinear = eqx.field(static=True)
     _weights: Dict[str, jax.Array]
-    _input_dtype: jnp.dtype
+    _input_dtype: jnp.dtype = eqx.field(static=True)
 
     def __init__(
         self,
