@@ -28,7 +28,7 @@ def _get_gradient_normalization(
 
 
 class Linear(eqx.Module):
-    r"""Equivariant Linear Flax module
+    r"""Equivariant Linear Equinox module
 
     Args:
         irreps_out (`Irreps`): output representations, if allowed bu Schur's lemma.

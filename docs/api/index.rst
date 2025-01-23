@@ -13,6 +13,7 @@ API
     radial
     haiku
     flax
+    equinox
     s2
     extra
     utils
