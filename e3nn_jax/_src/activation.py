@@ -58,16 +58,12 @@ def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float
         # x = jax.random.normal(k, (1_000_000,))
         x = normalspace(1_000_001)
         c = jnp.mean(phi(x) ** 2) ** 0.5
-        c = c.item()
+        scale = jnp.where(jnp.allclose(c, 1.0), 1.0, 1.0 / c)
 
-        if jnp.allclose(c, 1.0):
-            return phi
-        else:
+        def rho(x):
+            return phi(x) * scale
 
-            def rho(x):
-                return phi(x) / c
-
-            return rho
+        return rho
 
 
 def parity_function(phi: Callable[[float], float]) -> int:
