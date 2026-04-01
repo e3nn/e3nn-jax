@@ -1,4 +1,4 @@
-__version__ = "0.20.8"
+__version__ = "0.20.9"
 
 from e3nn_jax._src.config import config
 from e3nn_jax._src.rotation import (
