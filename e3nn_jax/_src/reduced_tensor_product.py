@@ -254,8 +254,8 @@ def _reduced_tensor_product_basis(
             return b.regroup()
 
         if len(bases) == 2:
-            (fa, a) = bases[0]
-            (fb, b) = bases[1]
+            fa, a = bases[0]
+            fb, b = bases[1]
             f = frozenset(fa | fb)
             ab = reduce_basis_product(a, b, keep_ir)
             if len(subrepr_permutation(f, perm_repr)) == 1:
@@ -270,8 +270,8 @@ def _reduced_tensor_product_basis(
 
         for i in range(len(bases)):
             for j in range(i + 1, len(bases)):
-                (fa, _) = bases[i]
-                (fb, _) = bases[j]
+                fa, _ = bases[i]
+                fb, _ = bases[j]
                 f = frozenset(fa | fb)
                 p_dim = reduce_subgroup_permutation(f, perm_repr, dims, return_dim=True)
                 if p_dim < min_p:

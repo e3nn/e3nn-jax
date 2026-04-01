@@ -17,7 +17,7 @@ from .linear import (
 
 
 def _get_gradient_normalization(
-    gradient_normalization: Optional[Union[float, str]]
+    gradient_normalization: Optional[Union[float, str]],
 ) -> float:
     """Get the gradient normalization from the config or from the argument."""
     if gradient_normalization is None:
