@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-04-01
+### Changed
+- Fixed bug in `e3nn.SphericalSignal.to_s2point()` with batched coefficients and points.
+
 ## [0.20.8] - 2024-09-28
 ### Added
 - Tests for GaussLegendre quadrature in `e3nn.SphericalSignal`.
