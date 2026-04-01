@@ -1286,7 +1286,7 @@ def to_s2point(
     irreps = {1: "0e", -1: "0o"}[p_val]
     return e3nn.IrrepsArray(
         irreps,
-        jnp.einsum("ai,bi->ab", sh.array, coeffs.array).reshape(shape1 + shape2 + (1,)),
+        jnp.einsum("ai,bi->ab", coeffs.array, sh.array).reshape(shape1 + shape2 + (1,)),
     )
 
 
