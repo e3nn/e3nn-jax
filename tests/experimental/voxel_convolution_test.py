@@ -25,7 +25,7 @@ def test_convolution(keys):
     f = jax.jit(c.apply)
 
     x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8))
-    x0 = jax.tree_util.tree_map(
+    x0 = jax.tree.map(
         lambda x: jnp.pad(
             x, ((0, 0), (4, 4), (4, 4), (4, 4)) + ((0, 0),) * (x.ndim - 4)
         ),
@@ -35,10 +35,10 @@ def test_convolution(keys):
     w = c.init(next(keys), x0, jnp.array([1.0, 1.0, 1.0]))
 
     y0 = f(w, x0, jnp.array([1.0, 1.02, 0.98]))
-    y2 = jax.tree_util.tree_map(lambda x: jnp.rot90(x, axes=(2, 3)), y0)
+    y2 = jax.tree.map(lambda x: jnp.rot90(x, axes=(2, 3)), y0)
     y2 = y2.transform_by_angles(0.0, jnp.pi / 2, 0.0)
 
-    x1 = jax.tree_util.tree_map(lambda x: jnp.rot90(x, axes=(2, 3)), x0)
+    x1 = jax.tree.map(lambda x: jnp.rot90(x, axes=(2, 3)), x0)
     x1 = x1.transform_by_angles(0.0, jnp.pi / 2, 0.0)
     y1 = f(w, x1, jnp.array([1.0, 0.98, 1.02]))
 
@@ -65,7 +65,7 @@ def test_convolution_defaults(keys):
     f = jax.jit(c.apply)
 
     x0 = e3nn.normal(irreps_in, next(keys), (3, 8, 8, 8))
-    x0 = jax.tree_util.tree_map(
+    x0 = jax.tree.map(
         lambda x: jnp.pad(
             x, ((0, 0), (4, 4), (4, 4), (4, 4)) + ((0, 0),) * (x.ndim - 4)
         ),
@@ -75,11 +75,11 @@ def test_convolution_defaults(keys):
     w = c.init(next(keys), x0)
     y0 = f(w, x0)
 
-    x1 = jax.tree_util.tree_map(lambda x: jnp.rot90(x, axes=(2, 3)), x0)
+    x1 = jax.tree.map(lambda x: jnp.rot90(x, axes=(2, 3)), x0)
     x1 = x1.transform_by_angles(0.0, jnp.pi / 2, 0.0)
     y1 = f(w, x1)
 
-    y2 = jax.tree_util.tree_map(lambda x: jnp.rot90(x, axes=(2, 3)), y0)
+    y2 = jax.tree.map(lambda x: jnp.rot90(x, axes=(2, 3)), y0)
     y2 = y2.transform_by_angles(0.0, jnp.pi / 2, 0.0)
 
     assert jnp.allclose(y1.array, y2.array, atol=1e-5)

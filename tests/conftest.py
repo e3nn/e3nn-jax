@@ -30,3 +30,17 @@ def e3nn_config():
     jax.config.update("jax_enable_x64", False)
     jax.config.update("jax_debug_nans", True)
     jax.config.update("jax_debug_infs", True)
+
+
+# Rough tolerances I've found to work in 32/64 bit settings.  Unfortunately, 32 bit is generally
+# very inaccurate, particularly when using recursive algorithms which will accumulate errors
+
+
+@pytest.fixture
+def atol():
+    return 1e-13 if jax.config.read("jax_enable_x64") else 2e-3
+
+
+@pytest.fixture
+def rtol():
+    return 1e-10 if jax.config.read("jax_enable_x64") else 1e-3

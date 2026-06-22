@@ -7,7 +7,7 @@ import e3nn_jax as e3nn
 # Create a random array made of a scalar (0e) and a vector (1o)
 array = e3nn.normal("0e + 1o", jax.random.PRNGKey(0))
 
-print(array)  
+print(array)
 # 1x0e+1x1o [ 1.8160863  -0.75488514  0.33988908 -0.53483534]
 
 # Compute the norms
@@ -59,33 +59,33 @@ The main difference is the presence of the class [`IrrepsArray`](https://e3nn-ja
 - Euclidean Neural Networks
 ```
 @misc{thomas2018tensorfieldnetworksrotation,
-      title={Tensor field networks: Rotation- and translation-equivariant neural networks for 3D point clouds}, 
+      title={Tensor field networks: Rotation- and translation-equivariant neural networks for 3D point clouds},
       author={Nathaniel Thomas and Tess Smidt and Steven Kearnes and Lusann Yang and Li Li and Kai Kohlhoff and Patrick Riley},
       year={2018},
       eprint={1802.08219},
       archivePrefix={arXiv},
       primaryClass={cs.LG},
-      url={https://arxiv.org/abs/1802.08219}, 
+      url={https://arxiv.org/abs/1802.08219},
 }
 
 @misc{weiler20183dsteerablecnnslearning,
-      title={3D Steerable CNNs: Learning Rotationally Equivariant Features in Volumetric Data}, 
+      title={3D Steerable CNNs: Learning Rotationally Equivariant Features in Volumetric Data},
       author={Maurice Weiler and Mario Geiger and Max Welling and Wouter Boomsma and Taco Cohen},
       year={2018},
       eprint={1807.02547},
       archivePrefix={arXiv},
       primaryClass={cs.LG},
-      url={https://arxiv.org/abs/1807.02547}, 
+      url={https://arxiv.org/abs/1807.02547},
 }
 
 @misc{kondor2018clebschgordannetsfullyfourier,
-      title={Clebsch-Gordan Nets: a Fully Fourier Space Spherical Convolutional Neural Network}, 
+      title={Clebsch-Gordan Nets: a Fully Fourier Space Spherical Convolutional Neural Network},
       author={Risi Kondor and Zhen Lin and Shubhendu Trivedi},
       year={2018},
       eprint={1806.09231},
       archivePrefix={arXiv},
       primaryClass={stat.ML},
-      url={https://arxiv.org/abs/1806.09231}, 
+      url={https://arxiv.org/abs/1806.09231},
 }
 ```
 - e3nn

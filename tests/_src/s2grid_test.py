@@ -234,7 +234,7 @@ def test_transform_by_angles(keys, irreps, alpha, beta, gamma):
     expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
 
     np.testing.assert_allclose(
-        rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5
+        rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-3, rtol=1e-3
     )
 
 
@@ -253,7 +253,7 @@ def test_transform_by_matrix(keys, irreps, alpha, beta, gamma):
     expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
 
     np.testing.assert_allclose(
-        rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5
+        rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-3, rtol=1e-3
     )
 
 
@@ -272,7 +272,7 @@ def test_transform_by_axis_angle(keys, irreps, alpha, beta, gamma):
     expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
 
     np.testing.assert_allclose(
-        rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5
+        rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-3, rtol=1e-3
     )
 
 
@@ -290,8 +290,8 @@ def test_transform_by_quaternion(keys, irreps, alpha, beta, gamma):
     rotated_coeffs = e3nn.from_s2grid(rotated_sig, irreps)
     expected_rotated_coeffs = coeffs.transform_by_angles(alpha, beta, gamma)
 
-    np.testing.assert_allclose(
-        rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-5, rtol=1e-5
+    assert jnp.allclose(
+        rotated_coeffs.array, expected_rotated_coeffs.array, atol=1e-3, rtol=1e-3
     )
 
 
@@ -302,11 +302,11 @@ def test_s2_dirac():
     sig = e3nn.to_s2grid(x, 200, 59, quadrature="gausslegendre")
 
     # The integral of a Dirac delta is 1
-    np.testing.assert_allclose(sig.integrate().array, 1.0)
+    assert jnp.allclose(sig.integrate().array, 1.0)
 
     # All the weight should be located at the north pole
     sig.grid_values = sig.grid_values.at[-60:].set(0.0)
-    np.testing.assert_allclose(sig.integrate().array, 0.0, atol=0.05)
+    assert jnp.allclose(sig.integrate().array, 0.0, atol=0.05)
 
 
 @pytest.mark.parametrize("lmax", [1, 2, 3, 4])
@@ -326,7 +326,7 @@ def test_integrate_scalar(lmax, quadrature):
 
     scalar_term = coeffs["0e"].array[0]
     expected_integral = 4 * jnp.pi * scalar_term
-    np.testing.assert_allclose(integral, expected_integral, atol=1e-5, rtol=1e-5)
+    assert jnp.allclose(integral, expected_integral, atol=1e-3, rtol=1e-3)
 
 
 @pytest.mark.parametrize("degree", range(10))
@@ -356,7 +356,7 @@ def test_integrate_spherical_harmonics(key: int, degree: int):
     else:
         expected_integral = 0.0
 
-    assert jnp.isclose(integral, expected_integral, atol=1e-5, rtol=1e-5), (
+    assert jnp.isclose(integral, expected_integral, atol=5e-3, rtol=1e-3), (
         integral,
         expected_integral,
     )

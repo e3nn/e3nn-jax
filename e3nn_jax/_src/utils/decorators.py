@@ -44,7 +44,7 @@ def overload_for_irreps_without_array(
 
                 output = jax.eval_shape(fn, converted_args)
 
-                return jax.tree_util.tree_map(
+                return jax.tree.map(
                     lambda o: o.irreps if isinstance(o, e3nn.IrrepsArray) else o,
                     output,
                     is_leaf=lambda o: isinstance(o, e3nn.IrrepsArray),

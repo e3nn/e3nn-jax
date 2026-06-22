@@ -2,24 +2,17 @@ import jax
 
 
 def jit_code(f, *args, **kwargs):
-    """Jit a function with JAX. and return the jitted code as a string."""
-    from jax.lib import xla_bridge
-    import jaxlib.xla_extension as xla_ext
-
+    """Jit a function with JAX and return the StableHLO MLIR code as a string."""
     f_jax = jax.jit(f)
-    jax_comp = f_jax.lower(*args, **kwargs).compiler_ir(dialect="stablehlo")
-    jax_hlo = str(jax_comp)
-    backend = xla_bridge.get_backend()
-    jax_optimized_hlo = backend.compile(jax_hlo)
 
-    option = xla_ext.HloPrintOptions.fingerprint()
-    option.print_operand_shape = False
-    option.print_result_shape = False
-    option.print_program_shape = True
-    code = jax_optimized_hlo.hlo_modules()[0].to_string(option)
+    # Lower the function for the specific input shapes/types
+    lowered = f_jax.lower(*args, **kwargs)
 
-    code = code.split("ENTRY")[1]
-    code = code.split("\n}")[0]
-    code = "\n".join(x[2:] for x in code.split("\n")[1:])
+    # Extract the StableHLO MLIR representation
+    # (You can also use dialect="mhlo" or dialect="hlo" if needed)
+    mlir_module = lowered.compiler_ir(dialect="stablehlo")
+
+    # Convert directly to string
+    code = str(mlir_module)
 
     return code

@@ -265,7 +265,9 @@ def _constraint(x: float, derivative: int, degree: int):
 
 
 @lru_cache(maxsize=None)
-def solve_polynomial(constraints) -> jax.Array:
+def solve_polynomial(
+    constraints,
+) -> Callable[[jax.typing.ArrayLike], jax.typing.ArrayLike]:
     with jax.ensure_compile_time_eval():
         degree = len(constraints)
         A = np.array(
@@ -280,7 +282,9 @@ def solve_polynomial(constraints) -> jax.Array:
     return jax.jit(lambda x: jnp.polyval(c.astype(x.dtype), x))
 
 
-def poly_envelope(n0: int, n1: int, x_max: float = 1.0) -> Callable[[float], float]:
+def poly_envelope(
+    n0: int, n1: int, x_max: float = 1.0
+) -> Callable[[jax.typing.ArrayLike], jax.typing.ArrayLike]:
     r"""Polynomial envelope function with ``n0`` and ``n1`` derivatives euqal to 0 at ``x=0`` and ``x=1`` respectively.
 
     Small documentation available at ``https://mariogeiger.ch/polynomial_envelope_for_gnn.pdf``.

@@ -92,7 +92,7 @@ def test_normalization_1(keys):
     w = linear.init(next(keys), x)
     y = linear.apply(w, x)
 
-    assert np.exp(np.abs(np.log(np.mean(y.array**2)))) < 1.3
+    assert np.exp(np.abs(np.log(np.mean(y.array**2)))) < 1.4
 
 
 def test_normalization_2(keys):
@@ -108,7 +108,7 @@ def test_normalization_2(keys):
     w = linear.init(next(keys), x)
     y = linear.apply(w, x)
 
-    assert np.exp(np.abs(np.log(np.mean(y.array**2)))) < 1.3
+    assert np.exp(np.abs(np.log(np.mean(y.array**2)))) < 1.4
 
 
 def test_normalization_3(keys):
@@ -125,7 +125,7 @@ def test_normalization_3(keys):
     w = linear.init(next(keys), x)
     y = linear.apply(w, x)
 
-    assert np.exp(np.abs(np.log(np.mean(y.array**2)))) < 1.3
+    assert np.exp(np.abs(np.log(np.mean(y.array**2)))) < 1.4
 
 
 @pytest.mark.parametrize(

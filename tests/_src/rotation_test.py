@@ -1,13 +1,15 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 import e3nn_jax as e3nn
 
 float_tolerance = 2e-5
 
 
-def test_xyz(keys):
+@pytest.mark.parametrize("jac", (jax.jacrev, jax.jacfwd))
+def test_xyz(keys, jac):
     R = e3nn.rand_matrix(next(keys), (10,))
     assert jnp.max(jnp.abs(R @ jnp.swapaxes(R, -1, -2) - jnp.eye(3))) < float_tolerance
 
@@ -32,17 +34,15 @@ def test_xyz(keys):
     for r in rs:
         a, b = e3nn.xyz_to_angles(r)
         R = e3nn.angles_to_matrix(a, -b, -a)
-        np.testing.assert_allclose(
-            R @ r, np.array([0.0, 1.0, 0.0]), atol=float_tolerance
-        )
+        assert jnp.allclose(R @ r, np.array([0.0, 1.0, 0.0]), atol=float_tolerance)
 
-    Ja, Jb = jax.jacobian(e3nn.xyz_to_angles)(jnp.array([0.0, 1.0, 0.0]))
-    np.testing.assert_allclose(Ja, 0.0, atol=float_tolerance)
-    np.testing.assert_allclose(Jb, 0.0, atol=float_tolerance)
+    Ja, Jb = jac(e3nn.xyz_to_angles)(jnp.array([0.0, 1.0, 0.0]))
+    assert jnp.allclose(Ja, 0.0, atol=float_tolerance)
+    assert jnp.allclose(Jb, 0.0, atol=float_tolerance)
 
-    Ja, Jb = jax.jacobian(e3nn.xyz_to_angles)(jnp.array([0.0, -1.0, 0.0]))
-    np.testing.assert_allclose(Ja, 0.0, atol=float_tolerance)
-    np.testing.assert_allclose(Jb, 0.0, atol=float_tolerance)
+    Ja, Jb = jac(e3nn.xyz_to_angles)(jnp.array([0.0, -1.0, 0.0]))
+    assert jnp.allclose(Ja, 0.0, atol=float_tolerance)
+    assert jnp.allclose(Jb, 0.0, atol=float_tolerance)
 
 
 def test_conversions(keys):

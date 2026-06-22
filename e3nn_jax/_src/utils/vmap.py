@@ -43,22 +43,20 @@ def vmap(
         return x.a if isinstance(x, _VIA) else x
 
     def inside_fun(*args, **kwargs):
-        args, kwargs = jax.tree_util.tree_map(
+        args, kwargs = jax.tree.map(
             from_via, (args, kwargs), is_leaf=lambda x: isinstance(x, _VIA)
         )
         out = fun(*args, **kwargs)
-        return jax.tree_util.tree_map(
+        return jax.tree.map(
             to_via, out, is_leaf=lambda x: isinstance(x, e3nn.IrrepsArray)
         )
 
     def outside_fun(*args, **kwargs):
-        args, kwargs = jax.tree_util.tree_map(
+        args, kwargs = jax.tree.map(
             to_via, (args, kwargs), is_leaf=lambda x: isinstance(x, e3nn.IrrepsArray)
         )
         out = jax.vmap(inside_fun, in_axes, out_axes)(*args, **kwargs)
-        return jax.tree_util.tree_map(
-            from_via, out, is_leaf=lambda x: isinstance(x, _VIA)
-        )
+        return jax.tree.map(from_via, out, is_leaf=lambda x: isinstance(x, _VIA))
 
     return outside_fun
 

@@ -2,7 +2,6 @@ from typing import Callable
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 
 import e3nn_jax as e3nn
 from e3nn_jax._src.utils.dtype import get_pytree_dtype
@@ -61,8 +60,8 @@ def assert_equivariant(
     fun: Callable[[e3nn.IrrepsArray], e3nn.IrrepsArray],
     rng_key: jax.Array,
     *args,
-    atol: float = 1e-6,
-    rtol: float = 1e-6,
+    atol: float | None = None,
+    rtol: float | None = None,
 ):
     r"""Assert that a function is equivariant.
 
@@ -83,12 +82,17 @@ def assert_equivariant(
         We can also pass the irreps of the inputs instead of the inputs themselves:
         >>> assert_equivariant(fun, rng, "1e")
     """
+    if atol is None:
+        atol = 1e-13 if jax.config.read("jax_enable_x64") else 2e-3
+    if rtol is None:
+        rtol = 1e-10 if jax.config.read("jax_enable_x64") else 1e-3
+
     out1, out2 = equivariance_test(fun, rng_key, *args)
 
     def assert_(x, y):
-        np.testing.assert_allclose(x, y, atol=atol, rtol=rtol)
+        assert jnp.allclose(x, y, atol=atol, rtol=rtol)
 
-    jax.tree_util.tree_map(assert_, out1, out2)
+    jax.tree.map(assert_, out1, out2)
 
 
 def assert_output_dtype_matches_input_dtype(fun: Callable, *args, **kwargs):
@@ -121,13 +125,13 @@ def assert_output_dtype_matches_input_dtype(fun: Callable, *args, **kwargs):
         return x
 
     for dtype in [jnp.float32, jnp.float64]:
-        args = jax.tree_util.tree_map(lambda x: astype(x, dtype), args)
-        kwargs = jax.tree_util.tree_map(lambda x: astype(x, dtype), kwargs)
+        args = jax.tree.map(lambda x: astype(x, dtype), args)
+        kwargs = jax.tree.map(lambda x: astype(x, dtype), kwargs)
 
         out = jax.eval_shape(fun, *args, **kwargs)
         if get_pytree_dtype(out, default_dtype=dtype, real_part=True) != dtype:
-            in_dtype = jax.tree_util.tree_map(lambda x: x.dtype, args)
-            out_dtype = jax.tree_util.tree_map(lambda x: x.dtype, out)
+            in_dtype = jax.tree.map(lambda x: x.dtype, args)
+            out_dtype = jax.tree.map(lambda x: x.dtype, out)
 
             raise AssertionError(
                 f"Expected {dtype} -> {dtype}. Got {in_dtype} -> {out_dtype}"

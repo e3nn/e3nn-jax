@@ -68,7 +68,7 @@ def impl(
 
     def fix_gimbal_lock(array, inverse):
         array_rot = array.transform_by_angles(0.0, jnp.pi / 2.0, 0.0, inverse=inverse)
-        return jax.tree_util.tree_map(
+        return jax.tree.map(
             lambda x_rot, x: jnp.where(gimbal_lock, x_rot, x), array_rot, array
         )
 

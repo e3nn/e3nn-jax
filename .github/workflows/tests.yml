@@ -4,10 +4,12 @@ on:
   push:
     branches:
     - main
+    - develop
 
   pull_request:
     branches:
     - main
+    - develop
 
 jobs:
   build:
@@ -15,12 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.13']
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -43,4 +45,8 @@ jobs:
     - name: Upload to coveralls
       if: github.event_name == 'push'
       run: |
-        COVERALLS_REPO_TOKEN=${{ secrets.COVERALLS_TOKEN }} coveralls
+        if [ -n "${{ secrets.COVERALLS_TOKEN }}" ]; then
+          COVERALLS_REPO_TOKEN="${{ secrets.COVERALLS_TOKEN }}" coveralls
+        else
+          echo "Skipping coveralls upload: COVERALLS_TOKEN not set."
+        fi
