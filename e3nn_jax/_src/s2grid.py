@@ -1412,9 +1412,7 @@ def _spherical_harmonics_s2grid(
             qw (`jax.Array`): array of shape ``(res_beta)``
     """
     y, alphas, qw = _s2grid(res_beta, res_alpha, quadrature)
-    y, alphas, qw = jax.tree_util.tree_map(
-        lambda x: jnp.asarray(x, dtype), (y, alphas, qw)
-    )
+    y, alphas, qw = jax.tree.map(lambda x: jnp.asarray(x, dtype), (y, alphas, qw))
     sh_alpha = _sh_alpha(lmax, alphas)  # [..., 2 * l + 1]
     sh_y = _sh_beta(lmax, y)  # [..., l, m]
     return y, alphas, sh_y, sh_alpha, qw

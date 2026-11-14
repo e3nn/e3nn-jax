@@ -16,17 +16,19 @@ def test_empty():
 
 def test_convert():
     id = e3nn.from_chunks("10x0e + 10x0e", [None, jnp.ones((1, 10, 1))], (1,))
-    assert jax.tree_util.tree_map(
-        jnp.shape, id.rechunk("0x0e + 20x0e + 0x0e").chunks
-    ) == [None, (1, 20, 1), None]
-    assert jax.tree_util.tree_map(
-        jnp.shape, id.rechunk("7x0e + 4x0e + 9x0e").chunks
-    ) == [None, (1, 4, 1), (1, 9, 1)]
+    assert jax.tree.map(jnp.shape, id.rechunk("0x0e + 20x0e + 0x0e").chunks) == [
+        None,
+        (1, 20, 1),
+        None,
+    ]
+    assert jax.tree.map(jnp.shape, id.rechunk("7x0e + 4x0e + 9x0e").chunks) == [
+        None,
+        (1, 4, 1),
+        (1, 9, 1),
+    ]
 
     id = e3nn.from_chunks("10x0e + 10x1e", [None, jnp.ones((1, 10, 3))], (1,))
-    assert jax.tree_util.tree_map(
-        jnp.shape, id.rechunk("5x0e + 5x0e + 5x1e + 5x1e").chunks
-    ) == [
+    assert jax.tree.map(jnp.shape, id.rechunk("5x0e + 5x0e + 5x1e + 5x1e").chunks) == [
         None,
         None,
         (1, 5, 3),
