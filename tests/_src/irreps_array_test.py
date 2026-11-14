@@ -154,7 +154,7 @@ def test_operators():
     1.0 / e3nn.norm(x)
 
     jax.config.update("jax_enable_x64", True)
-    np.testing.assert_allclose(e3nn.norm(x / e3nn.norm(x)).array, 1)
+    assert jnp.allclose(e3nn.norm(x / e3nn.norm(x)).array, 1)
     jax.config.update("jax_enable_x64", False)
 
 

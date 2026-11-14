@@ -18,7 +18,7 @@ gate = jax.jit(jax.vmap(e3nn.gate))
     ],
 )
 def test_gate(keys, irreps: e3nn.Irreps):
-    x = e3nn.normal(irreps, next(keys), (128,))
+    x = e3nn.normal(irreps, next(keys), (2048,))
     assert jnp.exp(jnp.abs(jnp.log(jnp.mean(gate(x).array ** 2)))) < 1.2
 
     assert_equivariant(gate, next(keys), x)
