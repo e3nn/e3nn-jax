@@ -114,7 +114,7 @@ def main():
     w = tp.init(k(), *inputs)
 
     # Ensure everything is on the GPU (shouldn't be necessary, but just in case)
-    w, inputs = jax.tree_util.tree_map(jax.device_put, (w, inputs))
+    w, inputs = jax.tree.map(jax.device_put, (w, inputs))
 
     print(f"{sum(x.size for x in jax.tree_util.tree_leaves(w))} parameters")
 
@@ -145,7 +145,7 @@ def main():
 
     for _ in range(max(int(args.n // 100), 1)):
         z = f(w, *inputs)
-        jax.tree_util.tree_map(lambda x: x.block_until_ready(), z)
+        jax.tree.map(lambda x: x.block_until_ready(), z)
 
     print("output sum:", sum(jnp.sum(x) for x in jax.tree_util.tree_leaves(z)))
 
@@ -153,7 +153,7 @@ def main():
 
     for _ in range(args.n):
         z = f(w, *inputs)
-        jax.tree_util.tree_map(lambda x: x.block_until_ready(), z)
+        jax.tree.map(lambda x: x.block_until_ready(), z)
 
     perloop = (time.perf_counter() - t) / args.n
 
