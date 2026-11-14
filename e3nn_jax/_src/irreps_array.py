@@ -1234,11 +1234,29 @@ class IrrepsArray:
         )
 
 
-# We purposefully do not register zero_flags
+def _irreps_array_unflatten(irreps, data):
+    # NOTE: this bypasses IrrepsArray.__init__ / __attrs_post_init__ on
+    # purpose. tree_unflatten is called by JAX internals (vmap, jit, scan,
+    # grad/jacobian transforms, ...) and may be invoked with leaves whose
+    # *concrete* shape transiently violates `array.shape[-1] == irreps.dim`
+    # -- e.g. jax.jacfwd internally does
+    # `vmap(pushfwd, out_axes=(None, -1))(...)`, which, while constructing
+    # the tangent pytree, places a new axis at position -1 of every leaf
+    # *before* it has been reshaped into its final, correct form. Per JAX's
+    # pytree contract, tree_unflatten must not raise based on concrete leaf
+    # shapes/values. Real validation for user-facing construction still
+    # happens normally via IrrepsArray(irreps, array).
+    (array,) = data
+    obj = object.__new__(IrrepsArray)
+    object.__setattr__(obj, "irreps", irreps)
+    object.__setattr__(obj, "array", array)
+    object.__setattr__(obj, "_zero_flags", None)
+    object.__setattr__(obj, "_chunks", None)
+    return obj
+
+
 jax.tree_util.register_pytree_node(
-    IrrepsArray,
-    lambda x: ((x.array,), x.irreps),
-    lambda irreps, data: IrrepsArray(irreps, data[0]),
+    IrrepsArray, lambda x: ((x.array,), x.irreps), _irreps_array_unflatten
 )
 
 
