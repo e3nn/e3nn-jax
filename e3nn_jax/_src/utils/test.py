@@ -121,13 +121,13 @@ def assert_output_dtype_matches_input_dtype(fun: Callable, *args, **kwargs):
         return x
 
     for dtype in [jnp.float32, jnp.float64]:
-        args = jax.tree_util.tree_map(lambda x: astype(x, dtype), args)
-        kwargs = jax.tree_util.tree_map(lambda x: astype(x, dtype), kwargs)
+        args = jax.tree.map(lambda x: astype(x, dtype), args)
+        kwargs = jax.tree.map(lambda x: astype(x, dtype), kwargs)
 
         out = jax.eval_shape(fun, *args, **kwargs)
         if get_pytree_dtype(out, default_dtype=dtype, real_part=True) != dtype:
-            in_dtype = jax.tree_util.tree_map(lambda x: x.dtype, args)
-            out_dtype = jax.tree_util.tree_map(lambda x: x.dtype, out)
+            in_dtype = jax.tree.map(lambda x: x.dtype, args)
+            out_dtype = jax.tree.map(lambda x: x.dtype, out)
 
             raise AssertionError(
                 f"Expected {dtype} -> {dtype}. Got {in_dtype} -> {out_dtype}"
