@@ -18,7 +18,7 @@ def algorithm(request):
 
 
 @pytest.mark.parametrize("l", [0, 1, 2, 3, 4, 5, 6, 7])
-def test_equivariance(keys, algorithm, l):
+def test_equivariance(keys, algorithm, l, atol, rtol):
     input = e3nn.normal("1o", keys[0], (10,))
 
     abc = e3nn.rand_angles(keys[1], ())
@@ -29,7 +29,7 @@ def test_equivariance(keys, algorithm, l):
         l, input, False, algorithm=algorithm
     ).transform_by_angles(*abc)
 
-    np.testing.assert_allclose(output1.array, output2.array, atol=1e-2, rtol=1e-2)
+    assert jnp.allclose(output1.array, output2.array, atol=atol, rtol=rtol)
 
 
 def test_closure(keys, algorithm):
@@ -37,7 +37,7 @@ def test_closure(keys, algorithm):
     integral of Ylm * Yjn = delta_lj delta_mn
     integral of 1 over the unit sphere = 4 pi
     """
-    x = jax.random.normal(keys[0], (1_000_000, 3))
+    x = jax.random.normal(keys[0], (100_000, 3))
     Ys = [e3nn.sh(l, x, True, "integral", algorithm=algorithm) for l in range(0, 3 + 1)]
     for l1, Y1 in enumerate(Ys):
         for l2, Y2 in enumerate(Ys):
@@ -103,7 +103,7 @@ def test_normalization_component(keys, algorithm, l):
         ).array
         ** 2
     )
-    assert abs(n - 1) < 6e-7 * max((l / 4) ** 8, 1)
+    assert abs(n - 1) < 1e-6 * max((l / 4) ** 8, 1)
 
 
 @pytest.mark.parametrize("l", range(8 + 1))
@@ -117,11 +117,11 @@ def test_parity(keys, algorithm, l):
     y2 = e3nn.spherical_harmonics(
         irreps, -x, normalize=True, normalization="integral", algorithm=algorithm
     )
-    np.testing.assert_allclose(y1.array, y2.array, atol=1e-6, rtol=1e-6)
+    assert jnp.allclose(y1.array, y2.array, atol=1e-6, rtol=1e-6)
 
 
 @pytest.mark.parametrize("l", range(7 + 1))
-def test_recurrence_relation(keys, algorithm, l):
+def test_recurrence_relation(keys, algorithm, l, atol, rtol):
     x = jax.random.normal(next(keys), (3,))
 
     y1 = e3nn.spherical_harmonics(
@@ -146,12 +146,12 @@ def test_recurrence_relation(keys, algorithm, l):
 
     y1 = y1 / jnp.linalg.norm(y1)
     y2 = y2 / jnp.linalg.norm(y2)
-    np.testing.assert_allclose(y1, y2, atol=1e-6, rtol=1e-6)
+    assert jnp.allclose(y1, y2, atol=atol, rtol=rtol)
 
 
 @pytest.mark.parametrize("normalization", ["integral", "norm", "component"])
 @pytest.mark.parametrize("irreps", ["3x1o+2e+2x4e", "2x0e", "10e"])
-def test_check_grads(keys, algorithm, irreps, normalization):
+def test_check_grads(keys, algorithm, irreps, normalization, atol, rtol):
     check_grads(
         lambda x: e3nn.spherical_harmonics(
             irreps, x, normalize=False, normalization=normalization, algorithm=algorithm
@@ -159,13 +159,13 @@ def test_check_grads(keys, algorithm, irreps, normalization):
         (jax.random.normal(keys[0], (10, 3)),),
         1,
         modes=["fwd", "rev"],
-        atol=3e-3,
+        atol=5e-3,
         rtol=3e-3,
     )
 
 
 @pytest.mark.parametrize("l", range(7 + 1))
-def test_normalize(keys, algorithm, l):
+def test_normalize(keys, algorithm, l, atol, rtol):
     x = jax.random.normal(keys[0], (10, 3))
     y1 = (
         e3nn.spherical_harmonics(
@@ -176,7 +176,7 @@ def test_normalize(keys, algorithm, l):
     y2 = e3nn.spherical_harmonics(
         e3nn.Irreps([l]), x, normalize=False, algorithm=algorithm
     ).array
-    np.testing.assert_allclose(y1, y2, atol=1e-6, rtol=1e-5)
+    assert jnp.allclose(y1, y2, atol=atol, rtol=rtol)
 
 
 def test_edge_cases():

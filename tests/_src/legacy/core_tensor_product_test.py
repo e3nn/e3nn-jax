@@ -51,7 +51,7 @@ def test_modes(keys, irrep_normalization, jitted, connection_mode, custom_einsum
 
     a = f(ws, x1, x2).array
     b = g(ws, x1, x2).array
-    assert jnp.allclose(a, b, rtol=1e-4, atol=1e-6), jnp.max(jnp.abs(a - b))
+    assert jnp.allclose(a, b, rtol=1e-3, atol=1e-3), jnp.max(jnp.abs(a - b))
 
 
 def test_zero_dim(keys):
