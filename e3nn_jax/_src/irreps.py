@@ -2,7 +2,7 @@ import collections
 import dataclasses
 import itertools
 import math
-from typing import Callable, List, NamedTuple, Optional, Tuple, Union
+from typing import Callable, Union
 
 import jax
 import jax.numpy as jnp
@@ -18,7 +18,8 @@ from e3nn_jax import (
 
 from .J import Jd
 
-IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
+IntoIrrep = Union[int, "Irrep", "MulIrrep", tuple[int, int]]
+SortResult = collections.namedtuple("SortResult", ["irreps", "p", "inv"])
 
 
 @dataclasses.dataclass(init=False, frozen=True)
@@ -350,14 +351,7 @@ IntoIrreps = Union[
     MulIrrep,
     str,
     "Irreps",
-    List[
-        Union[
-            str,
-            Irrep,
-            MulIrrep,
-            Tuple[int, IntoIrrep],
-        ]
-    ],
+    list[str | Irrep | MulIrrep | tuple[int, IntoIrrep]],
 ]
 
 
@@ -405,7 +399,7 @@ class Irreps(tuple):
         if isinstance(irreps, Irreps):
             return super().__new__(cls, irreps)
 
-        out: List[MulIrrep] = []
+        out: list[MulIrrep] = []
         if isinstance(irreps, Irrep):
             out.append(MulIrrep(1, Irrep(irreps)))
         elif irreps is None:
@@ -472,7 +466,7 @@ class Irreps(tuple):
         """
         return Irreps([(1, (l, p**l)) for l in range(lmax + 1)])
 
-    def slices(self) -> List[slice]:
+    def slices(self) -> list[slice]:
         r"""List of slices corresponding to indices for each irrep.
 
         Examples:
@@ -649,9 +643,7 @@ class Irreps(tuple):
         """
         return self.remove_zero_multiplicities().unify()
 
-    def sort(
-        self,
-    ) -> NamedTuple("Sort", irreps="Irreps", p=Tuple[int, ...], inv=Tuple[int, ...]):
+    def sort(self) -> SortResult:
         r"""Sort the representations.
 
         Returns:
@@ -669,13 +661,12 @@ class Irreps(tuple):
             >>> Irreps("2o + 1e + 0e + 1e").sort().inv
             (2, 1, 3, 0)
         """
-        Ret = collections.namedtuple("sort", ["irreps", "p", "inv"])
         out = [(ir, i, mul) for i, (mul, ir) in enumerate(self)]
         out = sorted(out)
         inv = tuple(i for _, i, _ in out)
         p = perm.inverse(inv)
         irreps = Irreps([(mul, ir) for ir, _, mul in out])
-        return Ret(irreps, p, inv)
+        return SortResult(irreps, p, inv)
 
     def regroup(self) -> "Irreps":
         r"""Regroup the same irreps together.
@@ -702,9 +693,9 @@ class Irreps(tuple):
 
     def filter(
         self,
-        keep: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]] = None,
+        keep: Union["Irreps", list[Irrep], Callable[[MulIrrep], bool]] = None,
         *,
-        drop: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]] = None,
+        drop: Union["Irreps", list[Irrep], Callable[[MulIrrep], bool]] = None,
         lmax: int = None,
     ) -> "Irreps":
         r"""Filter the irreps.
@@ -839,7 +830,7 @@ class Irreps(tuple):
         return math.gcd(*[mul for mul, _ in self])
 
     @property
-    def ls(self) -> List[int]:
+    def ls(self) -> list[int]:
         """List of the l values.
 
         Examples:
@@ -1021,10 +1012,7 @@ class _ChunkIndexSliceHelper:
 
 
 def _wigner_D_from_angles(
-    l: int,
-    alpha: Optional[jax.Array],
-    beta: Optional[jax.Array],
-    gamma: Optional[jax.Array],
+    l: int, alpha: jax.Array | None, beta: jax.Array | None, gamma: jax.Array | None
 ) -> jax.Array:
     r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
 
