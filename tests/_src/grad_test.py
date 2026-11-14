@@ -1,19 +1,36 @@
 import e3nn_jax as e3nn
+import jax
 import numpy as np
 from e3nn_jax.utils import assert_equivariant
 from jax import random
 
 
 def test_equivariance():
+    # For gradients we need to be a bit more forgiving for tolerances
+    atol = 1e-5 if jax.config.read("jax_enable_x64") else 1e-3
+    rtol = 1e-10 if jax.config.read("jax_enable_x64") else 1e-3
+
     assert_equivariant(
         e3nn.grad(lambda x: e3nn.tensor_product(x, x)),
         random.PRNGKey(0),
         "2x0e + 1e",
+        rtol=rtol,
+        atol=atol,
     )
     assert_equivariant(
-        e3nn.grad(lambda x: e3nn.norm(x)), random.PRNGKey(1), "2x0e + 1e"
+        e3nn.grad(lambda x: e3nn.norm(x)),
+        random.PRNGKey(1),
+        "2x0e + 1e",
+        rtol=rtol,
+        atol=atol,
     )
-    assert_equivariant(e3nn.grad(lambda x: e3nn.sum(x)), random.PRNGKey(2), "2x0e + 1e")
+    assert_equivariant(
+        e3nn.grad(lambda x: e3nn.sum(x)),
+        random.PRNGKey(2),
+        "2x0e + 1e",
+        rtol=rtol,
+        atol=atol,
+    )
 
 
 def test_simple_grad():

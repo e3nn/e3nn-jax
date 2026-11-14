@@ -95,3 +95,6 @@ max-complexity = 64
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.pytest_env]
+XLA_PYTHON_CLIENT_PREALLOCATE = false # Don't allow JAX to preallocate memory
