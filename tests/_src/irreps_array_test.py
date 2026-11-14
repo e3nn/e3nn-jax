@@ -245,3 +245,18 @@ def test_dot():
     y = e3nn.from_chunks("2x0e + 1x1e", [None, None], (2,), dtype=jnp.complex64)
 
     assert e3nn.dot(x, y).shape == (2, 1)
+
+
+@pytest.mark.parametrize("jac", [jax.jacrev, jax.jacfwd])
+def test_jacobian(jac):
+    def fn(value):
+        return 2 * value
+
+    x = e3nn.IrrepsArray(
+        "2x0e + 1x1e", jnp.array([[1.0, 2, 3, 4, 5], [4.0, 5, 6, 6, 6]])
+    )
+
+    y = jac(fn)(x)
+    assert isinstance(y, e3nn.IrrepsArray)
+    assert y.irreps == x.irreps
+    assert y.shape == (2, 5, 2, 5)
