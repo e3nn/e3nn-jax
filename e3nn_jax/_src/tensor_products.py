@@ -43,7 +43,7 @@ def _cg_contract(x1: jax.Array, x2: jax.Array, cg: np.ndarray, mode: str) -> jax
 
     .. math::
 
-        M_{vik} = \sum_j x2_{vj} C_{ijk}, \qquad out_{uvk} = \sum_i x1_{ui} M_{vik}
+        M_{vki} = \sum_j x2_{vj} C_{ijk}, \qquad out_{uvk} = \sum_i x1_{ui} M_{vki}
 
     with the CG tensor contracted first against the operand of smaller multiplicity.
     On GPU this lowers to a few fused elementwise/reduction kernels instead of batched
@@ -68,14 +68,18 @@ def _cg_contract(x1: jax.Array, x2: jax.Array, cg: np.ndarray, mode: str) -> jax
         if mode == "uv":
             return jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, c)
         return jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, c)
-    # M[..., v, i, k] = sum_j x2[..., v, j] cg[i, j, k]
-    m = jnp.sum(x2[..., :, None, :, None] * c, axis=-2)
+    # Both stages reduce over the minor-most axis, so the reductions are row
+    # reductions and the result comes out in the (..., mul, ir.dim) layout directly
+    # (reducing over a middle axis made XLA emit a transposed result plus a transpose).
+    ct = jnp.asarray(np.ascontiguousarray(cg.transpose(2, 0, 1)), dtype=x1.dtype)
+    # M[..., v, k, i] = sum_j x2[..., v, j] cg[i, j, k]
+    m = jnp.sum(x2[..., :, None, None, :] * ct, axis=-1)
     if mode == "uv":
-        # out[..., u, v, k] = sum_i x1[..., u, i] M[..., v, i, k]
-        return jnp.sum(x1[..., :, None, :, None] * m[..., None, :, :, :], axis=-2)
+        # out[..., u, v, k] = sum_i x1[..., u, i] M[..., v, k, i]
+        return jnp.sum(x1[..., :, None, None, :] * m[..., None, :, :, :], axis=-1)
     if mode == "uu":
-        # out[..., u, k] = sum_i x1[..., u, i] M[..., u, i, k]
-        return jnp.sum(x1[..., :, :, None] * m, axis=-2)
+        # out[..., u, k] = sum_i x1[..., u, i] M[..., u, k, i]
+        return jnp.sum(x1[..., :, None, :] * m, axis=-1)
     raise ValueError(f"unknown mode {mode}")
 
 
