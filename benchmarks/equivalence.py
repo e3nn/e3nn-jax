@@ -268,6 +268,33 @@ def _(dtype):
     return mod.apply, (params, x)
 
 
+class _LinearBig(nn.Module):
+    @nn.compact
+    def __call__(self, x):
+        return e3nn.flax.Linear("16x0e + 8x1o + 8x2e + 4x3o + 2x1e", biases=True)(x)
+
+
+@case("linear_flax_large_batch")
+def _(dtype):
+    # Large batch (multi-axis) so batch-size-dependent contraction strategies are hit.
+    x = _n("4x0e + 3x1o + 2x1o + 2x2e + 0e", 36, (16, 32), dtype)
+    mod = _Linear()
+    params = jax.tree.map(
+        lambda p: p.astype(dtype), mod.init(jax.random.PRNGKey(37), x)
+    )
+    return mod.apply, (params, x)
+
+
+@case("linear_flax_large_batch_l3_bias")
+def _(dtype):
+    x = _n("16x0e + 16x1o + 8x2e + 4x3o + 2x2o", 38, (2048,), dtype)
+    mod = _LinearBig()
+    params = jax.tree.map(
+        lambda p: p.astype(dtype), mod.init(jax.random.PRNGKey(39), x)
+    )
+    return mod.apply, (params, x)
+
+
 # --------------------------------------------------------------------------
 
 
