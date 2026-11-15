@@ -10,45 +10,14 @@ Kernel names map to fusion names in the optimised HLO (``--hlo`` writes it).
 """
 
 import argparse
-import collections
-import glob
-import gzip
-import json
-import os
-import tempfile
 
 import jax
 
 from benchmarks.bench import build
+from benchmarks.harness import profile_kernels
 from benchmarks.workloads import REGISTRY
 
 import jax.numpy as jnp
-
-
-def kernel_times(trace_path: str) -> tuple[dict, dict]:
-    with gzip.open(trace_path, "rt") as f:
-        trace = json.load(f)
-    events = trace["traceEvents"] if isinstance(trace, dict) else trace
-    # Device (GPU) tracks: find pids whose process name mentions a GPU/stream.
-    pid_names = {
-        e["pid"]: e["args"]["name"]
-        for e in events
-        if e.get("ph") == "M" and e.get("name") == "process_name"
-    }
-    device_pids = {
-        pid
-        for pid, name in pid_names.items()
-        if "/device:GPU" in name or "/device:ROCM" in name or "GPU:" in name
-    }
-    total = collections.defaultdict(float)
-    count = collections.Counter()
-    for e in events:
-        if e.get("ph") != "X" or e.get("pid") not in device_pids:
-            continue
-        name = e.get("name", "?")
-        total[name] += e.get("dur", 0.0)  # microseconds
-        count[name] += 1
-    return total, count
 
 
 def main(argv=None):
@@ -69,12 +38,7 @@ def main(argv=None):
     for _ in range(5):
         jax.block_until_ready(compiled(*fargs))
 
-    with tempfile.TemporaryDirectory() as d:
-        with jax.profiler.trace(d, create_perfetto_trace=True):
-            for _ in range(args.iters):
-                jax.block_until_ready(compiled(*fargs))
-        paths = glob.glob(os.path.join(d, "**", "*.trace.json.gz"), recursive=True)
-        total, count = kernel_times(paths[0])
+    total, count = profile_kernels(compiled, fargs, args.iters)
 
     grand = sum(total.values())
     print(

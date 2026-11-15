@@ -41,6 +41,7 @@ def main(argv=None):
     print(
         f"{'workload':40s} {'size':>8s} {'mode':4s} {'A ms':>9s} {'B ms':>9s} {'speedup':>8s}"
         f" {'A temp MB':>10s} {'B temp MB':>10s} {'A kern':>6s} {'B kern':>6s} {'A comp s':>8s} {'B comp s':>8s}"
+        f" {'A dev ms':>9s} {'B dev ms':>9s} {'dev':>7s}"
     )
     rows = []
     for w in select(args.k):
@@ -75,16 +76,28 @@ def main(argv=None):
                     t: statistics.median(x["time_median_s"] for x in ok[t]) for t in ok
                 }
                 last = {t: ok[t][-1] for t in ok}
+                dev = {
+                    t: statistics.median(x.get("device_time_s", -1.0) for x in ok[t])
+                    for t in ok
+                }
                 print(
                     f"{w.name:40s} {size:8d} {mode:4s} {med['A'] * 1e3:9.3f} {med['B'] * 1e3:9.3f}"
                     f" {med['A'] / med['B']:7.2f}x"
                     f" {last['A']['temp_bytes'] / 2**20:10.1f} {last['B']['temp_bytes'] / 2**20:10.1f}"
                     f" {last['A']['num_kernels']:6d} {last['B']['num_kernels']:6d}"
-                    f" {last['A']['compile_s']:8.2f} {last['B']['compile_s']:8.2f}",
+                    f" {last['A']['compile_s']:8.2f} {last['B']['compile_s']:8.2f}"
+                    f" {dev['A'] * 1e3:9.3f} {dev['B'] * 1e3:9.3f} {dev['A'] / dev['B']:6.2f}x",
                     flush=True,
                 )
                 rows.append(
-                    dict(workload=w.name, size=size, mode=mode, median_s=med, runs=runs)
+                    dict(
+                        workload=w.name,
+                        size=size,
+                        mode=mode,
+                        median_s=med,
+                        device_s=dev,
+                        runs=runs,
+                    )
                 )
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)

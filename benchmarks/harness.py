@@ -1,8 +1,14 @@
 """Measurement primitives: compile, time, and statically analyse a jitted function."""
 
+import collections
 import dataclasses
+import glob
+import gzip
+import json
+import os
 import re
 import statistics
+import tempfile
 import time
 from typing import Any, Callable
 
@@ -49,6 +55,7 @@ class Measurement:
     output_bytes: int
     num_kernels: int
     op_counts: dict
+    device_time_s: float = -1.0
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)
@@ -92,6 +99,8 @@ def measure(
     min_sample_s: float = 0.02,
     samples: int = 15,
     max_inner: int = 1000,
+    warmup_s: float = 0.5,
+    device_time: bool = True,
 ) -> tuple[Measurement, str]:
     """Jit ``fn``, compile it for ``args`` and time it on device.
 
@@ -120,8 +129,13 @@ def measure(
             _block(compiled(*args))
         return time.perf_counter() - t
 
-    # Warm-up (lazy allocation, autotuning, clock ramp-up).
+    # Warm-up (lazy allocation, autotuning). Run for a fixed wall time rather
+    # than a fixed count: an idle laptop GPU sits at its lowest clock and takes
+    # a few hundred ms of load to boost, which otherwise inflates early samples.
+    t_end = time.perf_counter() + warmup_s
     run(10)
+    while time.perf_counter() < t_end:
+        run(10)
 
     # Calibrate the number of calls per sample so a sample lasts >= min_sample_s.
     inner = 1
@@ -136,6 +150,7 @@ def measure(
     times = [run(inner) / inner for _ in range(samples)]
 
     q = statistics.quantiles(times, n=4)
+    dev = device_time_s(compiled, args) if device_time else -1.0
     return (
         Measurement(
             trace_s=t1 - t0,
@@ -152,6 +167,58 @@ def measure(
             output_bytes=int(getattr(mem, "output_size_in_bytes", -1)),
             num_kernels=num_kernels,
             op_counts=op_counts,
+            device_time_s=dev,
         ),
         hlo,
     )
+
+
+def kernel_times(trace_path: str) -> tuple[dict, dict]:
+    """Total device time (us) and launch count per kernel name in a Perfetto trace."""
+    with gzip.open(trace_path, "rt") as f:
+        trace = json.load(f)
+    events = trace["traceEvents"] if isinstance(trace, dict) else trace
+    pid_names = {
+        e["pid"]: e["args"]["name"]
+        for e in events
+        if e.get("ph") == "M" and e.get("name") == "process_name"
+    }
+    device_pids = {
+        pid
+        for pid, name in pid_names.items()
+        if "/device:GPU" in name or "/device:ROCM" in name or "GPU:" in name
+    }
+    total = collections.defaultdict(float)
+    count = collections.Counter()
+    for e in events:
+        if e.get("ph") != "X" or e.get("pid") not in device_pids:
+            continue
+        name = e.get("name", "?")
+        total[name] += e.get("dur", 0.0)
+        count[name] += 1
+    return total, count
+
+
+def profile_kernels(compiled, args, iters: int = 10) -> tuple[dict, dict]:
+    """Run ``compiled`` under the JAX profiler; return per-kernel totals (us) and counts."""
+    with tempfile.TemporaryDirectory() as d:
+        with jax.profiler.trace(d, create_perfetto_trace=True):
+            for _ in range(iters):
+                _block(compiled(*args))
+        paths = glob.glob(os.path.join(d, "**", "*.trace.json.gz"), recursive=True)
+        return kernel_times(paths[0])
+
+
+def device_time_s(compiled, args, iters: int = 10) -> float:
+    """Summed GPU kernel time per call, from a profiler trace (-1 if unavailable).
+
+    Excludes host overhead and launch gaps, so it is much less sensitive to
+    host noise than wall-clock time; use both when comparing variants.
+    """
+    try:
+        total, _ = profile_kernels(compiled, args, iters)
+    except Exception:  # noqa: BLE001 (no device tracer, e.g. CPU-only)
+        return -1.0
+    if not total:
+        return -1.0
+    return sum(total.values()) / iters / 1e6
