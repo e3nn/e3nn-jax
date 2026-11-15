@@ -355,8 +355,19 @@ def _err(a, ref):
 
 
 def check(path, pattern=None):
-    gold = np.load(path)
-    print(f"golden from {gold['__e3nn_file__']}; checking {e3nn.__file__}")
+    """Compare against golden dump(s). ``path`` may be a comma-separated list.
+
+    float64 references come from the first file. The float32 baseline error is
+    the worst over all files: on GPU the baseline's own float32 error is not
+    reproducible across processes for graphs with dots (XLA's autotuner may pick
+    a kernel that runs at TF32 or one that is exact float32), so one dump can
+    understate it by >1000x. Dump the baseline in several fresh processes.
+    """
+    golds = [np.load(p) for p in path.split(",")]
+    gold = golds[0]
+    print(
+        f"golden from {gold['__e3nn_file__']} ({len(golds)} dump(s)); checking {e3nn.__file__}"
+    )
     failures = 0
     worst64 = 0.0
     worst_ratio = 0.0
@@ -381,7 +392,6 @@ def check(path, pattern=None):
         else:
             for i in range(n):
                 ref64 = gold[f"{name}|float64|{i}"]
-                old32 = gold[f"{name}|float32|{i}"]
                 if ref64.shape != new64[i].shape:
                     problems.append(f"[{i}] shape {new64[i].shape} != {ref64.shape}")
                     continue
@@ -390,7 +400,7 @@ def check(path, pattern=None):
                 if e64 > F64_TOL:
                     problems.append(f"[{i}] f64 err {e64:.2e}")
                 e_new32 = _err(new32[i], ref64)
-                e_old32 = _err(old32, ref64)
+                e_old32 = max(_err(g[f"{name}|float32|{i}"], ref64) for g in golds)
                 ratio = e_new32 / max(e_old32, F32_FLOOR)
                 worst_ratio = max(worst_ratio, ratio)
                 if e_new32 > max(F32_RATIO * e_old32, F32_FLOOR):
