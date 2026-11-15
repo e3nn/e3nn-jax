@@ -1,6 +1,7 @@
 import itertools
 from typing import List, Optional
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -190,27 +191,55 @@ def elementwise_tensor_product(
             irreps_out.append((mul, ir_out))
 
             if x1 is not None and x2 is not None:
-                cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
+                with jax.ensure_compile_time_eval():
+                    cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
 
-                if irrep_normalization == "component":
-                    cg = cg * jnp.sqrt(ir_out.dim)
-                elif irrep_normalization == "norm":
-                    cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
-                elif irrep_normalization == "none":
-                    pass
-                else:
-                    raise ValueError(
-                        f"irrep_normalization={irrep_normalization} not supported"
-                    )
+                    if irrep_normalization == "component":
+                        cg = cg * jnp.sqrt(ir_out.dim)
+                    elif irrep_normalization == "norm":
+                        cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
+                    elif irrep_normalization == "none":
+                        pass
+                    else:
+                        raise ValueError(
+                            f"irrep_normalization={irrep_normalization} not supported"
+                        )
 
-                cg = cg.astype(x1.dtype)
-                chunk = jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, cg)
+                    cg = cg.astype(x1.dtype)
+
+                chunk = None
+                if ir_1.l == 0 or ir_2.l == 0:
+                    chunk = _scalar_irrep_product(x1, x2, cg, ir_1.l == 0)
+                if chunk is None:
+                    chunk = jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, cg)
             else:
                 chunk = None
 
             chunks.append(chunk)
 
     return e3nn.from_chunks(irreps_out, chunks, leading_shape, input1.dtype)
+
+
+def _scalar_irrep_product(
+    x1: jax.Array, x2: jax.Array, cg: jax.Array, first_is_scalar: bool
+) -> Optional[jax.Array]:
+    """Product of a scalar with an irrep as a broadcast multiply.
+
+    When one of the irreps is a scalar, the Clebsch-Gordan tensor is diagonal
+    (``cg[0, j, k] = c_k delta_jk`` or ``cg[i, 0, k] = c_k delta_ik``), so
+    ``einsum("ui,uj,ijk->uk")`` reduces to ``x1 * x2 * c``. This avoids a
+    contraction against a (mostly zero) dense matrix and lets XLA fuse the
+    whole operation into a single elementwise kernel. The skipped terms are
+    exact zeros, so the result is mathematically identical.
+
+    Returns ``None`` if ``cg`` does not have the expected diagonal structure.
+    """
+    cg = np.asarray(cg)
+    m = cg[0] if first_is_scalar else cg[:, 0, :]
+    diag = np.diagonal(m)
+    if not np.array_equal(m, np.diag(diag)):
+        return None
+    return x1 * x2 * jnp.asarray(diag)
 
 
 @overload_for_irreps_without_array((0,))
