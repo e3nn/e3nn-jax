@@ -51,6 +51,9 @@ def _cg_contract(x1: jax.Array, x2: jax.Array, cg: np.ndarray, mode: str) -> jax
     the ``(..., mul, ir.dim)`` layout, and reverse-mode autodiff yields single fused
     reductions. Arithmetic is plain floating point (no reduced-precision matmul
     units), so it is at least as accurate as the einsum.
+
+    When both multiplicities are 1 (e.g. channels kept on a separate axis) there is
+    nothing to broadcast over and the plain einsum is faster, so it is used instead.
     """
     cg = np.asarray(cg)
     if mode == "uv" and x1.shape[-2] < x2.shape[-2]:
@@ -58,6 +61,13 @@ def _cg_contract(x1: jax.Array, x2: jax.Array, cg: np.ndarray, mode: str) -> jax
         return jnp.swapaxes(out, -2, -3)
 
     c = jnp.asarray(cg, dtype=x1.dtype)
+    if x1.shape[-2] == 1 and x2.shape[-2] == 1:
+        # Multiplicity 1 on both sides (e.g. channels on a separate axis): nothing to
+        # broadcast over, and the reduction form lets XLA fuse every path into one
+        # large output kernel, which is slower than the plain contraction.
+        if mode == "uv":
+            return jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, c)
+        return jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, c)
     # M[..., v, i, k] = sum_j x2[..., v, j] cg[i, j, k]
     m = jnp.sum(x2[..., :, None, :, None] * c, axis=-2)
     if mode == "uv":
@@ -263,7 +273,7 @@ def elementwise_tensor_product(
                 if ir_1.l == 0 or ir_2.l == 0:
                     chunk = _scalar_irrep_product(x1, x2, cg, ir_1.l == 0)
                 if chunk is None:
-                    chunk = jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, cg)
+                    chunk = _cg_contract(x1, x2, np.asarray(cg), "uu")
             else:
                 chunk = None
 
