@@ -89,13 +89,15 @@ def run_one(name, size, mode, dtype_name, samples, hlo_path=None) -> dict:
     )
 
 
-def run_isolated(name, size, mode, dtype_name, samples, hlo_path=None) -> dict:
+def run_isolated(
+    name, size, mode, dtype_name, samples, hlo_path=None, env=None
+) -> dict:
     """Run :func:`run_one` in a fresh interpreter (clean GPU memory, clean peak stats)."""
     cmd = [sys.executable, "-m", "benchmarks.bench", "--one", name, str(size), mode]
     cmd += ["--dtype", dtype_name, "--samples", str(samples)]
     if hlo_path:
         cmd += ["--hlo-path", str(hlo_path)]
-    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, env=env)
     for line in reversed(proc.stdout.splitlines()):
         if line.startswith("{"):
             return json.loads(line)

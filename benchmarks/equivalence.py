@@ -15,7 +15,7 @@ input, in float64 and float32. The check requires:
 * the output irreps to be identical;
 * float64 results to match the baseline float64 results (max rel. error <= 1e-12);
 * float32 error vs the baseline float64 results to be no worse than the
-  baseline's own float32 error (ratio <= 2, absolute floor 1e-7).
+  baseline's own float32 error (ratio <= 2, floor 4 float32 ulps).
 """
 
 import sys
@@ -32,7 +32,9 @@ import e3nn_jax as e3nn  # noqa: E402
 
 F64_TOL = 1e-12
 F32_RATIO = 2.0
-F32_FLOOR = 1e-7
+# Errors below a few float32 ulps (relative to max|ref|) are reassociation noise,
+# not accuracy changes: eps32 = 2**-23 ~ 1.19e-7.
+F32_FLOOR = 4 * 2.0**-23
 
 CASES = {}
 
@@ -92,9 +94,14 @@ for i, (ir1, ir2) in enumerate(TP_PAIRS):
 
 @case("tensor_product/zero_chunks")
 def _(dtype):
-    x = e3nn.from_chunks("2x0e + 3x1o", [None, _a(7, (5, 3, 3), dtype)], (5,), dtype)
+    chunk = _a(7, (5, 3, 3), dtype)
     y = _n("0e + 1o", 8, (5,), dtype)
-    return (lambda x, y: e3nn.tensor_product(x.astype(dtype), y)), (x, y)
+
+    def f(chunk, y):
+        x = e3nn.from_chunks("2x0e + 3x1o", [None, chunk], (5,), chunk.dtype)
+        return e3nn.tensor_product(x, y)
+
+    return f, (chunk, y)
 
 
 @case("tensor_product/channels_axis")
@@ -280,14 +287,19 @@ def _cast(tree, dtype):
 
 
 def run_case(name, dtype):
-    fn, args = CASES[name](dtype)
+    # Inputs are always generated in float64 and then cast, so that the float32
+    # and float64 runs see the same values (up to rounding).
+    fn, args = CASES[name](jnp.float64)
     args = _cast(args, dtype)
 
     @jax.jit
     def go(*args):
         out, vjp = jax.vjp(fn, *args)
         ct = jax.tree.map(
-            lambda a: jax.random.normal(jax.random.PRNGKey(99), a.shape, a.dtype), out
+            lambda a: jax.random.normal(
+                jax.random.PRNGKey(99), a.shape, jnp.float64
+            ).astype(a.dtype),
+            out,
         )
         return out, vjp(ct)
 
