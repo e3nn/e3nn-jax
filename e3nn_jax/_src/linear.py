@@ -10,6 +10,34 @@ from e3nn_jax import Irreps, IrrepsArray, config
 from e3nn_jax._src.utils.sum_tensors import sum_tensors
 from e3nn_jax._src.utils.dtype import get_pytree_dtype
 
+# Channel mixing for one irrep, ``out[w, i] = sum_u W[u, w] x[u, i]``, applied to a
+# batch of ``n`` samples. With the mul-major layout XLA lowers the einsum to one GEMM
+# over ``(u, n * i)`` and needs a layout transpose on the way in and on the way out,
+# which costs more than the GEMM itself. Multiplying the flattened ``(n, u * i)`` input
+# by ``kron(W, I_i)`` is a single transpose-free GEMM with ``i``x the FLOPs; that is a
+# win while the GEMM stays memory-bound (``u * i`` small) and the batch is large enough
+# to amortise building the ``(u * i, w * i)`` matrix. Thresholds were measured on an
+# Ada laptop GPU (``benchmarks.paired``, linear_flax/* and tp_then_linear): 1.1-1.9x,
+# with no change in temporary memory. It is not used on CPU, where the einsum has no
+# layout problem (and where it keeps results bit-identical).
+_KRON_MAX_DIM = 512  # max u * i for the kron form
+_KRON_MIN_BATCH = 8  # min batch size, in units of u * i
+
+
+def _mix_channels(w: jax.Array, x: jax.Array, batch_size: int) -> jax.Array:
+    """``einsum("uw,ui->wi", w, x)`` for one sample; the caller vmaps over ``batch_size``."""
+    mul_in, d = x.shape
+    n = mul_in * d
+    if (
+        d > 1
+        and n <= _KRON_MAX_DIM
+        and batch_size >= _KRON_MIN_BATCH * n
+        and jax.default_backend() != "cpu"
+    ):
+        k = jnp.kron(w, jnp.eye(d, dtype=w.dtype))  # (u * d, w * d)
+        return (x.reshape(n) @ k).reshape(w.shape[1], d)
+    return jnp.einsum("uw,ui->wi", w, x)
+
 
 class Instruction(NamedTuple):
     i_in: int
@@ -167,6 +195,16 @@ class FunctionalLinear:
     def __call__(
         self, ws: Union[List[jax.Array], jax.Array], input: IrrepsArray
     ) -> IrrepsArray:
+        return self._call(ws, input, batch_size=0)
+
+    def _call(
+        self,
+        ws: Union[List[jax.Array], jax.Array],
+        input: IrrepsArray,
+        batch_size: int,
+    ) -> IrrepsArray:
+        """``__call__`` for one sample; ``batch_size`` is the number of samples the
+        caller vmaps over (0 if unknown), used to pick the contraction strategy."""
         input = input.rechunk(self.irreps_in)
         if input.ndim != 1:
             raise ValueError(
@@ -184,7 +222,7 @@ class FunctionalLinear:
                     None
                     if input.chunks[ins.i_in] is None
                     else ins.path_weight
-                    * jnp.einsum("uw,ui->wi", w, input.chunks[ins.i_in])
+                    * _mix_channels(w, input.chunks[ins.i_in], batch_size)
                 )
             )
             for ins, w in zip(self.instructions, ws)
@@ -242,7 +280,8 @@ def linear_vanilla(
         )
         for ins in linear.instructions
     ]
-    f = lambda x: linear(w, x)
+    batch_size = int(np.prod(input.shape[:-1]))
+    f = lambda x: linear._call(w, x, batch_size)
     for _ in range(input.ndim - 1):
         f = e3nn.utils.vmap(f)
 
