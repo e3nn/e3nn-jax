@@ -1,6 +1,7 @@
 import itertools
 from typing import List, Optional
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -25,6 +26,74 @@ def _prepare_inputs(input1, input2):
     input1 = input1.broadcast_to(leading_shape + (-1,))
     input2 = input2.broadcast_to(leading_shape + (-1,))
     return input1, input2, leading_shape
+
+
+def _cg_contract(x1: jax.Array, x2: jax.Array, cg: np.ndarray, mode: str) -> jax.Array:
+    r"""Contract two irrep chunks with a Clebsch-Gordan tensor.
+
+    Computes, for ``cg`` of shape ``(d1, d2, d3)``:
+
+    * ``mode="uv"``: ``out[..., u, v, k] = sum_ij x1[..., u, i] x2[..., v, j] cg[i, j, k]``
+      with ``x1: (..., u, d1)``, ``x2: (..., v, d2)``;
+    * ``mode="uu"``: ``out[..., u, k] = sum_ij x1[..., u, i] x2[..., u, j] cg[i, j, k]``
+      with ``x1: (..., u, d1)``, ``x2: (..., u, d2)``.
+
+    This is the same maths as ``jnp.einsum("...ui,...vj,ijk->...uvk", ...)`` but evaluated
+    in two broadcast-multiply-and-sum stages:
+
+    .. math::
+
+        M_{vki} = \sum_j x2_{vj} C_{ijk}, \qquad out_{uvk} = \sum_i x1_{ui} M_{vki}
+
+    with the CG tensor contracted first against the operand of smaller multiplicity.
+    On GPU this lowers to a few fused elementwise/reduction kernels instead of batched
+    GEMMs over tiny matrices plus layout transposes, the output is produced directly in
+    the ``(..., mul, ir.dim)`` layout, and reverse-mode autodiff yields single fused
+    reductions. Arithmetic is plain floating point (no reduced-precision matmul
+    units), so it is at least as accurate as the einsum.
+
+    When both multiplicities are 1 (e.g. channels kept on a separate axis) there is
+    nothing to broadcast over and the plain einsum is faster, so it is used instead.
+    """
+    cg = np.asarray(cg)
+    if mode == "uv" and x1.shape[-2] < x2.shape[-2]:
+        out = _cg_contract(x2, x1, cg.transpose(1, 0, 2), "uv")
+        return jnp.swapaxes(out, -2, -3)
+
+    c = jnp.asarray(cg, dtype=x1.dtype)
+    if x1.shape[-2] == 1 and x2.shape[-2] == 1:
+        # Multiplicity 1 on both sides (e.g. channels on a separate axis): nothing to
+        # broadcast over, and the reduction form lets XLA fuse every path into one
+        # large output kernel, which is slower than the plain contraction.
+        if mode == "uv":
+            return jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, c)
+        return jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, c)
+    # Both stages reduce over the minor-most axis, so the reductions are row
+    # reductions and the result comes out in the (..., mul, ir.dim) layout directly
+    # (reducing over a middle axis made XLA emit a transposed result plus a transpose).
+    ct = jnp.asarray(np.ascontiguousarray(cg.transpose(2, 0, 1)), dtype=x1.dtype)
+    # M[..., v, k, i] = sum_j x2[..., v, j] cg[i, j, k]
+    m = jnp.sum(x2[..., :, None, None, :] * ct, axis=-1)
+    if mode == "uv":
+        # out[..., u, v, k] = sum_i x1[..., u, i] M[..., v, k, i]
+        return jnp.sum(x1[..., :, None, None, :] * m[..., None, :, :, :], axis=-1)
+    if mode == "uu":
+        # out[..., u, k] = sum_i x1[..., u, i] M[..., u, k, i]
+        return jnp.sum(x1[..., :, None, :] * m, axis=-1)
+    raise ValueError(f"unknown mode {mode}")
+
+
+def _normalized_cg(l1: int, l2: int, l3: int, sqrt_of, dtype) -> np.ndarray:
+    """Clebsch-Gordan tensor times ``sqrt(sqrt_of)``, cast to ``dtype``, as concrete numpy.
+
+    Evaluated eagerly (even under ``jit``) with the same jnp operations the einsum-based
+    implementation used, so the coefficients are bit-identical.
+    """
+    with jax.ensure_compile_time_eval():
+        cg = e3nn.clebsch_gordan(l1, l2, l3)
+        if sqrt_of is not None:
+            cg = cg * jnp.sqrt(sqrt_of)
+        return np.asarray(jnp.asarray(cg).astype(dtype))
 
 
 def _validate_filter_ir_out(filter_ir_out):
@@ -105,21 +174,19 @@ def tensor_product(
                 irreps_out.append((mul_1 * mul_2, ir_out))
 
                 if x1 is not None and x2 is not None:
-                    cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
-
                     if irrep_normalization == "component":
-                        cg = cg * jnp.sqrt(ir_out.dim)
+                        sqrt_of = ir_out.dim
                     elif irrep_normalization == "norm":
-                        cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
+                        sqrt_of = ir_1.dim * ir_2.dim
                     elif irrep_normalization == "none":
-                        pass
+                        sqrt_of = None
                     else:
                         raise ValueError(
                             f"irrep_normalization={irrep_normalization} not supported"
                         )
 
-                    cg = cg.astype(x1.dtype)
-                    chunk = jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, cg)
+                    cg = _normalized_cg(ir_1.l, ir_2.l, ir_out.l, sqrt_of, x1.dtype)
+                    chunk = _cg_contract(x1, x2, cg, "uv")
                     chunk = jnp.reshape(
                         chunk, chunk.shape[:-3] + (mul_1 * mul_2, ir_out.dim)
                     )
@@ -190,27 +257,55 @@ def elementwise_tensor_product(
             irreps_out.append((mul, ir_out))
 
             if x1 is not None and x2 is not None:
-                cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
+                with jax.ensure_compile_time_eval():
+                    cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
 
-                if irrep_normalization == "component":
-                    cg = cg * jnp.sqrt(ir_out.dim)
-                elif irrep_normalization == "norm":
-                    cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
-                elif irrep_normalization == "none":
-                    pass
-                else:
-                    raise ValueError(
-                        f"irrep_normalization={irrep_normalization} not supported"
-                    )
+                    if irrep_normalization == "component":
+                        cg = cg * jnp.sqrt(ir_out.dim)
+                    elif irrep_normalization == "norm":
+                        cg = cg * jnp.sqrt(ir_1.dim * ir_2.dim)
+                    elif irrep_normalization == "none":
+                        pass
+                    else:
+                        raise ValueError(
+                            f"irrep_normalization={irrep_normalization} not supported"
+                        )
 
-                cg = cg.astype(x1.dtype)
-                chunk = jnp.einsum("...ui , ...uj , ijk -> ...uk", x1, x2, cg)
+                    cg = cg.astype(x1.dtype)
+
+                chunk = None
+                if ir_1.l == 0 or ir_2.l == 0:
+                    chunk = _scalar_irrep_product(x1, x2, cg, ir_1.l == 0)
+                if chunk is None:
+                    chunk = _cg_contract(x1, x2, np.asarray(cg), "uu")
             else:
                 chunk = None
 
             chunks.append(chunk)
 
     return e3nn.from_chunks(irreps_out, chunks, leading_shape, input1.dtype)
+
+
+def _scalar_irrep_product(
+    x1: jax.Array, x2: jax.Array, cg: jax.Array, first_is_scalar: bool
+) -> Optional[jax.Array]:
+    """Product of a scalar with an irrep as a broadcast multiply.
+
+    When one of the irreps is a scalar, the Clebsch-Gordan tensor is diagonal
+    (``cg[0, j, k] = c_k delta_jk`` or ``cg[i, 0, k] = c_k delta_ik``), so
+    ``einsum("ui,uj,ijk->uk")`` reduces to ``x1 * x2 * c``. This avoids a
+    contraction against a (mostly zero) dense matrix and lets XLA fuse the
+    whole operation into a single elementwise kernel. The skipped terms are
+    exact zeros, so the result is mathematically identical.
+
+    Returns ``None`` if ``cg`` does not have the expected diagonal structure.
+    """
+    cg = np.asarray(cg)
+    m = cg[0] if first_is_scalar else cg[:, 0, :]
+    diag = np.diagonal(m)
+    if not np.array_equal(m, np.diag(diag)):
+        return None
+    return x1 * x2 * jnp.asarray(diag)
 
 
 @overload_for_irreps_without_array((0,))
@@ -285,9 +380,8 @@ def tensor_square(
                     if x1 is None or x2 is None:
                         chunks.append(None)
                     else:
-                        cg = e3nn.clebsch_gordan(ir_1.l, ir_2.l, ir_out.l)
-                        cg = cg.astype(x1.dtype) * jnp.sqrt(alpha)
-                        chunk = jnp.einsum("...ui , ...vj , ijk -> ...uvk", x1, x2, cg)
+                        cg = _square_cg(ir_1.l, ir_2.l, ir_out.l, alpha, x1.dtype)
+                        chunk = _cg_contract(x1, x2, cg, "uv")
                         chunk = jnp.reshape(
                             chunk, chunk.shape[:-3] + (mul_1 * mul_2, ir_out.dim)
                         )
@@ -304,17 +398,14 @@ def tensor_square(
                         if x is None:
                             chunks.append(None)
                         else:
-                            cg = e3nn.clebsch_gordan(ir.l, ir.l, ir_out.l)
-                            cg = cg.astype(x.dtype) * jnp.sqrt(alpha)
-                            uvw = np.zeros(
-                                (mul, mul, mul * (mul - 1) // 2), dtype=x.dtype
-                            )
+                            cg = _square_cg(ir.l, ir.l, ir_out.l, alpha, x.dtype)
+                            # Pairs u < v in itertools.combinations order. Gathering
+                            # just these pairs is O(mul^2), instead of computing all
+                            # mul^2 products and contracting them with a one-hot
+                            # (mul, mul, mul (mul - 1) / 2) selector (O(mul^4)).
                             i, j = zip(*itertools.combinations(range(mul), 2))
-                            uvw[i, j, np.arange(len(i))] = 1
-
-                            chunk = jnp.einsum(
-                                "...ui , ...vj , ijk , uvw -> ...wk", x, x, cg, uvw
-                            )
+                            i, j = np.array(i), np.array(j)
+                            chunk = _cg_contract(x[..., i, :], x[..., j, :], cg, "uu")
                             chunks.append(chunk)
 
                     if ir_out.l % 2 == 0:
@@ -358,9 +449,8 @@ def tensor_square(
                         if x is None:
                             chunks.append(None)
                         else:
-                            cg = e3nn.clebsch_gordan(ir.l, ir.l, ir_out.l)
-                            cg = cg.astype(x.dtype) * jnp.sqrt(alpha)
-                            chunk = jnp.einsum("...ui , ...uj , ijk -> ...uk", x, x, cg)
+                            cg = _square_cg(ir.l, ir.l, ir_out.l, alpha, x.dtype)
+                            chunk = _cg_contract(x, x, cg, "uu")
                             chunks.append(chunk)
 
     irreps_out = e3nn.Irreps(irreps_out)
@@ -370,3 +460,13 @@ def tensor_square(
     if regroup_output:
         output = output.regroup()
     return output
+
+
+def _square_cg(l1: int, l2: int, l3: int, alpha, dtype) -> np.ndarray:
+    """``clebsch_gordan(l1, l2, l3).astype(dtype) * sqrt(alpha)`` as concrete numpy.
+
+    Same operations, in the same order, as the einsum-based implementation.
+    """
+    with jax.ensure_compile_time_eval():
+        cg = jnp.asarray(e3nn.clebsch_gordan(l1, l2, l3).astype(dtype))
+        return np.asarray(cg * jnp.sqrt(alpha))
