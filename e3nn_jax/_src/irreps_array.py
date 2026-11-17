@@ -2,7 +2,7 @@ import functools
 import math
 import operator
 import warnings
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable
 
 import jax
 import jax.numpy as jnp
@@ -78,10 +78,10 @@ class IrrepsArray:
 
     irreps: Irreps = attrib(converter=Irreps)
     array: jax.Array = attrib()
-    _zero_flags: Optional[Tuple[bool, ...]] = attrib(
+    _zero_flags: tuple[bool, ...] | None = attrib(
         default=None, kw_only=True, converter=lambda x: None if x is None else tuple(x)
     )
-    _chunks: Optional[List[Optional[jax.Array]]] = attrib(default=None, kw_only=True)
+    _chunks: "list[jax.Array | None] | None" = attrib(default=None, kw_only=True)
 
     def __attrs_post_init__(self):
         if (
@@ -116,8 +116,8 @@ class IrrepsArray:
     @staticmethod
     def from_list(
         irreps: IntoIrreps,
-        chunks: List[Optional[jax.Array]],
-        leading_shape: Tuple[int, ...],
+        chunks: "list[jax.Array | None]",
+        leading_shape: tuple[int, ...],
         dtype=None,
         *,
         backend=None,
@@ -129,7 +129,7 @@ class IrrepsArray:
         return e3nn.from_chunks(irreps, chunks, leading_shape, dtype, backend=backend)
 
     @staticmethod
-    def as_irreps_array(array: Union[jax.Array, "IrrepsArray"], *, backend=None):
+    def as_irreps_array(array: "jax.Array | IrrepsArray", *, backend=None):
         warnings.warn(
             "IrrepsArray.as_irreps_array is deprecated, use e3nn.as_irreps_array instead.",
             DeprecationWarning,
@@ -153,7 +153,7 @@ class IrrepsArray:
         return e3nn.zeros_like(irreps_array)
 
     @property
-    def list(self) -> List[Optional[jax.Array]]:
+    def list(self) -> "list[jax.Array | None]":
         warnings.warn(
             "IrrepsArray.list is deprecated, use IrrepsArray.chunks instead.",
             DeprecationWarning,
@@ -161,7 +161,7 @@ class IrrepsArray:
         return self.chunks
 
     @property
-    def chunks(self) -> List[Optional[jax.Array]]:
+    def chunks(self) -> "list[jax.Array | None]":
         r"""List of arrays matching each item of the ``.irreps``.
 
         Examples:
@@ -246,7 +246,7 @@ class IrrepsArray:
         return len(self.array)
 
     def __eq__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array]
+        self: "IrrepsArray", other: "IrrepsArray | jax.Array"
     ) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
@@ -292,7 +292,7 @@ class IrrepsArray:
         )
 
     def __add__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array, float, int]
+        self: "IrrepsArray", other: "IrrepsArray | jax.Array | float | int"
     ) -> "IrrepsArray":  # noqa: D105
         if isinstance(other, (float, int)) and other == 0:
             return self
@@ -324,13 +324,11 @@ class IrrepsArray:
             self.irreps, self.array + other.array, zero_flags=zero_flags, chunks=chunks
         )
 
-    def __radd__(
-        self: "IrrepsArray", other: Union[jax.Array, float, int]
-    ) -> "IrrepsArray":
+    def __radd__(self: "IrrepsArray", other: jax.Array | float | int) -> "IrrepsArray":
         return self + other
 
     def __sub__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array, float, int]
+        self: "IrrepsArray", other: "IrrepsArray | jax.Array | float | int"
     ) -> "IrrepsArray":  # noqa: D105
         if isinstance(other, (float, int)) and other == 0:
             return self
@@ -362,13 +360,11 @@ class IrrepsArray:
             self.irreps, self.array - other.array, zero_flags=zero_flags, chunks=chunks
         )
 
-    def __rsub__(
-        self: "IrrepsArray", other: Union[jax.Array, float, int]
-    ) -> "IrrepsArray":
+    def __rsub__(self: "IrrepsArray", other: jax.Array | float | int) -> "IrrepsArray":
         return -self + other
 
     def __mul__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array]
+        self: "IrrepsArray", other: "IrrepsArray | jax.Array"
     ) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
@@ -408,7 +404,7 @@ class IrrepsArray:
         return self * other
 
     def __truediv__(
-        self: "IrrepsArray", other: Union["IrrepsArray", jax.Array]
+        self: "IrrepsArray", other: "IrrepsArray | jax.Array"
     ) -> "IrrepsArray":  # noqa: D105
         jnp = _infer_backend(self.array)
 
@@ -739,13 +735,9 @@ class IrrepsArray:
 
     def filter(
         self,
-        keep: Union[
-            e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]
-        ] = None,
+        keep: "e3nn.Irreps | list[e3nn.Irrep] | Callable[[e3nn.MulIrrep], bool]" = None,
         *,
-        drop: Union[
-            e3nn.Irreps, List[e3nn.Irrep], Callable[[e3nn.MulIrrep], bool]
-        ] = None,
+        drop: "e3nn.Irreps | list[e3nn.Irrep] | Callable[[e3nn.MulIrrep], bool]" = None,
         lmax: int = None,
     ) -> "IrrepsArray":
         r"""Filter the irreps.
@@ -872,9 +864,7 @@ class IrrepsArray:
 
     # Move multiplicity to the previous last axis and back
 
-    def mul_to_axis(
-        self, factor: Optional[int] = None, axis: int = -2
-    ) -> "IrrepsArray":
+    def mul_to_axis(self, factor: int | None = None, axis: int = -2) -> "IrrepsArray":
         r"""Create a new axis in the previous last position by factoring the multiplicities.
 
         Increase the dimension of the array by 1.
@@ -1243,8 +1233,8 @@ jax.tree_util.register_pytree_node(
 
 
 def _standardize_axis(
-    axis: Union[None, int, Tuple[int, ...]], result_ndim: int
-) -> Tuple[int, ...]:
+    axis: int | tuple[int, ...] | None, result_ndim: int
+) -> tuple[int, ...]:
     if axis is None:
         return tuple(range(result_ndim))
     try:

@@ -11,7 +11,7 @@ authors=[
 ]
 readme="README.md"
 license = {file = "LICENSE"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
   "jax",
   "jaxlib",
@@ -20,9 +20,11 @@ dependencies = [
   "attrs",
 ]
 classifiers = [
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 
 [project.urls]
@@ -60,7 +62,7 @@ exclude = [
 select = ["D415", "D403"]
 
 [tool.black]
-target-version = ['py311']
+target-version = ['py310']
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -93,3 +95,6 @@ max-complexity = 64
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.pytest_env]
+XLA_PYTHON_CLIENT_PREALLOCATE = false # Don't allow JAX to preallocate memory

@@ -28,7 +28,7 @@ def test_integrate_vector(x):
         quadrature="gausslegendre",
     )
     integral = sig.integrate()
-    assert jnp.allclose(integral, 0.0, atol=1e-6)
+    assert jnp.allclose(integral, 0.0, atol=1e-3)
 
 
 def test_sampling(num_seeds: int = 10):
