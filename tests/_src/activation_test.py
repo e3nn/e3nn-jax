@@ -28,12 +28,13 @@ def test_irreps_argument():
     ) == e3nn.Irreps("0e + 0o + 0e + 0e")
 
 
-def test_norm_act():
+@pytest.mark.parametrize("jac", (jax.jacrev, jax.jacfwd))
+def test_norm_act(jac):
     def phi(n):
         return 1.0 / (1.0 + n * e3nn.sus(n))
 
     def f(x):
         return e3nn.norm_activation(e3nn.IrrepsArray("1o", x), [phi]).array
 
-    J = jax.jacobian(f)(jnp.array([0.0, 0.0, 1e-9]))
+    J = jac(f)(jnp.array([0.0, 0.0, 1e-9]))
     np.testing.assert_allclose(J, np.diag([1.0, 1.0, 1.0]))
